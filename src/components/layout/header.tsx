@@ -57,10 +57,14 @@ export function Header() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex md:items-center md:gap-3">
-            <Button variant="ghost" size="sm">
-              Connexion
-            </Button>
-            <Button size="sm">Demander une démo</Button>
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Connexion
+              </Button>
+            </Link>
+            <Link href="/register">
+              <Button size="sm">Demander une démo</Button>
+            </Link>
           </div>
 
           {/* Mobile menu button */}
@@ -88,10 +92,14 @@ export function Header() {
                 </Link>
               ))}
               <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
-                <Button variant="outline" className="w-full">
-                  Connexion
-                </Button>
-                <Button className="w-full">Demander une démo</Button>
+                <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <Button variant="outline" className="w-full">
+                    Connexion
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                  <Button className="w-full">Demander une démo</Button>
+                </Link>
               </div>
             </div>
           </div>
