@@ -185,13 +185,12 @@ model Contract {
   status         ContractStatus @default(ACTIF)
   description    String?
   documentUrl    String?
-  siteId         String
   organizationId String
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   // Relations
-  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  sites        Site[]       // Many-to-many: un contrat peut couvrir plusieurs sites
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices     Invoice[]
 

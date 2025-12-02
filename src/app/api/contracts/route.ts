@@ -10,7 +10,7 @@ export async function GET() {
     const contracts = await prisma.contract.findMany({
       where: { organizationId: user.organizationId },
       include: {
-        site: {
+        sites: {
           select: { id: true, name: true, type: true },
         },
       },
@@ -41,6 +41,13 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // siteIds peut être un tableau ou un seul ID (rétrocompatibilité)
+    const siteIds: string[] = Array.isArray(body.siteIds)
+      ? body.siteIds
+      : body.siteId
+        ? [body.siteId]
+        : [];
+
     const contract = await prisma.contract.create({
       data: {
         reference: body.reference,
@@ -53,8 +60,15 @@ export async function POST(request: NextRequest) {
         amountP3: parseFloat(body.amountP3),
         status: body.status || "ACTIF",
         description: body.description,
-        siteId: body.siteId,
+        sites: {
+          connect: siteIds.map((id: string) => ({ id })),
+        },
         organizationId: user.organizationId,
+      },
+      include: {
+        sites: {
+          select: { id: true, name: true, type: true },
+        },
       },
     });
 

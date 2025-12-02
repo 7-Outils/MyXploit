@@ -8,6 +8,7 @@ import {
   Euro,
   Loader2,
   X,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -30,7 +31,7 @@ interface Contract {
   amountP2: number;
   amountP3: number;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
-  site: Site;
+  sites: Site[];
 }
 
 const statusLabels = {
@@ -56,8 +57,11 @@ export default function ContractsPage() {
     amountP1: "",
     amountP2: "",
     amountP3: "",
-    siteId: "",
   });
+
+  const [showSitesModal, setShowSitesModal] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [updatingSites, setUpdatingSites] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -104,7 +108,6 @@ export default function ContractsPage() {
           amountP1: "",
           amountP2: "",
           amountP3: "",
-          siteId: "",
         });
       }
     } catch (error) {
@@ -219,34 +222,161 @@ export default function ContractsPage() {
                         {new Date(contract.startDate).toLocaleDateString("fr-FR")} →{" "}
                         {new Date(contract.endDate).toLocaleDateString("fr-FR")}
                       </span>
-                      <span>Site : {contract.site?.name || "Non assigné"}</span>
+                      <span>
+                        {contract.sites.length > 0
+                          ? `${contract.sites.length} site${contract.sites.length > 1 ? "s" : ""} : ${contract.sites.map((s) => s.name).join(", ")}`
+                          : "Aucun site assigné"}
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <p className="text-xs text-text-secondary">P1</p>
-                    <p className="font-semibold text-primary-dark">
-                      {(contract.amountP1 / 1000).toFixed(0)}k€
-                    </p>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <p className="text-xs text-text-secondary">P1</p>
+                      <p className="font-semibold text-primary-dark">
+                        {(contract.amountP1 / 1000).toFixed(0)}k€
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-text-secondary">P2</p>
+                      <p className="font-semibold text-primary-dark">
+                        {(contract.amountP2 / 1000).toFixed(0)}k€
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-text-secondary">P3</p>
+                      <p className="font-semibold text-primary-dark">
+                        {(contract.amountP3 / 1000).toFixed(0)}k€
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-xs text-text-secondary">P2</p>
-                    <p className="font-semibold text-primary-dark">
-                      {(contract.amountP2 / 1000).toFixed(0)}k€
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-text-secondary">P3</p>
-                    <p className="font-semibold text-primary-dark">
-                      {(contract.amountP3 / 1000).toFixed(0)}k€
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedContract(contract);
+                      setShowSitesModal(true);
+                    }}
+                    className="p-2 text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                    title="Gérer les sites"
+                  >
+                    <Building2 size={20} />
+                  </button>
                 </div>
               </div>
             </ChartCard>
           ))}
+        </div>
+      )}
+
+      {/* Sites Modal */}
+      {showSitesModal && selectedContract && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-primary-dark">
+                  Gérer les sites
+                </h2>
+                <p className="text-sm text-text-secondary">
+                  {selectedContract.title}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowSitesModal(false);
+                  setSelectedContract(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              {sites.length === 0 ? (
+                <p className="text-center text-text-secondary py-4">
+                  Aucun site disponible
+                </p>
+              ) : (
+                sites.map((site) => {
+                  const isSelected = selectedContract.sites.some(
+                    (s) => s.id === site.id
+                  );
+                  return (
+                    <label
+                      key={site.id}
+                      className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-colors ${
+                        isSelected
+                          ? "bg-accent/10 border-2 border-accent"
+                          : "bg-background-secondary hover:bg-gray-100 border-2 border-transparent"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={async (e) => {
+                          setUpdatingSites(true);
+                          try {
+                            const newSiteIds = e.target.checked
+                              ? [...selectedContract.sites.map((s) => s.id), site.id]
+                              : selectedContract.sites
+                                  .filter((s) => s.id !== site.id)
+                                  .map((s) => s.id);
+
+                            const response = await fetch(
+                              `/api/contracts/${selectedContract.id}`,
+                              {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ siteIds: newSiteIds }),
+                              }
+                            );
+
+                            if (response.ok) {
+                              await fetchData();
+                              // Update selectedContract with new sites
+                              const updatedContract = await response.json();
+                              setSelectedContract(updatedContract);
+                            }
+                          } catch (error) {
+                            console.error("Error updating sites:", error);
+                          } finally {
+                            setUpdatingSites(false);
+                          }
+                        }}
+                        className="w-5 h-5 text-accent rounded border-gray-300 focus:ring-accent"
+                        disabled={updatingSites}
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-primary-dark">
+                          {site.name}
+                        </p>
+                        <p className="text-sm text-text-secondary">{site.type}</p>
+                      </div>
+                      {isSelected && (
+                        <span className="text-xs font-medium text-accent">
+                          Rattaché
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100">
+              <Button
+                className="w-full"
+                onClick={() => {
+                  setShowSitesModal(false);
+                  setSelectedContract(null);
+                }}
+              >
+                Fermer
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -267,42 +397,20 @@ export default function ContractsPage() {
             </div>
 
             <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Référence *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.reference}
-                    onChange={(e) =>
-                      setFormData({ ...formData, reference: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="MC-2024-001"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Site *
-                  </label>
-                  <select
-                    required
-                    value={formData.siteId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, siteId: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="">Sélectionner un site</option>
-                    {sites.map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Référence *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.reference}
+                  onChange={(e) =>
+                    setFormData({ ...formData, reference: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="MC-2024-001"
+                />
               </div>
 
               <div>
