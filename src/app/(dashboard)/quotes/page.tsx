@@ -14,28 +14,15 @@ import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 
-interface Site {
-  id: string;
-  name: string;
-}
-
-interface Contract {
-  id: string;
-  reference: string;
-  provider: string;
-}
-
 interface Quote {
   id: string;
   reference: string;
   title: string;
+  provider: string;
   description: string | null;
-  type: "P1" | "P2" | "P3";
   status: "BROUILLON" | "ENVOYE" | "ACCEPTE" | "REFUSE" | "EXPIRE";
   amount: number;
   validUntil: string;
-  site: Site | null;
-  contract: Contract | null;
   createdAt: string;
 }
 
@@ -64,8 +51,6 @@ const statusConfig = {
 
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -73,30 +58,18 @@ export default function QuotesPage() {
   const [formData, setFormData] = useState({
     reference: "",
     title: "",
+    provider: "",
     description: "",
-    type: "P3",
     amount: "",
     validUntil: "",
-    siteId: "",
-    contractId: "",
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [quotesRes, sitesRes, contractsRes] = await Promise.all([
-        fetch("/api/quotes"),
-        fetch("/api/sites"),
-        fetch("/api/contracts"),
-      ]);
-      const [quotesData, sitesData, contractsData] = await Promise.all([
-        quotesRes.json(),
-        sitesRes.json(),
-        contractsRes.json(),
-      ]);
-      setQuotes(quotesData);
-      setSites(sitesData);
-      setContracts(contractsData);
+      const response = await fetch("/api/quotes");
+      const data = await response.json();
+      setQuotes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -123,12 +96,10 @@ export default function QuotesPage() {
         setFormData({
           reference: "",
           title: "",
+          provider: "",
           description: "",
-          type: "P3",
           amount: "",
           validUntil: "",
-          siteId: "",
-          contractId: "",
         });
       }
     } catch (error) {
@@ -249,8 +220,7 @@ export default function QuotesPage() {
                         {quote.title}
                       </p>
                       <p className="text-sm text-text-secondary">
-                        {quote.site?.name || "Aucun site"} •{" "}
-                        {quote.contract?.provider || "Aucun fournisseur"}
+                        {quote.reference} • {quote.provider}
                       </p>
                     </div>
                   </div>
@@ -336,20 +306,18 @@ export default function QuotesPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Type *
+                    Fournisseur *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     required
-                    value={formData.type}
+                    value={formData.provider}
                     onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
+                      setFormData({ ...formData, provider: e.target.value })
                     }
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="P1">P1 - Énergie</option>
-                    <option value="P2">P2 - Maintenance</option>
-                    <option value="P3">P3 - Travaux</option>
-                  </select>
+                    placeholder="ENGIE, Dalkia..."
+                  />
                 </div>
               </div>
 
@@ -367,47 +335,6 @@ export default function QuotesPage() {
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   placeholder="Remplacement chaudière"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Site
-                  </label>
-                  <select
-                    value={formData.siteId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, siteId: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="">Sélectionner un site</option>
-                    {sites.map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Contrat
-                  </label>
-                  <select
-                    value={formData.contractId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, contractId: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="">Sélectionner un contrat</option>
-                    {contracts.map((contract) => (
-                      <option key={contract.id} value={contract.id}>
-                        {contract.reference} - {contract.provider}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -16,10 +16,6 @@ export async function GET(
         id,
         organizationId: user.organizationId,
       },
-      include: {
-        site: true,
-        contract: true,
-      },
     });
 
     if (!quote) {
@@ -76,17 +72,11 @@ export async function PUT(
       data: {
         ...(body.reference && { reference: body.reference }),
         ...(body.title && { title: body.title }),
+        ...(body.provider && { provider: body.provider }),
         ...(body.description !== undefined && { description: body.description }),
-        ...(body.type && { type: body.type }),
         ...(body.status && { status: body.status }),
         ...(body.amount && { amount: parseFloat(body.amount) }),
         ...(body.validUntil && { validUntil: new Date(body.validUntil) }),
-        ...(body.siteId !== undefined && {
-          siteId: body.siteId || null,
-        }),
-        ...(body.contractId !== undefined && {
-          contractId: body.contractId || null,
-        }),
       },
     });
 
