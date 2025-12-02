@@ -18,7 +18,9 @@ export async function GET(
       },
       include: {
         sites: {
-          select: { id: true, name: true, type: true },
+          include: {
+            equipments: true,
+          },
         },
       },
     });
