@@ -15,6 +15,7 @@ export default function SignInPage() {
         </div>
 
         <SignIn
+          forceRedirectUrl="/overview"
           appearance={{
             elements: {
               rootBox: "mx-auto",
