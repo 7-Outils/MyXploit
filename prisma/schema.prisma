@@ -1,0 +1,373 @@
+// MyExploit - Database Schema
+// Gestion des marchés CVC et performance énergétique
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ORGANIZATION & USERS (Multi-tenant)
+// ============================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logo      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users        User[]
+  sites        Site[]
+  contracts    Contract[]
+  invoices     Invoice[]
+  quotes       Quote[]
+  meetings     Meeting[]
+  alerts       Alert[]
+  equipments   Equipment[]
+  consumptions Consumption[]
+
+  @@map("organizations")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  READER
+}
+
+model User {
+  id             String   @id @default(cuid())
+  clerkId        String   @unique // ID from Clerk
+  email          String
+  firstName      String?
+  lastName       String?
+  role           UserRole @default(READER)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdSites Site[]       @relation("CreatedBy")
+
+  @@map("users")
+}
+
+// ============================================
+// SITES / PATRIMOINE
+// ============================================
+
+enum SiteType {
+  LYCEE
+  COLLEGE
+  ECOLE
+  MAIRIE
+  HOPITAL
+  GYMNASE
+  PISCINE
+  MEDIATHEQUE
+  AUTRE
+}
+
+enum EnergyType {
+  GAZ
+  ELECTRICITE
+  FIOUL
+  BOIS
+  RESEAU_CHALEUR
+  AUTRE
+}
+
+model Site {
+  id             String     @id @default(cuid())
+  name           String
+  type           SiteType
+  address        String
+  city           String
+  postalCode     String
+  surface        Float? // m²
+  energyType     EnergyType
+  annualBudget   Float? // Budget annuel estimé
+  latitude       Float?
+  longitude      Float?
+  image          String?
+  organizationId String
+  createdById    String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("CreatedBy", fields: [createdById], references: [id])
+  contracts    Contract[]
+  equipments   Equipment[]
+  consumptions Consumption[]
+  invoices     Invoice[]
+  alerts       Alert[]
+  meetings     Meeting[]
+
+  @@map("sites")
+}
+
+// ============================================
+// EQUIPEMENTS CVC
+// ============================================
+
+enum EquipmentType {
+  CHAUDIERE
+  CLIMATISATION
+  VMC
+  PAC // Pompe à chaleur
+  RADIATEUR
+  PLANCHER_CHAUFFANT
+  CTA // Centrale de traitement d'air
+  AUTRE
+}
+
+enum EquipmentStatus {
+  OPERATIONNEL
+  MAINTENANCE
+  PANNE
+  HORS_SERVICE
+}
+
+model Equipment {
+  id             String          @id @default(cuid())
+  name           String
+  type           EquipmentType
+  brand          String?
+  model          String?
+  serialNumber   String?
+  installDate    DateTime?
+  warrantyEnd    DateTime?
+  power          Float? // kW
+  status         EquipmentStatus @default(OPERATIONNEL)
+  siteId         String
+  organizationId String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("equipments")
+}
+
+// ============================================
+// CONTRATS
+// ============================================
+
+enum ContractStatus {
+  ACTIF
+  EXPIRE
+  EN_ATTENTE
+  RESILIE
+}
+
+model Contract {
+  id             String         @id @default(cuid())
+  reference      String
+  title          String
+  provider       String // Exploitant (ENGIE, Dalkia, etc.)
+  startDate      DateTime
+  endDate        DateTime
+  amountP1       Float // Forfait P1 - Combustible
+  amountP2       Float // Forfait P2 - Petit entretien
+  amountP3       Float // Forfait P3 - Gros entretien
+  status         ContractStatus @default(ACTIF)
+  description    String?
+  documentUrl    String?
+  siteId         String
+  organizationId String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+
+  @@map("contracts")
+}
+
+// ============================================
+// CONSOMMATIONS ENERGETIQUES
+// ============================================
+
+model Consumption {
+  id             String     @id @default(cuid())
+  siteId         String
+  organizationId String
+  energyType     EnergyType
+  period         DateTime // Mois de consommation
+  quantity       Float // kWh ou m³ ou litres
+  unit           String // kWh, m³, L
+  cost           Float? // Coût en €
+  dju            Float? // Degrés Jours Unifiés
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, energyType, period])
+  @@map("consumptions")
+}
+
+// ============================================
+// FACTURES
+// ============================================
+
+enum InvoiceStatus {
+  BROUILLON
+  EN_ATTENTE
+  VALIDEE
+  PAYEE
+  CONTESTEE
+}
+
+enum InvoiceType {
+  P1
+  P2
+  P3
+  TRAVAUX
+  AUTRE
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  reference      String
+  type           InvoiceType
+  status         InvoiceStatus @default(BROUILLON)
+  amount         Float
+  taxAmount      Float?
+  issueDate      DateTime
+  dueDate        DateTime
+  paidDate       DateTime?
+  description    String?
+  documentUrl    String?
+  siteId         String
+  contractId     String?
+  organizationId String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  contract     Contract?    @relation(fields: [contractId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("invoices")
+}
+
+// ============================================
+// DEVIS
+// ============================================
+
+enum QuoteStatus {
+  BROUILLON
+  ENVOYE
+  ACCEPTE
+  REFUSE
+  EXPIRE
+}
+
+model Quote {
+  id             String      @id @default(cuid())
+  reference      String
+  title          String
+  provider       String
+  amount         Float
+  status         QuoteStatus @default(BROUILLON)
+  validUntil     DateTime
+  description    String?
+  documentUrl    String?
+  organizationId String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("quotes")
+}
+
+// ============================================
+// REUNIONS D'EXPLOITATION
+// ============================================
+
+enum MeetingType {
+  EXPLOITATION
+  TRAVAUX
+  BILAN_ANNUEL
+  URGENCE
+  AUTRE
+}
+
+model Meeting {
+  id             String      @id @default(cuid())
+  title          String
+  type           MeetingType
+  date           DateTime
+  location       String?
+  attendees      String[] // Liste des participants
+  agenda         String? // Ordre du jour
+  notes          String? // Compte-rendu
+  siteId         String?
+  organizationId String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  site         Site?        @relation(fields: [siteId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("meetings")
+}
+
+// ============================================
+// ALERTES
+// ============================================
+
+enum AlertType {
+  DERIVE_CONSOMMATION
+  CONTRAT_EXPIRATION
+  FACTURE_ECHEANCE
+  EQUIPEMENT_MAINTENANCE
+  EQUIPEMENT_PANNE
+  AUTRE
+}
+
+enum AlertPriority {
+  BASSE
+  MOYENNE
+  HAUTE
+  CRITIQUE
+}
+
+model Alert {
+  id             String        @id @default(cuid())
+  type           AlertType
+  priority       AlertPriority @default(MOYENNE)
+  title          String
+  message        String
+  isRead         Boolean       @default(false)
+  siteId         String?
+  organizationId String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  site         Site?        @relation(fields: [siteId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("alerts")
+}
