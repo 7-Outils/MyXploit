@@ -1,11 +1,11 @@
 "use client";
 
-import { Bell, Search, User, ChevronDown } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { useState } from "react";
+import { UserButton } from "@clerk/nextjs";
 
 export function Topbar() {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
 
   const notifications = [
     {
@@ -52,14 +52,11 @@ export function Topbar() {
       </div>
 
       {/* Right side */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => {
-              setShowNotifications(!showNotifications);
-              setShowProfile(false);
-            }}
+            onClick={() => setShowNotifications(!showNotifications)}
             className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Bell size={20} />
@@ -102,48 +99,14 @@ export function Topbar() {
           )}
         </div>
 
-        {/* Profile */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              setShowProfile(!showProfile);
-              setShowNotifications(false);
-            }}
-            className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <div className="w-8 h-8 bg-accent/10 rounded-full flex items-center justify-center">
-              <User size={16} className="text-accent" />
-            </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-primary-dark">
-                Jean Dupont
-              </p>
-              <p className="text-xs text-text-secondary">Gestionnaire</p>
-            </div>
-            <ChevronDown size={16} className="text-gray-400 hidden sm:block" />
-          </button>
-
-          {showProfile && (
-            <div className="absolute right-0 top-12 w-48 bg-white rounded-xl shadow-large border border-gray-100 py-2 z-50">
-              <a
-                href="/settings"
-                className="block px-4 py-2 text-sm text-text-secondary hover:bg-gray-50 hover:text-primary-dark"
-              >
-                Mon profil
-              </a>
-              <a
-                href="/settings"
-                className="block px-4 py-2 text-sm text-text-secondary hover:bg-gray-50 hover:text-primary-dark"
-              >
-                Paramètres
-              </a>
-              <hr className="my-2 border-gray-100" />
-              <button className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50">
-                Déconnexion
-              </button>
-            </div>
-          )}
-        </div>
+        {/* User Profile - Clerk UserButton */}
+        <UserButton
+          appearance={{
+            elements: {
+              avatarBox: "w-9 h-9",
+            },
+          }}
+        />
       </div>
     </header>
   );
