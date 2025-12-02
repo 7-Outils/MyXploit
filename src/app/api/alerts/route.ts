@@ -43,8 +43,9 @@ export async function POST(request: NextRequest) {
 
     const alert = await prisma.alert.create({
       data: {
-        type: body.type,
-        severity: body.severity || "INFO",
+        type: body.type || "AUTRE",
+        priority: body.priority || "MOYENNE",
+        title: body.title || "Nouvelle alerte",
         message: body.message,
         isRead: false,
         siteId: body.siteId || null,

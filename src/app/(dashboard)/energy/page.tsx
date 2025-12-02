@@ -34,7 +34,8 @@ interface Consumption {
 interface Alert {
   id: string;
   type: string;
-  severity: "INFO" | "WARNING" | "CRITICAL";
+  priority: "BASSE" | "MOYENNE" | "HAUTE" | "CRITIQUE";
+  title: string;
   message: string;
   site: Site | null;
   createdAt: string;
@@ -119,7 +120,7 @@ export default function EnergyPage() {
     .filter((c) => c.type === "GAZ")
     .reduce((sum, c) => sum + c.value, 0);
   const activeAlerts = alerts.filter((a) => !a.isRead);
-  const criticalAlerts = alerts.filter((a) => a.severity === "CRITICAL");
+  const criticalAlerts = alerts.filter((a) => a.priority === "CRITIQUE");
 
   // Données pour le graphique (agrégées par mois)
   const monthlyData = [
@@ -242,9 +243,9 @@ export default function EnergyPage() {
                 <div
                   key={alert.id}
                   className={`p-4 rounded-lg border-l-4 ${
-                    alert.severity === "CRITICAL"
+                    alert.priority === "CRITIQUE"
                       ? "bg-red-50 border-red-500"
-                      : alert.severity === "WARNING"
+                      : alert.priority === "HAUTE"
                       ? "bg-yellow-50 border-yellow-500"
                       : "bg-blue-50 border-blue-500"
                   }`}
@@ -252,7 +253,7 @@ export default function EnergyPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-medium text-primary-dark">
-                        {alert.site?.name || "Général"}
+                        {alert.title}
                       </p>
                       <p className="text-sm text-text-secondary">
                         {alert.message}
@@ -260,14 +261,14 @@ export default function EnergyPage() {
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-1 rounded ${
-                        alert.severity === "CRITICAL"
+                        alert.priority === "CRITIQUE"
                           ? "bg-red-100 text-red-600"
-                          : alert.severity === "WARNING"
+                          : alert.priority === "HAUTE"
                           ? "bg-yellow-100 text-yellow-600"
                           : "bg-blue-100 text-blue-600"
                       }`}
                     >
-                      {alert.severity}
+                      {alert.priority}
                     </span>
                   </div>
                   <p className="text-xs text-text-secondary mt-2">

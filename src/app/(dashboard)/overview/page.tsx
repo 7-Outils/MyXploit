@@ -47,8 +47,9 @@ interface Meeting {
 
 interface Alert {
   id: string;
+  title: string;
   message: string;
-  severity: string;
+  priority: "BASSE" | "MOYENNE" | "HAUTE" | "CRITIQUE";
   site: Site | null;
   createdAt: string;
   isRead: boolean;
@@ -123,7 +124,7 @@ export default function OverviewPage() {
     0
   );
   const activeAlerts = alerts.filter((a) => !a.isRead);
-  const criticalAlerts = alerts.filter((a) => a.severity === "CRITICAL");
+  const criticalAlerts = alerts.filter((a) => a.priority === "CRITIQUE");
   const upcomingMeetings = meetings.filter(
     (m) => new Date(m.date) >= new Date()
   );
@@ -146,9 +147,9 @@ export default function OverviewPage() {
       id: `alert-${alert.id}`,
       type: "alert",
       icon: AlertTriangle,
-      iconBg: alert.severity === "CRITICAL" ? "bg-red-100" : "bg-yellow-100",
-      iconColor: alert.severity === "CRITICAL" ? "text-red-600" : "text-yellow-600",
-      title: "Alerte " + alert.severity.toLowerCase(),
+      iconBg: alert.priority === "CRITIQUE" ? "bg-red-100" : "bg-yellow-100",
+      iconColor: alert.priority === "CRITIQUE" ? "text-red-600" : "text-yellow-600",
+      title: alert.title,
       description: alert.message,
       time: new Date(alert.createdAt).toLocaleDateString("fr-FR"),
     });
