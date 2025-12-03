@@ -355,13 +355,22 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
   AUTRE: 15,
 };
 
-// Normalise un texte pour la recherche (minuscules, sans accents)
+// Normalise un texte pour la recherche (minuscules, sans accents, sans apostrophes)
 function normalize(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "") // Supprime les accents
+    .replace(/[''`´]/g, " ")          // Remplace apostrophes par espace
+    .replace(/[-]/g, " ")             // Remplace tirets par espace
+    .replace(/\s+/g, " ")             // Normalise les espaces multiples
     .trim();
+}
+
+// Crée un index normalisé des synonymes pour recherche rapide
+const NORMALIZED_TYPE_SYNONYMS: Record<string, string> = {};
+for (const [key, value] of Object.entries(TYPE_SYNONYMS)) {
+  NORMALIZED_TYPE_SYNONYMS[normalize(key)] = value;
 }
 
 // Trouve le type d'équipement le plus proche
@@ -373,13 +382,13 @@ function findEquipmentType(input: string): string | null {
     return input.toUpperCase();
   }
 
-  // Recherche dans les synonymes
-  if (TYPE_SYNONYMS[normalized]) {
-    return TYPE_SYNONYMS[normalized];
+  // Recherche dans les synonymes normalisés
+  if (NORMALIZED_TYPE_SYNONYMS[normalized]) {
+    return NORMALIZED_TYPE_SYNONYMS[normalized];
   }
 
   // Recherche partielle (si le texte contient un synonyme)
-  for (const [synonym, type] of Object.entries(TYPE_SYNONYMS)) {
+  for (const [synonym, type] of Object.entries(NORMALIZED_TYPE_SYNONYMS)) {
     if (normalized.includes(synonym) || synonym.includes(normalized)) {
       return type;
     }
@@ -388,16 +397,22 @@ function findEquipmentType(input: string): string | null {
   return null;
 }
 
+// Crée un index normalisé des domaines pour recherche rapide
+const NORMALIZED_DOMAIN_SYNONYMS: Record<string, string> = {};
+for (const [key, value] of Object.entries(DOMAIN_SYNONYMS)) {
+  NORMALIZED_DOMAIN_SYNONYMS[normalize(key)] = value;
+}
+
 // Trouve le domaine le plus proche
 function findDomain(input: string): string | null {
   const normalized = normalize(input);
 
-  if (DOMAIN_SYNONYMS[normalized]) {
-    return DOMAIN_SYNONYMS[normalized];
+  if (NORMALIZED_DOMAIN_SYNONYMS[normalized]) {
+    return NORMALIZED_DOMAIN_SYNONYMS[normalized];
   }
 
   // Recherche partielle
-  for (const [synonym, domain] of Object.entries(DOMAIN_SYNONYMS)) {
+  for (const [synonym, domain] of Object.entries(NORMALIZED_DOMAIN_SYNONYMS)) {
     if (normalized.includes(synonym) || synonym.includes(normalized)) {
       return domain;
     }
