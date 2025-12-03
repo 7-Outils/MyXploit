@@ -113,7 +113,7 @@ export async function POST(
       },
     });
 
-    // If there are price changes, create them
+    // If there are price changes for existing sites, create them
     if (body.priceChanges && Array.isArray(body.priceChanges)) {
       for (const change of body.priceChanges) {
         // Get current amounts from contractSite
@@ -122,7 +122,7 @@ export async function POST(
         });
 
         if (contractSite) {
-          // Calculate new amounts
+          // Calculate new amounts (for reference in priceChange record)
           const newAmountP1 = change.deltaP1
             ? (contractSite.amountP1 || 0) + parseFloat(change.deltaP1)
             : contractSite.amountP1;
@@ -135,7 +135,6 @@ export async function POST(
 
           // Create price change record
           // Note: On ne modifie PAS contractSite.amountP2/P3 - ce sont les montants de BASE
-          // Les priceChanges contiennent les deltas à appliquer à partir de leur date d'effet
           await prisma.contractSitePriceChange.create({
             data: {
               contractSiteId: change.contractSiteId,
@@ -154,6 +153,52 @@ export async function POST(
       }
     }
 
+    // Ajouter de nouveaux sites au contrat via l'avenant
+    if (body.newSites && Array.isArray(body.newSites)) {
+      for (const newSite of body.newSites) {
+        // Vérifier que le site existe et appartient à l'organisation
+        const site = await prisma.site.findFirst({
+          where: {
+            id: newSite.siteId,
+            organizationId: user.organizationId,
+          },
+        });
+
+        if (site) {
+          // Créer le ContractSite avec integrationDate = date d'effet de l'avenant
+          await prisma.contractSite.create({
+            data: {
+              contractId,
+              siteId: newSite.siteId,
+              contractType: newSite.contractType || "MC",
+              hasP1: newSite.hasP1 || false,
+              hasP2: newSite.hasP2 || false,
+              hasP3: newSite.hasP3 || false,
+              hasP4: newSite.hasP4 || false,
+              amountP1: newSite.amountP1 ? parseFloat(newSite.amountP1) : null,
+              amountP2: newSite.amountP2 ? parseFloat(newSite.amountP2) : null,
+              amountP3: newSite.amountP3 ? parseFloat(newSite.amountP3) : null,
+              integrationDate: new Date(body.effectiveDate),
+              avenantEntreeId: avenant.id,
+            },
+          });
+        }
+      }
+    }
+
+    // Retirer des sites du contrat via l'avenant (mettre exitDate)
+    if (body.removedSites && Array.isArray(body.removedSites)) {
+      for (const removedSite of body.removedSites) {
+        await prisma.contractSite.update({
+          where: { id: removedSite.contractSiteId },
+          data: {
+            exitDate: new Date(body.effectiveDate),
+            avenantSortieId: avenant.id,
+          },
+        });
+      }
+    }
+
     // Return the created avenant with relations
     const createdAvenant = await prisma.avenant.findUnique({
       where: { id: avenant.id },
@@ -166,6 +211,20 @@ export async function POST(
                   select: { id: true, name: true },
                 },
               },
+            },
+          },
+        },
+        sitesEntrees: {
+          include: {
+            site: {
+              select: { id: true, name: true, type: true },
+            },
+          },
+        },
+        sitesSorties: {
+          include: {
+            site: {
+              select: { id: true, name: true, type: true },
             },
           },
         },
