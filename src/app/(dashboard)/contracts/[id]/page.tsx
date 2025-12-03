@@ -313,16 +313,24 @@ export default function ContractDetailPage() {
   // Avenant creation modal
   const [showAvenantModal, setShowAvenantModal] = useState(false);
   const [creatingAvenant, setCreatingAvenant] = useState(false);
+  const [availableSites, setAvailableSites] = useState<{ id: string; name: string; type: string }[]>([]);
   const [avenantFormData, setAvenantFormData] = useState({
     reference: "",
     type: "MODIFICATION_PRIX",
     effectiveDate: "",
     description: "",
-    // Price changes for selected site
+    // Price changes for selected site (MODIFICATION_PRIX)
     selectedContractSiteId: "",
     deltaP2: "",
     deltaP3: "",
     reason: "",
+    // New site (AJOUT_SITE)
+    newSiteId: "",
+    newSiteContractType: "MC",
+    newSiteHasP2: true,
+    newSiteHasP3: true,
+    newSiteAmountP2: "",
+    newSiteAmountP3: "",
   });
 
   // Tab state for contract view
@@ -588,11 +596,28 @@ export default function ContractDetailPage() {
     }
   };
 
+  // Charger les sites disponibles (pas encore dans le contrat)
+  const fetchAvailableSites = async () => {
+    try {
+      const response = await fetch("/api/sites");
+      if (response.ok) {
+        const allSites = await response.json();
+        // Filtrer les sites qui ne sont pas déjà dans le contrat
+        const contractSiteIds = contract?.contractSites.map((cs) => cs.site.id) || [];
+        const available = allSites.filter((s: { id: string }) => !contractSiteIds.includes(s.id));
+        setAvailableSites(available);
+      }
+    } catch (error) {
+      console.error("Error fetching sites:", error);
+    }
+  };
+
   const handleCreateAvenant = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreatingAvenant(true);
     try {
-      const priceChanges = avenantFormData.selectedContractSiteId
+      // Préparer les priceChanges pour modification de prix
+      const priceChanges = avenantFormData.selectedContractSiteId && avenantFormData.type === "MODIFICATION_PRIX"
         ? [
             {
               contractSiteId: avenantFormData.selectedContractSiteId,
@@ -601,6 +626,25 @@ export default function ContractDetailPage() {
               reason: avenantFormData.reason || null,
             },
           ]
+        : [];
+
+      // Préparer les newSites pour ajout de site
+      const newSites = avenantFormData.newSiteId && avenantFormData.type === "AJOUT_SITE"
+        ? [
+            {
+              siteId: avenantFormData.newSiteId,
+              contractType: avenantFormData.newSiteContractType,
+              hasP2: avenantFormData.newSiteHasP2,
+              hasP3: avenantFormData.newSiteHasP3,
+              amountP2: avenantFormData.newSiteAmountP2 || null,
+              amountP3: avenantFormData.newSiteAmountP3 || null,
+            },
+          ]
+        : [];
+
+      // Préparer les removedSites pour retrait de site
+      const removedSites = avenantFormData.selectedContractSiteId && avenantFormData.type === "RETRAIT_SITE"
+        ? [{ contractSiteId: avenantFormData.selectedContractSiteId }]
         : [];
 
       const response = await fetch(`/api/contracts/${contractId}/avenants`, {
@@ -612,6 +656,8 @@ export default function ContractDetailPage() {
           effectiveDate: avenantFormData.effectiveDate,
           description: avenantFormData.description,
           priceChanges,
+          newSites,
+          removedSites,
         }),
       });
 
@@ -627,6 +673,12 @@ export default function ContractDetailPage() {
           deltaP2: "",
           deltaP3: "",
           reason: "",
+          newSiteId: "",
+          newSiteContractType: "MC",
+          newSiteHasP2: true,
+          newSiteHasP3: true,
+          newSiteAmountP2: "",
+          newSiteAmountP3: "",
         });
       }
     } catch (error) {
@@ -2261,83 +2313,201 @@ export default function ContractDetailPage() {
                 />
               </div>
 
-              {/* Price change section */}
-              <div className="border-t border-gray-100 pt-4 mt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">
-                  Modification de prix (optionnel)
-                </p>
-
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
+              {/* Section selon le type d'avenant */}
+              {(avenantFormData.type === "MODIFICATION_PRIX" || avenantFormData.type === "AJOUT_EQUIPEMENT" || avenantFormData.type === "RETRAIT_EQUIPEMENT") && (
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                  <p className="text-sm font-medium text-primary-dark mb-3">
                     Site concerné
-                  </label>
-                  <select
-                    value={avenantFormData.selectedContractSiteId}
-                    onChange={(e) =>
-                      setAvenantFormData({ ...avenantFormData, selectedContractSiteId: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="">Sélectionner un site</option>
-                    {contract.contractSites.map((cs) => (
-                      <option key={cs.id} value={cs.id}>
-                        {cs.site.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  </p>
+                  <div className="mb-4">
+                    <select
+                      value={avenantFormData.selectedContractSiteId}
+                      onChange={(e) =>
+                        setAvenantFormData({ ...avenantFormData, selectedContractSiteId: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Sélectionner un site</option>
+                      {contract.contractSites.map((cs) => (
+                        <option key={cs.id} value={cs.id}>
+                          {cs.site.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                {avenantFormData.selectedContractSiteId && (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
+                  {avenantFormData.selectedContractSiteId && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-primary-dark mb-1">
+                            Delta P2 (€ HT/an)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={avenantFormData.deltaP2}
+                            onChange={(e) =>
+                              setAvenantFormData({ ...avenantFormData, deltaP2: e.target.value })
+                            }
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            placeholder="+300 ou -100"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-primary-dark mb-1">
+                            Delta P3 (€ HT/an)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={avenantFormData.deltaP3}
+                            onChange={(e) =>
+                              setAvenantFormData({ ...avenantFormData, deltaP3: e.target.value })
+                            }
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            placeholder="+200 ou -50"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4">
                         <label className="block text-sm font-medium text-primary-dark mb-1">
-                          Delta P2 (€ HT/an)
+                          Raison du changement
                         </label>
                         <input
-                          type="number"
-                          step="0.01"
-                          value={avenantFormData.deltaP2}
+                          type="text"
+                          value={avenantFormData.reason}
                           onChange={(e) =>
-                            setAvenantFormData({ ...avenantFormData, deltaP2: e.target.value })
+                            setAvenantFormData({ ...avenantFormData, reason: e.target.value })
                           }
                           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                          placeholder="+300 ou -100"
+                          placeholder="Ex: Ajout chaudière 300kW"
                         />
                       </div>
-                      <div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Ajout de site */}
+              {avenantFormData.type === "AJOUT_SITE" && (
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                  <p className="text-sm font-medium text-primary-dark mb-3">
+                    Nouveau site à ajouter
+                  </p>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Site *
+                    </label>
+                    <select
+                      required
+                      value={avenantFormData.newSiteId}
+                      onChange={(e) =>
+                        setAvenantFormData({ ...avenantFormData, newSiteId: e.target.value })
+                      }
+                      onFocus={fetchAvailableSites}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Sélectionner un site</option>
+                      {availableSites.map((site) => (
+                        <option key={site.id} value={site.id}>
+                          {site.name} ({site.type})
+                        </option>
+                      ))}
+                    </select>
+                    {availableSites.length === 0 && (
+                      <p className="text-xs text-text-secondary mt-1">
+                        Cliquez pour charger les sites disponibles
+                      </p>
+                    )}
+                  </div>
+
+                  {avenantFormData.newSiteId && (
+                    <>
+                      <div className="mb-4">
                         <label className="block text-sm font-medium text-primary-dark mb-1">
-                          Delta P3 (€ HT/an)
+                          Type de contrat
                         </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={avenantFormData.deltaP3}
+                        <select
+                          value={avenantFormData.newSiteContractType}
                           onChange={(e) =>
-                            setAvenantFormData({ ...avenantFormData, deltaP3: e.target.value })
+                            setAvenantFormData({ ...avenantFormData, newSiteContractType: e.target.value })
                           }
                           className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                          placeholder="+200 ou -50"
-                        />
+                        >
+                          {contractTypes.map((type) => (
+                            <option key={type.value} value={type.value}>
+                              {type.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </div>
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-primary-dark mb-1">
-                        Raison du changement
-                      </label>
-                      <input
-                        type="text"
-                        value={avenantFormData.reason}
-                        onChange={(e) =>
-                          setAvenantFormData({ ...avenantFormData, reason: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                        placeholder="Ex: Ajout chaudière 300kW"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-primary-dark mb-1">
+                            P2 annuel (€ HT)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={avenantFormData.newSiteAmountP2}
+                            onChange={(e) =>
+                              setAvenantFormData({ ...avenantFormData, newSiteAmountP2: e.target.value })
+                            }
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            placeholder="1000"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-primary-dark mb-1">
+                            P3 annuel (€ HT)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={avenantFormData.newSiteAmountP3}
+                            onChange={(e) =>
+                              setAvenantFormData({ ...avenantFormData, newSiteAmountP3: e.target.value })
+                            }
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            placeholder="500"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Retrait de site */}
+              {avenantFormData.type === "RETRAIT_SITE" && (
+                <div className="border-t border-gray-100 pt-4 mt-4">
+                  <p className="text-sm font-medium text-primary-dark mb-3">
+                    Site à retirer
+                  </p>
+                  <div className="mb-4">
+                    <select
+                      required
+                      value={avenantFormData.selectedContractSiteId}
+                      onChange={(e) =>
+                        setAvenantFormData({ ...avenantFormData, selectedContractSiteId: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Sélectionner un site</option>
+                      {contract.contractSites.filter(cs => !cs.exitDate).map((cs) => (
+                        <option key={cs.id} value={cs.id}>
+                          {cs.site.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                    Le site sera retiré à partir de la date d&apos;effet de l&apos;avenant.
+                  </p>
+                </div>
+              )}
 
               <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
                 Le prix sera calculé au prorata selon la date d&apos;effet et le type d&apos;année contractuelle.
