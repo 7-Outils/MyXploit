@@ -9,6 +9,10 @@ import {
   Download,
   Loader2,
   X,
+  Upload,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -49,6 +53,22 @@ interface Site {
   };
 }
 
+interface Contract {
+  id: string;
+  reference: string;
+  title: string;
+  provider: string;
+  status: string;
+}
+
+interface ImportResult {
+  success: boolean;
+  imported: number;
+  linkedToContract: number;
+  sites: Array<{ id: string; name: string }>;
+  errors?: string[];
+}
+
 const siteTypeLabels: Record<SiteType, string> = {
   LYCEE: "Lycée",
   COLLEGE: "Collège",
@@ -78,6 +98,14 @@ export default function SitesPage() {
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Import state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [selectedContractId, setSelectedContractId] = useState<string>("");
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -105,9 +133,78 @@ export default function SitesPage() {
     }
   };
 
+  // Fetch contracts for import modal
+  const fetchContracts = async () => {
+    try {
+      const response = await fetch("/api/contracts");
+      if (response.ok) {
+        const data = await response.json();
+        // Filter only active contracts
+        setContracts(data.filter((c: Contract) => c.status === "ACTIF"));
+      }
+    } catch (err) {
+      console.error("Error fetching contracts:", err);
+    }
+  };
+
   useEffect(() => {
     fetchSites();
   }, []);
+
+  // Open import modal
+  const openImportModal = () => {
+    setImportFile(null);
+    setSelectedContractId("");
+    setImportResult(null);
+    fetchContracts();
+    setShowImportModal(true);
+  };
+
+  // Handle import
+  const handleImport = async () => {
+    if (!importFile) return;
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      if (selectedContractId) {
+        formData.append("contractId", selectedContractId);
+      }
+
+      const response = await fetch("/api/sites/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setImportResult({
+          success: false,
+          imported: 0,
+          linkedToContract: 0,
+          sites: [],
+          errors: [result.error || "Erreur lors de l'import"],
+        });
+      } else {
+        setImportResult(result);
+        if (result.success) {
+          await fetchSites();
+        }
+      }
+    } catch (err) {
+      setImportResult({
+        success: false,
+        imported: 0,
+        linkedToContract: 0,
+        sites: [],
+        errors: [err instanceof Error ? err.message : "Erreur inconnue"],
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // Create site
   const handleCreate = async (e: React.FormEvent) => {
@@ -165,10 +262,16 @@ export default function SitesPage() {
             Gérez l&apos;ensemble de vos sites et équipements CVC
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus size={18} className="mr-2" />
-          Ajouter un site
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openImportModal}>
+            <Upload size={18} className="mr-2" />
+            Importer
+          </Button>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus size={18} className="mr-2" />
+            Ajouter un site
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -488,6 +591,198 @@ export default function SitesPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Importer des sites
+              </h2>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {!importResult ? (
+                <>
+                  {/* File upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-2">
+                      Fichier Excel (.xlsx, .xls)
+                    </label>
+                    <div
+                      className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                        importFile
+                          ? "border-accent bg-accent/5"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      {importFile ? (
+                        <div className="flex items-center justify-center gap-3">
+                          <FileSpreadsheet size={24} className="text-accent" />
+                          <div className="text-left">
+                            <p className="font-medium text-primary-dark">
+                              {importFile.name}
+                            </p>
+                            <p className="text-sm text-text-secondary">
+                              {(importFile.size / 1024).toFixed(1)} Ko
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setImportFile(null)}
+                            className="p-1 hover:bg-gray-100 rounded"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="cursor-pointer">
+                          <Upload size={32} className="mx-auto text-gray-400 mb-2" />
+                          <p className="text-sm text-text-secondary">
+                            Cliquez ou glissez un fichier Excel
+                          </p>
+                          <input
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) setImportFile(file);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contract linking (optional) */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-2">
+                      Rattacher à un contrat (optionnel)
+                    </label>
+                    <select
+                      value={selectedContractId}
+                      onChange={(e) => setSelectedContractId(e.target.value)}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Aucun contrat</option>
+                      {contracts.map((contract) => (
+                        <option key={contract.id} value={contract.id}>
+                          {contract.reference} - {contract.title} ({contract.provider})
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Si un contrat est sélectionné, les sites seront automatiquement ajoutés à ce contrat.
+                    </p>
+                  </div>
+
+                  {/* Expected columns info */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-primary-dark mb-2">
+                      Colonnes attendues :
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary">
+                      <div>
+                        <span className="font-medium">Obligatoire :</span> Nom
+                      </div>
+                      <div>
+                        <span className="font-medium">Optionnel :</span> Type, Adresse, Ville, CP
+                      </div>
+                      <div>Surface, Énergie, PCE, PDL, RAE</div>
+                      <div>P1, P2, P3, P4, Montant P2, Montant P3</div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowImportModal(false)}
+                    >
+                      Annuler
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled={!importFile || importing}
+                      onClick={handleImport}
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 size={18} className="mr-2 animate-spin" />
+                          Import...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={18} className="mr-2" />
+                          Importer
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                /* Import result */
+                <div className="text-center">
+                  {importResult.success ? (
+                    <>
+                      <CheckCircle size={48} className="mx-auto text-green-500 mb-4" />
+                      <h3 className="text-lg font-semibold text-primary-dark mb-2">
+                        Import réussi !
+                      </h3>
+                      <p className="text-text-secondary mb-4">
+                        {importResult.imported} site{importResult.imported > 1 ? "s" : ""} importé{importResult.imported > 1 ? "s" : ""}
+                        {importResult.linkedToContract > 0 && (
+                          <span className="block text-sm mt-1">
+                            dont {importResult.linkedToContract} rattaché{importResult.linkedToContract > 1 ? "s" : ""} au contrat
+                          </span>
+                        )}
+                      </p>
+                      {importResult.errors && importResult.errors.length > 0 && (
+                        <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm text-left mb-4">
+                          <p className="font-medium mb-1">Avertissements :</p>
+                          <ul className="list-disc list-inside">
+                            {importResult.errors.slice(0, 5).map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                            {importResult.errors.length > 5 && (
+                              <li>... et {importResult.errors.length - 5} autres</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
+                      <h3 className="text-lg font-semibold text-primary-dark mb-2">
+                        Erreur lors de l&apos;import
+                      </h3>
+                      <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm text-left mb-4">
+                        <ul className="list-disc list-inside">
+                          {importResult.errors?.map((err, i) => (
+                            <li key={i}>{err}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
+                  )}
+                  <Button onClick={() => setShowImportModal(false)} className="w-full">
+                    Fermer
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -114,13 +114,14 @@ export default function ContractsPage() {
     ? contracts
     : contracts.filter(c => c.status === statusFilter);
 
-  // Count sites with prestations across all contracts (use all contracts for stats)
-  const totalSites = contracts.reduce((sum, c) => sum + c.contractSites.length, 0);
-  const sitesWithP1 = contracts.reduce(
+  // Count sites with prestations from ACTIVE contracts only
+  const activeContracts = contracts.filter(c => c.status === "ACTIF");
+  const totalSites = activeContracts.reduce((sum, c) => sum + c.contractSites.length, 0);
+  const sitesWithP1 = activeContracts.reduce(
     (sum, c) => sum + c.contractSites.filter((cs) => cs.hasP1).length,
     0
   );
-  const sitesWithP2 = contracts.reduce(
+  const sitesWithP2 = activeContracts.reduce(
     (sum, c) => sum + c.contractSites.filter((cs) => cs.hasP2).length,
     0
   );
