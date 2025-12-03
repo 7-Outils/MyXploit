@@ -24,14 +24,79 @@ import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 
-type EquipmentType =
-  | "CHAUDIERE"
+type EquipmentDomain =
+  | "CHAUFFAGE"
+  | "ECS"
+  | "VENTILATION"
   | "CLIMATISATION"
-  | "VMC"
+  | "TRAITEMENT_EAU"
+  | "PLOMBERIE"
+  | "AUTRE";
+
+type EquipmentType =
+  // Chauffage
+  | "CHAUDIERE"
+  | "CHAUDIERE_CONDENSATION"
   | "PAC"
+  | "PAC_AIR_EAU"
+  | "PAC_EAU_EAU"
+  | "PAC_AIR_AIR"
   | "RADIATEUR"
   | "PLANCHER_CHAUFFANT"
+  | "CONVECTEUR"
+  | "AEROTERME"
+  | "VANNE_3_VOIES"
+  | "VANNE_MOTORISEE"
+  | "POMPE_CHAUFFAGE"
+  | "CIRCULATEUR"
+  | "VASE_EXPANSION"
+  | "ECHANGEUR_THERMIQUE"
+  | "BRULEUR"
+  | "REGULATEUR"
+  | "SONDE_TEMPERATURE"
+  | "SONDE_EXTERIEURE"
+  // ECS
+  | "BALLON_ECS"
+  | "BALLON_THERMODYNAMIQUE"
+  | "ECHANGEUR_ECS"
+  | "POMPE_BOUCLAGE"
+  | "MITIGEUR_THERMOSTATIQUE"
+  | "RESISTANCE_ELECTRIQUE"
+  // Ventilation
+  | "VMC"
+  | "VMC_SIMPLE_FLUX"
+  | "VMC_DOUBLE_FLUX"
   | "CTA"
+  | "CAISSON_EXTRACTION"
+  | "CAISSON_SOUFFLAGE"
+  | "VENTILATEUR"
+  | "REGISTRE"
+  | "BATTERIE_CHAUDE"
+  | "BATTERIE_FROIDE"
+  | "RECUPERATEUR_CHALEUR"
+  // Climatisation
+  | "GROUPE_FROID"
+  | "CLIMATISATION"
+  | "CLIMATISEUR"
+  | "SPLIT"
+  | "MULTI_SPLIT"
+  | "CASSETTE"
+  | "GAINABLE"
+  | "ROOFTOP"
+  // Traitement eau
+  | "ADOUCISSEUR"
+  | "DISCONNECTEUR"
+  | "FILTRE"
+  | "POT_BOUE"
+  | "DEGAZEUR"
+  | "DOSEUR"
+  // Plomberie
+  | "COMPTEUR_EAU"
+  | "VANNE_GENERALE"
+  | "SURPRESSEUR"
+  | "BACHE_EAU"
+  | "REDUCTION_PRESSION"
+  // Autre
   | "AUTRE";
 
 type EquipmentStatus = "OPERATIONNEL" | "MAINTENANCE" | "PANNE" | "HORS_SERVICE";
@@ -49,7 +114,8 @@ interface Contract {
 
 interface Equipment {
   id: string;
-  name: string;
+  name: string | null;
+  domain: EquipmentDomain;
   type: EquipmentType;
   brand: string | null;
   model: string | null;
@@ -109,15 +175,112 @@ interface AnalyticsData {
   recommendations: string[];
 }
 
-const equipmentTypeLabels: Record<EquipmentType, string> = {
-  CHAUDIERE: "Chaudière",
+const domainLabels: Record<EquipmentDomain, string> = {
+  CHAUFFAGE: "Chauffage",
+  ECS: "ECS",
+  VENTILATION: "Ventilation",
   CLIMATISATION: "Climatisation",
-  VMC: "VMC",
+  TRAITEMENT_EAU: "Traitement d'eau",
+  PLOMBERIE: "Plomberie",
+  AUTRE: "Autre",
+};
+
+const equipmentTypeLabels: Record<EquipmentType, string> = {
+  // Chauffage
+  CHAUDIERE: "Chaudière",
+  CHAUDIERE_CONDENSATION: "Chaudière condensation",
   PAC: "Pompe à chaleur",
+  PAC_AIR_EAU: "PAC air/eau",
+  PAC_EAU_EAU: "PAC eau/eau",
+  PAC_AIR_AIR: "PAC air/air",
   RADIATEUR: "Radiateur",
   PLANCHER_CHAUFFANT: "Plancher chauffant",
+  CONVECTEUR: "Convecteur",
+  AEROTERME: "Aérotherme",
+  VANNE_3_VOIES: "Vanne 3 voies",
+  VANNE_MOTORISEE: "Vanne motorisée",
+  POMPE_CHAUFFAGE: "Pompe chauffage",
+  CIRCULATEUR: "Circulateur",
+  VASE_EXPANSION: "Vase d'expansion",
+  ECHANGEUR_THERMIQUE: "Échangeur thermique",
+  BRULEUR: "Brûleur",
+  REGULATEUR: "Régulateur",
+  SONDE_TEMPERATURE: "Sonde température",
+  SONDE_EXTERIEURE: "Sonde extérieure",
+  // ECS
+  BALLON_ECS: "Ballon ECS",
+  BALLON_THERMODYNAMIQUE: "Ballon thermodynamique",
+  ECHANGEUR_ECS: "Échangeur ECS",
+  POMPE_BOUCLAGE: "Pompe de bouclage",
+  MITIGEUR_THERMOSTATIQUE: "Mitigeur thermostatique",
+  RESISTANCE_ELECTRIQUE: "Résistance électrique",
+  // Ventilation
+  VMC: "VMC",
+  VMC_SIMPLE_FLUX: "VMC simple flux",
+  VMC_DOUBLE_FLUX: "VMC double flux",
   CTA: "CTA",
-  AUTRE: "Autre",
+  CAISSON_EXTRACTION: "Caisson d'extraction",
+  CAISSON_SOUFFLAGE: "Caisson de soufflage",
+  VENTILATEUR: "Ventilateur",
+  REGISTRE: "Registre",
+  BATTERIE_CHAUDE: "Batterie chaude",
+  BATTERIE_FROIDE: "Batterie froide",
+  RECUPERATEUR_CHALEUR: "Récupérateur de chaleur",
+  // Climatisation
+  GROUPE_FROID: "Groupe froid",
+  CLIMATISATION: "Climatisation",
+  CLIMATISEUR: "Climatiseur",
+  SPLIT: "Split",
+  MULTI_SPLIT: "Multi-split",
+  CASSETTE: "Cassette",
+  GAINABLE: "Gainable",
+  ROOFTOP: "Rooftop",
+  // Traitement eau
+  ADOUCISSEUR: "Adoucisseur",
+  DISCONNECTEUR: "Disconnecteur",
+  FILTRE: "Filtre",
+  POT_BOUE: "Pot à boue",
+  DEGAZEUR: "Dégazeur",
+  DOSEUR: "Doseur",
+  // Plomberie
+  COMPTEUR_EAU: "Compteur d'eau",
+  VANNE_GENERALE: "Vanne générale",
+  SURPRESSEUR: "Surpresseur",
+  BACHE_EAU: "Bâche à eau",
+  REDUCTION_PRESSION: "Réducteur de pression",
+  // Autre
+  AUTRE: "Autre équipement",
+};
+
+// Group equipment types by domain
+const typesByDomain: Record<EquipmentDomain, EquipmentType[]> = {
+  CHAUFFAGE: [
+    "CHAUDIERE", "CHAUDIERE_CONDENSATION", "PAC", "PAC_AIR_EAU", "PAC_EAU_EAU", "PAC_AIR_AIR",
+    "RADIATEUR", "PLANCHER_CHAUFFANT", "CONVECTEUR", "AEROTERME",
+    "VANNE_3_VOIES", "VANNE_MOTORISEE", "POMPE_CHAUFFAGE", "CIRCULATEUR",
+    "VASE_EXPANSION", "ECHANGEUR_THERMIQUE", "BRULEUR", "REGULATEUR",
+    "SONDE_TEMPERATURE", "SONDE_EXTERIEURE",
+  ],
+  ECS: [
+    "BALLON_ECS", "BALLON_THERMODYNAMIQUE", "ECHANGEUR_ECS",
+    "POMPE_BOUCLAGE", "MITIGEUR_THERMOSTATIQUE", "RESISTANCE_ELECTRIQUE",
+  ],
+  VENTILATION: [
+    "VMC", "VMC_SIMPLE_FLUX", "VMC_DOUBLE_FLUX", "CTA",
+    "CAISSON_EXTRACTION", "CAISSON_SOUFFLAGE", "VENTILATEUR", "REGISTRE",
+    "BATTERIE_CHAUDE", "BATTERIE_FROIDE", "RECUPERATEUR_CHALEUR",
+  ],
+  CLIMATISATION: [
+    "GROUPE_FROID", "CLIMATISATION", "CLIMATISEUR", "SPLIT",
+    "MULTI_SPLIT", "CASSETTE", "GAINABLE", "ROOFTOP",
+  ],
+  TRAITEMENT_EAU: [
+    "ADOUCISSEUR", "DISCONNECTEUR", "FILTRE", "POT_BOUE", "DEGAZEUR", "DOSEUR",
+  ],
+  PLOMBERIE: [
+    "COMPTEUR_EAU", "VANNE_GENERALE", "SURPRESSEUR", "BACHE_EAU", "REDUCTION_PRESSION",
+  ],
+  AUTRE: ["AUTRE"],
 };
 
 const statusLabels: Record<EquipmentStatus, string> = {
@@ -166,6 +329,7 @@ export default function EquipmentsPage() {
   const [loadingEquipments, setLoadingEquipments] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [domainFilter, setDomainFilter] = useState<EquipmentDomain | "">("");
   const [activeView, setActiveView] = useState<ViewType>("list");
 
   // Modal states
@@ -176,6 +340,7 @@ export default function EquipmentsPage() {
   // Form state
   const [formData, setFormData] = useState({
     name: "",
+    domain: "CHAUFFAGE" as EquipmentDomain,
     type: "CHAUDIERE" as EquipmentType,
     brand: "",
     model: "",
@@ -248,20 +413,33 @@ export default function EquipmentsPage() {
     setEquipments([]);
     setAnalytics(null);
     setSearchQuery("");
+    setDomainFilter("");
     setActiveView("list");
   };
 
   const filteredEquipments = useMemo(() => {
-    if (!searchQuery) return equipments;
-    const query = searchQuery.toLowerCase();
-    return equipments.filter(
-      (eq) =>
-        eq.name.toLowerCase().includes(query) ||
-        eq.brand?.toLowerCase().includes(query) ||
-        eq.site.name.toLowerCase().includes(query) ||
-        eq.serialNumber?.toLowerCase().includes(query)
-    );
-  }, [equipments, searchQuery]);
+    let filtered = equipments;
+
+    // Filter by domain
+    if (domainFilter) {
+      filtered = filtered.filter((eq) => eq.domain === domainFilter);
+    }
+
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (eq) =>
+          (eq.name?.toLowerCase().includes(query) || false) ||
+          equipmentTypeLabels[eq.type]?.toLowerCase().includes(query) ||
+          eq.brand?.toLowerCase().includes(query) ||
+          eq.site.name.toLowerCase().includes(query) ||
+          eq.serialNumber?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [equipments, searchQuery, domainFilter]);
 
   const stats = useMemo(() => {
     if (!analytics) return null;
@@ -288,6 +466,7 @@ export default function EquipmentsPage() {
       setShowModal(false);
       setFormData({
         name: "",
+        domain: "CHAUFFAGE",
         type: "CHAUDIERE",
         brand: "",
         model: "",
@@ -464,6 +643,17 @@ export default function EquipmentsPage() {
           </button>
         </div>
 
+        <select
+          value={domainFilter}
+          onChange={(e) => setDomainFilter(e.target.value as EquipmentDomain | "")}
+          className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+        >
+          <option value="">Tous les domaines</option>
+          {Object.entries(domainLabels).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -519,9 +709,9 @@ export default function EquipmentsPage() {
                                 <Flame size={18} className="text-orange-600" />
                               </div>
                               <div>
-                                <p className="font-medium text-primary-dark">{eq.name}</p>
+                                <p className="font-medium text-primary-dark">{eq.name || equipmentTypeLabels[eq.type]}</p>
                                 <p className="text-sm text-text-secondary">
-                                  {equipmentTypeLabels[eq.type]} {eq.brand && `• ${eq.brand}`}
+                                  {domainLabels[eq.domain]} • {equipmentTypeLabels[eq.type]} {eq.brand && `• ${eq.brand}`}
                                 </p>
                               </div>
                             </div>
@@ -557,7 +747,7 @@ export default function EquipmentsPage() {
                 filteredEquipments.map((eq) => {
                   const latestAudit = eq.audits?.[0];
                   return (
-                    <ChartCard key={eq.id} title={eq.name} subtitle={`${equipmentTypeLabels[eq.type]} • ${eq.site.name}`}>
+                    <ChartCard key={eq.id} title={eq.name || equipmentTypeLabels[eq.type]} subtitle={`${domainLabels[eq.domain]} • ${equipmentTypeLabels[eq.type]} • ${eq.site.name}`}>
                       {latestAudit ? (
                         <div className="space-y-4">
                           <div className="flex items-center justify-between text-sm">
@@ -659,7 +849,7 @@ export default function EquipmentsPage() {
                               <tbody>
                                 {plan.equipments.map((eq) => (
                                   <tr key={eq.id}>
-                                    <td className="py-1">{eq.name}</td>
+                                    <td className="py-1">{eq.name || equipmentTypeLabels[eq.type]}</td>
                                     <td className="py-1 text-text-secondary">{eq.site.name}</td>
                                     <td className="py-1">{eq.age} ans</td>
                                     <td className="py-1">{eq.power ? `${eq.power} kW` : "-"}</td>
@@ -700,7 +890,7 @@ export default function EquipmentsPage() {
                     ) : (
                       analytics.riskMatrix.critical.map((eq) => (
                         <div key={eq.id} className="p-2 bg-red-50 rounded text-sm">
-                          <p className="font-medium text-red-800">{eq.name}</p>
+                          <p className="font-medium text-red-800">{eq.name || equipmentTypeLabels[eq.type]}</p>
                           <p className="text-red-600">{eq.site.name} • {eq.age} ans</p>
                         </div>
                       ))
@@ -716,7 +906,7 @@ export default function EquipmentsPage() {
                     ) : (
                       analytics.riskMatrix.high.map((eq) => (
                         <div key={eq.id} className="p-2 bg-orange-50 rounded text-sm">
-                          <p className="font-medium text-orange-800">{eq.name}</p>
+                          <p className="font-medium text-orange-800">{eq.name || equipmentTypeLabels[eq.type]}</p>
                           <p className="text-orange-600">{eq.site.name} • {eq.age} ans</p>
                         </div>
                       ))
@@ -732,7 +922,7 @@ export default function EquipmentsPage() {
                     ) : (
                       analytics.riskMatrix.medium.map((eq) => (
                         <div key={eq.id} className="p-2 bg-yellow-50 rounded text-sm">
-                          <p className="font-medium text-yellow-800">{eq.name}</p>
+                          <p className="font-medium text-yellow-800">{eq.name || equipmentTypeLabels[eq.type]}</p>
                           <p className="text-yellow-600">{eq.site.name} • {eq.age} ans</p>
                         </div>
                       ))
@@ -748,7 +938,7 @@ export default function EquipmentsPage() {
                     ) : (
                       analytics.riskMatrix.low.map((eq) => (
                         <div key={eq.id} className="p-2 bg-green-50 rounded text-sm">
-                          <p className="font-medium text-green-800">{eq.name}</p>
+                          <p className="font-medium text-green-800">{eq.name || equipmentTypeLabels[eq.type]}</p>
                           <p className="text-green-600">{eq.site.name} • {eq.age} ans</p>
                         </div>
                       ))
@@ -788,19 +978,24 @@ export default function EquipmentsPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Nom de l&apos;équipement *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
-                  placeholder="Ex: Chaudière principale"
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Domaine *</label>
+                  <select
+                    required
+                    value={formData.domain}
+                    onChange={(e) => {
+                      const newDomain = e.target.value as EquipmentDomain;
+                      const firstType = typesByDomain[newDomain][0];
+                      setFormData({ ...formData, domain: newDomain, type: firstType });
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  >
+                    {Object.entries(domainLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">Type *</label>
                   <select
@@ -809,23 +1004,22 @@ export default function EquipmentsPage() {
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as EquipmentType })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
                   >
-                    {Object.entries(equipmentTypeLabels).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
+                    {typesByDomain[formData.domain].map((type) => (
+                      <option key={type} value={type}>{equipmentTypeLabels[type]}</option>
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Année</label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
-                    placeholder="2010"
-                    min="1950"
-                    max={new Date().getFullYear()}
-                  />
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Nom (optionnel)</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  placeholder="Auto-généré depuis le type si vide"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -863,6 +1057,21 @@ export default function EquipmentsPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Année</label>
+                  <input
+                    type="number"
+                    value={formData.year}
+                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                    placeholder="2010"
+                    min="1950"
+                    max={new Date().getFullYear()}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">Puissance (kW)</label>
                   <input
                     type="number"
@@ -872,9 +1081,6 @@ export default function EquipmentsPage() {
                     placeholder="300"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">Local</label>
                   <input
@@ -885,16 +1091,17 @@ export default function EquipmentsPage() {
                     placeholder="Chaufferie"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Niveau</label>
-                  <input
-                    type="text"
-                    value={formData.level}
-                    onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
-                    placeholder="Sous-sol"
-                  />
-                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Niveau</label>
+                <input
+                  type="text"
+                  value={formData.level}
+                  onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  placeholder="Sous-sol, RDC, Toiture..."
+                />
               </div>
 
               <div className="flex gap-3 pt-4">

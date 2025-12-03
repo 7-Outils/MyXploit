@@ -133,14 +133,81 @@ model Site {
 // EQUIPEMENTS CVC
 // ============================================
 
-enum EquipmentType {
-  CHAUDIERE
+// Domaine de l'équipement CVC
+enum EquipmentDomain {
+  CHAUFFAGE
+  ECS           // Eau Chaude Sanitaire
+  VENTILATION
   CLIMATISATION
-  VMC
-  PAC // Pompe à chaleur
+  TRAITEMENT_EAU
+  PLOMBERIE
+  AUTRE
+}
+
+enum EquipmentType {
+  // === CHAUFFAGE ===
+  CHAUDIERE
+  CHAUDIERE_CONDENSATION
+  PAC               // Pompe à chaleur
+  PAC_AIR_EAU
+  PAC_EAU_EAU
+  PAC_AIR_AIR
   RADIATEUR
   PLANCHER_CHAUFFANT
-  CTA // Centrale de traitement d'air
+  CONVECTEUR
+  AEROTERME
+  VANNE_3_VOIES
+  VANNE_MOTORISEE
+  POMPE_CHAUFFAGE
+  CIRCULATEUR
+  VASE_EXPANSION
+  ECHANGEUR_THERMIQUE
+  BRULEUR
+  REGULATEUR
+  SONDE_TEMPERATURE
+  SONDE_EXTERIEURE
+  // === ECS ===
+  BALLON_ECS
+  BALLON_THERMODYNAMIQUE
+  ECHANGEUR_ECS
+  POMPE_BOUCLAGE
+  MITIGEUR_THERMOSTATIQUE
+  RESISTANCE_ELECTRIQUE
+  // === VENTILATION ===
+  VMC
+  VMC_SIMPLE_FLUX
+  VMC_DOUBLE_FLUX
+  CTA               // Centrale de traitement d'air
+  CAISSON_EXTRACTION
+  CAISSON_SOUFFLAGE
+  VENTILATEUR
+  REGISTRE
+  BATTERIE_CHAUDE
+  BATTERIE_FROIDE
+  RECUPERATEUR_CHALEUR
+  // === CLIMATISATION ===
+  GROUPE_FROID
+  CLIMATISATION  // Gardé pour compatibilité
+  CLIMATISEUR
+  SPLIT
+  MULTI_SPLIT
+  CASSETTE
+  GAINABLE
+  ROOFTOP
+  // === TRAITEMENT EAU ===
+  ADOUCISSEUR
+  DISCONNECTEUR
+  FILTRE
+  POT_BOUE
+  DEGAZEUR
+  DOSEUR
+  // === PLOMBERIE ===
+  COMPTEUR_EAU
+  VANNE_GENERALE
+  SURPRESSEUR
+  BACHE_EAU
+  REDUCTION_PRESSION
+  // === AUTRE ===
   AUTRE
 }
 
@@ -163,7 +230,8 @@ enum AuditRating {
 
 model Equipment {
   id             String          @id @default(cuid())
-  name           String
+  name           String?         // Optionnel - auto-généré depuis le type si vide
+  domain         EquipmentDomain @default(CHAUFFAGE)
   type           EquipmentType
   brand          String?
   model          String?
