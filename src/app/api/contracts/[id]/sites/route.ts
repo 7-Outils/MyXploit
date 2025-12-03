@@ -2,6 +2,89 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
+// GET /api/contracts/[id]/sites - List all sites for a contract
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAuth();
+    const { id: contractId } = await params;
+
+    // Verify contract exists and belongs to organization
+    const contract = await prisma.contract.findFirst({
+      where: {
+        id: contractId,
+        organizationId: user.organizationId,
+      },
+    });
+
+    if (!contract) {
+      return NextResponse.json(
+        { error: "Contrat non trouvé" },
+        { status: 404 }
+      );
+    }
+
+    // Get all sites linked to this contract
+    const contractSites = await prisma.contractSite.findMany({
+      where: { contractId },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            address: true,
+            city: true,
+            postalCode: true,
+            surface: true,
+            surfaceChauffee: true,
+            energyType: true,
+            annualBudget: true,
+            latitude: true,
+            longitude: true,
+            _count: {
+              select: {
+                equipments: true,
+                consumptions: true,
+                alerts: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Transform to return sites with contract info
+    const sites = contractSites.map((cs) => ({
+      ...cs.site,
+      contractSites: [{
+        id: cs.id,
+        contractType: cs.contractType,
+        hasP1: cs.hasP1,
+        hasP2: cs.hasP2,
+        hasP3: cs.hasP3,
+        contract: {
+          id: contract.id,
+          reference: contract.reference,
+          title: contract.title,
+          provider: contract.provider,
+          status: contract.status,
+        },
+      }],
+    }));
+
+    return NextResponse.json(sites);
+  } catch (error) {
+    console.error("Error fetching contract sites:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la récupération des sites" },
+      { status: 500 }
+    );
+  }
+}
+
 // POST /api/contracts/[id]/sites - Add a site to a contract with its type and prestations
 export async function POST(
   request: NextRequest,
