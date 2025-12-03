@@ -178,11 +178,22 @@ export async function GET(
         const effectiveEnd = siteEnd < seasonEnd ? siteEnd : seasonEnd;
 
         // Build list of price periods within the season
-        // Start with base prices
-        let currentP2 = contractSite.amountP2 || 0;
-        let currentP3 = contractSite.amountP3 || 0;
+        // Calculate INITIAL base prices by subtracting all deltas from current amounts
+        // (because contractSite.amountP2/P3 is updated after each avenant)
+        let initialP2 = contractSite.amountP2 || 0;
+        let initialP3 = contractSite.amountP3 || 0;
 
-        // Apply any price changes effective before the season start
+        // Subtract all deltas to get the original base price
+        for (const change of contractSite.priceChanges) {
+          if (change.deltaP2 !== null) initialP2 -= change.deltaP2;
+          if (change.deltaP3 !== null) initialP3 -= change.deltaP3;
+        }
+
+        // Start with initial prices
+        let currentP2 = initialP2;
+        let currentP3 = initialP3;
+
+        // Apply any price changes effective before or at the season start
         for (const change of contractSite.priceChanges) {
           const changeDate = new Date(change.effectiveDate);
           if (changeDate <= effectiveStart) {
