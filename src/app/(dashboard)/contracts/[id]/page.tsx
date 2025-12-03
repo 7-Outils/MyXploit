@@ -19,6 +19,7 @@ import {
   Euro,
   CheckCircle,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -314,24 +315,54 @@ export default function ContractDetailPage() {
   const [showAvenantModal, setShowAvenantModal] = useState(false);
   const [creatingAvenant, setCreatingAvenant] = useState(false);
   const [availableSites, setAvailableSites] = useState<{ id: string; name: string; type: string }[]>([]);
+
+  // Avenant form data with support for multiple actions
+  interface PriceChangeItem {
+    contractSiteId: string;
+    siteName: string;
+    deltaP2: string;
+    deltaP3: string;
+    reason: string;
+  }
+  interface NewSiteItem {
+    siteId: string;
+    siteName: string;
+    contractType: string;
+    amountP2: string;
+    amountP3: string;
+  }
+  interface RemovedSiteItem {
+    contractSiteId: string;
+    siteName: string;
+  }
+
   const [avenantFormData, setAvenantFormData] = useState({
     reference: "",
-    type: "MODIFICATION_PRIX",
     effectiveDate: "",
     description: "",
-    // Price changes for selected site (MODIFICATION_PRIX)
-    selectedContractSiteId: "",
+  });
+  const [priceChanges, setPriceChanges] = useState<PriceChangeItem[]>([]);
+  const [newSites, setNewSites] = useState<NewSiteItem[]>([]);
+  const [removedSites, setRemovedSites] = useState<RemovedSiteItem[]>([]);
+
+  // Temp state for adding items
+  const [tempPriceChange, setTempPriceChange] = useState({
+    contractSiteId: "",
     deltaP2: "",
     deltaP3: "",
     reason: "",
-    // New site (AJOUT_SITE)
-    newSiteId: "",
-    newSiteContractType: "MC",
-    newSiteHasP2: true,
-    newSiteHasP3: true,
-    newSiteAmountP2: "",
-    newSiteAmountP3: "",
   });
+  const [tempNewSite, setTempNewSite] = useState({
+    siteId: "",
+    contractType: "MC",
+    amountP2: "",
+    amountP3: "",
+  });
+  const [tempRemovedSite, setTempRemovedSite] = useState({
+    contractSiteId: "",
+  });
+
+  const [deletingAvenantId, setDeletingAvenantId] = useState<string | null>(null);
 
   // Tab state for contract view
   const [activeTab, setActiveTab] = useState<"sites" | "avenants" | "financier">("sites");
@@ -383,6 +414,36 @@ export default function ContractDetailPage() {
       fetchFinancials();
     }
   }, [activeTab]);
+
+  const handleDeleteAvenant = async (avenantId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cet avenant ? Cette action est irréversible et annulera toutes les modifications apportées par cet avenant.")) {
+      return;
+    }
+
+    setDeletingAvenantId(avenantId);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}/avenants/${avenantId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await fetchContract();
+        // Refresh financial data if on that tab
+        if (activeTab === "financier") {
+          setFinancialData(null);
+          fetchFinancials();
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || "Erreur lors de la suppression de l'avenant");
+      }
+    } catch (error) {
+      console.error("Error deleting avenant:", error);
+      alert("Erreur lors de la suppression de l'avenant");
+    } finally {
+      setDeletingAvenantId(null);
+    }
+  };
 
   const toggleSiteExpanded = (siteId: string) => {
     const newExpanded = new Set(expandedSites);
@@ -614,78 +675,129 @@ export default function ContractDetailPage() {
 
   const handleCreateAvenant = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Vérifier qu'il y a au moins une action
+    if (priceChanges.length === 0 && newSites.length === 0 && removedSites.length === 0) {
+      alert("Veuillez ajouter au moins une modification (prix, ajout ou retrait de site)");
+      return;
+    }
+
     setCreatingAvenant(true);
     try {
-      // Préparer les priceChanges pour modification de prix
-      const priceChanges = avenantFormData.selectedContractSiteId && avenantFormData.type === "MODIFICATION_PRIX"
-        ? [
-            {
-              contractSiteId: avenantFormData.selectedContractSiteId,
-              deltaP2: avenantFormData.deltaP2 || null,
-              deltaP3: avenantFormData.deltaP3 || null,
-              reason: avenantFormData.reason || null,
-            },
-          ]
-        : [];
-
-      // Préparer les newSites pour ajout de site
-      const newSites = avenantFormData.newSiteId && avenantFormData.type === "AJOUT_SITE"
-        ? [
-            {
-              siteId: avenantFormData.newSiteId,
-              contractType: avenantFormData.newSiteContractType,
-              hasP2: avenantFormData.newSiteHasP2,
-              hasP3: avenantFormData.newSiteHasP3,
-              amountP2: avenantFormData.newSiteAmountP2 || null,
-              amountP3: avenantFormData.newSiteAmountP3 || null,
-            },
-          ]
-        : [];
-
-      // Préparer les removedSites pour retrait de site
-      const removedSites = avenantFormData.selectedContractSiteId && avenantFormData.type === "RETRAIT_SITE"
-        ? [{ contractSiteId: avenantFormData.selectedContractSiteId }]
-        : [];
+      // Déterminer le type principal de l'avenant
+      let type = "AUTRE";
+      if (priceChanges.length > 0 && newSites.length === 0 && removedSites.length === 0) {
+        type = "MODIFICATION_PRIX";
+      } else if (newSites.length > 0 && priceChanges.length === 0 && removedSites.length === 0) {
+        type = "AJOUT_SITE";
+      } else if (removedSites.length > 0 && priceChanges.length === 0 && newSites.length === 0) {
+        type = "RETRAIT_SITE";
+      }
 
       const response = await fetch(`/api/contracts/${contractId}/avenants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reference: avenantFormData.reference,
-          type: avenantFormData.type,
+          type,
           effectiveDate: avenantFormData.effectiveDate,
           description: avenantFormData.description,
-          priceChanges,
-          newSites,
-          removedSites,
+          priceChanges: priceChanges.map(pc => ({
+            contractSiteId: pc.contractSiteId,
+            deltaP2: pc.deltaP2 || null,
+            deltaP3: pc.deltaP3 || null,
+            reason: pc.reason || null,
+          })),
+          newSites: newSites.map(ns => ({
+            siteId: ns.siteId,
+            contractType: ns.contractType,
+            hasP2: true,
+            hasP3: true,
+            amountP2: ns.amountP2 || null,
+            amountP3: ns.amountP3 || null,
+          })),
+          removedSites: removedSites.map(rs => ({
+            contractSiteId: rs.contractSiteId,
+          })),
         }),
       });
 
       if (response.ok) {
         await fetchContract();
         setShowAvenantModal(false);
-        setAvenantFormData({
-          reference: "",
-          type: "MODIFICATION_PRIX",
-          effectiveDate: "",
-          description: "",
-          selectedContractSiteId: "",
-          deltaP2: "",
-          deltaP3: "",
-          reason: "",
-          newSiteId: "",
-          newSiteContractType: "MC",
-          newSiteHasP2: true,
-          newSiteHasP3: true,
-          newSiteAmountP2: "",
-          newSiteAmountP3: "",
-        });
+        // Reset form
+        setAvenantFormData({ reference: "", effectiveDate: "", description: "" });
+        setPriceChanges([]);
+        setNewSites([]);
+        setRemovedSites([]);
+        setTempPriceChange({ contractSiteId: "", deltaP2: "", deltaP3: "", reason: "" });
+        setTempNewSite({ siteId: "", contractType: "MC", amountP2: "", amountP3: "" });
+        setTempRemovedSite({ contractSiteId: "" });
+        // Refresh financials if needed
+        if (activeTab === "financier") {
+          setFinancialData(null);
+          fetchFinancials();
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || "Erreur lors de la création de l'avenant");
       }
     } catch (error) {
       console.error("Error creating avenant:", error);
+      alert("Erreur lors de la création de l'avenant");
     } finally {
       setCreatingAvenant(false);
     }
+  };
+
+  // Fonctions pour ajouter des éléments aux listes
+  const addPriceChange = () => {
+    if (!tempPriceChange.contractSiteId) return;
+    const site = contract?.contractSites.find(cs => cs.id === tempPriceChange.contractSiteId);
+    if (!site) return;
+    setPriceChanges([...priceChanges, {
+      ...tempPriceChange,
+      siteName: site.site.name,
+    }]);
+    setTempPriceChange({ contractSiteId: "", deltaP2: "", deltaP3: "", reason: "" });
+  };
+
+  const addNewSite = () => {
+    if (!tempNewSite.siteId) return;
+    const site = availableSites.find(s => s.id === tempNewSite.siteId);
+    if (!site) return;
+    // Vérifier que le site n'est pas déjà ajouté
+    if (newSites.some(ns => ns.siteId === tempNewSite.siteId)) return;
+    setNewSites([...newSites, {
+      ...tempNewSite,
+      siteName: site.name,
+    }]);
+    setTempNewSite({ siteId: "", contractType: "MC", amountP2: "", amountP3: "" });
+  };
+
+  const addRemovedSite = () => {
+    if (!tempRemovedSite.contractSiteId) return;
+    const site = contract?.contractSites.find(cs => cs.id === tempRemovedSite.contractSiteId);
+    if (!site) return;
+    // Vérifier que le site n'est pas déjà ajouté
+    if (removedSites.some(rs => rs.contractSiteId === tempRemovedSite.contractSiteId)) return;
+    setRemovedSites([...removedSites, {
+      contractSiteId: tempRemovedSite.contractSiteId,
+      siteName: site.site.name,
+    }]);
+    setTempRemovedSite({ contractSiteId: "" });
+  };
+
+  const removePriceChange = (index: number) => {
+    setPriceChanges(priceChanges.filter((_, i) => i !== index));
+  };
+
+  const removeNewSite = (index: number) => {
+    setNewSites(newSites.filter((_, i) => i !== index));
+  };
+
+  const removeRemovedSite = (index: number) => {
+    setRemovedSites(removedSites.filter((_, i) => i !== index));
   };
 
   if (loading) {
@@ -1101,7 +1213,21 @@ export default function ContractDetailPage() {
                         </p>
                       )}
                     </div>
-                    <TrendingUp size={20} className="text-accent" />
+                    <div className="flex items-center gap-2">
+                      <TrendingUp size={20} className="text-accent" />
+                      <button
+                        onClick={() => handleDeleteAvenant(avenant.id)}
+                        disabled={deletingAvenantId === avenant.id}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        title="Supprimer l'avenant"
+                      >
+                        {deletingAvenantId === avenant.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Price changes */}
@@ -2229,16 +2355,21 @@ export default function ContractDetailPage() {
         </div>
       )}
 
-      {/* Create Avenant Modal */}
+      {/* Create Avenant Modal - Multi-actions */}
       {showAvenantModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <h2 className="text-xl font-bold text-primary-dark">
                 Nouvel avenant
               </h2>
               <button
-                onClick={() => setShowAvenantModal(false)}
+                onClick={() => {
+                  setShowAvenantModal(false);
+                  setPriceChanges([]);
+                  setNewSites([]);
+                  setRemovedSites([]);
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
                 <X size={20} />
@@ -2246,41 +2377,22 @@ export default function ContractDetailPage() {
             </div>
 
             <form onSubmit={handleCreateAvenant} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Référence *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={avenantFormData.reference}
-                  onChange={(e) =>
-                    setAvenantFormData({ ...avenantFormData, reference: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  placeholder="Avenant n°1"
-                />
-              </div>
-
+              {/* Informations générales */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Type *
+                    Référence *
                   </label>
-                  <select
+                  <input
+                    type="text"
                     required
-                    value={avenantFormData.type}
+                    value={avenantFormData.reference}
                     onChange={(e) =>
-                      setAvenantFormData({ ...avenantFormData, type: e.target.value })
+                      setAvenantFormData({ ...avenantFormData, reference: e.target.value })
                     }
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    {avenantTypes.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Avenant n°1"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
@@ -2309,208 +2421,264 @@ export default function ContractDetailPage() {
                   }
                   rows={2}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  placeholder="Ex: Ajout chaudière 300kW"
+                  placeholder="Ex: Ajout équipements et modifications tarifaires"
                 />
               </div>
 
-              {/* Section selon le type d'avenant */}
-              {(avenantFormData.type === "MODIFICATION_PRIX" || avenantFormData.type === "AJOUT_EQUIPEMENT" || avenantFormData.type === "RETRAIT_EQUIPEMENT") && (
-                <div className="border-t border-gray-100 pt-4 mt-4">
-                  <p className="text-sm font-medium text-primary-dark mb-3">
-                    Site concerné
-                  </p>
-                  <div className="mb-4">
-                    <select
-                      value={avenantFormData.selectedContractSiteId}
-                      onChange={(e) =>
-                        setAvenantFormData({ ...avenantFormData, selectedContractSiteId: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    >
-                      <option value="">Sélectionner un site</option>
-                      {contract.contractSites.map((cs) => (
-                        <option key={cs.id} value={cs.id}>
-                          {cs.site.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {/* Section Modifications de prix */}
+              <div className="border border-gray-200 rounded-xl p-4">
+                <h3 className="font-medium text-primary-dark mb-3 flex items-center gap-2">
+                  <Euro size={18} className="text-accent" />
+                  Modifications de prix ({priceChanges.length})
+                </h3>
 
-                  {avenantFormData.selectedContractSiteId && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
+                {/* Liste des modifications ajoutées */}
+                {priceChanges.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {priceChanges.map((pc, index) => (
+                      <div key={index} className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg text-sm">
                         <div>
-                          <label className="block text-sm font-medium text-primary-dark mb-1">
-                            Delta P2 (€ HT/an)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={avenantFormData.deltaP2}
-                            onChange={(e) =>
-                              setAvenantFormData({ ...avenantFormData, deltaP2: e.target.value })
-                            }
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            placeholder="+300 ou -100"
-                          />
+                          <span className="font-medium">{pc.siteName}</span>
+                          <span className="text-text-secondary ml-2">
+                            {pc.deltaP2 && `P2: ${Number(pc.deltaP2) > 0 ? '+' : ''}${pc.deltaP2}€`}
+                            {pc.deltaP2 && pc.deltaP3 && ' | '}
+                            {pc.deltaP3 && `P3: ${Number(pc.deltaP3) > 0 ? '+' : ''}${pc.deltaP3}€`}
+                          </span>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-primary-dark mb-1">
-                            Delta P3 (€ HT/an)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={avenantFormData.deltaP3}
-                            onChange={(e) =>
-                              setAvenantFormData({ ...avenantFormData, deltaP3: e.target.value })
-                            }
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            placeholder="+200 ou -50"
-                          />
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-primary-dark mb-1">
-                          Raison du changement
-                        </label>
-                        <input
-                          type="text"
-                          value={avenantFormData.reason}
-                          onChange={(e) =>
-                            setAvenantFormData({ ...avenantFormData, reason: e.target.value })
-                          }
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                          placeholder="Ex: Ajout chaudière 300kW"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Ajout de site */}
-              {avenantFormData.type === "AJOUT_SITE" && (
-                <div className="border-t border-gray-100 pt-4 mt-4">
-                  <p className="text-sm font-medium text-primary-dark mb-3">
-                    Nouveau site à ajouter
-                  </p>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-primary-dark mb-1">
-                      Site *
-                    </label>
-                    <select
-                      required
-                      value={avenantFormData.newSiteId}
-                      onChange={(e) =>
-                        setAvenantFormData({ ...avenantFormData, newSiteId: e.target.value })
-                      }
-                      onFocus={fetchAvailableSites}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    >
-                      <option value="">Sélectionner un site</option>
-                      {availableSites.map((site) => (
-                        <option key={site.id} value={site.id}>
-                          {site.name} ({site.type})
-                        </option>
-                      ))}
-                    </select>
-                    {availableSites.length === 0 && (
-                      <p className="text-xs text-text-secondary mt-1">
-                        Cliquez pour charger les sites disponibles
-                      </p>
-                    )}
-                  </div>
-
-                  {avenantFormData.newSiteId && (
-                    <>
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium text-primary-dark mb-1">
-                          Type de contrat
-                        </label>
-                        <select
-                          value={avenantFormData.newSiteContractType}
-                          onChange={(e) =>
-                            setAvenantFormData({ ...avenantFormData, newSiteContractType: e.target.value })
-                          }
-                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        <button
+                          type="button"
+                          onClick={() => removePriceChange(index)}
+                          className="text-red-500 hover:text-red-700"
                         >
-                          {contractTypes.map((type) => (
-                            <option key={type.value} value={type.value}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
+                          <X size={16} />
+                        </button>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-primary-dark mb-1">
-                            P2 annuel (€ HT)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={avenantFormData.newSiteAmountP2}
-                            onChange={(e) =>
-                              setAvenantFormData({ ...avenantFormData, newSiteAmountP2: e.target.value })
-                            }
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            placeholder="1000"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-primary-dark mb-1">
-                            P3 annuel (€ HT)
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={avenantFormData.newSiteAmountP3}
-                            onChange={(e) =>
-                              setAvenantFormData({ ...avenantFormData, newSiteAmountP3: e.target.value })
-                            }
-                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            placeholder="500"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Retrait de site */}
-              {avenantFormData.type === "RETRAIT_SITE" && (
-                <div className="border-t border-gray-100 pt-4 mt-4">
-                  <p className="text-sm font-medium text-primary-dark mb-3">
-                    Site à retirer
-                  </p>
-                  <div className="mb-4">
-                    <select
-                      required
-                      value={avenantFormData.selectedContractSiteId}
-                      onChange={(e) =>
-                        setAvenantFormData({ ...avenantFormData, selectedContractSiteId: e.target.value })
-                      }
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    >
-                      <option value="">Sélectionner un site</option>
-                      {contract.contractSites.filter(cs => !cs.exitDate).map((cs) => (
-                        <option key={cs.id} value={cs.id}>
-                          {cs.site.name}
-                        </option>
-                      ))}
-                    </select>
+                    ))}
                   </div>
-                  <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
-                    Le site sera retiré à partir de la date d&apos;effet de l&apos;avenant.
-                  </p>
+                )}
+
+                {/* Formulaire pour ajouter une modification */}
+                <div className="bg-gray-50 rounded-lg p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <select
+                        value={tempPriceChange.contractSiteId}
+                        onChange={(e) => setTempPriceChange({ ...tempPriceChange, contractSiteId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      >
+                        <option value="">Sélectionner un site</option>
+                        {contract.contractSites.filter(cs => !cs.exitDate).map((cs) => (
+                          <option key={cs.id} value={cs.id}>{cs.site.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Delta P2 (€)"
+                        value={tempPriceChange.deltaP2}
+                        onChange={(e) => setTempPriceChange({ ...tempPriceChange, deltaP2: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="Delta P3 (€)"
+                        value={tempPriceChange.deltaP3}
+                        onChange={(e) => setTempPriceChange({ ...tempPriceChange, deltaP3: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <input
+                        type="text"
+                        placeholder="Raison (optionnel)"
+                        value={tempPriceChange.reason}
+                        onChange={(e) => setTempPriceChange({ ...tempPriceChange, reason: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addPriceChange}
+                    disabled={!tempPriceChange.contractSiteId || (!tempPriceChange.deltaP2 && !tempPriceChange.deltaP3)}
+                    className="w-full"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Ajouter modification
+                  </Button>
+                </div>
+              </div>
+
+              {/* Section Ajout de sites */}
+              <div className="border border-gray-200 rounded-xl p-4">
+                <h3 className="font-medium text-primary-dark mb-3 flex items-center gap-2">
+                  <Plus size={18} className="text-green-600" />
+                  Ajout de sites ({newSites.length})
+                </h3>
+
+                {/* Liste des sites à ajouter */}
+                {newSites.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {newSites.map((ns, index) => (
+                      <div key={index} className="flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg text-sm">
+                        <div>
+                          <span className="font-medium">{ns.siteName}</span>
+                          <span className="text-text-secondary ml-2">
+                            {ns.amountP2 && `P2: ${ns.amountP2}€`}
+                            {ns.amountP2 && ns.amountP3 && ' | '}
+                            {ns.amountP3 && `P3: ${ns.amountP3}€`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeNewSite(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulaire pour ajouter un site */}
+                <div className="bg-gray-50 rounded-lg p-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <select
+                        value={tempNewSite.siteId}
+                        onChange={(e) => setTempNewSite({ ...tempNewSite, siteId: e.target.value })}
+                        onFocus={fetchAvailableSites}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      >
+                        <option value="">Sélectionner un site à ajouter</option>
+                        {availableSites
+                          .filter(s => !contract.contractSites.some(cs => cs.site.id === s.id))
+                          .filter(s => !newSites.some(ns => ns.siteId === s.id))
+                          .map((site) => (
+                            <option key={site.id} value={site.id}>{site.name} ({site.type})</option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <select
+                        value={tempNewSite.contractType}
+                        onChange={(e) => setTempNewSite({ ...tempNewSite, contractType: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      >
+                        {contractTypes.map((type) => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="P2 (€)"
+                        value={tempNewSite.amountP2}
+                        onChange={(e) => setTempNewSite({ ...tempNewSite, amountP2: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="P3 (€)"
+                        value={tempNewSite.amountP3}
+                        onChange={(e) => setTempNewSite({ ...tempNewSite, amountP3: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addNewSite}
+                    disabled={!tempNewSite.siteId}
+                    className="w-full"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Ajouter site
+                  </Button>
+                </div>
+              </div>
+
+              {/* Section Retrait de sites */}
+              <div className="border border-gray-200 rounded-xl p-4">
+                <h3 className="font-medium text-primary-dark mb-3 flex items-center gap-2">
+                  <X size={18} className="text-red-600" />
+                  Retrait de sites ({removedSites.length})
+                </h3>
+
+                {/* Liste des sites à retirer */}
+                {removedSites.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {removedSites.map((rs, index) => (
+                      <div key={index} className="flex items-center justify-between bg-red-50 px-3 py-2 rounded-lg text-sm">
+                        <span className="font-medium">{rs.siteName}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRemovedSite(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulaire pour retirer un site */}
+                <div className="bg-gray-50 rounded-lg p-3 space-y-3">
+                  <select
+                    value={tempRemovedSite.contractSiteId}
+                    onChange={(e) => setTempRemovedSite({ contractSiteId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  >
+                    <option value="">Sélectionner un site à retirer</option>
+                    {contract.contractSites
+                      .filter(cs => !cs.exitDate)
+                      .filter(cs => !removedSites.some(rs => rs.contractSiteId === cs.id))
+                      .map((cs) => (
+                        <option key={cs.id} value={cs.id}>{cs.site.name}</option>
+                      ))}
+                  </select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addRemovedSite}
+                    disabled={!tempRemovedSite.contractSiteId}
+                    className="w-full"
+                  >
+                    <Plus size={16} className="mr-1" />
+                    Ajouter au retrait
+                  </Button>
+                </div>
+              </div>
+
+              {/* Résumé */}
+              {(priceChanges.length > 0 || newSites.length > 0 || removedSites.length > 0) && (
+                <div className="bg-accent/5 border border-accent/20 rounded-lg p-3">
+                  <p className="text-sm font-medium text-primary-dark mb-1">Résumé de l&apos;avenant :</p>
+                  <ul className="text-sm text-text-secondary space-y-1">
+                    {priceChanges.length > 0 && <li>• {priceChanges.length} modification(s) de prix</li>}
+                    {newSites.length > 0 && <li>• {newSites.length} site(s) à ajouter</li>}
+                    {removedSites.length > 0 && <li>• {removedSites.length} site(s) à retirer</li>}
+                  </ul>
                 </div>
               )}
 
-              <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
-                Le prix sera calculé au prorata selon la date d&apos;effet et le type d&apos;année contractuelle.
+              <p className="text-xs text-text-secondary bg-gray-50 p-3 rounded-lg">
+                Le prix sera calculé au prorata selon la date d&apos;effet. Vous pouvez combiner plusieurs types de modifications dans un même avenant.
               </p>
 
               <div className="flex gap-3 pt-4">
@@ -2518,11 +2686,20 @@ export default function ContractDetailPage() {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setShowAvenantModal(false)}
+                  onClick={() => {
+                    setShowAvenantModal(false);
+                    setPriceChanges([]);
+                    setNewSites([]);
+                    setRemovedSites([]);
+                  }}
                 >
                   Annuler
                 </Button>
-                <Button type="submit" className="flex-1" disabled={creatingAvenant}>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={creatingAvenant || (priceChanges.length === 0 && newSites.length === 0 && removedSites.length === 0)}
+                >
                   {creatingAvenant ? (
                     <>
                       <Loader2 size={18} className="mr-2 animate-spin" />
