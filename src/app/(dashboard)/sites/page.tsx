@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   FileText,
   Users,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -195,6 +196,10 @@ export default function SitesPage() {
   const [previewSites, setPreviewSites] = useState<PreviewSite[]>([]);
   const [previewDuplicates, setPreviewDuplicates] = useState<string[]>([]);
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
+
+  // Geocoding state
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeResult, setGeocodeResult] = useState<{ updated: number; failed: number } | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -429,6 +434,29 @@ export default function SitesPage() {
       alert(err instanceof Error ? err.message : "Erreur");
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Batch geocoding for sites without coordinates
+  const handleBatchGeocode = async () => {
+    if (!selectedContract) return;
+    setGeocoding(true);
+    setGeocodeResult(null);
+    try {
+      const response = await fetch("/api/sites/geocode", { method: "POST" });
+      const result = await response.json();
+
+      if (response.ok) {
+        setGeocodeResult({ updated: result.updated, failed: result.failed });
+        // Refresh sites to show new coordinates
+        await fetchSitesForContract(selectedContract.id);
+      } else {
+        alert(result.error || "Erreur lors du géocodage");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setGeocoding(false);
     }
   };
 
@@ -693,7 +721,40 @@ export default function SitesPage() {
 
           {/* MAP VIEW */}
           {activeView === "map" && (
-            <ChartCard title="Carte des sites" subtitle={`${stats.sitesWithCoords} sites géolocalisés sur ${stats.totalSites}`}>
+            <ChartCard
+              title="Carte des sites"
+              subtitle={`${stats.sitesWithCoords} sites géolocalisés sur ${stats.totalSites}`}
+              action={
+                stats.sitesWithCoords < stats.totalSites ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBatchGeocode}
+                    disabled={geocoding}
+                  >
+                    {geocoding ? (
+                      <>
+                        <Loader2 size={14} className="mr-2 animate-spin" />
+                        Géocodage...
+                      </>
+                    ) : (
+                      <>
+                        <MapPin size={14} className="mr-2" />
+                        Géocoder ({stats.totalSites - stats.sitesWithCoords})
+                      </>
+                    )}
+                  </Button>
+                ) : null
+              }
+            >
+              {geocodeResult && (
+                <div className={`mb-4 p-3 rounded-lg text-sm ${geocodeResult.updated > 0 ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
+                  {geocodeResult.updated > 0
+                    ? `${geocodeResult.updated} site(s) géocodé(s) avec succès !`
+                    : "Aucune adresse n'a pu être géocodée."}
+                  {geocodeResult.failed > 0 && ` (${geocodeResult.failed} échec(s))`}
+                </div>
+              )}
               <SiteMap
                 sites={filteredSites.map((s) => ({
                   id: s.id,

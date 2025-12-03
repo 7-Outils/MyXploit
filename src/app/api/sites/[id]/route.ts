@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { geocodeAddress } from "@/lib/geocoding";
 
 // GET /api/sites/[id] - Get a single site
 export async function GET(
@@ -84,6 +85,25 @@ export async function PUT(
 
     const body = await request.json();
 
+    // Geocode if address/city provided and no coordinates given
+    let latitude = body.latitude ? parseFloat(body.latitude) : null;
+    let longitude = body.longitude ? parseFloat(body.longitude) : null;
+
+    const addressChanged = body.address !== existingSite.address || body.city !== existingSite.city;
+    const needsGeocode = (!latitude && !longitude) && (body.address && body.city);
+
+    if (needsGeocode || (addressChanged && !latitude && !longitude)) {
+      const geoResult = await geocodeAddress(
+        body.address || "",
+        body.city || "",
+        body.postalCode || ""
+      );
+      if (geoResult) {
+        latitude = geoResult.latitude;
+        longitude = geoResult.longitude;
+      }
+    }
+
     const site = await prisma.site.update({
       where: { id },
       data: {
@@ -101,8 +121,8 @@ export async function PUT(
         pdl: body.pdl || null,
         rae: body.rae || null,
         annualBudget: body.annualBudget ? parseFloat(body.annualBudget) : null,
-        latitude: body.latitude ? parseFloat(body.latitude) : null,
-        longitude: body.longitude ? parseFloat(body.longitude) : null,
+        latitude,
+        longitude,
         image: body.image,
       },
     });
