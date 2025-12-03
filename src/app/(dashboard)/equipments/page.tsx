@@ -19,6 +19,11 @@ import {
   Flame,
   ChevronDown,
   ChevronUp,
+  Upload,
+  Download,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -400,6 +405,39 @@ export default function EquipmentsPage() {
   const [creating, setCreating] = useState(false);
   const [sites, setSites] = useState<Array<{ id: string; name: string }>>([]);
 
+  // Import modal states
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
+  const [importPreview, setImportPreview] = useState<{
+    total: number;
+    valid: number;
+    errors: number;
+    warnings: number;
+    results: Array<{
+      row: number;
+      status: "ok" | "warning" | "error";
+      type?: string;
+      typeParsed?: string;
+      domain?: string;
+      site?: string;
+      siteId?: string;
+      name?: string;
+      brand?: string;
+      model?: string;
+      year?: number;
+      power?: number;
+      quantity?: number;
+      message?: string;
+    }>;
+  } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    total: number;
+    created: number;
+    errors: number;
+  } | null>(null);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -556,6 +594,142 @@ export default function EquipmentsPage() {
     );
   };
 
+  // Parse CSV content
+  const parseCSV = (content: string): Record<string, string>[] => {
+    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) return [];
+
+    // Parse header
+    const header = lines[0].split(";").map((h) => h.trim().toLowerCase().replace(/['"]/g, ""));
+    const rows: Record<string, string>[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(";").map((v) => v.trim().replace(/['"]/g, ""));
+      const row: Record<string, string> = {};
+      header.forEach((h, idx) => {
+        row[h] = values[idx] || "";
+      });
+      rows.push(row);
+    }
+
+    return rows;
+  };
+
+  // Handle file upload for import
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFile(file);
+  };
+
+  // Parse and preview import
+  const handleImportPreview = async () => {
+    if (!importFile || !selectedContract) return;
+    setImporting(true);
+
+    try {
+      const content = await importFile.text();
+      const rows = parseCSV(content);
+
+      if (rows.length === 0) {
+        alert("Fichier vide ou format invalide");
+        setImporting(false);
+        return;
+      }
+
+      const response = await fetch("/api/equipments/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows,
+          contractId: selectedContract.id,
+          preview: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erreur lors de l'analyse");
+      }
+
+      const data = await response.json();
+      setImportPreview(data);
+      setImportStep("preview");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Confirm and execute import
+  const handleImportConfirm = async () => {
+    if (!importFile || !selectedContract) return;
+    setImporting(true);
+
+    try {
+      const content = await importFile.text();
+      const rows = parseCSV(content);
+
+      const response = await fetch("/api/equipments/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows,
+          contractId: selectedContract.id,
+          preview: false,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erreur lors de l'import");
+      }
+
+      const data = await response.json();
+      setImportResult({
+        total: data.total,
+        created: data.created,
+        errors: data.errors,
+      });
+      setImportStep("result");
+
+      // Refresh equipments
+      await fetchEquipmentsForContract(selectedContract.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Reset import modal
+  const resetImportModal = () => {
+    setShowImportModal(false);
+    setImportFile(null);
+    setImportStep("upload");
+    setImportPreview(null);
+    setImportResult(null);
+  };
+
+  // Download template
+  const downloadTemplate = () => {
+    const template = `site;type;marque;modele;annee;puissance;quantite;local;niveau
+Lycée Victor Hugo;Chaudière condensation;De Dietrich;GT 220;2015;300;;Chaufferie;Sous-sol
+Lycée Victor Hugo;Circulateur;Grundfos;Magna3;2018;1.5;;Chaufferie;Sous-sol
+Lycée Victor Hugo;Radiateur;;;;2;15;Salle 101;RDC
+Collège Jean Moulin;PAC air/eau;Daikin;Altherma;2020;50;;Local technique;Toiture
+Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
+
+    const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "template_equipements.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ============================================
   // RENDER: CONTRACT SELECTION VIEW
   // ============================================
@@ -641,10 +815,16 @@ export default function EquipmentsPage() {
             <p className="text-text-secondary">Équipements — {selectedContract.provider}</p>
           </div>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus size={18} className="mr-2" />
-          Ajouter un équipement
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowImportModal(true)}>
+            <Upload size={18} className="mr-2" />
+            Importer
+          </Button>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus size={18} className="mr-2" />
+            Ajouter
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -1198,6 +1378,201 @@ export default function EquipmentsPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                {importStep === "upload" && "Importer des équipements"}
+                {importStep === "preview" && "Vérification de l'import"}
+                {importStep === "result" && "Résultat de l'import"}
+              </h2>
+              <button onClick={resetImportModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Upload Step */}
+              {importStep === "upload" && (
+                <div className="space-y-6">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-medium text-blue-800 mb-2">Format du fichier CSV</h3>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Le fichier doit contenir les colonnes suivantes (séparateur: point-virgule):
+                    </p>
+                    <div className="bg-white rounded p-3 text-xs font-mono overflow-x-auto">
+                      <p><strong>site</strong> (obligatoire) — Nom du site (doit correspondre à un site du contrat)</p>
+                      <p><strong>type</strong> (obligatoire) — Type d'équipement (ex: chaudière, pompe, clim, VMC...)</p>
+                      <p><strong>marque</strong> — Marque (ex: De Dietrich, Daikin)</p>
+                      <p><strong>modele</strong> — Modèle</p>
+                      <p><strong>annee</strong> — Année de fabrication</p>
+                      <p><strong>puissance</strong> — Puissance en kW</p>
+                      <p><strong>quantite</strong> — Quantité (pour les émetteurs)</p>
+                      <p><strong>local</strong> — Localisation (ex: Chaufferie)</p>
+                      <p><strong>niveau</strong> — Niveau (ex: Sous-sol, RDC)</p>
+                    </div>
+                    <p className="text-sm text-blue-600 mt-3">
+                      💡 Les types sont reconnus automatiquement : "pompe" → Circulateur, "clim" → Climatiseur, etc.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Button variant="outline" onClick={downloadTemplate} className="mb-4">
+                      <Download size={16} className="mr-2" />
+                      Télécharger le modèle CSV
+                    </Button>
+                  </div>
+
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={handleImportFileChange}
+                      className="hidden"
+                      id="import-file"
+                    />
+                    <label htmlFor="import-file" className="cursor-pointer">
+                      <Upload size={40} className="mx-auto text-gray-400 mb-3" />
+                      <p className="text-sm text-text-secondary mb-2">
+                        Cliquez pour sélectionner un fichier CSV
+                      </p>
+                      {importFile && (
+                        <p className="text-sm font-medium text-accent">{importFile.name}</p>
+                      )}
+                    </label>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={resetImportModal}>
+                      Annuler
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handleImportPreview}
+                      disabled={!importFile || importing}
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 size={18} className="mr-2 animate-spin" />
+                          Analyse...
+                        </>
+                      ) : (
+                        "Analyser le fichier"
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Step */}
+              {importStep === "preview" && importPreview && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-green-50 rounded-lg p-4 text-center">
+                      <CheckCircle size={24} className="mx-auto text-green-600 mb-1" />
+                      <p className="text-2xl font-bold text-green-700">{importPreview.valid}</p>
+                      <p className="text-sm text-green-600">Valides</p>
+                    </div>
+                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+                      <AlertCircle size={24} className="mx-auto text-yellow-600 mb-1" />
+                      <p className="text-2xl font-bold text-yellow-700">{importPreview.warnings}</p>
+                      <p className="text-sm text-yellow-600">Avertissements</p>
+                    </div>
+                    <div className="bg-red-50 rounded-lg p-4 text-center">
+                      <XCircle size={24} className="mx-auto text-red-600 mb-1" />
+                      <p className="text-2xl font-bold text-red-700">{importPreview.errors}</p>
+                      <p className="text-sm text-red-600">Erreurs</p>
+                    </div>
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg overflow-hidden max-h-64 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2">Ligne</th>
+                          <th className="text-left px-3 py-2">Site</th>
+                          <th className="text-left px-3 py-2">Type</th>
+                          <th className="text-left px-3 py-2">Reconnu</th>
+                          <th className="text-left px-3 py-2">Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {importPreview.results.map((r) => (
+                          <tr key={r.row} className={r.status === "error" ? "bg-red-50" : r.status === "warning" ? "bg-yellow-50" : ""}>
+                            <td className="px-3 py-2">{r.row}</td>
+                            <td className="px-3 py-2">{r.site || "-"}</td>
+                            <td className="px-3 py-2">{r.type || "-"}</td>
+                            <td className="px-3 py-2 font-medium">
+                              {r.typeParsed ? equipmentTypeLabels[r.typeParsed as EquipmentType] || r.typeParsed : "-"}
+                            </td>
+                            <td className="px-3 py-2">
+                              {r.status === "ok" && <CheckCircle size={16} className="text-green-600" />}
+                              {r.status === "warning" && (
+                                <span className="flex items-center gap-1 text-yellow-600">
+                                  <AlertCircle size={16} />
+                                  <span className="text-xs">{r.message}</span>
+                                </span>
+                              )}
+                              {r.status === "error" && (
+                                <span className="flex items-center gap-1 text-red-600">
+                                  <XCircle size={16} />
+                                  <span className="text-xs">{r.message}</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1" onClick={() => setImportStep("upload")}>
+                      Retour
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handleImportConfirm}
+                      disabled={importing || importPreview.valid === 0}
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 size={18} className="mr-2 animate-spin" />
+                          Import en cours...
+                        </>
+                      ) : (
+                        `Importer ${importPreview.valid} équipement(s)`
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Result Step */}
+              {importStep === "result" && importResult && (
+                <div className="space-y-6 text-center">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                    <CheckCircle size={32} className="text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-primary-dark mb-2">Import terminé !</h3>
+                    <p className="text-text-secondary">
+                      {importResult.created} équipement(s) créé(s) sur {importResult.total} ligne(s)
+                      {importResult.errors > 0 && ` (${importResult.errors} erreur(s))`}
+                    </p>
+                  </div>
+                  <Button onClick={resetImportModal} className="w-full">
+                    Fermer
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
