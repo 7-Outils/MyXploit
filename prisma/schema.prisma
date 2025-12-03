@@ -141,6 +141,8 @@ enum EquipmentDomain {
   CLIMATISATION
   TRAITEMENT_EAU
   PLOMBERIE
+  CFO_CFA       // Courants Forts / Courants Faibles (électricité)
+  COMPTAGE      // Compteurs et instruments de mesure
   AUTRE
 }
 
@@ -156,6 +158,7 @@ enum EquipmentType {
   PLANCHER_CHAUFFANT
   CONVECTEUR
   AEROTERME
+  RADIANT_GAZ       // Radiant gaz
   VANNE_3_VOIES
   VANNE_MOTORISEE
   POMPE_CHAUFFAGE
@@ -169,6 +172,7 @@ enum EquipmentType {
   // === ECS ===
   BALLON_ECS
   BALLON_THERMODYNAMIQUE
+  PREPARATEUR_ECS_GAZ  // Préparateur ECS Gaz
   ECHANGEUR_ECS
   POMPE_BOUCLAGE
   MITIGEUR_THERMOSTATIQUE
@@ -207,6 +211,28 @@ enum EquipmentType {
   SURPRESSEUR
   BACHE_EAU
   REDUCTION_PRESSION
+  // === CFO/CFA (Électricité) ===
+  ARMOIRE_ELECTRIQUE
+  ARMOIRE_TGBT       // Tableau Général Basse Tension
+  ARMOIRE_TD         // Tableau Divisionnaire
+  ONDULEUR
+  GROUPE_ELECTROGENE
+  TRANSFORMATEUR
+  BAIE_INFORMATIQUE
+  // === COMPTAGE ===
+  COMPTEUR_ENERGIE       // Compteur d'énergie thermique
+  COMPTEUR_CALORIES      // Compteur de calories
+  COMPTEUR_FRIGORIES     // Compteur de frigories
+  COMPTEUR_ECS           // Compteur ECS
+  COMPTEUR_GAZ           // Compteur gaz
+  COMPTEUR_ELECTRIQUE    // Compteur électrique
+  SOUS_COMPTEUR_ELEC     // Sous-compteur électrique
+  COMPTEUR_HORAIRE       // Compteur horaire
+  ANALYSEUR_RESEAU       // Analyseur de réseau électrique
+  SONDE_TEMPERATURE_AMB  // Sonde de température ambiante
+  SONDE_HYGROMETRIE      // Sonde d'hygrométrie
+  CAPTEUR_CO2            // Capteur CO2
+  CAPTEUR_QUALITE_AIR    // Capteur qualité d'air
   // === AUTRE ===
   AUTRE
 }
@@ -240,6 +266,7 @@ model Equipment {
   installDate    DateTime?
   warrantyEnd    DateTime?
   power          Float?          // kW
+  quantity       Int?            // Quantité (pour émetteurs: radiateurs, convecteurs, etc.)
   // Localisation dans le site
   location       String?         // Local/Pièce (ex: "Chaufferie", "Sous-sol technique")
   level          String?         // Niveau/Étage (ex: "RDC", "Sous-sol", "Toiture")

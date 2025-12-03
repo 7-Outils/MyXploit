@@ -31,6 +31,8 @@ type EquipmentDomain =
   | "CLIMATISATION"
   | "TRAITEMENT_EAU"
   | "PLOMBERIE"
+  | "CFO_CFA"
+  | "COMPTAGE"
   | "AUTRE";
 
 type EquipmentType =
@@ -45,6 +47,7 @@ type EquipmentType =
   | "PLANCHER_CHAUFFANT"
   | "CONVECTEUR"
   | "AEROTERME"
+  | "RADIANT_GAZ"
   | "VANNE_3_VOIES"
   | "VANNE_MOTORISEE"
   | "POMPE_CHAUFFAGE"
@@ -58,6 +61,7 @@ type EquipmentType =
   // ECS
   | "BALLON_ECS"
   | "BALLON_THERMODYNAMIQUE"
+  | "PREPARATEUR_ECS_GAZ"
   | "ECHANGEUR_ECS"
   | "POMPE_BOUCLAGE"
   | "MITIGEUR_THERMOSTATIQUE"
@@ -96,6 +100,28 @@ type EquipmentType =
   | "SURPRESSEUR"
   | "BACHE_EAU"
   | "REDUCTION_PRESSION"
+  // CFO/CFA
+  | "ARMOIRE_ELECTRIQUE"
+  | "ARMOIRE_TGBT"
+  | "ARMOIRE_TD"
+  | "ONDULEUR"
+  | "GROUPE_ELECTROGENE"
+  | "TRANSFORMATEUR"
+  | "BAIE_INFORMATIQUE"
+  // Comptage
+  | "COMPTEUR_ENERGIE"
+  | "COMPTEUR_CALORIES"
+  | "COMPTEUR_FRIGORIES"
+  | "COMPTEUR_ECS"
+  | "COMPTEUR_GAZ"
+  | "COMPTEUR_ELECTRIQUE"
+  | "SOUS_COMPTEUR_ELEC"
+  | "COMPTEUR_HORAIRE"
+  | "ANALYSEUR_RESEAU"
+  | "SONDE_TEMPERATURE_AMB"
+  | "SONDE_HYGROMETRIE"
+  | "CAPTEUR_CO2"
+  | "CAPTEUR_QUALITE_AIR"
   // Autre
   | "AUTRE";
 
@@ -122,6 +148,7 @@ interface Equipment {
   serialNumber: string | null;
   year: number | null;
   power: number | null;
+  quantity: number | null;
   location: string | null;
   level: string | null;
   theoreticalLifespan: number | null;
@@ -182,6 +209,8 @@ const domainLabels: Record<EquipmentDomain, string> = {
   CLIMATISATION: "Climatisation",
   TRAITEMENT_EAU: "Traitement d'eau",
   PLOMBERIE: "Plomberie",
+  CFO_CFA: "CFO/CFA",
+  COMPTAGE: "Comptage",
   AUTRE: "Autre",
 };
 
@@ -197,6 +226,7 @@ const equipmentTypeLabels: Record<EquipmentType, string> = {
   PLANCHER_CHAUFFANT: "Plancher chauffant",
   CONVECTEUR: "Convecteur",
   AEROTERME: "Aérotherme",
+  RADIANT_GAZ: "Radiant gaz",
   VANNE_3_VOIES: "Vanne 3 voies",
   VANNE_MOTORISEE: "Vanne motorisée",
   POMPE_CHAUFFAGE: "Pompe chauffage",
@@ -210,6 +240,7 @@ const equipmentTypeLabels: Record<EquipmentType, string> = {
   // ECS
   BALLON_ECS: "Ballon ECS",
   BALLON_THERMODYNAMIQUE: "Ballon thermodynamique",
+  PREPARATEUR_ECS_GAZ: "Préparateur ECS gaz",
   ECHANGEUR_ECS: "Échangeur ECS",
   POMPE_BOUCLAGE: "Pompe de bouclage",
   MITIGEUR_THERMOSTATIQUE: "Mitigeur thermostatique",
@@ -248,6 +279,28 @@ const equipmentTypeLabels: Record<EquipmentType, string> = {
   SURPRESSEUR: "Surpresseur",
   BACHE_EAU: "Bâche à eau",
   REDUCTION_PRESSION: "Réducteur de pression",
+  // CFO/CFA
+  ARMOIRE_ELECTRIQUE: "Armoire électrique",
+  ARMOIRE_TGBT: "TGBT",
+  ARMOIRE_TD: "Tableau divisionnaire",
+  ONDULEUR: "Onduleur",
+  GROUPE_ELECTROGENE: "Groupe électrogène",
+  TRANSFORMATEUR: "Transformateur",
+  BAIE_INFORMATIQUE: "Baie informatique",
+  // Comptage
+  COMPTEUR_ENERGIE: "Compteur d'énergie",
+  COMPTEUR_CALORIES: "Compteur de calories",
+  COMPTEUR_FRIGORIES: "Compteur de frigories",
+  COMPTEUR_ECS: "Compteur ECS",
+  COMPTEUR_GAZ: "Compteur gaz",
+  COMPTEUR_ELECTRIQUE: "Compteur électrique",
+  SOUS_COMPTEUR_ELEC: "Sous-compteur électrique",
+  COMPTEUR_HORAIRE: "Compteur horaire",
+  ANALYSEUR_RESEAU: "Analyseur réseau",
+  SONDE_TEMPERATURE_AMB: "Sonde température ambiante",
+  SONDE_HYGROMETRIE: "Sonde hygrométrie",
+  CAPTEUR_CO2: "Capteur CO2",
+  CAPTEUR_QUALITE_AIR: "Capteur qualité d'air",
   // Autre
   AUTRE: "Autre équipement",
 };
@@ -256,13 +309,13 @@ const equipmentTypeLabels: Record<EquipmentType, string> = {
 const typesByDomain: Record<EquipmentDomain, EquipmentType[]> = {
   CHAUFFAGE: [
     "CHAUDIERE", "CHAUDIERE_CONDENSATION", "PAC", "PAC_AIR_EAU", "PAC_EAU_EAU", "PAC_AIR_AIR",
-    "RADIATEUR", "PLANCHER_CHAUFFANT", "CONVECTEUR", "AEROTERME",
+    "RADIATEUR", "PLANCHER_CHAUFFANT", "CONVECTEUR", "AEROTERME", "RADIANT_GAZ",
     "VANNE_3_VOIES", "VANNE_MOTORISEE", "POMPE_CHAUFFAGE", "CIRCULATEUR",
     "VASE_EXPANSION", "ECHANGEUR_THERMIQUE", "BRULEUR", "REGULATEUR",
     "SONDE_TEMPERATURE", "SONDE_EXTERIEURE",
   ],
   ECS: [
-    "BALLON_ECS", "BALLON_THERMODYNAMIQUE", "ECHANGEUR_ECS",
+    "BALLON_ECS", "BALLON_THERMODYNAMIQUE", "PREPARATEUR_ECS_GAZ", "ECHANGEUR_ECS",
     "POMPE_BOUCLAGE", "MITIGEUR_THERMOSTATIQUE", "RESISTANCE_ELECTRIQUE",
   ],
   VENTILATION: [
@@ -279,6 +332,16 @@ const typesByDomain: Record<EquipmentDomain, EquipmentType[]> = {
   ],
   PLOMBERIE: [
     "COMPTEUR_EAU", "VANNE_GENERALE", "SURPRESSEUR", "BACHE_EAU", "REDUCTION_PRESSION",
+  ],
+  CFO_CFA: [
+    "ARMOIRE_ELECTRIQUE", "ARMOIRE_TGBT", "ARMOIRE_TD", "ONDULEUR",
+    "GROUPE_ELECTROGENE", "TRANSFORMATEUR", "BAIE_INFORMATIQUE",
+  ],
+  COMPTAGE: [
+    "COMPTEUR_ENERGIE", "COMPTEUR_CALORIES", "COMPTEUR_FRIGORIES", "COMPTEUR_ECS",
+    "COMPTEUR_GAZ", "COMPTEUR_ELECTRIQUE", "SOUS_COMPTEUR_ELEC", "COMPTEUR_HORAIRE",
+    "ANALYSEUR_RESEAU", "SONDE_TEMPERATURE_AMB", "SONDE_HYGROMETRIE",
+    "CAPTEUR_CO2", "CAPTEUR_QUALITE_AIR",
   ],
   AUTRE: ["AUTRE"],
 };
@@ -347,6 +410,7 @@ export default function EquipmentsPage() {
     serialNumber: "",
     year: "",
     power: "",
+    quantity: "",
     location: "",
     level: "",
     theoreticalLifespan: "",
@@ -473,6 +537,7 @@ export default function EquipmentsPage() {
         serialNumber: "",
         year: "",
         power: "",
+        quantity: "",
         location: "",
         level: "",
         theoreticalLifespan: "",
@@ -1082,6 +1147,20 @@ export default function EquipmentsPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Quantité</label>
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                    placeholder="1"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">Local</label>
                   <input
                     type="text"
@@ -1091,17 +1170,16 @@ export default function EquipmentsPage() {
                     placeholder="Chaufferie"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Niveau</label>
-                <input
-                  type="text"
-                  value={formData.level}
-                  onChange={(e) => setFormData({ ...formData, level: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
-                  placeholder="Sous-sol, RDC, Toiture..."
-                />
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Niveau</label>
+                  <input
+                    type="text"
+                    value={formData.level}
+                    onChange={(e) => setFormData({ ...formData, level: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                    placeholder="Sous-sol, RDC, Toiture..."
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

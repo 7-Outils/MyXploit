@@ -77,8 +77,9 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // Filter boilers (CHAUDIERE) for risk matrix
-    const boilers = equipmentData.filter((eq) => eq.type === "CHAUDIERE");
+    // Filter boilers (all boiler types) for risk matrix
+    const BOILER_TYPES = ["CHAUDIERE", "CHAUDIERE_CONDENSATION"];
+    const boilers = equipmentData.filter((eq) => BOILER_TYPES.includes(eq.type));
 
     // Calculate weighted average age by power for boilers
     let totalPower = 0;
@@ -143,7 +144,7 @@ export async function GET(request: NextRequest) {
 
     // Check for year concentration (too many replacements same year)
     for (const plan of renewalPlan) {
-      const boilersThisYear = plan.equipments.filter((eq) => eq.type === "CHAUDIERE");
+      const boilersThisYear = plan.equipments.filter((eq) => BOILER_TYPES.includes(eq.type));
       if (boilersThisYear.length > 2) {
         recommendations.push(
           `Attention: ${boilersThisYear.length} chaudières prévues au remplacement en ${plan.year}. ` +
