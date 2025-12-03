@@ -17,6 +17,9 @@ export async function GET() {
             },
           },
         },
+        _count: {
+          select: { contractSites: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

@@ -16,10 +16,11 @@ import {
   List,
   Map as MapIcon,
   BarChart3,
-  ChevronDown,
-  ChevronRight,
   Zap,
   Flame,
+  ArrowLeft,
+  FileText,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -60,6 +61,10 @@ type EnergyType =
 
 interface ContractSite {
   id: string;
+  contractType: string;
+  hasP1: boolean;
+  hasP2: boolean;
+  hasP3: boolean;
   contract: {
     id: string;
     reference: string;
@@ -77,6 +82,7 @@ interface Site {
   city: string;
   postalCode: string;
   surface: number | null;
+  surfaceChauffee: number | null;
   energyType: EnergyType;
   annualBudget: number | null;
   latitude: number | null;
@@ -95,6 +101,9 @@ interface Contract {
   title: string;
   provider: string;
   status: string;
+  _count?: {
+    contractSites: number;
+  };
 }
 
 interface ImportResult {
@@ -125,11 +134,6 @@ interface PreviewSite {
   hasP4?: boolean;
   amountP2?: number;
   amountP3?: number;
-}
-
-interface ContractGroup {
-  contract: Contract | null;
-  sites: Site[];
 }
 
 const contractTypeLabels: Record<string, string> = {
@@ -169,12 +173,17 @@ const energyTypeLabels: Record<EnergyType, string> = {
 type ViewType = "list" | "map" | "analytics";
 
 export default function SitesPage() {
+  // Contract selection state
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [loadingContracts, setLoadingContracts] = useState(true);
+
+  // Sites state (loaded only when contract is selected)
   const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingSites, setLoadingSites] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeView, setActiveView] = useState<ViewType>("list");
-  const [expandedContracts, setExpandedContracts] = useState<Set<string>>(new Set(["all"]));
 
   // Create/Import modal states
   const [showModal, setShowModal] = useState(false);
@@ -182,8 +191,6 @@ export default function SitesPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [selectedContractId, setSelectedContractId] = useState<string>("");
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [previewSites, setPreviewSites] = useState<PreviewSite[]>([]);
   const [previewDuplicates, setPreviewDuplicates] = useState<string[]>([]);
@@ -201,40 +208,59 @@ export default function SitesPage() {
     annualBudget: "",
   });
 
-  // Fetch sites
-  const fetchSites = async () => {
+  // Fetch contracts on mount
+  useEffect(() => {
+    fetchContracts();
+  }, []);
+
+  const fetchContracts = async () => {
     try {
-      setLoading(true);
-      const response = await fetch("/api/sites");
-      if (!response.ok) throw new Error("Erreur lors du chargement");
+      setLoadingContracts(true);
+      const response = await fetch("/api/contracts");
+      if (!response.ok) throw new Error("Erreur lors du chargement des contrats");
+      const data = await response.json();
+      // Only show active contracts
+      setContracts(data.filter((c: Contract) => c.status === "ACTIF"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setLoadingContracts(false);
+    }
+  };
+
+  // Fetch sites for selected contract
+  const fetchSitesForContract = async (contractId: string) => {
+    try {
+      setLoadingSites(true);
+      const response = await fetch(`/api/contracts/${contractId}/sites`);
+      if (!response.ok) throw new Error("Erreur lors du chargement des sites");
       const data = await response.json();
       setSites(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
-      setLoading(false);
+      setLoadingSites(false);
     }
   };
 
-  // Fetch contracts for import modal
-  const fetchContracts = async () => {
-    try {
-      const response = await fetch("/api/contracts");
-      if (response.ok) {
-        const data = await response.json();
-        setContracts(data.filter((c: Contract) => c.status === "ACTIF"));
-      }
-    } catch (err) {
-      console.error("Error fetching contracts:", err);
-    }
+  // Handle contract selection
+  const handleSelectContract = (contract: Contract) => {
+    setSelectedContract(contract);
+    setSearchQuery("");
+    fetchSitesForContract(contract.id);
   };
 
-  useEffect(() => {
-    fetchSites();
-  }, []);
+  // Go back to contract selection
+  const handleBackToContracts = () => {
+    setSelectedContract(null);
+    setSites([]);
+    setSearchQuery("");
+    setActiveView("list");
+  };
 
   // Filter sites by search query
   const filteredSites = useMemo(() => {
+    if (!searchQuery) return sites;
     return sites.filter(
       (site) =>
         site.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -243,60 +269,18 @@ export default function SitesPage() {
     );
   }, [sites, searchQuery]);
 
-  // Group sites by contract
-  const groupedSites = useMemo(() => {
-    const groups: ContractGroup[] = [];
-    const sitesInContracts = new Set<string>();
-    const contractMap = new Map<string, ContractGroup>();
-
-    // Group sites that have contracts
-    for (const site of filteredSites) {
-      for (const cs of site.contractSites) {
-        if (cs.contract.status === "ACTIF") {
-          sitesInContracts.add(site.id);
-          const contractId = cs.contract.id;
-          if (!contractMap.has(contractId)) {
-            contractMap.set(contractId, {
-              contract: cs.contract,
-              sites: [],
-            });
-          }
-          contractMap.get(contractId)!.sites.push(site);
-        }
-      }
-    }
-
-    // Add contract groups
-    contractMap.forEach((group) => groups.push(group));
-
-    // Sort by contract reference
-    groups.sort((a, b) => (a.contract?.reference || "").localeCompare(b.contract?.reference || ""));
-
-    // Add sites without contracts
-    const sitesWithoutContract = filteredSites.filter(
-      (site) => !sitesInContracts.has(site.id)
-    );
-    if (sitesWithoutContract.length > 0) {
-      groups.push({ contract: null, sites: sitesWithoutContract });
-    }
-
-    return groups;
-  }, [filteredSites]);
-
-  // Statistics
+  // Statistics for selected contract
   const stats = useMemo(() => {
     const totalSites = sites.length;
     const sitesWithCoords = sites.filter((s) => s.latitude && s.longitude).length;
     const totalEquipments = sites.reduce((sum, s) => sum + (s._count?.equipments || 0), 0);
     const totalAlerts = sites.reduce((sum, s) => sum + (s._count?.alerts || 0), 0);
-    const sitesUnderContract = new Set(
-      sites.flatMap((s) => s.contractSites.filter((cs) => cs.contract.status === "ACTIF").map(() => s.id))
-    ).size;
+    const totalSurface = sites.reduce((sum, s) => sum + (s.surface || 0), 0);
 
-    return { totalSites, sitesWithCoords, totalEquipments, totalAlerts, sitesUnderContract };
+    return { totalSites, sitesWithCoords, totalEquipments, totalAlerts, totalSurface };
   }, [sites]);
 
-  // Chart data
+  // Chart data for selected contract
   const chartData = useMemo(() => {
     // Sites by type
     const typeCount: Record<string, number> = {};
@@ -323,37 +307,24 @@ export default function SitesPage() {
     return { byType, byEnergy };
   }, [sites]);
 
-  // Toggle contract expansion
-  const toggleContract = (contractId: string) => {
-    const newExpanded = new Set(expandedContracts);
-    if (newExpanded.has(contractId)) {
-      newExpanded.delete(contractId);
-    } else {
-      newExpanded.add(contractId);
-    }
-    setExpandedContracts(newExpanded);
-  };
-
   // Modal handlers
   const openImportModal = () => {
     setImportFile(null);
-    setSelectedContractId("");
     setImportResult(null);
     setPreviewSites([]);
     setPreviewDuplicates([]);
     setImportStep("upload");
-    fetchContracts();
     setShowImportModal(true);
   };
 
   const handlePreview = async () => {
-    if (!importFile) return;
+    if (!importFile || !selectedContract) return;
     setImporting(true);
     try {
       const formData = new FormData();
       formData.append("file", importFile);
       formData.append("preview", "true");
-      if (selectedContractId) formData.append("contractId", selectedContractId);
+      formData.append("contractId", selectedContract.id);
 
       const response = await fetch("/api/sites/import", { method: "POST", body: formData });
       const result = await response.json();
@@ -390,13 +361,13 @@ export default function SitesPage() {
   };
 
   const handleImport = async () => {
-    if (previewSites.length === 0) return;
+    if (previewSites.length === 0 || !selectedContract) return;
     setImporting(true);
     try {
       const formData = new FormData();
       formData.append("file", importFile!);
       formData.append("sitesData", JSON.stringify(previewSites));
-      if (selectedContractId) formData.append("contractId", selectedContractId);
+      formData.append("contractId", selectedContract.id);
 
       const response = await fetch("/api/sites/import", { method: "POST", body: formData });
       const result = await response.json();
@@ -408,7 +379,7 @@ export default function SitesPage() {
         });
       } else {
         setImportResult(result);
-        if (result.success) await fetchSites();
+        if (result.success) await fetchSitesForContract(selectedContract.id);
       }
       setImportStep("result");
     } catch (err) {
@@ -424,8 +395,10 @@ export default function SitesPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedContract) return;
     setCreating(true);
     try {
+      // Create site
       const response = await fetch("/api/sites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -437,7 +410,16 @@ export default function SitesPage() {
         throw new Error(data.error || "Erreur lors de la création");
       }
 
-      await fetchSites();
+      const site = await response.json();
+
+      // Link to contract
+      await fetch(`/api/contracts/${selectedContract.id}/sites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: site.id }),
+      });
+
+      await fetchSitesForContract(selectedContract.id);
       setShowModal(false);
       setFormData({
         name: "", type: "LYCEE", address: "", city: "",
@@ -450,13 +432,98 @@ export default function SitesPage() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+  // ============================================
+  // RENDER: CONTRACT SELECTION VIEW
+  // ============================================
+  if (!selectedContract) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-primary-dark">Sites & Patrimoine</h1>
-          <p className="text-text-secondary">Gérez l&apos;ensemble de vos sites et équipements CVC</p>
+          <p className="text-text-secondary">Sélectionnez un contrat pour voir ses sites</p>
+        </div>
+
+        {/* Loading */}
+        {loadingContracts ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
+        ) : contracts.length === 0 ? (
+          <ChartCard title="Aucun contrat actif">
+            <div className="flex flex-col items-center justify-center py-8">
+              <FileText size={48} className="text-gray-300 mb-4" />
+              <p className="text-text-secondary mb-4">Créez d&apos;abord un contrat pour y rattacher des sites</p>
+              <Link href="/contracts">
+                <Button>
+                  <Plus size={18} className="mr-2" />
+                  Créer un contrat
+                </Button>
+              </Link>
+            </div>
+          </ChartCard>
+        ) : (
+          /* Contract Cards */
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {contracts.map((contract) => (
+              <button
+                key={contract.id}
+                onClick={() => handleSelectContract(contract)}
+                className="bg-white rounded-xl border border-gray-100 p-6 text-left hover:border-accent hover:shadow-md transition-all group"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+                    <FileText size={24} className="text-accent" />
+                  </div>
+                  <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                    Actif
+                  </span>
+                </div>
+                <h3 className="font-semibold text-primary-dark mb-1">{contract.reference}</h3>
+                <p className="text-sm text-text-secondary mb-3 line-clamp-1">{contract.title}</p>
+                <div className="flex items-center gap-4 text-xs text-text-secondary">
+                  <span className="flex items-center gap-1">
+                    <Users size={14} />
+                    {contract.provider}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Building2 size={14} />
+                    {contract._count?.contractSites || 0} sites
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ============================================
+  // RENDER: SITES VIEW (Contract Selected)
+  // ============================================
+  return (
+    <div className="space-y-6">
+      {/* Header with back button */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleBackToContracts}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <ArrowLeft size={20} className="text-text-secondary" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-primary-dark">{selectedContract.reference}</h1>
+              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                Actif
+              </span>
+            </div>
+            <p className="text-text-secondary">{selectedContract.title} — {selectedContract.provider}</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={openImportModal}>
@@ -472,14 +539,14 @@ export default function SitesPage() {
 
       {/* Stats Cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Sites total" value={stats.totalSites.toString()} icon={Building2} iconColor="text-accent" />
-        <StatsCard title="Sous contrat" value={stats.sitesUnderContract.toString()} icon={CheckCircle} iconColor="text-green-600" />
-        <StatsCard title="Équipements" value={stats.totalEquipments.toString()} icon={Zap} iconColor="text-blue-600" />
+        <StatsCard title="Sites" value={stats.totalSites.toString()} icon={Building2} iconColor="text-accent" />
+        <StatsCard title="Géolocalisés" value={stats.sitesWithCoords.toString()} icon={MapIcon} iconColor="text-blue-600" />
+        <StatsCard title="Équipements" value={stats.totalEquipments.toString()} icon={Zap} iconColor="text-amber-600" />
         <StatsCard
-          title="Alertes actives"
-          value={stats.totalAlerts.toString()}
-          icon={AlertCircle}
-          iconColor={stats.totalAlerts > 0 ? "text-red-600" : "text-green-600"}
+          title="Surface totale"
+          value={stats.totalSurface > 0 ? `${stats.totalSurface.toLocaleString()} m²` : "-"}
+          icon={Building2}
+          iconColor="text-green-600"
         />
       </div>
 
@@ -530,7 +597,7 @@ export default function SitesPage() {
       </div>
 
       {/* Loading / Error states */}
-      {loading ? (
+      {loadingSites ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-accent" />
         </div>
@@ -541,121 +608,85 @@ export default function SitesPage() {
           {/* LIST VIEW */}
           {activeView === "list" && (
             <div className="space-y-4">
-              {groupedSites.length === 0 ? (
-                <ChartCard title="Aucun site" className="flex flex-col items-center justify-center py-12">
-                  <Building2 size={48} className="text-gray-300 mb-4" />
-                  <p className="text-text-secondary mb-4">
-                    {searchQuery ? "Aucun site ne correspond à votre recherche" : "Commencez par ajouter votre premier site"}
-                  </p>
-                  {!searchQuery && (
-                    <Button onClick={() => setShowModal(true)}>
-                      <Plus size={18} className="mr-2" />
-                      Ajouter un site
-                    </Button>
-                  )}
+              {filteredSites.length === 0 ? (
+                <ChartCard title="Aucun site">
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Building2 size={48} className="text-gray-300 mb-4" />
+                    <p className="text-text-secondary mb-4">
+                      {searchQuery ? "Aucun site ne correspond à votre recherche" : "Ce contrat n'a pas encore de sites rattachés"}
+                    </p>
+                    {!searchQuery && (
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={openImportModal}>
+                          <Upload size={18} className="mr-2" />
+                          Importer
+                        </Button>
+                        <Button onClick={() => setShowModal(true)}>
+                          <Plus size={18} className="mr-2" />
+                          Ajouter un site
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </ChartCard>
               ) : (
-                groupedSites.map((group) => {
-                  const groupId = group.contract?.id || "no-contract";
-                  const isExpanded = expandedContracts.has(groupId) || expandedContracts.has("all");
-
-                  return (
-                    <ChartCard key={groupId} className="overflow-hidden">
-                      {/* Contract Header */}
-                      <button
-                        onClick={() => toggleContract(groupId)}
-                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors -m-6 mb-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          {isExpanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
-                          <div className="text-left">
-                            <h3 className="font-semibold text-primary-dark">
-                              {group.contract ? (
-                                <>
-                                  {group.contract.reference} - {group.contract.title}
-                                  <span className="font-normal text-text-secondary ml-2">({group.contract.provider})</span>
-                                </>
+                <ChartCard title={`${filteredSites.length} site${filteredSites.length > 1 ? "s" : ""}`}>
+                  <div className="-mx-6 -mb-6">
+                    <table className="w-full">
+                      <thead className="bg-background-secondary border-y border-gray-100">
+                        <tr>
+                          <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
+                          <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Type</th>
+                          <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Énergie</th>
+                          <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Surface</th>
+                          <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Équip.</th>
+                          <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Alertes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredSites.map((site) => (
+                          <tr key={site.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+                                  <Building2 size={18} className="text-accent" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-primary-dark">{site.name}</p>
+                                  <p className="text-sm text-text-secondary truncate max-w-[200px]">
+                                    {site.address}, {site.postalCode} {site.city}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-text-secondary">{siteTypeLabels[site.type]}</td>
+                            <td className="px-6 py-4">
+                              <span className="inline-flex items-center gap-1.5 text-sm text-text-secondary">
+                                {site.energyType === "GAZ" ? <Flame size={14} className="text-amber-500" /> : <Zap size={14} className="text-blue-500" />}
+                                {energyTypeLabels[site.energyType]}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-text-secondary">
+                              {site.surface ? `${site.surface.toLocaleString()} m²` : "-"}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-text-secondary">{site._count?.equipments || 0}</td>
+                            <td className="px-6 py-4">
+                              {(site._count?.alerts || 0) > 0 ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                  {site._count?.alerts} alerte{(site._count?.alerts || 0) > 1 ? "s" : ""}
+                                </span>
                               ) : (
-                                "Sites hors contrat"
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                  OK
+                                </span>
                               )}
-                            </h3>
-                            <p className="text-sm text-text-secondary">
-                              {group.sites.length} site{group.sites.length > 1 ? "s" : ""}
-                            </p>
-                          </div>
-                        </div>
-                        {group.contract && (
-                          <Link
-                            href={`/contracts/${group.contract.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-sm text-accent hover:underline"
-                          >
-                            Voir le contrat
-                          </Link>
-                        )}
-                      </button>
-
-                      {/* Sites List */}
-                      {isExpanded && (
-                        <div className="border-t border-gray-100 mt-4 -mx-6 -mb-6">
-                          <table className="w-full">
-                            <thead className="bg-background-secondary border-b border-gray-100">
-                              <tr>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Type</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Énergie</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Surface</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Équip.</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Alertes</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {group.sites.map((site) => (
-                                <tr key={site.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
-                                  <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-                                        <Building2 size={18} className="text-accent" />
-                                      </div>
-                                      <div>
-                                        <p className="font-medium text-primary-dark">{site.name}</p>
-                                        <p className="text-sm text-text-secondary truncate max-w-[200px]">
-                                          {site.address}, {site.postalCode} {site.city}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-text-secondary">{siteTypeLabels[site.type]}</td>
-                                  <td className="px-6 py-4">
-                                    <span className="inline-flex items-center gap-1.5 text-sm text-text-secondary">
-                                      {site.energyType === "GAZ" ? <Flame size={14} className="text-amber-500" /> : <Zap size={14} className="text-blue-500" />}
-                                      {energyTypeLabels[site.energyType]}
-                                    </span>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-text-secondary">
-                                    {site.surface ? `${site.surface.toLocaleString()} m²` : "-"}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-text-secondary">{site._count?.equipments || 0}</td>
-                                  <td className="px-6 py-4">
-                                    {(site._count?.alerts || 0) > 0 ? (
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                                        {site._count?.alerts} alerte{(site._count?.alerts || 0) > 1 ? "s" : ""}
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                        OK
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </ChartCard>
-                  );
-                })
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ChartCard>
               )}
             </div>
           )}
@@ -674,7 +705,7 @@ export default function SitesPage() {
                   latitude: s.latitude,
                   longitude: s.longitude,
                   energyType: s.energyType,
-                  contractName: s.contractSites[0]?.contract?.reference,
+                  contractName: selectedContract.reference,
                 }))}
                 height="500px"
               />
@@ -836,7 +867,7 @@ export default function SitesPage() {
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
                 <h2 className="text-xl font-bold text-primary-dark">Importer des sites</h2>
-                {importStep === "preview" && <p className="text-sm text-text-secondary mt-1">Vérifiez et modifiez les données avant validation</p>}
+                <p className="text-sm text-text-secondary mt-1">Pour le contrat {selectedContract.reference}</p>
               </div>
               <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <X size={20} />
@@ -869,16 +900,6 @@ export default function SitesPage() {
                         </label>
                       )}
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-2">Rattacher à un contrat (optionnel)</label>
-                    <select value={selectedContractId} onChange={(e) => setSelectedContractId(e.target.value)} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
-                      <option value="">Aucun contrat</option>
-                      {contracts.map((contract) => (
-                        <option key={contract.id} value={contract.id}>{contract.reference} - {contract.title} ({contract.provider})</option>
-                      ))}
-                    </select>
                   </div>
 
                   <div className="bg-gray-50 rounded-lg p-4">
@@ -920,14 +941,10 @@ export default function SitesPage() {
                           <th className="text-left px-4 py-2 font-medium text-text-secondary">Type</th>
                           <th className="text-left px-4 py-2 font-medium text-text-secondary">Ville</th>
                           <th className="text-left px-4 py-2 font-medium text-text-secondary">Énergie</th>
-                          {selectedContractId && (
-                            <>
-                              <th className="text-left px-4 py-2 font-medium text-text-secondary">Type contrat</th>
-                              <th className="text-center px-4 py-2 font-medium text-text-secondary">P1</th>
-                              <th className="text-center px-4 py-2 font-medium text-text-secondary">P2</th>
-                              <th className="text-center px-4 py-2 font-medium text-text-secondary">P3</th>
-                            </>
-                          )}
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Type contrat</th>
+                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P1</th>
+                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P2</th>
+                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P3</th>
                           <th className="px-4 py-2"></th>
                         </tr>
                       </thead>
@@ -950,18 +967,14 @@ export default function SitesPage() {
                                 {Object.entries(energyTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
                               </select>
                             </td>
-                            {selectedContractId && (
-                              <>
-                                <td className="px-4 py-2">
-                                  <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
-                                    {Object.entries(contractTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
-                                  </select>
-                                </td>
-                                <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP1 || false} onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)} className="w-4 h-4" /></td>
-                                <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP2 || false} onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)} className="w-4 h-4" /></td>
-                                <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP3 || false} onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)} className="w-4 h-4" /></td>
-                              </>
-                            )}
+                            <td className="px-4 py-2">
+                              <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                                {Object.entries(contractTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP1 || false} onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP2 || false} onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP3 || false} onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)} className="w-4 h-4" /></td>
                             <td className="px-4 py-2">
                               <button onClick={() => removePreviewSite(index)} className="p-1 text-red-500 hover:bg-red-50 rounded" title="Supprimer"><X size={16} /></button>
                             </td>
