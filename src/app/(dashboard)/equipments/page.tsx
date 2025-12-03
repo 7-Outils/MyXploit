@@ -458,6 +458,9 @@ export default function EquipmentsPage() {
   // Expanded rows for renewal plan
   const [expandedYears, setExpandedYears] = useState<number[]>([]);
 
+  // Expanded sites for list view
+  const [expandedSites, setExpandedSites] = useState<string[]>([]);
+
   // Fetch contracts on mount
   useEffect(() => {
     fetchContracts();
@@ -593,6 +596,30 @@ export default function EquipmentsPage() {
       prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
     );
   };
+
+  const toggleSiteExpand = (siteId: string) => {
+    setExpandedSites((prev) =>
+      prev.includes(siteId) ? prev.filter((s) => s !== siteId) : [...prev, siteId]
+    );
+  };
+
+  // Group equipments by site
+  const equipmentsBySite = useMemo(() => {
+    const grouped: Record<string, { site: { id: string; name: string; city: string }; equipments: Equipment[] }> = {};
+
+    for (const eq of filteredEquipments) {
+      if (!grouped[eq.site.id]) {
+        grouped[eq.site.id] = {
+          site: eq.site,
+          equipments: [],
+        };
+      }
+      grouped[eq.site.id].equipments.push(eq);
+    }
+
+    // Sort by site name
+    return Object.values(grouped).sort((a, b) => a.site.name.localeCompare(b.site.name));
+  }, [filteredEquipments]);
 
   // Parse CSV content
   const parseCSV = (content: string): Record<string, string>[] => {
@@ -920,65 +947,96 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
         <div className="bg-red-50 text-red-600 p-4 rounded-lg">{error}</div>
       ) : (
         <>
-          {/* LIST VIEW */}
+          {/* LIST VIEW - Grouped by Site */}
           {activeView === "list" && (
-            <ChartCard title={`${filteredEquipments.length} équipement${filteredEquipments.length > 1 ? "s" : ""}`}>
+            <div className="space-y-4">
               {filteredEquipments.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <Wrench size={48} className="text-gray-300 mb-4" />
-                  <p className="text-text-secondary mb-4">Aucun équipement trouvé</p>
-                  <Button onClick={() => setShowModal(true)}>
-                    <Plus size={18} className="mr-2" />
-                    Ajouter un équipement
-                  </Button>
-                </div>
+                <ChartCard title="Aucun équipement">
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <Wrench size={48} className="text-gray-300 mb-4" />
+                    <p className="text-text-secondary mb-4">Aucun équipement trouvé</p>
+                    <Button onClick={() => setShowModal(true)}>
+                      <Plus size={18} className="mr-2" />
+                      Ajouter un équipement
+                    </Button>
+                  </div>
+                </ChartCard>
               ) : (
-                <div className="-mx-6 -mb-6 overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-background-secondary border-y border-gray-100">
-                      <tr>
-                        <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Équipement</th>
-                        <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
-                        <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Localisation</th>
-                        <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Puissance</th>
-                        <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Année</th>
-                        <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredEquipments.map((eq) => (
-                        <tr key={eq.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                <Flame size={18} className="text-orange-600" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-primary-dark">{eq.name || equipmentTypeLabels[eq.type]}</p>
-                                <p className="text-sm text-text-secondary">
-                                  {domainLabels[eq.domain]} • {equipmentTypeLabels[eq.type]} {eq.brand && `• ${eq.brand}`}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">{eq.site.name}</td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
-                            {eq.location || eq.level ? `${eq.location || ""}${eq.level ? ` (${eq.level})` : ""}` : "-"}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">{eq.power ? `${eq.power} kW` : "-"}</td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">{eq.year || "-"}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[eq.status]}`}>
-                              {statusLabels[eq.status]}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className="text-sm text-text-secondary">
+                    {filteredEquipments.length} équipement{filteredEquipments.length > 1 ? "s" : ""} sur {equipmentsBySite.length} site{equipmentsBySite.length > 1 ? "s" : ""}
+                  </div>
+                  {equipmentsBySite.map(({ site, equipments: siteEquipments }) => (
+                    <div key={site.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                      {/* Site Header - Collapsible */}
+                      <button
+                        onClick={() => toggleSiteExpand(site.id)}
+                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+                            <Building2 size={20} className="text-accent" />
+                          </div>
+                          <div className="text-left">
+                            <h3 className="font-semibold text-primary-dark">{site.name}</h3>
+                            <p className="text-sm text-text-secondary">
+                              {site.city} • {siteEquipments.length} équipement{siteEquipments.length > 1 ? "s" : ""}
+                            </p>
+                          </div>
+                        </div>
+                        {expandedSites.includes(site.id) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </button>
+
+                      {/* Equipments Table - Expanded */}
+                      {expandedSites.includes(site.id) && (
+                        <div className="border-t border-gray-100 overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-background-secondary border-b border-gray-100">
+                              <tr>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Équipement</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Localisation</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Puissance</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Année</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Statut</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {siteEquipments.map((eq) => (
+                                <tr key={eq.id} className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-6 py-4">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                                        <Flame size={18} className="text-orange-600" />
+                                      </div>
+                                      <div>
+                                        <p className="font-medium text-primary-dark">{eq.name || equipmentTypeLabels[eq.type]}</p>
+                                        <p className="text-sm text-text-secondary">
+                                          {domainLabels[eq.domain]} • {equipmentTypeLabels[eq.type]} {eq.brand && `• ${eq.brand}`}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-text-secondary">
+                                    {eq.location || eq.level ? `${eq.location || ""}${eq.level ? ` (${eq.level})` : ""}` : "-"}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-text-secondary">{eq.power ? `${eq.power} kW` : "-"}</td>
+                                  <td className="px-6 py-4 text-sm text-text-secondary">{eq.year || "-"}</td>
+                                  <td className="px-6 py-4">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[eq.status]}`}>
+                                      {statusLabels[eq.status]}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </>
               )}
-            </ChartCard>
+            </div>
           )}
 
           {/* AUDIT VIEW */}
