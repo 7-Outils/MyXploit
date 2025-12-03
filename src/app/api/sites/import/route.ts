@@ -248,13 +248,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch existing sites for duplicate detection
+    // Fetch existing sites for duplicate detection (by name + city)
     const existingSites = await prisma.site.findMany({
       where: { organizationId: user.organizationId },
       select: { id: true, name: true, city: true },
     });
-    const existingSiteNames = new Set(
-      existingSites.map(s => s.name.toLowerCase().trim())
+    // Create a unique key: "name|city" (both lowercase)
+    const existingSiteKeys = new Set(
+      existingSites.map(s => `${s.name.toLowerCase().trim()}|${(s.city || "").toLowerCase().trim()}`)
     );
 
     // Parse rows into sites
@@ -305,19 +306,22 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Check for duplicate (case-insensitive)
+      // Check for duplicate (case-insensitive name + city)
       const normalizedName = site.name.toLowerCase().trim();
-      if (existingSiteNames.has(normalizedName)) {
-        duplicates.push(site.name);
+      const normalizedCity = (site.city || "").toLowerCase().trim();
+      const siteKey = `${normalizedName}|${normalizedCity}`;
+      if (existingSiteKeys.has(siteKey)) {
+        duplicates.push(site.city ? `${site.name} (${site.city})` : site.name);
         continue; // Skip duplicates
       }
 
-      // Also check for duplicates within the import file itself
+      // Also check for duplicates within the import file itself (same name + city)
       const alreadyInList = sitesToCreate.some(
-        s => s.name.toLowerCase().trim() === normalizedName
+        s => s.name.toLowerCase().trim() === normalizedName &&
+             (s.city || "").toLowerCase().trim() === normalizedCity
       );
       if (alreadyInList) {
-        duplicates.push(`${site.name} (doublon dans le fichier)`);
+        duplicates.push(`${site.name}${site.city ? ` (${site.city})` : ""} - doublon dans le fichier`);
         continue;
       }
 
@@ -362,8 +366,8 @@ export async function POST(request: NextRequest) {
         const parsedSites = JSON.parse(sitesDataJson) as ImportedSite[];
         // Filter out duplicates again (in case data changed since preview)
         finalSitesToCreate = parsedSites.filter(s => {
-          const normalizedName = s.name.toLowerCase().trim();
-          return !existingSiteNames.has(normalizedName);
+          const siteKey = `${s.name.toLowerCase().trim()}|${(s.city || "").toLowerCase().trim()}`;
+          return !existingSiteKeys.has(siteKey);
         });
       } catch {
         return NextResponse.json(
@@ -377,13 +381,13 @@ export async function POST(request: NextRequest) {
     const createdSites: Array<{ id: string; name: string }> = [];
     const createdContractSites: Array<{ siteId: string; siteName: string }> = [];
     const skippedDuplicates: string[] = [];
-    const createdNames = new Set<string>(); // Track names created in this batch
+    const createdNames = new Set<string>(); // Track keys (name|city) created in this batch
 
     for (const siteData of finalSitesToCreate) {
       // Double-check for duplicates (both existing and within this import batch)
-      const normalizedName = siteData.name.toLowerCase().trim();
-      if (existingSiteNames.has(normalizedName) || createdNames.has(normalizedName)) {
-        skippedDuplicates.push(siteData.name);
+      const siteKey = `${siteData.name.toLowerCase().trim()}|${(siteData.city || "").toLowerCase().trim()}`;
+      if (existingSiteKeys.has(siteKey) || createdNames.has(siteKey)) {
+        skippedDuplicates.push(siteData.city ? `${siteData.name} (${siteData.city})` : siteData.name);
         continue;
       }
 
@@ -413,7 +417,7 @@ export async function POST(request: NextRequest) {
       });
 
       createdSites.push({ id: site.id, name: site.name });
-      createdNames.add(normalizedName);
+      createdNames.add(siteKey);
 
       // If contract provided, create ContractSite link
       if (contract) {

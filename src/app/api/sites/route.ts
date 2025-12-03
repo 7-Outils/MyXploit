@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Check for duplicate (case-insensitive name match)
+    // Check for duplicate (case-insensitive name + city match)
     const existingSite = await prisma.site.findFirst({
       where: {
         organizationId: user.organizationId,
@@ -60,12 +60,17 @@ export async function POST(request: NextRequest) {
           equals: body.name,
           mode: "insensitive",
         },
+        city: {
+          equals: body.city || "",
+          mode: "insensitive",
+        },
       },
     });
 
     if (existingSite) {
+      const cityInfo = body.city ? ` à ${body.city}` : "";
       return NextResponse.json(
-        { error: `Un site avec le nom "${body.name}" existe déjà` },
+        { error: `Un site "${body.name}"${cityInfo} existe déjà` },
         { status: 400 }
       );
     }
