@@ -248,9 +248,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch existing sites for duplicate detection
+    const existingSites = await prisma.site.findMany({
+      where: { organizationId: user.organizationId },
+      select: { id: true, name: true, city: true },
+    });
+    const existingSiteNames = new Set(
+      existingSites.map(s => s.name.toLowerCase().trim())
+    );
+
     // Parse rows into sites
     const sitesToCreate: ImportedSite[] = [];
     const errors: string[] = [];
+    const duplicates: string[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -295,7 +305,30 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Check for duplicate (case-insensitive)
+      const normalizedName = site.name.toLowerCase().trim();
+      if (existingSiteNames.has(normalizedName)) {
+        duplicates.push(site.name);
+        continue; // Skip duplicates
+      }
+
+      // Also check for duplicates within the import file itself
+      const alreadyInList = sitesToCreate.some(
+        s => s.name.toLowerCase().trim() === normalizedName
+      );
+      if (alreadyInList) {
+        duplicates.push(`${site.name} (doublon dans le fichier)`);
+        continue;
+      }
+
       sitesToCreate.push(site as ImportedSite);
+    }
+
+    if (sitesToCreate.length === 0 && duplicates.length > 0) {
+      return NextResponse.json(
+        { error: "Tous les sites existent déjà", duplicates },
+        { status: 400 }
+      );
     }
 
     if (sitesToCreate.length === 0) {
@@ -316,6 +349,7 @@ export async function POST(request: NextRequest) {
           _energyType: parseEnergyType(site.energyType),
           _contractType: parseContractType(site.contractType),
         })),
+        duplicates: duplicates.length > 0 ? duplicates : undefined,
         errors: errors.length > 0 ? errors : undefined,
         contractId: contractId || null,
       });
@@ -325,7 +359,12 @@ export async function POST(request: NextRequest) {
     let finalSitesToCreate = sitesToCreate;
     if (sitesDataJson) {
       try {
-        finalSitesToCreate = JSON.parse(sitesDataJson);
+        const parsedSites = JSON.parse(sitesDataJson) as ImportedSite[];
+        // Filter out duplicates again (in case data changed since preview)
+        finalSitesToCreate = parsedSites.filter(s => {
+          const normalizedName = s.name.toLowerCase().trim();
+          return !existingSiteNames.has(normalizedName);
+        });
       } catch {
         return NextResponse.json(
           { error: "Données de sites invalides" },
@@ -337,8 +376,17 @@ export async function POST(request: NextRequest) {
     // Create sites in database
     const createdSites: Array<{ id: string; name: string }> = [];
     const createdContractSites: Array<{ siteId: string; siteName: string }> = [];
+    const skippedDuplicates: string[] = [];
+    const createdNames = new Set<string>(); // Track names created in this batch
 
     for (const siteData of finalSitesToCreate) {
+      // Double-check for duplicates (both existing and within this import batch)
+      const normalizedName = siteData.name.toLowerCase().trim();
+      if (existingSiteNames.has(normalizedName) || createdNames.has(normalizedName)) {
+        skippedDuplicates.push(siteData.name);
+        continue;
+      }
+
       // Use _type/_energyType/_contractType if available (from preview), otherwise parse
       const siteType = siteData._type || parseSiteType(siteData.type);
       const energyType = siteData._energyType || parseEnergyType(siteData.energyType);
@@ -365,6 +413,7 @@ export async function POST(request: NextRequest) {
       });
 
       createdSites.push({ id: site.id, name: site.name });
+      createdNames.add(normalizedName);
 
       // If contract provided, create ContractSite link
       if (contract) {
@@ -391,6 +440,7 @@ export async function POST(request: NextRequest) {
       imported: createdSites.length,
       linkedToContract: createdContractSites.length,
       sites: createdSites,
+      skippedDuplicates: skippedDuplicates.length > 0 ? skippedDuplicates : undefined,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {

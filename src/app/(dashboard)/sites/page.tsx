@@ -67,6 +67,7 @@ interface ImportResult {
   linkedToContract: number;
   sites: Array<{ id: string; name: string }>;
   errors?: string[];
+  skippedDuplicates?: string[];
 }
 
 interface PreviewSite {
@@ -140,6 +141,7 @@ export default function SitesPage() {
   const [selectedContractId, setSelectedContractId] = useState<string>("");
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [previewSites, setPreviewSites] = useState<PreviewSite[]>([]);
+  const [previewDuplicates, setPreviewDuplicates] = useState<string[]>([]);
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
 
   // Form state
@@ -193,6 +195,7 @@ export default function SitesPage() {
     setSelectedContractId("");
     setImportResult(null);
     setPreviewSites([]);
+    setPreviewDuplicates([]);
     setImportStep("upload");
     fetchContracts();
     setShowImportModal(true);
@@ -225,10 +228,12 @@ export default function SitesPage() {
           linkedToContract: 0,
           sites: [],
           errors: [result.error || "Erreur lors de la lecture du fichier"],
+          skippedDuplicates: result.duplicates,
         });
         setImportStep("result");
       } else if (result.preview) {
         setPreviewSites(result.sites);
+        setPreviewDuplicates(result.duplicates || []);
         setImportStep("preview");
       }
     } catch (err) {
@@ -842,9 +847,16 @@ export default function SitesPage() {
               {importStep === "preview" && (
                 <>
                   <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm mb-4">
-                    <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> détecté{previewSites.length > 1 ? "s" : ""}.
-                    Vous pouvez modifier les valeurs ci-dessous avant de valider l&apos;import.
+                    <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> à importer.
+                    Vous pouvez modifier les valeurs ci-dessous avant de valider.
                   </div>
+
+                  {previewDuplicates.length > 0 && (
+                    <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm mb-4">
+                      <strong>{previewDuplicates.length} site{previewDuplicates.length > 1 ? "s" : ""}</strong> ignoré{previewDuplicates.length > 1 ? "s" : ""} (déjà existant{previewDuplicates.length > 1 ? "s" : ""}) :
+                      <span className="ml-1">{previewDuplicates.slice(0, 5).join(", ")}{previewDuplicates.length > 5 ? `, ... (+${previewDuplicates.length - 5})` : ""}</span>
+                    </div>
+                  )}
 
                   <div className="overflow-x-auto -mx-6">
                     <table className="w-full text-sm">
@@ -1026,6 +1038,12 @@ export default function SitesPage() {
                           </span>
                         )}
                       </p>
+                      {importResult.skippedDuplicates && importResult.skippedDuplicates.length > 0 && (
+                        <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm text-left mb-4">
+                          <p className="font-medium mb-1">Sites ignorés (doublons) :</p>
+                          <p>{importResult.skippedDuplicates.slice(0, 5).join(", ")}{importResult.skippedDuplicates.length > 5 ? `, ... (+${importResult.skippedDuplicates.length - 5})` : ""}</p>
+                        </div>
+                      )}
                       {importResult.errors && importResult.errors.length > 0 && (
                         <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm text-left mb-4">
                           <p className="font-medium mb-1">Avertissements :</p>
@@ -1046,6 +1064,12 @@ export default function SitesPage() {
                       <h3 className="text-lg font-semibold text-primary-dark mb-2">
                         Erreur lors de l&apos;import
                       </h3>
+                      {importResult.skippedDuplicates && importResult.skippedDuplicates.length > 0 && (
+                        <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm text-left mb-4">
+                          <p className="font-medium mb-1">Sites déjà existants :</p>
+                          <p>{importResult.skippedDuplicates.slice(0, 5).join(", ")}{importResult.skippedDuplicates.length > 5 ? `, ... (+${importResult.skippedDuplicates.length - 5})` : ""}</p>
+                        </div>
+                      )}
                       <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm text-left mb-4">
                         <ul className="list-disc list-inside">
                           {importResult.errors?.map((err, i) => (
