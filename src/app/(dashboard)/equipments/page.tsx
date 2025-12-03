@@ -388,20 +388,21 @@ const criteriaRatingLabels: Record<string, Record<AuditRating, string>> = {
     BON: "Bon état général",
     EXCELLENT: "Comme neuf",
   },
+  // Disponibilité = statut de fonctionnement
   performance: {
     NON_EVALUE: "Non évalué",
-    CRITIQUE: "Ne fonctionne pas / Panne",
-    MAUVAIS: "Rendement très dégradé",
-    MOYEN: "Rendement acceptable",
-    BON: "Fonctionne correctement",
-    EXCELLENT: "Performance optimale",
+    CRITIQUE: "Hors service / Panne",
+    MAUVAIS: "À l'arrêt / Défaillant",
+    MOYEN: "Fonctionne avec anomalie (bruit, vibration...)",
+    BON: "En service",
+    EXCELLENT: "Fonctionnement optimal",
   },
   security: {
     NON_EVALUE: "Non évalué",
-    CRITIQUE: "Danger immédiat / À arrêter",
-    MAUVAIS: "Risques identifiés",
-    MOYEN: "Points de vigilance",
-    BON: "Conforme aux normes",
+    CRITIQUE: "Risque grave / Danger immédiat",
+    MAUVAIS: "Risque élevé",
+    MOYEN: "Risque modéré",
+    BON: "Sans risque",
     EXCELLENT: "Sécurité renforcée",
   },
   accessibility: {
@@ -414,11 +415,11 @@ const criteriaRatingLabels: Record<string, Record<AuditRating, string>> = {
   },
   compliance: {
     NON_EVALUE: "Non évalué",
-    CRITIQUE: "Non conforme / Sans document",
-    MAUVAIS: "Documents manquants",
-    MOYEN: "Partiellement conforme",
-    BON: "Conforme",
-    EXCELLENT: "Conforme + certifié",
+    CRITIQUE: "Obsolète / À remplacer",
+    MAUVAIS: "Technologie dépassée",
+    MOYEN: "Vieillissant",
+    BON: "Conforme aux standards actuels",
+    EXCELLENT: "Dernière génération",
   },
 };
 
@@ -2277,7 +2278,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-text-secondary mb-1">Performance</label>
+                    <label className="block text-xs text-text-secondary mb-1">Disponibilité</label>
                     <select
                       value={auditFormData.performance}
                       onChange={(e) => setAuditFormData({ ...auditFormData, performance: e.target.value as AuditRating })}
@@ -2316,7 +2317,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-text-secondary mb-1">Conformité</label>
+                    <label className="block text-xs text-text-secondary mb-1">Performance</label>
                     <select
                       value={auditFormData.compliance}
                       onChange={(e) => setAuditFormData({ ...auditFormData, compliance: e.target.value as AuditRating })}
