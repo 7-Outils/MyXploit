@@ -282,6 +282,7 @@ export default function ContractDetailPage() {
   // Contract edit modal
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [updatingContract, setUpdatingContract] = useState(false);
+  const [deletingContract, setDeletingContract] = useState(false);
   const [contractFormData, setContractFormData] = useState({
     reference: "",
     title: "",
@@ -580,6 +581,31 @@ export default function ContractDetailPage() {
     setShowEditContractModal(true);
   };
 
+  const handleDeleteContract = async () => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce contrat ? Cette action est irréversible et supprimera tous les avenants, sites associés et historiques de prix.")) {
+      return;
+    }
+
+    setDeletingContract(true);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        router.push("/contracts");
+      } else {
+        const error = await response.json();
+        alert(error.error || "Erreur lors de la suppression du contrat");
+      }
+    } catch (error) {
+      console.error("Error deleting contract:", error);
+      alert("Erreur lors de la suppression du contrat");
+    } finally {
+      setDeletingContract(false);
+    }
+  };
+
   const handleUpdateContract = async (e: React.FormEvent) => {
     e.preventDefault();
     setUpdatingContract(true);
@@ -863,6 +889,19 @@ export default function ContractDetailPage() {
           <Button onClick={() => setShowSiteModal(true)}>
             <Plus size={18} className="mr-2" />
             Ajouter un site
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDeleteContract}
+            disabled={deletingContract}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+          >
+            {deletingContract ? (
+              <Loader2 size={18} className="mr-2 animate-spin" />
+            ) : (
+              <Trash2 size={18} className="mr-2" />
+            )}
+            Supprimer
           </Button>
         </div>
       </div>
