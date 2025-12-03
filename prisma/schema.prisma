@@ -198,22 +198,33 @@ enum ContractStatus {
   RESILIE
 }
 
+// Type d'année contractuelle (pour le calcul des prorata)
+enum ContractYearType {
+  CIVIL         // Année civile: 01/01 - 31/12
+  HEATING_SEASON // Saison de chauffe: configurable (ex: 01/07 - 30/06)
+}
+
 model Contract {
-  id             String         @id @default(cuid())
+  id             String           @id @default(cuid())
   reference      String
   title          String
   provider       String // Exploitant (ENGIE, Dalkia, etc.)
   startDate      DateTime
   endDate        DateTime
-  status         ContractStatus @default(ACTIF)
+  status         ContractStatus   @default(ACTIF)
   description    String?
   documentUrl    String?
+  // Type d'année contractuelle
+  yearType       ContractYearType @default(CIVIL)
+  yearStartMonth Int              @default(1) // Mois de début (1-12), utilisé si HEATING_SEASON
+  yearStartDay   Int              @default(1) // Jour de début (1-31)
   organizationId String
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   // Relations
   contractSites ContractSite[] // Relation explicite avec les sites
+  avenants      Avenant[]      // Avenants du contrat
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices      Invoice[]
 
@@ -230,18 +241,86 @@ model ContractSite {
   hasP2        Boolean      @default(false) // P2 - Petit entretien
   hasP3        Boolean      @default(false) // P3 - Gros entretien/Renouvellement
   hasP4        Boolean      @default(false) // P4 - Financement
-  amountP1     Float?       // Forfait P1 pour ce site
-  amountP2     Float?       // Forfait P2 pour ce site
-  amountP3     Float?       // Forfait P3 pour ce site
+  amountP1     Float?       // Forfait P1 de base pour ce site
+  amountP2     Float?       // Forfait P2 de base pour ce site
+  amountP3     Float?       // Forfait P3 de base pour ce site
+  // Date d'intégration dans le contrat (pour les ajouts via avenant)
+  integrationDate DateTime?  // Si null, c'est depuis le début du contrat
+  // Date de sortie du contrat (pour les retraits via avenant)
+  exitDate        DateTime?  // Si renseigné, le site sort du contrat à cette date
+  avenantEntreeId String?    // Avenant d'entrée (si ajouté après le début)
+  avenantSortieId String?    // Avenant de sortie (si retiré)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
   // Relations
-  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  contract       Contract            @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  site           Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  avenantEntree  Avenant?            @relation("SiteEntree", fields: [avenantEntreeId], references: [id])
+  avenantSortie  Avenant?            @relation("SiteSortie", fields: [avenantSortieId], references: [id])
+  priceChanges   ContractSitePriceChange[] // Historique des changements de prix
 
   @@unique([contractId, siteId]) // Un site ne peut être qu'une fois dans un contrat
   @@map("contract_sites")
+}
+
+// ============================================
+// AVENANTS (Modifications contractuelles)
+// ============================================
+
+enum AvenantType {
+  AJOUT_SITE        // Ajout d'un site au contrat
+  RETRAIT_SITE      // Retrait d'un site du contrat
+  AJOUT_EQUIPEMENT  // Ajout d'équipement avec impact financier
+  RETRAIT_EQUIPEMENT // Retrait d'équipement avec impact financier
+  MODIFICATION_PRIX // Changement de prix P1/P2/P3
+  MODIFICATION_PRESTATION // Ajout/Retrait de prestation (P1, P2, P3, P4)
+  AUTRE
+}
+
+model Avenant {
+  id            String      @id @default(cuid())
+  contractId    String
+  reference     String      // Ex: "Avenant n°1", "AV-2024-001"
+  type          AvenantType
+  effectiveDate DateTime    // Date d'effet
+  description   String?     // Description de l'avenant
+  documentUrl   String?     // Lien vers le document de l'avenant
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  contract      Contract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  priceChanges  ContractSitePriceChange[] // Changements de prix liés à cet avenant
+  sitesEntrees  ContractSite[]            @relation("SiteEntree") // Sites ajoutés par cet avenant
+  sitesSorties  ContractSite[]            @relation("SiteSortie") // Sites retirés par cet avenant
+
+  @@map("avenants")
+}
+
+// Historique des changements de prix pour un site dans un contrat
+model ContractSitePriceChange {
+  id              String   @id @default(cuid())
+  contractSiteId  String
+  avenantId       String?  // Avenant à l'origine du changement (null = prix initial)
+  effectiveDate   DateTime // Date d'effet du changement
+  // Nouveaux montants après ce changement
+  amountP1        Float?   // Nouveau P1 annuel
+  amountP2        Float?   // Nouveau P2 annuel
+  amountP3        Float?   // Nouveau P3 annuel
+  // Delta pour calculer le prorata de l'année
+  deltaP1         Float?   // +/- montant P1 (pour calcul prorata)
+  deltaP2         Float?   // +/- montant P2 (pour calcul prorata)
+  deltaP3         Float?   // +/- montant P3 (pour calcul prorata)
+  reason          String?  // Ex: "Ajout chaudière 300kW", "Remplacement VMC"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  contractSite ContractSite @relation(fields: [contractSiteId], references: [id], onDelete: Cascade)
+  avenant      Avenant?     @relation(fields: [avenantId], references: [id])
+
+  @@map("contract_site_price_changes")
 }
 
 // ============================================

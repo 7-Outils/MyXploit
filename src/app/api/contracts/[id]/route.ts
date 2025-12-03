@@ -24,6 +24,26 @@ export async function GET(
                 equipments: true,
               },
             },
+            priceChanges: {
+              orderBy: { effectiveDate: "desc" },
+              take: 5, // Derniers changements
+            },
+          },
+        },
+        avenants: {
+          orderBy: { effectiveDate: "desc" },
+          include: {
+            priceChanges: {
+              include: {
+                contractSite: {
+                  include: {
+                    site: {
+                      select: { id: true, name: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -88,6 +108,10 @@ export async function PUT(
     if (body.endDate) updateData.endDate = new Date(body.endDate);
     if (body.status) updateData.status = body.status;
     if (body.description !== undefined) updateData.description = body.description;
+    // Year type configuration
+    if (body.yearType) updateData.yearType = body.yearType;
+    if (body.yearStartMonth !== undefined) updateData.yearStartMonth = parseInt(body.yearStartMonth);
+    if (body.yearStartDay !== undefined) updateData.yearStartDay = parseInt(body.yearStartDay);
 
     const contract = await prisma.contract.update({
       where: { id },

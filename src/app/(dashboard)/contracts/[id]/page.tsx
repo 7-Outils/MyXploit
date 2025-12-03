@@ -14,6 +14,8 @@ import {
   ChevronDown,
   ChevronRight,
   Pencil,
+  FileText,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -45,6 +47,18 @@ interface Site {
   equipments: Equipment[];
 }
 
+interface PriceChange {
+  id: string;
+  effectiveDate: string;
+  amountP1: number | null;
+  amountP2: number | null;
+  amountP3: number | null;
+  deltaP1: number | null;
+  deltaP2: number | null;
+  deltaP3: number | null;
+  reason: string | null;
+}
+
 interface ContractSite {
   id: string;
   contractType: string;
@@ -55,7 +69,32 @@ interface ContractSite {
   amountP1: number | null;
   amountP2: number | null;
   amountP3: number | null;
+  integrationDate: string | null;
+  exitDate: string | null;
   site: Site;
+  priceChanges?: PriceChange[];
+}
+
+interface AvenantPriceChange {
+  id: string;
+  effectiveDate: string;
+  deltaP1: number | null;
+  deltaP2: number | null;
+  deltaP3: number | null;
+  reason: string | null;
+  contractSite: {
+    id: string;
+    site: { id: string; name: string };
+  };
+}
+
+interface Avenant {
+  id: string;
+  reference: string;
+  type: string;
+  effectiveDate: string;
+  description: string | null;
+  priceChanges: AvenantPriceChange[];
 }
 
 interface Contract {
@@ -67,7 +106,11 @@ interface Contract {
   startDate: string;
   endDate: string;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
+  yearType: "CIVIL" | "HEATING_SEASON";
+  yearStartMonth: number;
+  yearStartDay: number;
   contractSites: ContractSite[];
+  avenants: Avenant[];
 }
 
 const statusLabels = {
@@ -119,6 +162,16 @@ const equipmentTypes = [
   { value: "RADIATEUR", label: "Radiateur" },
   { value: "PLANCHER_CHAUFFANT", label: "Plancher chauffant" },
   { value: "CTA", label: "CTA" },
+  { value: "AUTRE", label: "Autre" },
+];
+
+const avenantTypes = [
+  { value: "AJOUT_EQUIPEMENT", label: "Ajout d'équipement" },
+  { value: "RETRAIT_EQUIPEMENT", label: "Retrait d'équipement" },
+  { value: "MODIFICATION_PRIX", label: "Modification de prix" },
+  { value: "AJOUT_SITE", label: "Ajout de site" },
+  { value: "RETRAIT_SITE", label: "Retrait de site" },
+  { value: "MODIFICATION_PRESTATION", label: "Modification de prestation" },
   { value: "AUTRE", label: "Autre" },
 ];
 
@@ -201,6 +254,24 @@ export default function ContractDetailPage() {
     pce: "",
     pdl: "",
   });
+
+  // Avenant creation modal
+  const [showAvenantModal, setShowAvenantModal] = useState(false);
+  const [creatingAvenant, setCreatingAvenant] = useState(false);
+  const [avenantFormData, setAvenantFormData] = useState({
+    reference: "",
+    type: "MODIFICATION_PRIX",
+    effectiveDate: "",
+    description: "",
+    // Price changes for selected site
+    selectedContractSiteId: "",
+    deltaP2: "",
+    deltaP3: "",
+    reason: "",
+  });
+
+  // Tab state for contract view
+  const [activeTab, setActiveTab] = useState<"sites" | "avenants">("sites");
 
   const fetchContract = async () => {
     try {
@@ -436,6 +507,54 @@ export default function ContractDetailPage() {
     }
   };
 
+  const handleCreateAvenant = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingAvenant(true);
+    try {
+      const priceChanges = avenantFormData.selectedContractSiteId
+        ? [
+            {
+              contractSiteId: avenantFormData.selectedContractSiteId,
+              deltaP2: avenantFormData.deltaP2 || null,
+              deltaP3: avenantFormData.deltaP3 || null,
+              reason: avenantFormData.reason || null,
+            },
+          ]
+        : [];
+
+      const response = await fetch(`/api/contracts/${contractId}/avenants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference: avenantFormData.reference,
+          type: avenantFormData.type,
+          effectiveDate: avenantFormData.effectiveDate,
+          description: avenantFormData.description,
+          priceChanges,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchContract();
+        setShowAvenantModal(false);
+        setAvenantFormData({
+          reference: "",
+          type: "MODIFICATION_PRIX",
+          effectiveDate: "",
+          description: "",
+          selectedContractSiteId: "",
+          deltaP2: "",
+          deltaP3: "",
+          reason: "",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating avenant:", error);
+    } finally {
+      setCreatingAvenant(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -572,7 +691,34 @@ export default function ContractDetailPage() {
         </ChartCard>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("sites")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "sites"
+              ? "border-accent text-accent"
+              : "border-transparent text-text-secondary hover:text-primary-dark"
+          }`}
+        >
+          <Building2 size={16} className="inline mr-2" />
+          Sites ({contract.contractSites.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("avenants")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "avenants"
+              ? "border-accent text-accent"
+              : "border-transparent text-text-secondary hover:text-primary-dark"
+          }`}
+        >
+          <FileText size={16} className="inline mr-2" />
+          Avenants ({contract.avenants?.length || 0})
+        </button>
+      </div>
+
       {/* Sites List */}
+      {activeTab === "sites" && (
       <ChartCard
         title={`Sites du contrat (${contract.contractSites.length})`}
         action={
@@ -761,6 +907,97 @@ export default function ContractDetailPage() {
           </div>
         )}
       </ChartCard>
+      )}
+
+      {/* Avenants List */}
+      {activeTab === "avenants" && (
+        <ChartCard
+          title={`Avenants (${contract.avenants?.length || 0})`}
+          action={
+            <Button variant="outline" size="sm" onClick={() => setShowAvenantModal(true)}>
+              <Plus size={16} className="mr-1" />
+              Nouvel avenant
+            </Button>
+          }
+        >
+          {(!contract.avenants || contract.avenants.length === 0) ? (
+            <div className="text-center py-12">
+              <FileText size={48} className="mx-auto text-gray-300 mb-4" />
+              <p className="text-text-secondary mb-4">
+                Aucun avenant pour ce contrat
+              </p>
+              <Button onClick={() => setShowAvenantModal(true)}>
+                <Plus size={18} className="mr-2" />
+                Créer un avenant
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {contract.avenants.map((avenant) => (
+                <div
+                  key={avenant.id}
+                  className="border border-gray-200 rounded-xl p-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium text-primary-dark">
+                          {avenant.reference}
+                        </h4>
+                        <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs">
+                          {avenantTypes.find((t) => t.value === avenant.type)?.label || avenant.type}
+                        </span>
+                      </div>
+                      <p className="text-sm text-text-secondary mt-1">
+                        Date d&apos;effet : {new Date(avenant.effectiveDate).toLocaleDateString("fr-FR")}
+                      </p>
+                      {avenant.description && (
+                        <p className="text-sm text-text-secondary mt-1">
+                          {avenant.description}
+                        </p>
+                      )}
+                    </div>
+                    <TrendingUp size={20} className="text-accent" />
+                  </div>
+
+                  {/* Price changes */}
+                  {avenant.priceChanges && avenant.priceChanges.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <p className="text-xs font-medium text-text-secondary mb-2">
+                        Modifications de prix :
+                      </p>
+                      <div className="space-y-2">
+                        {avenant.priceChanges.map((pc) => (
+                          <div
+                            key={pc.id}
+                            className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded"
+                          >
+                            <span className="text-primary-dark">
+                              {pc.contractSite?.site?.name || "Site"}
+                            </span>
+                            <div className="flex gap-3">
+                              {pc.deltaP2 && (
+                                <span className={`${pc.deltaP2 > 0 ? "text-red-600" : "text-green-600"}`}>
+                                  P2: {pc.deltaP2 > 0 ? "+" : ""}{pc.deltaP2.toLocaleString("fr-FR")} €
+                                </span>
+                              )}
+                              {pc.deltaP3 && (
+                                <span className={`${pc.deltaP3 > 0 ? "text-red-600" : "text-green-600"}`}>
+                                  P3: {pc.deltaP3 > 0 ? "+" : ""}{pc.deltaP3.toLocaleString("fr-FR")} €
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </ChartCard>
+      )}
 
       {/* Create Site Modal */}
       {showSiteModal && (
@@ -1655,6 +1892,197 @@ export default function ContractDetailPage() {
                     </>
                   ) : (
                     "Enregistrer"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Avenant Modal */}
+      {showAvenantModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Nouvel avenant
+              </h2>
+              <button
+                onClick={() => setShowAvenantModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAvenant} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Référence *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={avenantFormData.reference}
+                  onChange={(e) =>
+                    setAvenantFormData({ ...avenantFormData, reference: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="Avenant n°1"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type *
+                  </label>
+                  <select
+                    required
+                    value={avenantFormData.type}
+                    onChange={(e) =>
+                      setAvenantFormData({ ...avenantFormData, type: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    {avenantTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Date d&apos;effet *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={avenantFormData.effectiveDate}
+                    onChange={(e) =>
+                      setAvenantFormData({ ...avenantFormData, effectiveDate: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={avenantFormData.description}
+                  onChange={(e) =>
+                    setAvenantFormData({ ...avenantFormData, description: e.target.value })
+                  }
+                  rows={2}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="Ex: Ajout chaudière 300kW"
+                />
+              </div>
+
+              {/* Price change section */}
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">
+                  Modification de prix (optionnel)
+                </p>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Site concerné
+                  </label>
+                  <select
+                    value={avenantFormData.selectedContractSiteId}
+                    onChange={(e) =>
+                      setAvenantFormData({ ...avenantFormData, selectedContractSiteId: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">Sélectionner un site</option>
+                    {contract.contractSites.map((cs) => (
+                      <option key={cs.id} value={cs.id}>
+                        {cs.site.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {avenantFormData.selectedContractSiteId && (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Delta P2 (€ HT/an)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={avenantFormData.deltaP2}
+                          onChange={(e) =>
+                            setAvenantFormData({ ...avenantFormData, deltaP2: e.target.value })
+                          }
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                          placeholder="+300 ou -100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Delta P3 (€ HT/an)
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={avenantFormData.deltaP3}
+                          onChange={(e) =>
+                            setAvenantFormData({ ...avenantFormData, deltaP3: e.target.value })
+                          }
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                          placeholder="+200 ou -50"
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-primary-dark mb-1">
+                        Raison du changement
+                      </label>
+                      <input
+                        type="text"
+                        value={avenantFormData.reason}
+                        onChange={(e) =>
+                          setAvenantFormData({ ...avenantFormData, reason: e.target.value })
+                        }
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        placeholder="Ex: Ajout chaudière 300kW"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
+                Le prix sera calculé au prorata selon la date d&apos;effet et le type d&apos;année contractuelle.
+              </p>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowAvenantModal(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={creatingAvenant}>
+                  {creatingAvenant ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Création...
+                    </>
+                  ) : (
+                    "Créer l'avenant"
                   )}
                 </Button>
               </div>
