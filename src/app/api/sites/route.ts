@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { geocodeAddress } from "@/lib/geocoding";
 
 // GET /api/sites - List all sites for the organization
 export async function GET() {
@@ -9,11 +10,24 @@ export async function GET() {
 
     const sites = await prisma.site.findMany({
       where: { organizationId: user.organizationId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        address: true,
+        city: true,
+        postalCode: true,
+        surface: true,
+        surfaceChauffee: true,
+        energyType: true,
+        annualBudget: true,
+        latitude: true,
+        longitude: true,
+        createdAt: true,
         contractSites: {
           include: {
             contract: {
-              select: { id: true, reference: true, provider: true, status: true },
+              select: { id: true, reference: true, title: true, provider: true, status: true },
             },
           },
         },
@@ -75,6 +89,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Geocode address if coordinates not provided
+    let latitude = body.latitude ? parseFloat(body.latitude) : null;
+    let longitude = body.longitude ? parseFloat(body.longitude) : null;
+
+    if (!latitude && !longitude && body.address && body.city) {
+      const geoResult = await geocodeAddress(
+        body.address,
+        body.city,
+        body.postalCode || ""
+      );
+      if (geoResult) {
+        latitude = geoResult.latitude;
+        longitude = geoResult.longitude;
+      }
+    }
+
     const site = await prisma.site.create({
       data: {
         name: body.name,
@@ -91,8 +121,8 @@ export async function POST(request: NextRequest) {
         pdl: body.pdl || null,
         rae: body.rae || null,
         annualBudget: body.annualBudget ? parseFloat(body.annualBudget) : null,
-        latitude: body.latitude ? parseFloat(body.latitude) : null,
-        longitude: body.longitude ? parseFloat(body.longitude) : null,
+        latitude,
+        longitude,
         image: body.image,
         organizationId: user.organizationId,
         createdById: user.id,
