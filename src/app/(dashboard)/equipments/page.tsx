@@ -1193,17 +1193,6 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                 </div>
               )}
 
-              {/* Recommendations for boiler risk matrix */}
-              {analytics.recommendations.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-medium text-blue-800 mb-2">Recommandations (Chaudières)</h3>
-                  <ul className="space-y-1">
-                    {analytics.recommendations.map((rec, i) => (
-                      <li key={i} className="text-sm text-blue-700">{rec}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               <ChartCard
                 title="Plan de renouvellement"
@@ -1303,14 +1292,15 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
           {/* RISK VIEW */}
           {activeView === "risk" && analytics && (
             <div className="space-y-4">
-              {stats && stats.weightedAverageAge !== null && (
-                <div className={`p-4 rounded-lg ${stats.weightedAverageAge > 12 ? "bg-red-50" : stats.weightedAverageAge < 10 ? "bg-green-50" : "bg-blue-50"}`}>
-                  <p className={`font-medium ${stats.weightedAverageAge > 12 ? "text-red-800" : stats.weightedAverageAge < 10 ? "text-green-800" : "text-blue-800"}`}>
-                    Âge moyen pondéré du parc chaudières: <span className="text-xl">{stats.weightedAverageAge.toFixed(1)} ans</span>
-                  </p>
-                  <p className={`text-sm ${stats.weightedAverageAge > 12 ? "text-red-600" : stats.weightedAverageAge < 10 ? "text-green-600" : "text-blue-600"}`}>
-                    Cible: 10-12 ans
-                  </p>
+              {/* Recommendations for boiler risk matrix */}
+              {analytics.recommendations.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-medium text-blue-800 mb-2">Recommandations</h3>
+                  <ul className="space-y-1">
+                    {analytics.recommendations.map((rec, i) => (
+                      <li key={i} className="text-sm text-blue-700">{rec}</li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
