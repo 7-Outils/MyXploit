@@ -455,6 +455,26 @@ export default function EquipmentsPage() {
     siteId: "",
   });
 
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    domain: "CHAUFFAGE" as EquipmentDomain,
+    type: "CHAUDIERE" as EquipmentType,
+    brand: "",
+    model: "",
+    serialNumber: "",
+    year: "",
+    power: "",
+    quantity: "",
+    location: "",
+    level: "",
+    theoreticalLifespan: "",
+    status: "OPERATIONNEL" as EquipmentStatus,
+  });
+
   // Expanded rows for renewal plan
   const [expandedYears, setExpandedYears] = useState<number[]>([]);
 
@@ -601,6 +621,54 @@ export default function EquipmentsPage() {
     setExpandedSites((prev) =>
       prev.includes(siteId) ? prev.filter((s) => s !== siteId) : [...prev, siteId]
     );
+  };
+
+  // Open edit modal
+  const handleEditEquipment = (eq: Equipment) => {
+    setEditingEquipment(eq);
+    setEditFormData({
+      name: eq.name || "",
+      domain: eq.domain,
+      type: eq.type,
+      brand: eq.brand || "",
+      model: eq.model || "",
+      serialNumber: eq.serialNumber || "",
+      year: eq.year?.toString() || "",
+      power: eq.power?.toString() || "",
+      quantity: eq.quantity?.toString() || "",
+      location: eq.location || "",
+      level: eq.level || "",
+      theoreticalLifespan: eq.theoreticalLifespan?.toString() || "",
+      status: eq.status,
+    });
+    setShowEditModal(true);
+  };
+
+  // Save equipment edits
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEquipment || !selectedContract) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/equipments/${editingEquipment.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erreur lors de la mise à jour");
+      }
+
+      await fetchEquipmentsForContract(selectedContract.id);
+      setShowEditModal(false);
+      setEditingEquipment(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Group equipments by site
@@ -1002,7 +1070,11 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                               {siteEquipments.map((eq) => (
-                                <tr key={eq.id} className="hover:bg-gray-50 transition-colors">
+                                <tr
+                                  key={eq.id}
+                                  onClick={() => handleEditEquipment(eq)}
+                                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
                                   <td className="px-6 py-4">
                                     <div className="flex items-center gap-3">
                                       <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
@@ -1631,6 +1703,195 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && editingEquipment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-primary-dark">Modifier l&apos;équipement</h2>
+                <p className="text-sm text-text-secondary">{editingEquipment.site.name}</p>
+              </div>
+              <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Domaine</label>
+                  <select
+                    value={editFormData.domain}
+                    onChange={(e) => {
+                      const newDomain = e.target.value as EquipmentDomain;
+                      const firstType = typesByDomain[newDomain][0];
+                      setEditFormData({ ...editFormData, domain: newDomain, type: firstType });
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  >
+                    {Object.entries(domainLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Type</label>
+                  <select
+                    value={editFormData.type}
+                    onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value as EquipmentType })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  >
+                    {typesByDomain[editFormData.domain].map((type) => (
+                      <option key={type} value={type}>{equipmentTypeLabels[type]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Nom (optionnel)</label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  placeholder="Auto-généré depuis le type si vide"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Marque</label>
+                  <input
+                    type="text"
+                    value={editFormData.brand}
+                    onChange={(e) => setEditFormData({ ...editFormData, brand: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Modèle</label>
+                  <input
+                    type="text"
+                    value={editFormData.model}
+                    onChange={(e) => setEditFormData({ ...editFormData, model: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">N° de série</label>
+                  <input
+                    type="text"
+                    value={editFormData.serialNumber}
+                    onChange={(e) => setEditFormData({ ...editFormData, serialNumber: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Année</label>
+                  <input
+                    type="number"
+                    value={editFormData.year}
+                    onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                    min="1950"
+                    max={new Date().getFullYear()}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Puissance (kW)</label>
+                  <input
+                    type="number"
+                    value={editFormData.power}
+                    onChange={(e) => setEditFormData({ ...editFormData, power: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Quantité</label>
+                  <input
+                    type="number"
+                    value={editFormData.quantity}
+                    onChange={(e) => setEditFormData({ ...editFormData, quantity: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Local</label>
+                  <input
+                    type="text"
+                    value={editFormData.location}
+                    onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Niveau</label>
+                  <input
+                    type="text"
+                    value={editFormData.level}
+                    onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Durée de vie (ans)</label>
+                  <input
+                    type="number"
+                    value={editFormData.theoreticalLifespan}
+                    onChange={(e) => setEditFormData({ ...editFormData, theoreticalLifespan: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                    min="1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Statut</label>
+                  <select
+                    value={editFormData.status}
+                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EquipmentStatus })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  >
+                    {Object.entries(statusLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowEditModal(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    "Enregistrer"
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

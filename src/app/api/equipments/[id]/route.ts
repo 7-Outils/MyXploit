@@ -79,13 +79,15 @@ export async function PUT(
     const equipment = await prisma.equipment.update({
       where: { id },
       data: {
-        name: body.name,
+        name: body.name || null,
+        domain: body.domain,
         type: body.type,
         brand: body.brand || null,
         model: body.model || null,
         serialNumber: body.serialNumber || null,
         year: body.year ? parseInt(body.year) : null,
         power: body.power ? parseFloat(body.power) : null,
+        quantity: body.quantity ? parseInt(body.quantity) : null,
         location: body.location || null,
         level: body.level || null,
         theoreticalLifespan: body.theoreticalLifespan

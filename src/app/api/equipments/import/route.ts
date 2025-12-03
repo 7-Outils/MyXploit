@@ -496,6 +496,35 @@ export async function POST(request: NextRequest) {
       siteMap.set(nameWithCity, cs.siteId);
     }
 
+    // Get existing equipment for duplicate detection
+    const siteIds = contractSites.map((cs) => cs.siteId);
+    const existingEquipments = await prisma.equipment.findMany({
+      where: {
+        siteId: { in: siteIds },
+        organizationId: user.organizationId,
+      },
+      select: {
+        id: true,
+        serialNumber: true,
+        siteId: true,
+        type: true,
+        brand: true,
+        model: true,
+      },
+    });
+
+    // Build duplicate detection indexes
+    const serialNumberSet = new Set<string>();
+    const equipmentSignatureSet = new Set<string>();
+    for (const eq of existingEquipments) {
+      if (eq.serialNumber) {
+        serialNumberSet.add(normalize(eq.serialNumber));
+      }
+      // Signature: siteId + type + brand + model (normalized)
+      const signature = `${eq.siteId}|${eq.type}|${normalize(eq.brand || "")}|${normalize(eq.model || "")}`;
+      equipmentSignatureSet.add(signature);
+    }
+
     // Process rows
     const results: Array<{
       row: number;
@@ -508,6 +537,7 @@ export async function POST(request: NextRequest) {
       name?: string;
       brand?: string;
       model?: string;
+      serialNumber?: string;
       year?: number;
       power?: number;
       quantity?: number;
@@ -515,6 +545,7 @@ export async function POST(request: NextRequest) {
       level?: string;
       lifespan?: number;
       message?: string;
+      isDuplicate?: boolean;
     }> = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -599,6 +630,7 @@ export async function POST(request: NextRequest) {
       result.name = row.nom || row.name || undefined;
       result.brand = row.marque || row.brand || undefined;
       result.model = row.modele || row.model || undefined;
+      result.serialNumber = row.numero_serie || row.serial_number || undefined;
       result.location = row.local || row.location || undefined;
       result.level = row.niveau || row.level || undefined;
 
@@ -637,6 +669,34 @@ export async function POST(request: NextRequest) {
         result.lifespan = DEFAULT_LIFESPAN[parsedType] || 15;
       }
 
+      // Duplicate detection
+      let isDuplicate = false;
+      let duplicateReason = "";
+
+      // Check by serial number first (if provided)
+      if (result.serialNumber) {
+        const normalizedSerial = normalize(result.serialNumber);
+        if (serialNumberSet.has(normalizedSerial)) {
+          isDuplicate = true;
+          duplicateReason = `N° série "${result.serialNumber}" existe déjà`;
+        }
+      }
+
+      // Check by signature (site + type + brand + model) if no serial number match
+      if (!isDuplicate && result.siteId && result.typeParsed) {
+        const signature = `${result.siteId}|${result.typeParsed}|${normalize(result.brand || "")}|${normalize(result.model || "")}`;
+        if (equipmentSignatureSet.has(signature)) {
+          isDuplicate = true;
+          duplicateReason = `Équipement similaire existe déjà (même site, type, marque, modèle)`;
+        }
+      }
+
+      if (isDuplicate) {
+        result.status = "warning";
+        result.isDuplicate = true;
+        result.message = duplicateReason;
+      }
+
       results.push(result);
     }
 
@@ -656,8 +716,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Import valid rows
-    const validRows = results.filter((r) => r.status !== "error" && r.siteId && r.typeParsed);
+    // Import valid rows (exclude errors and duplicates)
+    const validRows = results.filter((r) => r.status === "ok" && r.siteId && r.typeParsed);
+    const duplicateRows = results.filter((r) => r.isDuplicate);
     let created = 0;
 
     for (const row of validRows) {
@@ -669,6 +730,7 @@ export async function POST(request: NextRequest) {
             type: row.typeParsed as "CHAUDIERE" | "CIRCULATEUR", // Type assertion for Prisma
             brand: row.brand || undefined,
             model: row.model || undefined,
+            serialNumber: row.serialNumber || undefined,
             year: row.year || undefined,
             power: row.power || undefined,
             quantity: row.quantity || undefined,
@@ -689,6 +751,7 @@ export async function POST(request: NextRequest) {
       preview: false,
       total: rows.length,
       created,
+      skipped: duplicateRows.length,
       errors: results.filter((r) => r.status === "error").length,
       results,
     });
