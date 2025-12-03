@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  FileText,
   Building2,
   Plus,
   Calendar,
@@ -13,9 +12,9 @@ import {
   X,
   ArrowLeft,
   Settings,
-  Trash2,
   ChevronDown,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -130,6 +129,36 @@ export default function ContractDetailPage() {
     power: "",
   });
 
+  // Contract edit modal
+  const [showEditContractModal, setShowEditContractModal] = useState(false);
+  const [updatingContract, setUpdatingContract] = useState(false);
+  const [contractFormData, setContractFormData] = useState({
+    reference: "",
+    title: "",
+    provider: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    amountP1: "",
+    amountP2: "",
+    amountP3: "",
+    status: "ACTIF",
+  });
+
+  // Site edit modal
+  const [showEditSiteModal, setShowEditSiteModal] = useState(false);
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
+  const [updatingSite, setUpdatingSite] = useState(false);
+  const [editSiteFormData, setEditSiteFormData] = useState({
+    name: "",
+    type: "LYCEE",
+    address: "",
+    city: "",
+    postalCode: "",
+    surface: "",
+    energyType: "GAZ",
+  });
+
   const fetchContract = async () => {
     try {
       setLoading(true);
@@ -241,6 +270,96 @@ export default function ContractDetailPage() {
     }
   };
 
+  const openEditContractModal = () => {
+    if (!contract) return;
+    setContractFormData({
+      reference: contract.reference,
+      title: contract.title,
+      provider: contract.provider,
+      description: contract.description || "",
+      startDate: contract.startDate.split("T")[0],
+      endDate: contract.endDate.split("T")[0],
+      amountP1: contract.amountP1.toString(),
+      amountP2: contract.amountP2.toString(),
+      amountP3: contract.amountP3.toString(),
+      status: contract.status,
+    });
+    setShowEditContractModal(true);
+  };
+
+  const handleUpdateContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdatingContract(true);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference: contractFormData.reference,
+          title: contractFormData.title,
+          provider: contractFormData.provider,
+          description: contractFormData.description || null,
+          startDate: contractFormData.startDate,
+          endDate: contractFormData.endDate,
+          amountP1: contractFormData.amountP1,
+          amountP2: contractFormData.amountP2,
+          amountP3: contractFormData.amountP3,
+          status: contractFormData.status,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchContract();
+        setShowEditContractModal(false);
+      }
+    } catch (error) {
+      console.error("Error updating contract:", error);
+    } finally {
+      setUpdatingContract(false);
+    }
+  };
+
+  const openEditSiteModal = (site: Site) => {
+    setEditingSiteId(site.id);
+    setEditSiteFormData({
+      name: site.name,
+      type: site.type,
+      address: site.address,
+      city: site.city,
+      postalCode: site.postalCode,
+      surface: site.surface?.toString() || "",
+      energyType: site.energyType,
+    });
+    setShowEditSiteModal(true);
+  };
+
+  const handleUpdateSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSiteId) return;
+
+    setUpdatingSite(true);
+    try {
+      const response = await fetch(`/api/sites/${editingSiteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...editSiteFormData,
+          surface: editSiteFormData.surface ? parseFloat(editSiteFormData.surface) : null,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchContract();
+        setShowEditSiteModal(false);
+        setEditingSiteId(null);
+      }
+    } catch (error) {
+      console.error("Error updating site:", error);
+    } finally {
+      setUpdatingSite(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -290,10 +409,16 @@ export default function ContractDetailPage() {
             {contract.reference} • Titulaire : {contract.provider}
           </p>
         </div>
-        <Button onClick={() => setShowSiteModal(true)}>
-          <Plus size={18} className="mr-2" />
-          Ajouter un site
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openEditContractModal}>
+            <Pencil size={18} className="mr-2" />
+            Modifier
+          </Button>
+          <Button onClick={() => setShowSiteModal(true)}>
+            <Plus size={18} className="mr-2" />
+            Ajouter un site
+          </Button>
+        </div>
       </div>
 
       {/* Contract Info */}
@@ -409,18 +534,30 @@ export default function ContractDetailPage() {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedSiteId(site.id);
-                        setShowEquipmentModal(true);
-                      }}
-                    >
-                      <Plus size={14} className="mr-1" />
-                      Équipement
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditSiteModal(site);
+                        }}
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSiteId(site.id);
+                          setShowEquipmentModal(true);
+                        }}
+                      >
+                        <Plus size={14} className="mr-1" />
+                        Équipement
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Site Details & Equipments */}
@@ -797,6 +934,365 @@ export default function ContractDetailPage() {
                     </>
                   ) : (
                     "Créer l'équipement"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contract Modal */}
+      {showEditContractModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Modifier le contrat
+              </h2>
+              <button
+                onClick={() => setShowEditContractModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateContract} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Référence *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={contractFormData.reference}
+                  onChange={(e) =>
+                    setContractFormData({ ...contractFormData, reference: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Titre du contrat *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={contractFormData.title}
+                  onChange={(e) =>
+                    setContractFormData({ ...contractFormData, title: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Titulaire (exploitant) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={contractFormData.provider}
+                  onChange={(e) =>
+                    setContractFormData({ ...contractFormData, provider: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={contractFormData.description}
+                  onChange={(e) =>
+                    setContractFormData({ ...contractFormData, description: e.target.value })
+                  }
+                  rows={3}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Date de début *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={contractFormData.startDate}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, startDate: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Date de fin *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={contractFormData.endDate}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, endDate: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Montant P1 (€) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={contractFormData.amountP1}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, amountP1: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Montant P2 (€) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={contractFormData.amountP2}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, amountP2: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Montant P3 (€) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={contractFormData.amountP3}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, amountP3: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Statut
+                </label>
+                <select
+                  value={contractFormData.status}
+                  onChange={(e) =>
+                    setContractFormData({ ...contractFormData, status: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="ACTIF">Actif</option>
+                  <option value="EN_ATTENTE">En attente</option>
+                  <option value="EXPIRE">Expiré</option>
+                  <option value="RESILIE">Résilié</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowEditContractModal(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={updatingContract}>
+                  {updatingContract ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Mise à jour...
+                    </>
+                  ) : (
+                    "Enregistrer"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Site Modal */}
+      {showEditSiteModal && editingSiteId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Modifier le site
+              </h2>
+              <button
+                onClick={() => {
+                  setShowEditSiteModal(false);
+                  setEditingSiteId(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateSite} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Nom du site *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editSiteFormData.name}
+                  onChange={(e) =>
+                    setEditSiteFormData({ ...editSiteFormData, name: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type *
+                  </label>
+                  <select
+                    required
+                    value={editSiteFormData.type}
+                    onChange={(e) =>
+                      setEditSiteFormData({ ...editSiteFormData, type: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    {siteTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Énergie principale *
+                  </label>
+                  <select
+                    required
+                    value={editSiteFormData.energyType}
+                    onChange={(e) =>
+                      setEditSiteFormData({ ...editSiteFormData, energyType: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    {energyTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Adresse *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editSiteFormData.address}
+                  onChange={(e) =>
+                    setEditSiteFormData({ ...editSiteFormData, address: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Code postal *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editSiteFormData.postalCode}
+                    onChange={(e) =>
+                      setEditSiteFormData({ ...editSiteFormData, postalCode: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Ville *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editSiteFormData.city}
+                    onChange={(e) =>
+                      setEditSiteFormData({ ...editSiteFormData, city: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Surface (m²)
+                </label>
+                <input
+                  type="number"
+                  value={editSiteFormData.surface}
+                  onChange={(e) =>
+                    setEditSiteFormData({ ...editSiteFormData, surface: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowEditSiteModal(false);
+                    setEditingSiteId(null);
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={updatingSite}>
+                  {updatingSite ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Mise à jour...
+                    </>
+                  ) : (
+                    "Enregistrer"
                   )}
                 </Button>
               </div>
