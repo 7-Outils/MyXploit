@@ -16,9 +16,12 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 
-interface Site {
+interface ContractSite {
   id: string;
-  name: string;
+  site: {
+    id: string;
+    name: string;
+  };
 }
 
 interface Contract {
@@ -27,6 +30,7 @@ interface Contract {
   provider: string;
   endDate: string;
   status: string;
+  contractSites: ContractSite[];
 }
 
 interface Invoice {
@@ -50,7 +54,7 @@ interface Alert {
   title: string;
   message: string;
   priority: "BASSE" | "MOYENNE" | "HAUTE" | "CRITIQUE";
-  site: Site | null;
+  site: { id: string; name: string } | null;
   createdAt: string;
   isRead: boolean;
 }
@@ -72,7 +76,6 @@ const consumptionData = [
 
 export default function OverviewPage() {
   const { user } = useUser();
-  const [sites, setSites] = useState<Site[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -83,25 +86,22 @@ export default function OverviewPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [sitesRes, contractsRes, invoicesRes, meetingsRes, alertsRes] =
+        const [contractsRes, invoicesRes, meetingsRes, alertsRes] =
           await Promise.all([
-            fetch("/api/sites"),
             fetch("/api/contracts"),
             fetch("/api/invoices"),
             fetch("/api/meetings"),
             fetch("/api/alerts"),
           ]);
 
-        const [sitesData, contractsData, invoicesData, meetingsData, alertsData] =
+        const [contractsData, invoicesData, meetingsData, alertsData] =
           await Promise.all([
-            sitesRes.json(),
             contractsRes.json(),
             invoicesRes.json(),
             meetingsRes.json(),
             alertsRes.json(),
           ]);
 
-        setSites(Array.isArray(sitesData) ? sitesData : []);
         setContracts(Array.isArray(contractsData) ? contractsData : []);
         setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
         setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
@@ -117,7 +117,16 @@ export default function OverviewPage() {
   }, []);
 
   // Calculs
-  const activeContracts = contracts.filter((c) => c.status === "ACTIF").length;
+  const activeContractsList = contracts.filter((c) => c.status === "ACTIF");
+  const activeContracts = activeContractsList.length;
+
+  // Sites des contrats actifs uniquement (dédupliqués par id)
+  const sitesFromActiveContracts = activeContractsList.flatMap((c) => c.contractSites.map((cs) => cs.site));
+  const uniqueSiteIds = new Set(sitesFromActiveContracts.map((s) => s.id));
+  const uniqueSitesFromActiveContracts = Array.from(uniqueSiteIds).map(
+    (id) => sitesFromActiveContracts.find((s) => s.id === id)!
+  );
+
   const pendingInvoices = invoices.filter((i) => i.status === "EN_ATTENTE");
   const totalPendingAmount = pendingInvoices.reduce(
     (sum, i) => sum + i.amount,
@@ -209,8 +218,8 @@ export default function OverviewPage() {
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="Sites gérés"
-          value={sites.length.toString()}
+          title="Sites sous contrat"
+          value={uniqueSitesFromActiveContracts.length.toString()}
           icon={Building2}
           iconColor="text-accent"
         />
@@ -262,18 +271,18 @@ export default function OverviewPage() {
         </ChartCard>
 
         {/* Top sites */}
-        <ChartCard title="Vos sites" subtitle={`${sites.length} sites gérés`}>
-          {sites.length === 0 ? (
+        <ChartCard title="Sites sous contrat" subtitle={`${uniqueSitesFromActiveContracts.length} sites actifs`}>
+          {uniqueSitesFromActiveContracts.length === 0 ? (
             <div className="text-center py-8">
               <Building2 size={32} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-text-secondary">Aucun site</p>
-              <Link href="/sites" className="text-sm text-accent hover:underline">
-                Ajouter un site
+              <p className="text-sm text-text-secondary">Aucun site sous contrat actif</p>
+              <Link href="/contracts" className="text-sm text-accent hover:underline">
+                Voir les contrats
               </Link>
             </div>
           ) : (
             <div className="space-y-4">
-              {sites.slice(0, 5).map((site, index) => (
+              {uniqueSitesFromActiveContracts.slice(0, 5).map((site, index) => (
                 <div key={site.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 bg-accent/10 rounded-full flex items-center justify-center text-xs font-medium text-accent">
