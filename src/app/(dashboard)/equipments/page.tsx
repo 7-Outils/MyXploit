@@ -184,6 +184,9 @@ interface AnalyticsData {
     weightedAverageAge: number | null;
     overdueCount: number;
     nearEndCount: number;
+    unknownYearCount: number;
+    contractStartYear: number | null;
+    contractEndYear: number | null;
   };
   equipments: Array<Equipment & {
     age: number | null;
@@ -198,6 +201,7 @@ interface AnalyticsData {
     totalPower: number;
     equipments: Array<Equipment & { age: number | null }>;
   }>;
+  unknownYearEquipments: Array<Equipment & { age: number | null }>;
   riskMatrix: {
     critical: Array<Equipment & { age: number | null }>;
     high: Array<Equipment & { age: number | null }>;
@@ -1180,19 +1184,34 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
           {/* RENEWAL VIEW */}
           {activeView === "renewal" && analytics && (
             <div className="space-y-4">
+              {/* Contract duration info */}
+              {analytics.summary.contractStartYear && analytics.summary.contractEndYear && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <p className="text-sm text-text-secondary">
+                    Plan de renouvellement limité à la durée du contrat: <strong>{analytics.summary.contractStartYear} - {analytics.summary.contractEndYear}</strong>
+                  </p>
+                </div>
+              )}
+
+              {/* Recommendations for boiler risk matrix */}
               {analytics.recommendations.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-medium text-blue-800 mb-2">Recommandations</h3>
+                  <h3 className="font-medium text-blue-800 mb-2">Recommandations (Chaudières)</h3>
                   <ul className="space-y-1">
                     {analytics.recommendations.map((rec, i) => (
-                      <li key={i} className="text-sm text-blue-700">• {rec}</li>
+                      <li key={i} className="text-sm text-blue-700">{rec}</li>
                     ))}
                   </ul>
                 </div>
               )}
 
-              <ChartCard title="Plan de renouvellement" subtitle="Équipements à remplacer par année">
-                {analytics.renewalPlan.length === 0 ? (
+              <ChartCard
+                title="Plan de renouvellement"
+                subtitle={analytics.summary.contractEndYear
+                  ? `Équipements à remplacer d'ici ${analytics.summary.contractEndYear}`
+                  : "Équipements à remplacer par année"}
+              >
+                {analytics.renewalPlan.length === 0 && analytics.unknownYearEquipments.length === 0 ? (
                   <p className="text-text-secondary text-center py-8">Aucun remplacement prévu (données d&apos;année manquantes)</p>
                 ) : (
                   <div className="space-y-2">
@@ -1239,6 +1258,45 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                   </div>
                 )}
               </ChartCard>
+
+              {/* Equipment without year data */}
+              {analytics.unknownYearEquipments.length > 0 && (
+                <ChartCard
+                  title="Équipements sans date connue"
+                  subtitle={`${analytics.unknownYearEquipments.length} équipement(s) sans année de fabrication`}
+                >
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <p className="text-sm text-yellow-700">
+                      Ces équipements n&apos;ont pas d&apos;année renseignée. Complétez les données pour les intégrer au plan de renouvellement.
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-text-secondary border-b border-gray-200">
+                          <th className="pb-2 pr-4">Équipement</th>
+                          <th className="pb-2 pr-4">Site</th>
+                          <th className="pb-2 pr-4">Marque</th>
+                          <th className="pb-2">Puissance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {analytics.unknownYearEquipments.map((eq) => (
+                          <tr key={eq.id} className="hover:bg-gray-50">
+                            <td className="py-2 pr-4">
+                              <span className="font-medium">{eq.name || equipmentTypeLabels[eq.type]}</span>
+                              <span className="text-text-secondary ml-2 text-xs">({domainLabels[eq.domain]})</span>
+                            </td>
+                            <td className="py-2 pr-4 text-text-secondary">{eq.site.name}</td>
+                            <td className="py-2 pr-4 text-text-secondary">{eq.brand || "-"}</td>
+                            <td className="py-2">{eq.power ? `${eq.power} kW` : "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ChartCard>
+              )}
             </div>
           )}
 

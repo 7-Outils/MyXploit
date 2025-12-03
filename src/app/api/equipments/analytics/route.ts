@@ -9,6 +9,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
 
+    // Get contract data for duration filtering
+    let contractEndYear: number | null = null;
+    let contractStartYear: number | null = null;
+    if (contractId) {
+      const contract = await prisma.contract.findUnique({
+        where: { id: contractId },
+        select: { startDate: true, endDate: true },
+      });
+      if (contract) {
+        contractEndYear = contract.endDate.getFullYear();
+        contractStartYear = contract.startDate.getFullYear();
+      }
+    }
+
     // Get sites for the contract
     let siteIds: string[] = [];
     if (contractId) {
@@ -92,14 +106,23 @@ export async function GET(request: NextRequest) {
     }
     const weightedAverageAge = totalPower > 0 ? weightedAgeSum / totalPower : null;
 
-    // Calculate renewal plan by year
+    // Calculate renewal plan by year (filtered by contract duration if applicable)
     const renewalByYear: Record<number, typeof equipmentData> = {};
+    const unknownYearEquipments: typeof equipmentData = [];
+
     for (const eq of equipmentData) {
       if (eq.renewalYear) {
+        // Filter by contract duration if we have a contract
+        if (contractEndYear && eq.renewalYear > contractEndYear) {
+          continue; // Skip equipment with renewal after contract end
+        }
         if (!renewalByYear[eq.renewalYear]) {
           renewalByYear[eq.renewalYear] = [];
         }
         renewalByYear[eq.renewalYear].push(eq);
+      } else {
+        // Equipment without year data - cannot calculate renewal
+        unknownYearEquipments.push(eq);
       }
     }
 
@@ -121,34 +144,55 @@ export async function GET(request: NextRequest) {
       low: boilers.filter((b) => b.age !== null && b.age < 10), // < 10 years
     };
 
-    // Recommendations for maintaining weighted average age between 10-12 years
+    // Recommendations for boiler risk matrix only
     const recommendations: string[] = [];
-    if (weightedAverageAge !== null) {
-      if (weightedAverageAge > 12) {
+
+    // Risk-based recommendations for boilers
+    if (riskMatrix.critical.length > 0) {
+      recommendations.push(
+        `⚠️ ${riskMatrix.critical.length} chaudière(s) en état critique (âge ≥ durée de vie théorique). ` +
+        `Remplacement urgent recommandé.`
+      );
+    }
+
+    if (riskMatrix.high.length > 0) {
+      recommendations.push(
+        `🔶 ${riskMatrix.high.length} chaudière(s) en fin de vie (3 ans ou moins avant échéance). ` +
+        `Planifier le remplacement à court terme.`
+      );
+    }
+
+    // Weighted average age recommendation
+    if (weightedAverageAge !== null && boilers.length > 0) {
+      if (weightedAverageAge > 15) {
         recommendations.push(
-          `L'âge moyen pondéré du parc chaudières est de ${weightedAverageAge.toFixed(1)} ans. ` +
-          `Il est recommandé de planifier des remplacements pour ramener cet indicateur sous 12 ans.`
+          `📊 Âge moyen pondéré du parc chaudières: ${weightedAverageAge.toFixed(1)} ans. ` +
+          `Parc vieillissant - plan de renouvellement urgent nécessaire.`
         );
-      } else if (weightedAverageAge < 10) {
+      } else if (weightedAverageAge > 12) {
         recommendations.push(
-          `L'âge moyen pondéré du parc chaudières est de ${weightedAverageAge.toFixed(1)} ans. ` +
-          `Le parc est relativement jeune, les remplacements peuvent être étalés.`
+          `📊 Âge moyen pondéré du parc chaudières: ${weightedAverageAge.toFixed(1)} ans. ` +
+          `Anticiper les remplacements pour ramener sous 12 ans.`
+        );
+      } else if (weightedAverageAge >= 10) {
+        recommendations.push(
+          `✅ Âge moyen pondéré du parc chaudières: ${weightedAverageAge.toFixed(1)} ans (plage cible 10-12 ans).`
         );
       } else {
         recommendations.push(
-          `L'âge moyen pondéré du parc chaudières est de ${weightedAverageAge.toFixed(1)} ans, ` +
-          `dans la plage cible de 10-12 ans.`
+          `✅ Âge moyen pondéré du parc chaudières: ${weightedAverageAge.toFixed(1)} ans. ` +
+          `Parc relativement jeune.`
         );
       }
     }
 
-    // Check for year concentration (too many replacements same year)
+    // Check for year concentration (too many boiler replacements same year)
     for (const plan of renewalPlan) {
       const boilersThisYear = plan.equipments.filter((eq) => BOILER_TYPES.includes(eq.type));
       if (boilersThisYear.length > 2) {
         recommendations.push(
-          `Attention: ${boilersThisYear.length} chaudières prévues au remplacement en ${plan.year}. ` +
-          `Envisagez d'étaler les remplacements pour limiter l'impact budgétaire.`
+          `📅 ${boilersThisYear.length} chaudières prévues au remplacement en ${plan.year}. ` +
+          `Envisagez d'étaler pour limiter l'impact budgétaire.`
         );
       }
     }
@@ -161,9 +205,13 @@ export async function GET(request: NextRequest) {
         weightedAverageAge,
         overdueCount: equipmentData.filter((eq) => eq.isOverdue).length,
         nearEndCount: equipmentData.filter((eq) => eq.isNearEnd && !eq.isOverdue).length,
+        unknownYearCount: unknownYearEquipments.length,
+        contractStartYear,
+        contractEndYear,
       },
       equipments: equipmentData,
       renewalPlan,
+      unknownYearEquipments, // Equipment without year data
       riskMatrix,
       recommendations,
     });
