@@ -886,10 +886,12 @@ export default function ContractDetailPage() {
             <Pencil size={18} className="mr-2" />
             Modifier
           </Button>
-          <Button onClick={() => setShowSiteModal(true)}>
-            <Plus size={18} className="mr-2" />
-            Ajouter un site
-          </Button>
+          {contract.status !== "RESILIE" && contract.status !== "EXPIRE" && (
+            <Button onClick={() => setShowSiteModal(true)}>
+              <Plus size={18} className="mr-2" />
+              Ajouter un site
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={handleDeleteContract}
@@ -1209,10 +1211,12 @@ export default function ContractDetailPage() {
         <ChartCard
           title={`Avenants (${contract.avenants?.length || 0})`}
           action={
-            <Button variant="outline" size="sm" onClick={() => setShowAvenantModal(true)}>
-              <Plus size={16} className="mr-1" />
-              Nouvel avenant
-            </Button>
+            contract.status !== "RESILIE" && contract.status !== "EXPIRE" ? (
+              <Button variant="outline" size="sm" onClick={() => setShowAvenantModal(true)}>
+                <Plus size={16} className="mr-1" />
+                Nouvel avenant
+              </Button>
+            ) : null
           }
         >
           {(!contract.avenants || contract.avenants.length === 0) ? (
@@ -1221,10 +1225,12 @@ export default function ContractDetailPage() {
               <p className="text-text-secondary mb-4">
                 Aucun avenant pour ce contrat
               </p>
-              <Button onClick={() => setShowAvenantModal(true)}>
-                <Plus size={18} className="mr-2" />
-                Créer un avenant
-              </Button>
+              {contract.status !== "RESILIE" && contract.status !== "EXPIRE" && (
+                <Button onClick={() => setShowAvenantModal(true)}>
+                  <Plus size={18} className="mr-2" />
+                  Créer un avenant
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">

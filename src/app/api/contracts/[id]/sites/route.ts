@@ -33,6 +33,14 @@ export async function POST(
       );
     }
 
+    // Prevent modifications on terminated or expired contracts
+    if (contract.status === "RESILIE" || contract.status === "EXPIRE") {
+      return NextResponse.json(
+        { error: "Impossible de modifier un contrat résilié ou expiré" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
 
     // Check if site exists and belongs to organization

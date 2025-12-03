@@ -55,6 +55,7 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"ACTIF" | "ALL" | "EXPIRE" | "RESILIE" | "EN_ATTENTE">("ACTIF");
 
   const [formData, setFormData] = useState({
     reference: "",
@@ -108,7 +109,12 @@ export default function ContractsPage() {
     }
   };
 
-  // Count sites with prestations across all contracts
+  // Filter contracts based on status
+  const filteredContracts = statusFilter === "ALL"
+    ? contracts
+    : contracts.filter(c => c.status === statusFilter);
+
+  // Count sites with prestations across all contracts (use all contracts for stats)
   const totalSites = contracts.reduce((sum, c) => sum + c.contractSites.length, 0);
   const sitesWithP1 = contracts.reduce(
     (sum, c) => sum + c.contractSites.filter((cs) => cs.hasP1).length,
@@ -118,6 +124,14 @@ export default function ContractsPage() {
     (sum, c) => sum + c.contractSites.filter((cs) => cs.hasP2).length,
     0
   );
+
+  // Count by status
+  const countByStatus = {
+    ACTIF: contracts.filter(c => c.status === "ACTIF").length,
+    EN_ATTENTE: contracts.filter(c => c.status === "EN_ATTENTE").length,
+    EXPIRE: contracts.filter(c => c.status === "EXPIRE").length,
+    RESILIE: contracts.filter(c => c.status === "RESILIE").length,
+  };
 
   if (loading) {
     return (
@@ -147,7 +161,7 @@ export default function ContractsPage() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
           title="Contrats actifs"
-          value={contracts.filter((c) => c.status === "ACTIF").length.toString()}
+          value={countByStatus.ACTIF.toString()}
           icon={FileText}
           iconColor="text-accent"
         />
@@ -171,11 +185,68 @@ export default function ContractsPage() {
         />
       </div>
 
+      {/* Status Filter */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-text-secondary mr-2">Filtrer :</span>
+        <button
+          onClick={() => setStatusFilter("ACTIF")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            statusFilter === "ACTIF"
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Actifs ({countByStatus.ACTIF})
+        </button>
+        <button
+          onClick={() => setStatusFilter("EN_ATTENTE")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            statusFilter === "EN_ATTENTE"
+              ? "bg-yellow-100 text-yellow-700"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          En attente ({countByStatus.EN_ATTENTE})
+        </button>
+        <button
+          onClick={() => setStatusFilter("EXPIRE")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            statusFilter === "EXPIRE"
+              ? "bg-red-100 text-red-700"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Expirés ({countByStatus.EXPIRE})
+        </button>
+        <button
+          onClick={() => setStatusFilter("RESILIE")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            statusFilter === "RESILIE"
+              ? "bg-red-100 text-red-700"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Résiliés ({countByStatus.RESILIE})
+        </button>
+        <button
+          onClick={() => setStatusFilter("ALL")}
+          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            statusFilter === "ALL"
+              ? "bg-accent text-white"
+              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          Tous ({contracts.length})
+        </button>
+      </div>
+
       {/* Contracts List */}
-      {contracts.length === 0 ? (
+      {filteredContracts.length === 0 ? (
         <ChartCard title="" className="flex flex-col items-center justify-center py-12">
           <FileText size={48} className="text-gray-300 mb-4" />
-          <p className="text-text-secondary mb-4">Aucun contrat</p>
+          <p className="text-text-secondary mb-4">
+            {contracts.length === 0 ? "Aucun contrat" : "Aucun contrat avec ce statut"}
+          </p>
           <Button onClick={() => setShowModal(true)}>
             <Plus size={18} className="mr-2" />
             Créer un contrat
@@ -183,7 +254,7 @@ export default function ContractsPage() {
         </ChartCard>
       ) : (
         <div className="space-y-4">
-          {contracts.map((contract) => {
+          {filteredContracts.map((contract) => {
             // Aggregate prestations from all sites
             const hasAnyP1 = contract.contractSites.some((cs) => cs.hasP1);
             const hasAnyP2 = contract.contractSites.some((cs) => cs.hasP2);
