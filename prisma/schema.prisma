@@ -85,6 +85,11 @@ enum EnergyType {
   AUTRE
 }
 
+enum NbUnit {
+  PCS   // Pouvoir Calorifique Supérieur
+  UTILE // Énergie utile
+}
+
 model Site {
   id             String     @id @default(cuid())
   name           String
@@ -92,8 +97,16 @@ model Site {
   address        String
   city           String
   postalCode     String
-  surface        Float? // m²
+  surface        Float? // m² (surface totale)
+  surfaceChauffee Float? // m² (surface chauffée)
   energyType     EnergyType
+  // Données énergétiques P1
+  nb             Float?     // Niveau de Base / Cible énergétique (MWh)
+  nbUnit         NbUnit?    // Unité du NB (PCS ou Utile)
+  pce            String?    // Point de Comptage et d'Estimation (compteur gaz)
+  pdl            String?    // Point de Livraison (compteur électricité)
+  rae            String?    // Référence Acheminement Électricité
+  // Autres infos
   annualBudget   Float? // Budget annuel estimé
   latitude       Float?
   longitude      Float?
@@ -165,6 +178,19 @@ model Equipment {
 // CONTRATS
 // ============================================
 
+enum ContractType {
+  MTI  // Marché Tout Inclus (P1+P2+P3)
+  MCI  // Marché Chauffage Installation
+  PFI  // Performance et Financement Installation
+  CPI  // Conception Performance Installation
+  MT   // Maintenance seule (P2)
+  CP   // Contrat de Performance
+  PF   // Performance Forfaitaire
+  MC   // Marché de Chauffage
+  MF   // Marché Forfaitaire
+  AUTRE
+}
+
 enum ContractStatus {
   ACTIF
   EXPIRE
@@ -176,12 +202,19 @@ model Contract {
   id             String         @id @default(cuid())
   reference      String
   title          String
+  contractType   ContractType   @default(MC)
   provider       String // Exploitant (ENGIE, Dalkia, etc.)
   startDate      DateTime
   endDate        DateTime
-  amountP1       Float // Forfait P1 - Combustible
-  amountP2       Float // Forfait P2 - Petit entretien
-  amountP3       Float // Forfait P3 - Gros entretien
+  // Prestations incluses dans le contrat
+  hasP1          Boolean        @default(false) // P1 - Combustible/Énergie
+  hasP2          Boolean        @default(false) // P2 - Petit entretien
+  hasP3          Boolean        @default(false) // P3 - Gros entretien/Renouvellement
+  hasP4          Boolean        @default(false) // P4 - Financement
+  // Montants (optionnels, peuvent être calculés depuis les sites)
+  amountP1       Float?         // Forfait P1 - Combustible
+  amountP2       Float?         // Forfait P2 - Petit entretien
+  amountP3       Float?         // Forfait P3 - Gros entretien
   status         ContractStatus @default(ACTIF)
   description    String?
   documentUrl    String?

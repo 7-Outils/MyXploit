@@ -79,12 +79,17 @@ export async function PUT(
 
     if (body.reference) updateData.reference = body.reference;
     if (body.title) updateData.title = body.title;
+    if (body.contractType) updateData.contractType = body.contractType;
     if (body.provider) updateData.provider = body.provider;
     if (body.startDate) updateData.startDate = new Date(body.startDate);
     if (body.endDate) updateData.endDate = new Date(body.endDate);
-    if (body.amountP1) updateData.amountP1 = parseFloat(body.amountP1);
-    if (body.amountP2) updateData.amountP2 = parseFloat(body.amountP2);
-    if (body.amountP3) updateData.amountP3 = parseFloat(body.amountP3);
+    if (body.hasP1 !== undefined) updateData.hasP1 = body.hasP1;
+    if (body.hasP2 !== undefined) updateData.hasP2 = body.hasP2;
+    if (body.hasP3 !== undefined) updateData.hasP3 = body.hasP3;
+    if (body.hasP4 !== undefined) updateData.hasP4 = body.hasP4;
+    if (body.amountP1 !== undefined) updateData.amountP1 = body.amountP1 ? parseFloat(body.amountP1) : null;
+    if (body.amountP2 !== undefined) updateData.amountP2 = body.amountP2 ? parseFloat(body.amountP2) : null;
+    if (body.amountP3 !== undefined) updateData.amountP3 = body.amountP3 ? parseFloat(body.amountP3) : null;
     if (body.status) updateData.status = body.status;
     if (body.description !== undefined) updateData.description = body.description;
 

@@ -37,7 +37,12 @@ interface Site {
   city: string;
   postalCode: string;
   surface: number | null;
+  surfaceChauffee: number | null;
   energyType: string;
+  nb: number | null;
+  nbUnit: string | null;
+  pce: string | null;
+  pdl: string | null;
   equipments: Equipment[];
 }
 
@@ -45,13 +50,18 @@ interface Contract {
   id: string;
   reference: string;
   title: string;
+  contractType: string;
   provider: string;
   description: string | null;
   startDate: string;
   endDate: string;
-  amountP1: number;
-  amountP2: number;
-  amountP3: number;
+  hasP1: boolean;
+  hasP2: boolean;
+  hasP3: boolean;
+  hasP4: boolean;
+  amountP1: number | null;
+  amountP2: number | null;
+  amountP3: number | null;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
   sites: Site[];
 }
@@ -62,6 +72,19 @@ const statusLabels = {
   EN_ATTENTE: "En attente",
   RESILIE: "Résilié",
 };
+
+const contractTypes = [
+  { value: "MTI", label: "MTI - Marché Tout Inclus" },
+  { value: "MCI", label: "MCI - Marché Chauffage Installation" },
+  { value: "PFI", label: "PFI - Performance et Financement" },
+  { value: "CPI", label: "CPI - Conception Performance Installation" },
+  { value: "MT", label: "MT - Maintenance seule" },
+  { value: "CP", label: "CP - Contrat de Performance" },
+  { value: "PF", label: "PF - Performance Forfaitaire" },
+  { value: "MC", label: "MC - Marché de Chauffage" },
+  { value: "MF", label: "MF - Marché Forfaitaire" },
+  { value: "AUTRE", label: "Autre" },
+];
 
 const siteTypes = [
   { value: "LYCEE", label: "Lycée" },
@@ -114,7 +137,12 @@ export default function ContractDetailPage() {
     city: "",
     postalCode: "",
     surface: "",
+    surfaceChauffee: "",
     energyType: "GAZ",
+    nb: "",
+    nbUnit: "PCS",
+    pce: "",
+    pdl: "",
   });
 
   // Equipment creation modal
@@ -135,13 +163,15 @@ export default function ContractDetailPage() {
   const [contractFormData, setContractFormData] = useState({
     reference: "",
     title: "",
+    contractType: "MC",
     provider: "",
     description: "",
     startDate: "",
     endDate: "",
-    amountP1: "",
-    amountP2: "",
-    amountP3: "",
+    hasP1: false,
+    hasP2: false,
+    hasP3: false,
+    hasP4: false,
     status: "ACTIF",
   });
 
@@ -156,7 +186,12 @@ export default function ContractDetailPage() {
     city: "",
     postalCode: "",
     surface: "",
+    surfaceChauffee: "",
     energyType: "GAZ",
+    nb: "",
+    nbUnit: "PCS",
+    pce: "",
+    pdl: "",
   });
 
   const fetchContract = async () => {
@@ -202,6 +237,8 @@ export default function ContractDetailPage() {
         body: JSON.stringify({
           ...siteFormData,
           surface: siteFormData.surface ? parseFloat(siteFormData.surface) : null,
+          surfaceChauffee: siteFormData.surfaceChauffee ? parseFloat(siteFormData.surfaceChauffee) : null,
+          nb: siteFormData.nb ? parseFloat(siteFormData.nb) : null,
         }),
       });
 
@@ -225,7 +262,12 @@ export default function ContractDetailPage() {
           city: "",
           postalCode: "",
           surface: "",
+          surfaceChauffee: "",
           energyType: "GAZ",
+          nb: "",
+          nbUnit: "PCS",
+          pce: "",
+          pdl: "",
         });
       }
     } catch (error) {
@@ -275,13 +317,15 @@ export default function ContractDetailPage() {
     setContractFormData({
       reference: contract.reference,
       title: contract.title,
+      contractType: contract.contractType,
       provider: contract.provider,
       description: contract.description || "",
       startDate: contract.startDate.split("T")[0],
       endDate: contract.endDate.split("T")[0],
-      amountP1: contract.amountP1.toString(),
-      amountP2: contract.amountP2.toString(),
-      amountP3: contract.amountP3.toString(),
+      hasP1: contract.hasP1,
+      hasP2: contract.hasP2,
+      hasP3: contract.hasP3,
+      hasP4: contract.hasP4,
       status: contract.status,
     });
     setShowEditContractModal(true);
@@ -297,13 +341,15 @@ export default function ContractDetailPage() {
         body: JSON.stringify({
           reference: contractFormData.reference,
           title: contractFormData.title,
+          contractType: contractFormData.contractType,
           provider: contractFormData.provider,
           description: contractFormData.description || null,
           startDate: contractFormData.startDate,
           endDate: contractFormData.endDate,
-          amountP1: contractFormData.amountP1,
-          amountP2: contractFormData.amountP2,
-          amountP3: contractFormData.amountP3,
+          hasP1: contractFormData.hasP1,
+          hasP2: contractFormData.hasP2,
+          hasP3: contractFormData.hasP3,
+          hasP4: contractFormData.hasP4,
           status: contractFormData.status,
         }),
       });
@@ -328,7 +374,12 @@ export default function ContractDetailPage() {
       city: site.city,
       postalCode: site.postalCode,
       surface: site.surface?.toString() || "",
+      surfaceChauffee: site.surfaceChauffee?.toString() || "",
       energyType: site.energyType,
+      nb: site.nb?.toString() || "",
+      nbUnit: site.nbUnit || "PCS",
+      pce: site.pce || "",
+      pdl: site.pdl || "",
     });
     setShowEditSiteModal(true);
   };
@@ -345,6 +396,8 @@ export default function ContractDetailPage() {
         body: JSON.stringify({
           ...editSiteFormData,
           surface: editSiteFormData.surface ? parseFloat(editSiteFormData.surface) : null,
+          surfaceChauffee: editSiteFormData.surfaceChauffee ? parseFloat(editSiteFormData.surfaceChauffee) : null,
+          nb: editSiteFormData.nb ? parseFloat(editSiteFormData.nb) : null,
         }),
       });
 
@@ -422,7 +475,7 @@ export default function ContractDetailPage() {
       </div>
 
       {/* Contract Info */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <ChartCard title="" className="text-center">
           <div className="flex flex-col items-center -mt-2">
             <Calendar size={24} className="text-accent mb-2" />
@@ -439,20 +492,10 @@ export default function ContractDetailPage() {
 
         <ChartCard title="" className="text-center">
           <div className="flex flex-col items-center -mt-2">
-            <Euro size={24} className="text-yellow-600 mb-2" />
-            <p className="text-xs text-text-secondary">P1 - Énergie</p>
-            <p className="text-xl font-bold text-primary-dark">
-              {(contract.amountP1 / 1000).toFixed(0)}k€
-            </p>
-          </div>
-        </ChartCard>
-
-        <ChartCard title="" className="text-center">
-          <div className="flex flex-col items-center -mt-2">
-            <Euro size={24} className="text-blue-600 mb-2" />
-            <p className="text-xs text-text-secondary">P2 - Maintenance</p>
-            <p className="text-xl font-bold text-primary-dark">
-              {(contract.amountP2 / 1000).toFixed(0)}k€
+            <Settings size={24} className="text-blue-600 mb-2" />
+            <p className="text-xs text-text-secondary">Type de contrat</p>
+            <p className="text-lg font-bold text-primary-dark">
+              {contract.contractType}
             </p>
           </div>
         </ChartCard>
@@ -460,10 +503,24 @@ export default function ContractDetailPage() {
         <ChartCard title="" className="text-center">
           <div className="flex flex-col items-center -mt-2">
             <Euro size={24} className="text-green-600 mb-2" />
-            <p className="text-xs text-text-secondary">P3 - Travaux</p>
-            <p className="text-xl font-bold text-primary-dark">
-              {(contract.amountP3 / 1000).toFixed(0)}k€
-            </p>
+            <p className="text-xs text-text-secondary mb-2">Prestations</p>
+            <div className="flex flex-wrap gap-1 justify-center">
+              {contract.hasP1 && (
+                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">P1</span>
+              )}
+              {contract.hasP2 && (
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">P2</span>
+              )}
+              {contract.hasP3 && (
+                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">P3</span>
+              )}
+              {contract.hasP4 && (
+                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">P4</span>
+              )}
+              {!contract.hasP1 && !contract.hasP2 && !contract.hasP3 && !contract.hasP4 && (
+                <span className="text-xs text-text-secondary">Aucune</span>
+              )}
+            </div>
           </div>
         </ChartCard>
 
@@ -767,19 +824,102 @@ export default function ContractDetailPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Surface (m²)
-                </label>
-                <input
-                  type="number"
-                  value={siteFormData.surface}
-                  onChange={(e) =>
-                    setSiteFormData({ ...siteFormData, surface: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  placeholder="5000"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Surface totale (m²)
+                  </label>
+                  <input
+                    type="number"
+                    value={siteFormData.surface}
+                    onChange={(e) =>
+                      setSiteFormData({ ...siteFormData, surface: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    placeholder="5000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Surface chauffée (m²)
+                  </label>
+                  <input
+                    type="number"
+                    value={siteFormData.surfaceChauffee}
+                    onChange={(e) =>
+                      setSiteFormData({ ...siteFormData, surfaceChauffee: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    placeholder="4500"
+                  />
+                </div>
+              </div>
+
+              {/* Données énergétiques P1 */}
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">Données énergétiques (P1)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      NB - Cible énergétique (MWh)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={siteFormData.nb}
+                      onChange={(e) =>
+                        setSiteFormData({ ...siteFormData, nb: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="150"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Unité NB
+                    </label>
+                    <select
+                      value={siteFormData.nbUnit}
+                      onChange={(e) =>
+                        setSiteFormData({ ...siteFormData, nbUnit: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="PCS">PCS (Pouvoir Calorifique Supérieur)</option>
+                      <option value="UTILE">Utile</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      PCE (compteur gaz)
+                    </label>
+                    <input
+                      type="text"
+                      value={siteFormData.pce}
+                      onChange={(e) =>
+                        setSiteFormData({ ...siteFormData, pce: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="GI123456"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      PDL (compteur élec)
+                    </label>
+                    <input
+                      type="text"
+                      value={siteFormData.pdl}
+                      onChange={(e) =>
+                        setSiteFormData({ ...siteFormData, pdl: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="12345678901234"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -989,19 +1129,40 @@ export default function ContractDetailPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Titulaire (exploitant) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={contractFormData.provider}
-                  onChange={(e) =>
-                    setContractFormData({ ...contractFormData, provider: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type de contrat *
+                  </label>
+                  <select
+                    required
+                    value={contractFormData.contractType}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, contractType: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    {contractTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Titulaire (exploitant) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={contractFormData.provider}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, provider: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1049,48 +1210,55 @@ export default function ContractDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant P1 (€) *
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-2">
+                  Prestations incluses
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={contractFormData.hasP1}
+                      onChange={(e) =>
+                        setContractFormData({ ...contractFormData, hasP1: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded focus:ring-accent"
+                    />
+                    <span className="text-sm text-primary-dark">P1 - Énergie</span>
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={contractFormData.amountP1}
-                    onChange={(e) =>
-                      setContractFormData({ ...contractFormData, amountP1: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant P2 (€) *
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={contractFormData.hasP2}
+                      onChange={(e) =>
+                        setContractFormData({ ...contractFormData, hasP2: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded focus:ring-accent"
+                    />
+                    <span className="text-sm text-primary-dark">P2 - Maintenance</span>
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={contractFormData.amountP2}
-                    onChange={(e) =>
-                      setContractFormData({ ...contractFormData, amountP2: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant P3 (€) *
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={contractFormData.hasP3}
+                      onChange={(e) =>
+                        setContractFormData({ ...contractFormData, hasP3: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded focus:ring-accent"
+                    />
+                    <span className="text-sm text-primary-dark">P3 - Travaux</span>
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={contractFormData.amountP3}
-                    onChange={(e) =>
-                      setContractFormData({ ...contractFormData, amountP3: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  />
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={contractFormData.hasP4}
+                      onChange={(e) =>
+                        setContractFormData({ ...contractFormData, hasP4: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded focus:ring-accent"
+                    />
+                    <span className="text-sm text-primary-dark">P4 - Financement</span>
+                  </label>
                 </div>
               </div>
 
@@ -1259,18 +1427,97 @@ export default function ContractDetailPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Surface (m²)
-                </label>
-                <input
-                  type="number"
-                  value={editSiteFormData.surface}
-                  onChange={(e) =>
-                    setEditSiteFormData({ ...editSiteFormData, surface: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Surface totale (m²)
+                  </label>
+                  <input
+                    type="number"
+                    value={editSiteFormData.surface}
+                    onChange={(e) =>
+                      setEditSiteFormData({ ...editSiteFormData, surface: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Surface chauffée (m²)
+                  </label>
+                  <input
+                    type="number"
+                    value={editSiteFormData.surfaceChauffee}
+                    onChange={(e) =>
+                      setEditSiteFormData({ ...editSiteFormData, surfaceChauffee: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
+              </div>
+
+              {/* Données énergétiques P1 */}
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">Données énergétiques (P1)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      NB - Cible énergétique (MWh)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editSiteFormData.nb}
+                      onChange={(e) =>
+                        setEditSiteFormData({ ...editSiteFormData, nb: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Unité NB
+                    </label>
+                    <select
+                      value={editSiteFormData.nbUnit}
+                      onChange={(e) =>
+                        setEditSiteFormData({ ...editSiteFormData, nbUnit: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="PCS">PCS (Pouvoir Calorifique Supérieur)</option>
+                      <option value="UTILE">Utile</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      PCE (compteur gaz)
+                    </label>
+                    <input
+                      type="text"
+                      value={editSiteFormData.pce}
+                      onChange={(e) =>
+                        setEditSiteFormData({ ...editSiteFormData, pce: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      PDL (compteur élec)
+                    </label>
+                    <input
+                      type="text"
+                      value={editSiteFormData.pdl}
+                      onChange={(e) =>
+                        setEditSiteFormData({ ...editSiteFormData, pdl: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex gap-3 pt-4">

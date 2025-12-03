@@ -26,12 +26,17 @@ interface Contract {
   id: string;
   reference: string;
   title: string;
+  contractType: string;
   provider: string;
   startDate: string;
   endDate: string;
-  amountP1: number;
-  amountP2: number;
-  amountP3: number;
+  hasP1: boolean;
+  hasP2: boolean;
+  hasP3: boolean;
+  hasP4: boolean;
+  amountP1: number | null;
+  amountP2: number | null;
+  amountP3: number | null;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
   sites: Site[];
 }
@@ -43,6 +48,19 @@ const statusLabels = {
   RESILIE: "Résilié",
 };
 
+const contractTypes = [
+  { value: "MTI", label: "MTI - Marché Tout Inclus" },
+  { value: "MCI", label: "MCI - Marché Chauffage Installation" },
+  { value: "PFI", label: "PFI - Performance et Financement" },
+  { value: "CPI", label: "CPI - Conception Performance Installation" },
+  { value: "MT", label: "MT - Maintenance seule" },
+  { value: "CP", label: "CP - Contrat de Performance" },
+  { value: "PF", label: "PF - Performance Forfaitaire" },
+  { value: "MC", label: "MC - Marché de Chauffage" },
+  { value: "MF", label: "MF - Marché Forfaitaire" },
+  { value: "AUTRE", label: "Autre" },
+];
+
 export default function ContractsPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,12 +70,14 @@ export default function ContractsPage() {
   const [formData, setFormData] = useState({
     reference: "",
     title: "",
+    contractType: "MC",
     provider: "",
     startDate: "",
     endDate: "",
-    amountP1: "",
-    amountP2: "",
-    amountP3: "",
+    hasP1: false,
+    hasP2: false,
+    hasP3: false,
+    hasP4: false,
   });
 
   const fetchData = async () => {
@@ -92,12 +112,14 @@ export default function ContractsPage() {
         setFormData({
           reference: "",
           title: "",
+          contractType: "MC",
           provider: "",
           startDate: "",
           endDate: "",
-          amountP1: "",
-          amountP2: "",
-          amountP3: "",
+          hasP1: false,
+          hasP2: false,
+          hasP3: false,
+          hasP4: false,
         });
       }
     } catch (error) {
@@ -107,9 +129,9 @@ export default function ContractsPage() {
     }
   };
 
-  const totalP1 = contracts.reduce((sum, c) => sum + c.amountP1, 0);
-  const totalP2 = contracts.reduce((sum, c) => sum + c.amountP2, 0);
-  const totalP3 = contracts.reduce((sum, c) => sum + c.amountP3, 0);
+  const contractsWithP1 = contracts.filter((c) => c.hasP1).length;
+  const contractsWithP2 = contracts.filter((c) => c.hasP2).length;
+  const contractsWithP3 = contracts.filter((c) => c.hasP3).length;
 
   if (loading) {
     return (
@@ -144,20 +166,20 @@ export default function ContractsPage() {
           iconColor="text-accent"
         />
         <StatsCard
-          title="Budget P1 (énergie)"
-          value={`${(totalP1 / 1000).toFixed(0)}k€`}
+          title="Avec P1 (énergie)"
+          value={contractsWithP1.toString()}
           icon={Euro}
           iconColor="text-yellow-600"
         />
         <StatsCard
-          title="Budget P2 (maintenance)"
-          value={`${(totalP2 / 1000).toFixed(0)}k€`}
+          title="Avec P2 (maintenance)"
+          value={contractsWithP2.toString()}
           icon={Euro}
           iconColor="text-blue-600"
         />
         <StatsCard
-          title="Budget P3 (travaux)"
-          value={`${(totalP3 / 1000).toFixed(0)}k€`}
+          title="Avec P3 (travaux)"
+          value={contractsWithP3.toString()}
           icon={Euro}
           iconColor="text-green-600"
         />
@@ -221,25 +243,22 @@ export default function ContractsPage() {
                   </div>
 
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <p className="text-xs text-text-secondary">P1</p>
-                        <p className="font-semibold text-primary-dark">
-                          {(contract.amountP1 / 1000).toFixed(0)}k€
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-text-secondary">P2</p>
-                        <p className="font-semibold text-primary-dark">
-                          {(contract.amountP2 / 1000).toFixed(0)}k€
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-text-secondary">P3</p>
-                        <p className="font-semibold text-primary-dark">
-                          {(contract.amountP3 / 1000).toFixed(0)}k€
-                        </p>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-1 bg-accent/10 text-accent rounded text-xs font-medium">
+                        {contract.contractType}
+                      </span>
+                      {contract.hasP1 && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">P1</span>
+                      )}
+                      {contract.hasP2 && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">P2</span>
+                      )}
+                      {contract.hasP3 && (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">P3</span>
+                      )}
+                      {contract.hasP4 && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">P4</span>
+                      )}
                     </div>
                     <ChevronRight size={20} className="text-text-secondary" />
                   </div>
@@ -346,51 +365,87 @@ export default function ContractsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant P1 (€) *
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Type de contrat *
+                </label>
+                <select
+                  required
+                  value={formData.contractType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contractType: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  {contractTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-2">
+                  Prestations incluses
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasP1}
+                      onChange={(e) =>
+                        setFormData({ ...formData, hasP1: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-primary-dark">P1 - Énergie</p>
+                      <p className="text-xs text-text-secondary">Combustible/Fourniture</p>
+                    </div>
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.amountP1}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amountP1: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="50000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant P2 (€) *
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasP2}
+                      onChange={(e) =>
+                        setFormData({ ...formData, hasP2: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-primary-dark">P2 - Maintenance</p>
+                      <p className="text-xs text-text-secondary">Petit entretien</p>
+                    </div>
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.amountP2}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amountP2: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="15000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant P3 (€) *
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasP3}
+                      onChange={(e) =>
+                        setFormData({ ...formData, hasP3: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-primary-dark">P3 - Travaux</p>
+                      <p className="text-xs text-text-secondary">Gros entretien/Renouvellement</p>
+                    </div>
                   </label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.amountP3}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amountP3: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="10000"
-                  />
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.hasP4}
+                      onChange={(e) =>
+                        setFormData({ ...formData, hasP4: e.target.checked })
+                      }
+                      className="w-4 h-4 text-accent rounded"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-primary-dark">P4 - Financement</p>
+                      <p className="text-xs text-text-secondary">Investissement</p>
+                    </div>
+                  </label>
                 </div>
               </div>
 
