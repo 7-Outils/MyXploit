@@ -156,9 +156,10 @@ export async function GET(
       }));
     };
 
-    // Calculate site amounts for a season, considering price changes
+    // Calculate site amounts for a season, considering price changes with prorata
     const calculateSiteAmounts = (seasonStart: Date, seasonEnd: Date) => {
       const siteTotals: SeasonData["sites"] = [];
+      const totalSeasonDays = Math.round((seasonEnd.getTime() - seasonStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
 
       for (const contractSite of contract.contractSites) {
         // Check integration/exit dates
@@ -172,32 +173,65 @@ export async function GET(
         // Skip if site not active during this season
         if (siteStart > seasonEnd || siteEnd < seasonStart) continue;
 
-        // Get the applicable P2/P3 amounts for this season
-        let amountP2 = contractSite.amountP2 || 0;
-        let amountP3 = contractSite.amountP3 || 0;
+        // Effective period for this site within the season
+        const effectiveStart = siteStart > seasonStart ? siteStart : seasonStart;
+        const effectiveEnd = siteEnd < seasonEnd ? siteEnd : seasonEnd;
 
-        // Apply any price changes that are effective before or during this season
+        // Build list of price periods within the season
+        // Start with base prices
+        let currentP2 = contractSite.amountP2 || 0;
+        let currentP3 = contractSite.amountP3 || 0;
+
+        // Apply any price changes effective before the season start
         for (const change of contractSite.priceChanges) {
           const changeDate = new Date(change.effectiveDate);
-          if (changeDate <= seasonEnd) {
-            if (change.amountP2 !== null) amountP2 = change.amountP2;
-            if (change.amountP3 !== null) amountP3 = change.amountP3;
+          if (changeDate <= effectiveStart) {
+            if (change.amountP2 !== null) currentP2 = change.amountP2;
+            if (change.amountP3 !== null) currentP3 = change.amountP3;
           }
         }
 
-        // Calculate prorata if site enters/exits mid-season
-        const effectiveStart = siteStart > seasonStart ? siteStart : seasonStart;
-        const effectiveEnd = siteEnd < seasonEnd ? siteEnd : seasonEnd;
-        const totalDays = Math.round((seasonEnd.getTime() - seasonStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-        const activeDays = Math.round((effectiveEnd.getTime() - effectiveStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
-        const ratio = activeDays / totalDays;
+        // Collect price change dates within the effective period
+        const priceChangesInSeason = contractSite.priceChanges
+          .filter(change => {
+            const changeDate = new Date(change.effectiveDate);
+            return changeDate > effectiveStart && changeDate <= effectiveEnd;
+          })
+          .sort((a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime());
+
+        // Calculate amounts for each period
+        let totalP2 = 0;
+        let totalP3 = 0;
+        let periodStart = effectiveStart;
+
+        for (const change of priceChangesInSeason) {
+          const changeDate = new Date(change.effectiveDate);
+
+          // Calculate days for the period before this change
+          const periodDays = Math.round((changeDate.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000));
+          const periodRatio = periodDays / totalSeasonDays;
+
+          totalP2 += currentP2 * periodRatio;
+          totalP3 += currentP3 * periodRatio;
+
+          // Update prices for next period
+          if (change.amountP2 !== null) currentP2 = change.amountP2;
+          if (change.amountP3 !== null) currentP3 = change.amountP3;
+          periodStart = changeDate;
+        }
+
+        // Calculate remaining period after last change (or full period if no changes)
+        const remainingDays = Math.round((effectiveEnd.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+        const remainingRatio = remainingDays / totalSeasonDays;
+        totalP2 += currentP2 * remainingRatio;
+        totalP3 += currentP3 * remainingRatio;
 
         siteTotals.push({
           siteId: contractSite.site.id,
           siteName: contractSite.site.name,
-          amountP2: Math.round(amountP2 * ratio * 100) / 100,
-          amountP3: Math.round(amountP3 * ratio * 100) / 100,
-          total: Math.round((amountP2 + amountP3) * ratio * 100) / 100,
+          amountP2: Math.round(totalP2 * 100) / 100,
+          amountP3: Math.round(totalP3 * 100) / 100,
+          total: Math.round((totalP2 + totalP3) * 100) / 100,
         });
       }
 
