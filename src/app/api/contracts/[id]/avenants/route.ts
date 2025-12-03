@@ -134,6 +134,8 @@ export async function POST(
             : contractSite.amountP3;
 
           // Create price change record
+          // Note: On ne modifie PAS contractSite.amountP2/P3 - ce sont les montants de BASE
+          // Les priceChanges contiennent les deltas à appliquer à partir de leur date d'effet
           await prisma.contractSitePriceChange.create({
             data: {
               contractSiteId: change.contractSiteId,
@@ -146,16 +148,6 @@ export async function POST(
               deltaP2: change.deltaP2 ? parseFloat(change.deltaP2) : null,
               deltaP3: change.deltaP3 ? parseFloat(change.deltaP3) : null,
               reason: change.reason,
-            },
-          });
-
-          // Update current amounts on contractSite
-          await prisma.contractSite.update({
-            where: { id: change.contractSiteId },
-            data: {
-              amountP1: newAmountP1,
-              amountP2: newAmountP2,
-              amountP3: newAmountP3,
             },
           });
         }

@@ -177,32 +177,25 @@ export async function GET(
         const effectiveStart = siteStart > seasonStart ? siteStart : seasonStart;
         const effectiveEnd = siteEnd < seasonEnd ? siteEnd : seasonEnd;
 
-        // Build list of price periods within the season
-        // Calculate INITIAL base prices by subtracting all deltas from current amounts
-        // (because contractSite.amountP2/P3 is updated after each avenant)
-        let initialP2 = contractSite.amountP2 || 0;
-        let initialP3 = contractSite.amountP3 || 0;
+        // P2/P3 de BASE (ne change jamais)
+        const baseP2 = contractSite.amountP2 || 0;
+        const baseP3 = contractSite.amountP3 || 0;
 
-        // Subtract all deltas to get the original base price
-        for (const change of contractSite.priceChanges) {
-          if (change.deltaP2 !== null) initialP2 -= change.deltaP2;
-          if (change.deltaP3 !== null) initialP3 -= change.deltaP3;
-        }
+        // Calculer le prix actuel = base + sum(deltas applicables)
+        // On applique les deltas des priceChanges dont la date d'effet est <= début de la période
+        let currentP2 = baseP2;
+        let currentP3 = baseP3;
 
-        // Start with initial prices
-        let currentP2 = initialP2;
-        let currentP3 = initialP3;
-
-        // Apply any price changes effective before or at the season start
         for (const change of contractSite.priceChanges) {
           const changeDate = new Date(change.effectiveDate);
           if (changeDate <= effectiveStart) {
-            if (change.amountP2 !== null) currentP2 = change.amountP2;
-            if (change.amountP3 !== null) currentP3 = change.amountP3;
+            // Ajouter le delta (pas remplacer par amountP2)
+            if (change.deltaP2 !== null) currentP2 += change.deltaP2;
+            if (change.deltaP3 !== null) currentP3 += change.deltaP3;
           }
         }
 
-        // Collect price change dates within the effective period
+        // Collecter les priceChanges qui s'appliquent EN COURS de saison (prorata)
         const priceChangesInSeason = contractSite.priceChanges
           .filter(change => {
             const changeDate = new Date(change.effectiveDate);
@@ -210,7 +203,7 @@ export async function GET(
           })
           .sort((a, b) => new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime());
 
-        // Calculate amounts for each period
+        // Calculer les montants avec prorata si changements en cours de saison
         let totalP2 = 0;
         let totalP3 = 0;
         let periodStart = effectiveStart;
@@ -218,20 +211,20 @@ export async function GET(
         for (const change of priceChangesInSeason) {
           const changeDate = new Date(change.effectiveDate);
 
-          // Calculate days for the period before this change
+          // Calculer les jours avant ce changement
           const periodDays = Math.round((changeDate.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000));
           const periodRatio = periodDays / totalSeasonDays;
 
           totalP2 += currentP2 * periodRatio;
           totalP3 += currentP3 * periodRatio;
 
-          // Update prices for next period
-          if (change.amountP2 !== null) currentP2 = change.amountP2;
-          if (change.amountP3 !== null) currentP3 = change.amountP3;
+          // Appliquer le delta pour la période suivante
+          if (change.deltaP2 !== null) currentP2 += change.deltaP2;
+          if (change.deltaP3 !== null) currentP3 += change.deltaP3;
           periodStart = changeDate;
         }
 
-        // Calculate remaining period after last change (or full period if no changes)
+        // Calculer la période restante après le dernier changement
         const remainingDays = Math.round((effectiveEnd.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
         const remainingRatio = remainingDays / totalSeasonDays;
         totalP2 += currentP2 * remainingRatio;
