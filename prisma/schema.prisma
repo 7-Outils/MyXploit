@@ -214,9 +214,9 @@ model Contract {
   status         ContractStatus   @default(ACTIF)
   description    String?
   documentUrl    String?
-  // Type d'année contractuelle
-  yearType       ContractYearType @default(CIVIL)
-  yearStartMonth Int              @default(1) // Mois de début (1-12), utilisé si HEATING_SEASON
+  // Type d'année contractuelle (saison de chauffe par défaut: 01/07 - 30/06)
+  yearType       ContractYearType @default(HEATING_SEASON)
+  yearStartMonth Int              @default(7) // Mois de début (1-12), 7 = juillet
   yearStartDay   Int              @default(1) // Jour de début (1-31)
   organizationId String
   createdAt      DateTime         @default(now())

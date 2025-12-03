@@ -2,27 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-interface YearlyTotal {
-  year: string;
-  label: string;
+interface Acompte {
+  number: number; // 1, 2, 3, 4
+  label: string; // "Acompte 1", etc.
+  periodStart: Date;
+  periodEnd: Date;
+  billingDate: Date; // Date de facturation (fin de période)
+  percentage: number; // 25
+  amountP2: number;
+  amountP3: number;
+  total: number;
+  isPaid: boolean; // Si la date de facturation est passée
+  isCurrent: boolean; // Si on est dans cette période
+}
+
+interface SeasonData {
+  label: string; // "2025/2026"
   startDate: Date;
   endDate: Date;
   totalP2: number;
   totalP3: number;
   total: number;
+  acomptes: Acompte[];
   sites: {
     siteId: string;
     siteName: string;
     amountP2: number;
     amountP3: number;
     total: number;
-    details?: string; // Ex: "Avenant n°1 (+300€) à partir du 30/06"
   }[];
   isPast: boolean;
   isCurrent: boolean;
+  isFuture: boolean;
 }
 
-// GET /api/contracts/[id]/financials - Get yearly financial summary
+// GET /api/contracts/[id]/financials - Get financial summary with acomptes
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,7 +45,6 @@ export async function GET(
     const user = await requireAuth();
     const { id: contractId } = await params;
 
-    // Get contract with all data
     const contract = await prisma.contract.findFirst({
       where: {
         id: contractId,
@@ -58,235 +71,211 @@ export async function GET(
       );
     }
 
-    // Generate contract years
-    const years: YearlyTotal[] = [];
     const today = new Date();
+    const seasons: SeasonData[] = [];
 
-    // Determine year type
-    const isHeatingSeasonYear = contract.yearType === "HEATING_SEASON";
-    const yearStartMonth = contract.yearStartMonth || 1;
-    const yearStartDay = contract.yearStartDay || 1;
-
-    // Function to get year start date
-    const getYearStart = (year: number): Date => {
-      if (isHeatingSeasonYear) {
-        return new Date(year, yearStartMonth - 1, yearStartDay);
+    // Determine current heating season based on today's date
+    // Season runs from July 1 to June 30
+    const getCurrentSeasonStart = (date: Date): Date => {
+      const year = date.getFullYear();
+      const month = date.getMonth(); // 0-11
+      // If we're in Jan-June, season started previous year
+      // If we're in Jul-Dec, season started this year
+      if (month < 6) { // Jan-June
+        return new Date(year - 1, 6, 1); // July 1 of previous year
+      } else { // Jul-Dec
+        return new Date(year, 6, 1); // July 1 of current year
       }
-      return new Date(year, 0, 1);
     };
 
-    // Function to get year end date
-    const getYearEnd = (yearStart: Date): Date => {
-      if (isHeatingSeasonYear) {
-        const endDate = new Date(yearStart);
-        endDate.setFullYear(endDate.getFullYear() + 1);
-        endDate.setDate(endDate.getDate() - 1);
-        return endDate;
-      }
-      return new Date(yearStart.getFullYear(), 11, 31);
+    // Generate acomptes for a season
+    const generateAcomptes = (seasonStart: Date, seasonTotalP2: number, seasonTotalP3: number): Acompte[] => {
+      const year1 = seasonStart.getFullYear();
+      const year2 = year1 + 1;
+
+      const acomptes: Acompte[] = [
+        {
+          number: 1,
+          label: "Acompte 1",
+          periodStart: new Date(year1, 6, 1), // 01/07
+          periodEnd: new Date(year1, 8, 30), // 30/09
+          billingDate: new Date(year1, 8, 30), // 30/09
+          percentage: 25,
+          amountP2: seasonTotalP2 * 0.25,
+          amountP3: seasonTotalP3 * 0.25,
+          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
+          isPaid: today > new Date(year1, 8, 30),
+          isCurrent: today >= new Date(year1, 6, 1) && today <= new Date(year1, 8, 30),
+        },
+        {
+          number: 2,
+          label: "Acompte 2",
+          periodStart: new Date(year1, 9, 1), // 01/10
+          periodEnd: new Date(year1, 11, 31), // 31/12
+          billingDate: new Date(year1, 11, 31), // 31/12
+          percentage: 25,
+          amountP2: seasonTotalP2 * 0.25,
+          amountP3: seasonTotalP3 * 0.25,
+          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
+          isPaid: today > new Date(year1, 11, 31),
+          isCurrent: today >= new Date(year1, 9, 1) && today <= new Date(year1, 11, 31),
+        },
+        {
+          number: 3,
+          label: "Acompte 3",
+          periodStart: new Date(year2, 0, 1), // 01/01
+          periodEnd: new Date(year2, 2, 31), // 31/03
+          billingDate: new Date(year2, 2, 31), // 31/03
+          percentage: 25,
+          amountP2: seasonTotalP2 * 0.25,
+          amountP3: seasonTotalP3 * 0.25,
+          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
+          isPaid: today > new Date(year2, 2, 31),
+          isCurrent: today >= new Date(year2, 0, 1) && today <= new Date(year2, 2, 31),
+        },
+        {
+          number: 4,
+          label: "Acompte 4",
+          periodStart: new Date(year2, 3, 1), // 01/04
+          periodEnd: new Date(year2, 5, 30), // 30/06
+          billingDate: new Date(year2, 5, 30), // 30/06
+          percentage: 25,
+          amountP2: seasonTotalP2 * 0.25,
+          amountP3: seasonTotalP3 * 0.25,
+          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
+          isPaid: today > new Date(year2, 5, 30),
+          isCurrent: today >= new Date(year2, 3, 1) && today <= new Date(year2, 5, 30),
+        },
+      ];
+
+      return acomptes.map(a => ({
+        ...a,
+        amountP2: Math.round(a.amountP2 * 100) / 100,
+        amountP3: Math.round(a.amountP3 * 100) / 100,
+        total: Math.round(a.total * 100) / 100,
+      }));
     };
 
-    // Calculate days between two dates
-    const daysBetween = (start: Date, end: Date): number => {
-      const msPerDay = 24 * 60 * 60 * 1000;
-      return Math.round((end.getTime() - start.getTime()) / msPerDay) + 1;
-    };
-
-    // Determine start year
-    let currentYearStart = getYearStart(contract.startDate.getFullYear());
-    if (currentYearStart > contract.startDate && !isHeatingSeasonYear) {
-      // Start from previous year if contract starts before year start
-    } else if (isHeatingSeasonYear && currentYearStart > contract.startDate) {
-      currentYearStart = getYearStart(contract.startDate.getFullYear() - 1);
-    }
-
-    // Iterate through years
-    while (currentYearStart <= contract.endDate) {
-      const yearEnd = getYearEnd(currentYearStart);
-
-      // Skip if year ends before contract starts
-      if (yearEnd < contract.startDate) {
-        currentYearStart = getYearStart(currentYearStart.getFullYear() + 1);
-        continue;
-      }
-
-      const effectiveStart = currentYearStart < contract.startDate ? contract.startDate : currentYearStart;
-      const effectiveEnd = yearEnd > contract.endDate ? contract.endDate : yearEnd;
-      const totalDaysInYear = daysBetween(currentYearStart, yearEnd);
-
-      // Determine year label
-      let label: string;
-      if (isHeatingSeasonYear) {
-        label = `${currentYearStart.getFullYear()}-${currentYearStart.getFullYear() + 1}`;
-      } else {
-        label = currentYearStart.getFullYear().toString();
-      }
-
-      // Calculate totals for each site
-      const siteTotals: YearlyTotal["sites"] = [];
-      let yearTotalP2 = 0;
-      let yearTotalP3 = 0;
+    // Calculate site amounts for a season, considering price changes
+    const calculateSiteAmounts = (seasonStart: Date, seasonEnd: Date) => {
+      const siteTotals: SeasonData["sites"] = [];
 
       for (const contractSite of contract.contractSites) {
-        // Check if site is active during this year
-        const siteIntegration = contractSite.integrationDate
+        // Check integration/exit dates
+        const siteStart = contractSite.integrationDate
           ? new Date(contractSite.integrationDate)
           : contract.startDate;
-        const siteExit = contractSite.exitDate
+        const siteEnd = contractSite.exitDate
           ? new Date(contractSite.exitDate)
           : contract.endDate;
 
-        if (siteIntegration > effectiveEnd || siteExit < effectiveStart) {
-          // Site not active this year
-          continue;
-        }
+        // Skip if site not active during this season
+        if (siteStart > seasonEnd || siteEnd < seasonStart) continue;
 
-        const siteStart = siteIntegration > effectiveStart ? siteIntegration : effectiveStart;
-        const siteEnd = siteExit < effectiveEnd ? siteExit : effectiveEnd;
+        // Get the applicable P2/P3 amounts for this season
+        let amountP2 = contractSite.amountP2 || 0;
+        let amountP3 = contractSite.amountP3 || 0;
 
-        // Get base amounts
-        let baseP2 = contractSite.amountP2 || 0;
-        let baseP3 = contractSite.amountP3 || 0;
-
-        // Find price changes that apply to this year
-        const relevantChanges = contractSite.priceChanges.filter(
-          (pc) => {
-            const changeDate = new Date(pc.effectiveDate);
-            return changeDate <= effectiveEnd;
-          }
-        );
-
-        // Calculate yearly amount with prorata for changes
-        let siteP2 = 0;
-        let siteP3 = 0;
-        let details = "";
-
-        if (relevantChanges.length === 0) {
-          // No changes, use base amounts prorated
-          const activeDays = daysBetween(siteStart, siteEnd);
-          const ratio = activeDays / totalDaysInYear;
-          siteP2 = baseP2 * ratio;
-          siteP3 = baseP3 * ratio;
-        } else {
-          // Calculate with price changes
-          let currentP2 = baseP2;
-          let currentP3 = baseP3;
-          let periodStart = siteStart;
-
-          // First, apply all changes that occurred before this year to get the starting amount
-          for (const change of relevantChanges) {
-            const changeDate = new Date(change.effectiveDate);
-            if (changeDate < currentYearStart) {
-              if (change.amountP2 !== null) currentP2 = change.amountP2;
-              if (change.amountP3 !== null) currentP3 = change.amountP3;
-            }
-          }
-
-          // Now calculate with any changes during this year
-          const changesThisYear = relevantChanges.filter((pc) => {
-            const changeDate = new Date(pc.effectiveDate);
-            return changeDate >= currentYearStart && changeDate <= effectiveEnd;
-          });
-
-          if (changesThisYear.length === 0) {
-            // No changes this year, just use current amounts
-            const activeDays = daysBetween(siteStart, siteEnd);
-            const ratio = activeDays / totalDaysInYear;
-            siteP2 = currentP2 * ratio;
-            siteP3 = currentP3 * ratio;
-          } else {
-            // Calculate periods with different prices
-            for (const change of changesThisYear) {
-              const changeDate = new Date(change.effectiveDate);
-
-              if (changeDate > periodStart) {
-                // Calculate for period before this change
-                const periodEnd = new Date(changeDate);
-                periodEnd.setDate(periodEnd.getDate() - 1);
-                const clampedEnd = periodEnd < siteEnd ? periodEnd : siteEnd;
-
-                if (periodStart <= clampedEnd) {
-                  const days = daysBetween(periodStart, clampedEnd);
-                  const ratio = days / totalDaysInYear;
-                  siteP2 += currentP2 * ratio;
-                  siteP3 += currentP3 * ratio;
-                }
-              }
-
-              // Update amounts after change
-              if (change.amountP2 !== null) currentP2 = change.amountP2;
-              if (change.amountP3 !== null) currentP3 = change.amountP3;
-              periodStart = changeDate;
-
-              // Add detail about the change
-              if (change.deltaP2 || change.deltaP3) {
-                const deltaStr = [];
-                if (change.deltaP2) deltaStr.push(`P2 ${change.deltaP2 > 0 ? '+' : ''}${change.deltaP2}€`);
-                if (change.deltaP3) deltaStr.push(`P3 ${change.deltaP3 > 0 ? '+' : ''}${change.deltaP3}€`);
-                details += `${deltaStr.join(', ')} à partir du ${changeDate.toLocaleDateString('fr-FR')}. `;
-              }
-            }
-
-            // Calculate for remaining period after last change
-            if (periodStart <= siteEnd) {
-              const days = daysBetween(periodStart, siteEnd);
-              const ratio = days / totalDaysInYear;
-              siteP2 += currentP2 * ratio;
-              siteP3 += currentP3 * ratio;
-            }
+        // Apply any price changes that are effective before or during this season
+        for (const change of contractSite.priceChanges) {
+          const changeDate = new Date(change.effectiveDate);
+          if (changeDate <= seasonEnd) {
+            if (change.amountP2 !== null) amountP2 = change.amountP2;
+            if (change.amountP3 !== null) amountP3 = change.amountP3;
           }
         }
 
-        // Round to 2 decimal places
-        siteP2 = Math.round(siteP2 * 100) / 100;
-        siteP3 = Math.round(siteP3 * 100) / 100;
+        // Calculate prorata if site enters/exits mid-season
+        const effectiveStart = siteStart > seasonStart ? siteStart : seasonStart;
+        const effectiveEnd = siteEnd < seasonEnd ? siteEnd : seasonEnd;
+        const totalDays = Math.round((seasonEnd.getTime() - seasonStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+        const activeDays = Math.round((effectiveEnd.getTime() - effectiveStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+        const ratio = activeDays / totalDays;
 
         siteTotals.push({
           siteId: contractSite.site.id,
           siteName: contractSite.site.name,
-          amountP2: siteP2,
-          amountP3: siteP3,
-          total: siteP2 + siteP3,
-          details: details || undefined,
+          amountP2: Math.round(amountP2 * ratio * 100) / 100,
+          amountP3: Math.round(amountP3 * ratio * 100) / 100,
+          total: Math.round((amountP2 + amountP3) * ratio * 100) / 100,
         });
-
-        yearTotalP2 += siteP2;
-        yearTotalP3 += siteP3;
       }
 
-      // Determine if year is past, current, or future
-      const isPast = yearEnd < today;
-      const isCurrent = currentYearStart <= today && yearEnd >= today;
+      return siteTotals;
+    };
 
-      years.push({
-        year: currentYearStart.getFullYear().toString(),
+    // Generate seasons from contract start to end
+    const currentSeasonStart = getCurrentSeasonStart(today);
+
+    // Find first season that includes contract start
+    let seasonStart = new Date(contract.startDate.getFullYear(), 6, 1);
+    if (seasonStart > contract.startDate) {
+      seasonStart = new Date(contract.startDate.getFullYear() - 1, 6, 1);
+    }
+
+    while (seasonStart <= contract.endDate) {
+      const seasonEnd = new Date(seasonStart.getFullYear() + 1, 5, 30); // June 30 of next year
+
+      // Skip if season ends before contract starts
+      if (seasonEnd < contract.startDate) {
+        seasonStart = new Date(seasonStart.getFullYear() + 1, 6, 1);
+        continue;
+      }
+
+      const label = `${seasonStart.getFullYear()}/${seasonStart.getFullYear() + 1}`;
+      const sites = calculateSiteAmounts(seasonStart, seasonEnd);
+      const totalP2 = sites.reduce((sum, s) => sum + s.amountP2, 0);
+      const totalP3 = sites.reduce((sum, s) => sum + s.amountP3, 0);
+
+      const isCurrent = seasonStart.getTime() === currentSeasonStart.getTime();
+      const isPast = seasonEnd < today && !isCurrent;
+      const isFuture = seasonStart > today;
+
+      seasons.push({
         label,
-        startDate: effectiveStart,
-        endDate: effectiveEnd,
-        totalP2: Math.round(yearTotalP2 * 100) / 100,
-        totalP3: Math.round(yearTotalP3 * 100) / 100,
-        total: Math.round((yearTotalP2 + yearTotalP3) * 100) / 100,
-        sites: siteTotals,
+        startDate: seasonStart,
+        endDate: seasonEnd,
+        totalP2: Math.round(totalP2 * 100) / 100,
+        totalP3: Math.round(totalP3 * 100) / 100,
+        total: Math.round((totalP2 + totalP3) * 100) / 100,
+        acomptes: generateAcomptes(seasonStart, totalP2, totalP3),
+        sites,
         isPast,
         isCurrent,
+        isFuture,
       });
 
-      // Move to next year
-      currentYearStart = getYearStart(currentYearStart.getFullYear() + 1);
+      // Move to next season
+      seasonStart = new Date(seasonStart.getFullYear() + 1, 6, 1);
     }
 
     // Calculate summary
-    const currentYear = years.find((y) => y.isCurrent);
-    const pastYears = years.filter((y) => y.isPast);
-    const futureYears = years.filter((y) => !y.isPast && !y.isCurrent);
+    const currentSeason = seasons.find(s => s.isCurrent);
+    const pastSeasons = seasons.filter(s => s.isPast);
+    const futureSeasons = seasons.filter(s => s.isFuture);
+
+    // Calculate paid vs remaining for current season
+    let currentSeasonPaid = 0;
+    let currentSeasonRemaining = 0;
+    if (currentSeason) {
+      for (const acompte of currentSeason.acomptes) {
+        if (acompte.isPaid) {
+          currentSeasonPaid += acompte.total;
+        } else {
+          currentSeasonRemaining += acompte.total;
+        }
+      }
+    }
 
     const summary = {
-      currentYearTotal: currentYear?.total || 0,
-      currentYearLabel: currentYear?.label || "",
-      totalPastYears: pastYears.reduce((sum, y) => sum + y.total, 0),
-      totalFutureYears: futureYears.reduce((sum, y) => sum + y.total, 0),
-      totalContract: years.reduce((sum, y) => sum + y.total, 0),
-      yearCount: years.length,
+      currentSeasonLabel: currentSeason?.label || "",
+      currentSeasonTotal: currentSeason?.total || 0,
+      currentSeasonPaid: Math.round(currentSeasonPaid * 100) / 100,
+      currentSeasonRemaining: Math.round(currentSeasonRemaining * 100) / 100,
+      totalPastSeasons: Math.round(pastSeasons.reduce((sum, s) => sum + s.total, 0) * 100) / 100,
+      totalFutureSeasons: Math.round(futureSeasons.reduce((sum, s) => sum + s.total, 0) * 100) / 100,
+      totalContract: Math.round(seasons.reduce((sum, s) => sum + s.total, 0) * 100) / 100,
+      seasonCount: seasons.length,
     };
 
     return NextResponse.json({
@@ -296,12 +285,9 @@ export async function GET(
         title: contract.title,
         startDate: contract.startDate,
         endDate: contract.endDate,
-        yearType: contract.yearType,
-        yearStartMonth: contract.yearStartMonth,
-        yearStartDay: contract.yearStartDay,
       },
       summary,
-      years,
+      seasons,
     });
   } catch (error) {
     console.error("Error calculating financials:", error);

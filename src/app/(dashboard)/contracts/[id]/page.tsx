@@ -116,40 +116,56 @@ interface Contract {
   avenants: Avenant[];
 }
 
-interface YearlySiteTotal {
+interface Acompte {
+  number: number;
+  label: string;
+  periodStart: string;
+  periodEnd: string;
+  billingDate: string;
+  percentage: number;
+  amountP2: number;
+  amountP3: number;
+  total: number;
+  isPaid: boolean;
+  isCurrent: boolean;
+}
+
+interface SeasonSite {
   siteId: string;
   siteName: string;
   amountP2: number;
   amountP3: number;
   total: number;
-  details?: string;
 }
 
-interface YearlyTotal {
-  year: string;
+interface Season {
   label: string;
   startDate: string;
   endDate: string;
   totalP2: number;
   totalP3: number;
   total: number;
-  sites: YearlySiteTotal[];
+  acomptes: Acompte[];
+  sites: SeasonSite[];
   isPast: boolean;
   isCurrent: boolean;
+  isFuture: boolean;
 }
 
 interface FinancialSummary {
-  currentYearTotal: number;
-  currentYearLabel: string;
-  totalPastYears: number;
-  totalFutureYears: number;
+  currentSeasonLabel: string;
+  currentSeasonTotal: number;
+  currentSeasonPaid: number;
+  currentSeasonRemaining: number;
+  totalPastSeasons: number;
+  totalFutureSeasons: number;
   totalContract: number;
-  yearCount: number;
+  seasonCount: number;
 }
 
 interface FinancialData {
   summary: FinancialSummary;
-  years: YearlyTotal[];
+  seasons: Season[];
 }
 
 const statusLabels = {
@@ -1089,31 +1105,33 @@ export default function ContractDetailPage() {
                 <ChartCard title="" className="text-center">
                   <div className="flex flex-col items-center -mt-2">
                     <Calendar size={24} className="text-accent mb-2" />
-                    <p className="text-xs text-text-secondary">Année en cours</p>
+                    <p className="text-xs text-text-secondary">Saison en cours</p>
                     <p className="text-xl font-bold text-primary-dark">
-                      {financialData.summary.currentYearTotal.toLocaleString("fr-FR")} €
+                      {financialData.summary.currentSeasonTotal.toLocaleString("fr-FR")} €
                     </p>
-                    <p className="text-xs text-text-secondary">{financialData.summary.currentYearLabel}</p>
+                    <p className="text-xs text-text-secondary">{financialData.summary.currentSeasonLabel}</p>
                   </div>
                 </ChartCard>
 
                 <ChartCard title="" className="text-center">
                   <div className="flex flex-col items-center -mt-2">
                     <CheckCircle size={24} className="text-green-600 mb-2" />
-                    <p className="text-xs text-text-secondary">Années passées</p>
-                    <p className="text-xl font-bold text-primary-dark">
-                      {financialData.summary.totalPastYears.toLocaleString("fr-FR")} €
+                    <p className="text-xs text-text-secondary">Saison en cours - Payé</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {financialData.summary.currentSeasonPaid.toLocaleString("fr-FR")} €
                     </p>
-                    <p className="text-xs text-text-secondary">Payé</p>
+                    <p className="text-xs text-text-secondary">
+                      Reste: {financialData.summary.currentSeasonRemaining.toLocaleString("fr-FR")} €
+                    </p>
                   </div>
                 </ChartCard>
 
                 <ChartCard title="" className="text-center">
                   <div className="flex flex-col items-center -mt-2">
                     <Clock size={24} className="text-blue-600 mb-2" />
-                    <p className="text-xs text-text-secondary">Années futures</p>
+                    <p className="text-xs text-text-secondary">Saisons futures</p>
                     <p className="text-xl font-bold text-primary-dark">
-                      {financialData.summary.totalFutureYears.toLocaleString("fr-FR")} €
+                      {financialData.summary.totalFutureSeasons.toLocaleString("fr-FR")} €
                     </p>
                     <p className="text-xs text-text-secondary">Prévisionnel</p>
                   </div>
@@ -1126,84 +1144,120 @@ export default function ContractDetailPage() {
                     <p className="text-xl font-bold text-primary-dark">
                       {financialData.summary.totalContract.toLocaleString("fr-FR")} €
                     </p>
-                    <p className="text-xs text-text-secondary">{financialData.summary.yearCount} années</p>
+                    <p className="text-xs text-text-secondary">{financialData.summary.seasonCount} saisons</p>
                   </div>
                 </ChartCard>
               </div>
 
-              {/* Yearly breakdown */}
-              <ChartCard title="Évolution annuelle (P2 + P3)">
-                <div className="space-y-4">
-                  {financialData.years.map((year) => (
+              {/* Seasons breakdown with acomptes */}
+              <ChartCard title="Saisons de chauffe (P2 + P3)">
+                <div className="space-y-6">
+                  {financialData.seasons.map((season) => (
                     <div
-                      key={year.year}
+                      key={season.label}
                       className={`border rounded-xl p-4 ${
-                        year.isCurrent
+                        season.isCurrent
                           ? "border-accent bg-accent/5"
-                          : year.isPast
+                          : season.isPast
                           ? "border-green-200 bg-green-50/50"
                           : "border-gray-200"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-3">
+                      {/* Season Header */}
+                      <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-primary-dark">
-                            {year.label}
+                          <h4 className="font-semibold text-primary-dark text-lg">
+                            Saison {season.label}
                           </h4>
-                          {year.isCurrent && (
+                          {season.isCurrent && (
                             <span className="px-2 py-0.5 bg-accent text-white rounded text-xs">
                               En cours
                             </span>
                           )}
-                          {year.isPast && (
+                          {season.isPast && (
                             <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                              Payé
+                              Terminée
                             </span>
                           )}
-                          {!year.isPast && !year.isCurrent && (
+                          {season.isFuture && (
                             <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                              Prévisionnel
+                              À venir
                             </span>
                           )}
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-bold text-primary-dark">
-                            {year.total.toLocaleString("fr-FR")} € HT
+                            {season.total.toLocaleString("fr-FR")} € HT
                           </p>
                           <p className="text-xs text-text-secondary">
-                            P2: {year.totalP2.toLocaleString("fr-FR")} € | P3: {year.totalP3.toLocaleString("fr-FR")} €
+                            P2: {season.totalP2.toLocaleString("fr-FR")} € | P3: {season.totalP3.toLocaleString("fr-FR")} €
                           </p>
                         </div>
                       </div>
 
-                      {/* Site breakdown */}
-                      <div className="space-y-2">
-                        {year.sites.map((site) => (
+                      {/* 4 Acomptes Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                        {season.acomptes.map((acompte) => (
                           <div
-                            key={site.siteId}
-                            className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-gray-100"
+                            key={acompte.number}
+                            className={`p-3 rounded-lg border ${
+                              acompte.isCurrent
+                                ? "border-accent bg-accent/10"
+                                : acompte.isPaid
+                                ? "border-green-200 bg-green-50"
+                                : "border-gray-200 bg-gray-50"
+                            }`}
                           >
-                            <div>
-                              <span className="text-primary-dark font-medium">
-                                {site.siteName}
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-text-secondary">
+                                {acompte.label}
                               </span>
-                              {site.details && (
-                                <p className="text-xs text-text-secondary mt-0.5">
-                                  {site.details}
-                                </p>
+                              {acompte.isCurrent && (
+                                <span className="w-2 h-2 bg-accent rounded-full animate-pulse"></span>
+                              )}
+                              {acompte.isPaid && (
+                                <CheckCircle size={12} className="text-green-600" />
                               )}
                             </div>
-                            <div className="text-right">
-                              <span className="font-medium text-primary-dark">
-                                {site.total.toLocaleString("fr-FR")} €
-                              </span>
-                              <p className="text-xs text-text-secondary">
-                                P2: {site.amountP2.toLocaleString("fr-FR")} € | P3: {site.amountP3.toLocaleString("fr-FR")} €
-                              </p>
-                            </div>
+                            <p className="font-bold text-primary-dark">
+                              {acompte.total.toLocaleString("fr-FR")} €
+                            </p>
+                            <p className="text-xs text-text-secondary">
+                              {new Date(acompte.periodStart).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} - {new Date(acompte.periodEnd).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                            </p>
+                            <p className="text-xs text-text-secondary mt-1">
+                              Fact. {new Date(acompte.billingDate).toLocaleDateString("fr-FR")}
+                            </p>
                           </div>
                         ))}
                       </div>
+
+                      {/* Site breakdown */}
+                      {season.sites.length > 0 && (
+                        <div className="border-t border-gray-100 pt-3">
+                          <p className="text-xs font-medium text-text-secondary mb-2">Détail par site</p>
+                          <div className="space-y-2">
+                            {season.sites.map((site) => (
+                              <div
+                                key={site.siteId}
+                                className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-gray-100"
+                              >
+                                <span className="text-primary-dark font-medium">
+                                  {site.siteName}
+                                </span>
+                                <div className="text-right">
+                                  <span className="font-medium text-primary-dark">
+                                    {site.total.toLocaleString("fr-FR")} €
+                                  </span>
+                                  <p className="text-xs text-text-secondary">
+                                    P2: {site.amountP2.toLocaleString("fr-FR")} € | P3: {site.amountP3.toLocaleString("fr-FR")} €
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
