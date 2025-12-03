@@ -16,6 +16,9 @@ import {
   Pencil,
   FileText,
   TrendingUp,
+  Euro,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -111,6 +114,42 @@ interface Contract {
   yearStartDay: number;
   contractSites: ContractSite[];
   avenants: Avenant[];
+}
+
+interface YearlySiteTotal {
+  siteId: string;
+  siteName: string;
+  amountP2: number;
+  amountP3: number;
+  total: number;
+  details?: string;
+}
+
+interface YearlyTotal {
+  year: string;
+  label: string;
+  startDate: string;
+  endDate: string;
+  totalP2: number;
+  totalP3: number;
+  total: number;
+  sites: YearlySiteTotal[];
+  isPast: boolean;
+  isCurrent: boolean;
+}
+
+interface FinancialSummary {
+  currentYearTotal: number;
+  currentYearLabel: string;
+  totalPastYears: number;
+  totalFutureYears: number;
+  totalContract: number;
+  yearCount: number;
+}
+
+interface FinancialData {
+  summary: FinancialSummary;
+  years: YearlyTotal[];
 }
 
 const statusLabels = {
@@ -271,7 +310,26 @@ export default function ContractDetailPage() {
   });
 
   // Tab state for contract view
-  const [activeTab, setActiveTab] = useState<"sites" | "avenants">("sites");
+  const [activeTab, setActiveTab] = useState<"sites" | "avenants" | "financier">("sites");
+
+  // Financial data
+  const [financialData, setFinancialData] = useState<FinancialData | null>(null);
+  const [loadingFinancials, setLoadingFinancials] = useState(false);
+
+  const fetchFinancials = async () => {
+    setLoadingFinancials(true);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}/financials`);
+      if (response.ok) {
+        const data = await response.json();
+        setFinancialData(data);
+      }
+    } catch (error) {
+      console.error("Error fetching financials:", error);
+    } finally {
+      setLoadingFinancials(false);
+    }
+  };
 
   const fetchContract = async () => {
     try {
@@ -294,6 +352,13 @@ export default function ContractDetailPage() {
   useEffect(() => {
     fetchContract();
   }, [contractId]);
+
+  // Load financial data when switching to financier tab
+  useEffect(() => {
+    if (activeTab === "financier" && !financialData && !loadingFinancials) {
+      fetchFinancials();
+    }
+  }, [activeTab]);
 
   const toggleSiteExpanded = (siteId: string) => {
     const newExpanded = new Set(expandedSites);
@@ -715,6 +780,17 @@ export default function ContractDetailPage() {
           <FileText size={16} className="inline mr-2" />
           Avenants ({contract.avenants?.length || 0})
         </button>
+        <button
+          onClick={() => setActiveTab("financier")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "financier"
+              ? "border-accent text-accent"
+              : "border-transparent text-text-secondary hover:text-primary-dark"
+          }`}
+        >
+          <Euro size={16} className="inline mr-2" />
+          Financier
+        </button>
       </div>
 
       {/* Sites List */}
@@ -997,6 +1073,153 @@ export default function ContractDetailPage() {
             </div>
           )}
         </ChartCard>
+      )}
+
+      {/* Financier Tab */}
+      {activeTab === "financier" && (
+        <div className="space-y-6">
+          {loadingFinancials ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+          ) : financialData ? (
+            <>
+              {/* Summary Cards */}
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <ChartCard title="" className="text-center">
+                  <div className="flex flex-col items-center -mt-2">
+                    <Calendar size={24} className="text-accent mb-2" />
+                    <p className="text-xs text-text-secondary">Année en cours</p>
+                    <p className="text-xl font-bold text-primary-dark">
+                      {financialData.summary.currentYearTotal.toLocaleString("fr-FR")} €
+                    </p>
+                    <p className="text-xs text-text-secondary">{financialData.summary.currentYearLabel}</p>
+                  </div>
+                </ChartCard>
+
+                <ChartCard title="" className="text-center">
+                  <div className="flex flex-col items-center -mt-2">
+                    <CheckCircle size={24} className="text-green-600 mb-2" />
+                    <p className="text-xs text-text-secondary">Années passées</p>
+                    <p className="text-xl font-bold text-primary-dark">
+                      {financialData.summary.totalPastYears.toLocaleString("fr-FR")} €
+                    </p>
+                    <p className="text-xs text-text-secondary">Payé</p>
+                  </div>
+                </ChartCard>
+
+                <ChartCard title="" className="text-center">
+                  <div className="flex flex-col items-center -mt-2">
+                    <Clock size={24} className="text-blue-600 mb-2" />
+                    <p className="text-xs text-text-secondary">Années futures</p>
+                    <p className="text-xl font-bold text-primary-dark">
+                      {financialData.summary.totalFutureYears.toLocaleString("fr-FR")} €
+                    </p>
+                    <p className="text-xs text-text-secondary">Prévisionnel</p>
+                  </div>
+                </ChartCard>
+
+                <ChartCard title="" className="text-center">
+                  <div className="flex flex-col items-center -mt-2">
+                    <Euro size={24} className="text-accent mb-2" />
+                    <p className="text-xs text-text-secondary">Total contrat</p>
+                    <p className="text-xl font-bold text-primary-dark">
+                      {financialData.summary.totalContract.toLocaleString("fr-FR")} €
+                    </p>
+                    <p className="text-xs text-text-secondary">{financialData.summary.yearCount} années</p>
+                  </div>
+                </ChartCard>
+              </div>
+
+              {/* Yearly breakdown */}
+              <ChartCard title="Évolution annuelle (P2 + P3)">
+                <div className="space-y-4">
+                  {financialData.years.map((year) => (
+                    <div
+                      key={year.year}
+                      className={`border rounded-xl p-4 ${
+                        year.isCurrent
+                          ? "border-accent bg-accent/5"
+                          : year.isPast
+                          ? "border-green-200 bg-green-50/50"
+                          : "border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-primary-dark">
+                            {year.label}
+                          </h4>
+                          {year.isCurrent && (
+                            <span className="px-2 py-0.5 bg-accent text-white rounded text-xs">
+                              En cours
+                            </span>
+                          )}
+                          {year.isPast && (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                              Payé
+                            </span>
+                          )}
+                          {!year.isPast && !year.isCurrent && (
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                              Prévisionnel
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-primary-dark">
+                            {year.total.toLocaleString("fr-FR")} € HT
+                          </p>
+                          <p className="text-xs text-text-secondary">
+                            P2: {year.totalP2.toLocaleString("fr-FR")} € | P3: {year.totalP3.toLocaleString("fr-FR")} €
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Site breakdown */}
+                      <div className="space-y-2">
+                        {year.sites.map((site) => (
+                          <div
+                            key={site.siteId}
+                            className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-gray-100"
+                          >
+                            <div>
+                              <span className="text-primary-dark font-medium">
+                                {site.siteName}
+                              </span>
+                              {site.details && (
+                                <p className="text-xs text-text-secondary mt-0.5">
+                                  {site.details}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <span className="font-medium text-primary-dark">
+                                {site.total.toLocaleString("fr-FR")} €
+                              </span>
+                              <p className="text-xs text-text-secondary">
+                                P2: {site.amountP2.toLocaleString("fr-FR")} € | P3: {site.amountP3.toLocaleString("fr-FR")} €
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ChartCard>
+            </>
+          ) : (
+            <ChartCard title="">
+              <div className="text-center py-12">
+                <Euro size={48} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-text-secondary">
+                  Aucune donnée financière disponible
+                </p>
+              </div>
+            </ChartCard>
+          )}
+        </div>
       )}
 
       {/* Create Site Modal */}
