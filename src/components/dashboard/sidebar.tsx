@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   ChevronLeft,
+  Wrench,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,11 @@ const navigation = [
     name: "Sites & Patrimoine",
     href: "/sites",
     icon: Building2,
+  },
+  {
+    name: "Équipements",
+    href: "/equipments",
+    icon: Wrench,
   },
   {
     name: "Contrats",

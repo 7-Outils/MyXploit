@@ -151,6 +151,16 @@ enum EquipmentStatus {
   HORS_SERVICE
 }
 
+// Note de 1 à 5 pour les critères d'audit
+enum AuditRating {
+  NON_EVALUE  // 0 - Pas encore évalué
+  CRITIQUE    // 1 - À remplacer d'urgence
+  MAUVAIS     // 2 - Défaillances majeures
+  MOYEN       // 3 - Acceptable mais à surveiller
+  BON         // 4 - En bon état
+  EXCELLENT   // 5 - État neuf ou quasi-neuf
+}
+
 model Equipment {
   id             String          @id @default(cuid())
   name           String
@@ -158,9 +168,15 @@ model Equipment {
   brand          String?
   model          String?
   serialNumber   String?
+  year           Int?            // Année de fabrication
   installDate    DateTime?
   warrantyEnd    DateTime?
-  power          Float? // kW
+  power          Float?          // kW
+  // Localisation dans le site
+  location       String?         // Local/Pièce (ex: "Chaufferie", "Sous-sol technique")
+  level          String?         // Niveau/Étage (ex: "RDC", "Sous-sol", "Toiture")
+  // Durée de vie théorique
+  theoreticalLifespan Int?       // Durée de vie en années (ex: 20 pour chaudière)
   status         EquipmentStatus @default(OPERATIONNEL)
   siteId         String
   organizationId String
@@ -168,11 +184,42 @@ model Equipment {
   updatedAt      DateTime        @updatedAt
 
   // Relations
-  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avenantItems AvenantItem[] // Modifications d'avenant concernant cet équipement
+  site         Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avenantItems AvenantItem[]     // Modifications d'avenant concernant cet équipement
+  audits       EquipmentAudit[]  // Historique des audits
 
   @@map("equipments")
+}
+
+// Audit d'un équipement (relevé sur site)
+model EquipmentAudit {
+  id             String      @id @default(cuid())
+  equipmentId    String
+  auditDate      DateTime    // Date de l'audit
+  auditor        String?     // Nom de l'auditeur
+  // Critères d'évaluation (notes)
+  visualState    AuditRating @default(NON_EVALUE)   // État visuel
+  performance    AuditRating @default(NON_EVALUE)   // Performance
+  security       AuditRating @default(NON_EVALUE)   // Sécurité
+  accessibility  AuditRating @default(NON_EVALUE)   // Accessibilité
+  compliance     AuditRating @default(NON_EVALUE)   // Conformité réglementaire
+  // Commentaires et observations
+  visualNotes    String?     // Notes sur l'état visuel
+  performanceNotes String?   // Notes sur la performance
+  securityNotes  String?     // Notes sur la sécurité
+  accessibilityNotes String? // Notes sur l'accessibilité
+  complianceNotes String?    // Notes sur la conformité
+  generalNotes   String?     // Observations générales
+  // Photos
+  photos         String[]    // URLs des photos
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@map("equipment_audits")
 }
 
 // ============================================
