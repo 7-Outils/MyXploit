@@ -78,14 +78,14 @@ const statusLabels = {
 };
 
 const contractTypes = [
-  { value: "MTI", label: "MTI - Marché Tout Inclus" },
-  { value: "MCI", label: "MCI - Marché Chauffage Installation" },
-  { value: "PFI", label: "PFI - Performance et Financement" },
-  { value: "CPI", label: "CPI - Conception Performance Installation" },
-  { value: "MT", label: "MT - Maintenance seule" },
-  { value: "CP", label: "CP - Contrat de Performance" },
-  { value: "PF", label: "PF - Performance Forfaitaire" },
-  { value: "MC", label: "MC - Marché de Chauffage" },
+  { value: "MC", label: "MC - Marché Comptage" },
+  { value: "MCI", label: "MCI - Marché Comptage avec Intéressement" },
+  { value: "MT", label: "MT - Marché à Température" },
+  { value: "MTI", label: "MTI - Marché à Température avec Intéressement" },
+  { value: "CP", label: "CP - Combustible et Prestations" },
+  { value: "CPI", label: "CPI - Combustible et Prestations avec Intéressement" },
+  { value: "PF", label: "PF - Prestation et Forfait" },
+  { value: "PFI", label: "PFI - Prestation et Forfait avec Intéressement" },
   { value: "MF", label: "MF - Marché Forfaitaire" },
   { value: "AUTRE", label: "Autre" },
 ];
@@ -632,15 +632,19 @@ export default function ContractDetailPage() {
                           {site.type} • {site.city} • {site.equipments.length} équipement
                           {site.equipments.length > 1 ? "s" : ""}
                         </p>
-                        <div className="flex gap-1 mt-1">
+                        <div className="flex gap-1 mt-1 flex-wrap">
                           {contractSite.hasP1 && (
                             <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">P1</span>
                           )}
                           {contractSite.hasP2 && (
-                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">P2</span>
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                              P2{contractSite.amountP2 ? ` (${contractSite.amountP2.toLocaleString('fr-FR')} €)` : ''}
+                            </span>
                           )}
                           {contractSite.hasP3 && (
-                            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">P3</span>
+                            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                              P3{contractSite.amountP3 ? ` (${contractSite.amountP3.toLocaleString('fr-FR')} €)` : ''}
+                            </span>
                           )}
                           {contractSite.hasP4 && (
                             <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">P4</span>
@@ -1052,6 +1056,54 @@ export default function ContractDetailPage() {
                     </label>
                   </div>
                 </div>
+
+                {/* Prix de base P2/P3 - affichés conditionnellement */}
+                {(siteFormData.hasP2 || siteFormData.hasP3) && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-primary-dark mb-3">
+                      Montants de base (révisés annuellement)
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      {siteFormData.hasP2 && (
+                        <div>
+                          <label className="block text-sm font-medium text-primary-dark mb-1">
+                            Prix P2 de base (€ HT/an)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={siteFormData.amountP2}
+                            onChange={(e) =>
+                              setSiteFormData({ ...siteFormData, amountP2: e.target.value })
+                            }
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            placeholder="5000"
+                          />
+                        </div>
+                      )}
+                      {siteFormData.hasP3 && (
+                        <div>
+                          <label className="block text-sm font-medium text-primary-dark mb-1">
+                            Prix P3 de base (€ HT/an)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={siteFormData.amountP3}
+                            onChange={(e) =>
+                              setSiteFormData({ ...siteFormData, amountP3: e.target.value })
+                            }
+                            className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                            placeholder="3000"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-text-secondary mt-2">
+                      Ces montants sont révisés à la date anniversaire du contrat.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
