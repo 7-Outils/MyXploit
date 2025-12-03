@@ -378,6 +378,50 @@ const ratingLabels: Record<AuditRating, string> = {
   EXCELLENT: "Excellent",
 };
 
+// Labels spécifiques par critère d'audit
+const criteriaRatingLabels: Record<string, Record<AuditRating, string>> = {
+  visualState: {
+    NON_EVALUE: "Non évalué",
+    CRITIQUE: "Corrosion avancée / Dégradation majeure",
+    MAUVAIS: "Rouille visible / Peinture écaillée",
+    MOYEN: "Usure normale / Traces légères",
+    BON: "Bon état général",
+    EXCELLENT: "Comme neuf",
+  },
+  performance: {
+    NON_EVALUE: "Non évalué",
+    CRITIQUE: "Ne fonctionne pas / Panne",
+    MAUVAIS: "Rendement très dégradé",
+    MOYEN: "Rendement acceptable",
+    BON: "Fonctionne correctement",
+    EXCELLENT: "Performance optimale",
+  },
+  security: {
+    NON_EVALUE: "Non évalué",
+    CRITIQUE: "Danger immédiat / À arrêter",
+    MAUVAIS: "Risques identifiés",
+    MOYEN: "Points de vigilance",
+    BON: "Conforme aux normes",
+    EXCELLENT: "Sécurité renforcée",
+  },
+  accessibility: {
+    NON_EVALUE: "Non évalué",
+    CRITIQUE: "Inaccessible",
+    MAUVAIS: "Accès très difficile",
+    MOYEN: "Accès contraignant",
+    BON: "Accès correct",
+    EXCELLENT: "Accès facile",
+  },
+  compliance: {
+    NON_EVALUE: "Non évalué",
+    CRITIQUE: "Non conforme / Sans document",
+    MAUVAIS: "Documents manquants",
+    MOYEN: "Partiellement conforme",
+    BON: "Conforme",
+    EXCELLENT: "Conforme + certifié",
+  },
+};
+
 const ratingColors: Record<AuditRating, string> = {
   NON_EVALUE: "bg-gray-100 text-gray-600",
   CRITIQUE: "bg-red-100 text-red-700",
@@ -2227,7 +2271,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                       onChange={(e) => setAuditFormData({ ...auditFormData, visualState: e.target.value as AuditRating })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
                     >
-                      {Object.entries(ratingLabels).map(([value, label]) => (
+                      {Object.entries(criteriaRatingLabels.visualState).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
@@ -2239,7 +2283,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                       onChange={(e) => setAuditFormData({ ...auditFormData, performance: e.target.value as AuditRating })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
                     >
-                      {Object.entries(ratingLabels).map(([value, label]) => (
+                      {Object.entries(criteriaRatingLabels.performance).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
@@ -2254,7 +2298,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                       onChange={(e) => setAuditFormData({ ...auditFormData, security: e.target.value as AuditRating })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
                     >
-                      {Object.entries(ratingLabels).map(([value, label]) => (
+                      {Object.entries(criteriaRatingLabels.security).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
@@ -2266,7 +2310,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                       onChange={(e) => setAuditFormData({ ...auditFormData, accessibility: e.target.value as AuditRating })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
                     >
-                      {Object.entries(ratingLabels).map(([value, label]) => (
+                      {Object.entries(criteriaRatingLabels.accessibility).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
@@ -2278,7 +2322,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                       onChange={(e) => setAuditFormData({ ...auditFormData, compliance: e.target.value as AuditRating })}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
                     >
-                      {Object.entries(ratingLabels).map(([value, label]) => (
+                      {Object.entries(criteriaRatingLabels.compliance).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
                     </select>
