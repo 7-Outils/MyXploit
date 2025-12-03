@@ -23,16 +23,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 
-interface Equipment {
-  id: string;
-  name: string;
-  type: string;
-  brand: string | null;
-  model: string | null;
-  status: string;
-  power: number | null;
-}
-
 interface Site {
   id: string;
   name: string;
@@ -47,7 +37,6 @@ interface Site {
   nbUnit: string | null;
   pce: string | null;
   pdl: string | null;
-  equipments: Equipment[];
 }
 
 interface PriceChange {
@@ -223,17 +212,6 @@ const energyTypes = [
   { value: "AUTRE", label: "Autre" },
 ];
 
-const equipmentTypes = [
-  { value: "CHAUDIERE", label: "Chaudière" },
-  { value: "CLIMATISATION", label: "Climatisation" },
-  { value: "VMC", label: "VMC" },
-  { value: "PAC", label: "Pompe à chaleur" },
-  { value: "RADIATEUR", label: "Radiateur" },
-  { value: "PLANCHER_CHAUFFANT", label: "Plancher chauffant" },
-  { value: "CTA", label: "CTA" },
-  { value: "AUTRE", label: "Autre" },
-];
-
 // Labels pour les types de modifications dans un avenant
 const avenantItemTypeLabels: Record<string, string> = {
   AJOUT_SITE: "Ajout de site",
@@ -282,18 +260,6 @@ export default function ContractDetailPage() {
     amountP1: "",
     amountP2: "",
     amountP3: "",
-  });
-
-  // Equipment creation modal
-  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
-  const [creatingEquipment, setCreatingEquipment] = useState(false);
-  const [equipmentFormData, setEquipmentFormData] = useState({
-    name: "",
-    type: "CHAUDIERE",
-    brand: "",
-    model: "",
-    power: "",
   });
 
   // Contract edit modal
@@ -552,41 +518,6 @@ export default function ContractDetailPage() {
       console.error("Error creating site:", error);
     } finally {
       setCreatingSite(false);
-    }
-  };
-
-  const handleCreateEquipment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSiteId) return;
-
-    setCreatingEquipment(true);
-    try {
-      const response = await fetch("/api/equipments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...equipmentFormData,
-          power: equipmentFormData.power ? parseFloat(equipmentFormData.power) : null,
-          siteId: selectedSiteId,
-        }),
-      });
-
-      if (response.ok) {
-        await fetchContract();
-        setShowEquipmentModal(false);
-        setSelectedSiteId(null);
-        setEquipmentFormData({
-          name: "",
-          type: "CHAUDIERE",
-          brand: "",
-          model: "",
-          power: "",
-        });
-      }
-    } catch (error) {
-      console.error("Error creating equipment:", error);
-    } finally {
-      setCreatingEquipment(false);
     }
   };
 
@@ -900,10 +831,6 @@ export default function ContractDetailPage() {
   }
 
   // Aggregate data from contract sites
-  const totalEquipments = contract.contractSites.reduce(
-    (sum: number, cs: ContractSite) => sum + cs.site.equipments.length,
-    0
-  );
   const hasAnyP1 = contract.contractSites.some((cs) => cs.hasP1);
   const hasAnyP2 = contract.contractSites.some((cs) => cs.hasP2);
   const hasAnyP3 = contract.contractSites.some((cs) => cs.hasP3);
@@ -1030,9 +957,9 @@ export default function ContractDetailPage() {
         <ChartCard title="" className="text-center">
           <div className="flex flex-col items-center -mt-2">
             <Building2 size={24} className="text-accent mb-2" />
-            <p className="text-xs text-text-secondary">Sites / Équipements</p>
+            <p className="text-xs text-text-secondary">Sites</p>
             <p className="text-xl font-bold text-primary-dark">
-              {contract.contractSites.length} / {totalEquipments}
+              {contract.contractSites.length}
             </p>
           </div>
         </ChartCard>
@@ -1133,8 +1060,7 @@ export default function ContractDetailPage() {
                           </span>
                         </div>
                         <p className="text-sm text-text-secondary">
-                          {site.type} • {site.city} • {site.equipments.length} équipement
-                          {site.equipments.length > 1 ? "s" : ""}
+                          {site.type} • {site.city}
                         </p>
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {contractSite.hasP1 && (
@@ -1156,30 +1082,16 @@ export default function ContractDetailPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditSiteModal(site);
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSiteId(site.id);
-                          setShowEquipmentModal(true);
-                        }}
-                      >
-                        <Plus size={14} className="mr-1" />
-                        Équipement
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditSiteModal(site);
+                      }}
+                    >
+                      <Pencil size={14} />
+                    </Button>
                   </div>
 
                   {/* Site Details & Equipments */}
@@ -1203,60 +1115,6 @@ export default function ContractDetailPage() {
                           <p className="text-primary-dark">{site.energyType}</p>
                         </div>
                       </div>
-
-                      {/* Equipments */}
-                      {site.equipments.length > 0 && (
-                        <div>
-                          <p className="text-sm font-medium text-primary-dark mb-2">
-                            Équipements ({site.equipments.length})
-                          </p>
-                          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {site.equipments.map((equipment: Equipment) => (
-                              <div
-                                key={equipment.id}
-                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-                              >
-                                <Settings size={16} className="text-accent" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-primary-dark truncate">
-                                    {equipment.name}
-                                  </p>
-                                  <p className="text-xs text-text-secondary">
-                                    {equipment.type}
-                                    {equipment.power && ` • ${equipment.power} kW`}
-                                  </p>
-                                </div>
-                                <span
-                                  className={`px-2 py-0.5 rounded text-xs ${
-                                    equipment.status === "OPERATIONNEL"
-                                      ? "bg-green-100 text-green-700"
-                                      : equipment.status === "MAINTENANCE"
-                                      ? "bg-yellow-100 text-yellow-700"
-                                      : "bg-red-100 text-red-700"
-                                  }`}
-                                >
-                                  {equipment.status}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {site.equipments.length === 0 && (
-                        <p className="text-sm text-text-secondary text-center py-4">
-                          Aucun équipement.{" "}
-                          <button
-                            className="text-accent hover:underline"
-                            onClick={() => {
-                              setSelectedSiteId(site.id);
-                              setShowEquipmentModal(true);
-                            }}
-                          >
-                            Ajouter un équipement
-                          </button>
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>
@@ -1940,141 +1798,6 @@ export default function ContractDetailPage() {
                     </>
                   ) : (
                     "Créer le site"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Create Equipment Modal */}
-      {showEquipmentModal && selectedSiteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <div>
-                <h2 className="text-xl font-bold text-primary-dark">
-                  Nouvel équipement
-                </h2>
-                <p className="text-sm text-text-secondary">
-                  {contract.contractSites.find((cs: ContractSite) => cs.site.id === selectedSiteId)?.site.name}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowEquipmentModal(false);
-                  setSelectedSiteId(null);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateEquipment} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Nom de l&apos;équipement *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={equipmentFormData.name}
-                  onChange={(e) =>
-                    setEquipmentFormData({ ...equipmentFormData, name: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  placeholder="Chaudière principale"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Type *
-                </label>
-                <select
-                  required
-                  value={equipmentFormData.type}
-                  onChange={(e) =>
-                    setEquipmentFormData({ ...equipmentFormData, type: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                >
-                  {equipmentTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Marque
-                  </label>
-                  <input
-                    type="text"
-                    value={equipmentFormData.brand}
-                    onChange={(e) =>
-                      setEquipmentFormData({ ...equipmentFormData, brand: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="Viessmann"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Modèle
-                  </label>
-                  <input
-                    type="text"
-                    value={equipmentFormData.model}
-                    onChange={(e) =>
-                      setEquipmentFormData({ ...equipmentFormData, model: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="Vitocrossal 300"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Puissance (kW)
-                </label>
-                <input
-                  type="number"
-                  value={equipmentFormData.power}
-                  onChange={(e) =>
-                    setEquipmentFormData({ ...equipmentFormData, power: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  placeholder="500"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setShowEquipmentModal(false);
-                    setSelectedSiteId(null);
-                  }}
-                >
-                  Annuler
-                </Button>
-                <Button type="submit" className="flex-1" disabled={creatingEquipment}>
-                  {creatingEquipment ? (
-                    <>
-                      <Loader2 size={18} className="mr-2 animate-spin" />
-                      Création...
-                    </>
-                  ) : (
-                    "Créer l'équipement"
                   )}
                 </Button>
               </div>
