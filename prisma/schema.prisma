@@ -168,8 +168,9 @@ model Equipment {
   updatedAt      DateTime        @updatedAt
 
   // Relations
-  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avenantItems AvenantItem[] // Modifications d'avenant concernant cet équipement
 
   @@map("equipments")
 }
@@ -259,6 +260,7 @@ model ContractSite {
   avenantEntree  Avenant?            @relation("SiteEntree", fields: [avenantEntreeId], references: [id])
   avenantSortie  Avenant?            @relation("SiteSortie", fields: [avenantSortieId], references: [id])
   priceChanges   ContractSitePriceChange[] // Historique des changements de prix
+  avenantItems   AvenantItem[]       // Modifications d'avenant concernant ce site
 
   @@unique([contractId, siteId]) // Un site ne peut être qu'une fois dans un contrat
   @@map("contract_sites")
@@ -268,34 +270,68 @@ model ContractSite {
 // AVENANTS (Modifications contractuelles)
 // ============================================
 
-enum AvenantType {
-  AJOUT_SITE        // Ajout d'un site au contrat
-  RETRAIT_SITE      // Retrait d'un site du contrat
-  AJOUT_EQUIPEMENT  // Ajout d'équipement avec impact financier
-  RETRAIT_EQUIPEMENT // Retrait d'équipement avec impact financier
-  MODIFICATION_PRIX // Changement de prix P1/P2/P3
-  MODIFICATION_PRESTATION // Ajout/Retrait de prestation (P1, P2, P3, P4)
+// Type de modification dans un avenant
+enum AvenantItemType {
+  AJOUT_SITE              // Ajout d'un site au contrat
+  RETRAIT_SITE            // Retrait d'un site du contrat
+  AJOUT_EQUIPEMENT        // Ajout d'équipement avec impact financier
+  RETRAIT_EQUIPEMENT      // Retrait d'équipement avec impact financier
+  MODIFICATION_PRIX_P1    // Changement de prix P1
+  MODIFICATION_PRIX_P2    // Changement de prix P2
+  MODIFICATION_PRIX_P3    // Changement de prix P3
+  AJOUT_PRESTATION        // Ajout de prestation (P1, P2, P3, P4)
+  RETRAIT_PRESTATION      // Retrait de prestation
   AUTRE
 }
 
+// Avenant = conteneur de modifications
 model Avenant {
-  id            String      @id @default(cuid())
+  id            String    @id @default(cuid())
   contractId    String
-  reference     String      // Ex: "Avenant n°1", "AV-2024-001"
-  type          AvenantType
-  effectiveDate DateTime    // Date d'effet
-  description   String?     // Description de l'avenant
-  documentUrl   String?     // Lien vers le document de l'avenant
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  reference     String    // Ex: "Avenant n°1", "AV-2024-001"
+  signatureDate DateTime? // Date de signature de l'avenant
+  description   String?   // Description générale de l'avenant
+  documentUrl   String?   // Lien vers le document de l'avenant
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relations
   contract      Contract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  priceChanges  ContractSitePriceChange[] // Changements de prix liés à cet avenant
+  items         AvenantItem[]             // Les différentes modifications de cet avenant
   sitesEntrees  ContractSite[]            @relation("SiteEntree") // Sites ajoutés par cet avenant
   sitesSorties  ContractSite[]            @relation("SiteSortie") // Sites retirés par cet avenant
+  priceChanges  ContractSitePriceChange[] // Changements de prix liés à cet avenant (legacy)
 
   @@map("avenants")
+}
+
+// Chaque modification dans un avenant
+model AvenantItem {
+  id              String          @id @default(cuid())
+  avenantId       String
+  type            AvenantItemType
+  effectiveDate   DateTime        // Date d'effet de CETTE modification
+  description     String?         // Description de cette modification
+  // Entités concernées
+  contractSiteId  String?         // Si la modification concerne un site
+  equipmentId     String?         // Si la modification concerne un équipement
+  // Incidence financière de cette modification (delta annuel)
+  deltaP1         Float?          // +/- montant P1 annuel
+  deltaP2         Float?          // +/- montant P2 annuel
+  deltaP3         Float?          // +/- montant P3 annuel
+  // Nouveaux montants après modification (pour historique)
+  newAmountP1     Float?
+  newAmountP2     Float?
+  newAmountP3     Float?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  avenant       Avenant       @relation(fields: [avenantId], references: [id], onDelete: Cascade)
+  contractSite  ContractSite? @relation(fields: [contractSiteId], references: [id])
+  equipment     Equipment?    @relation(fields: [equipmentId], references: [id])
+
+  @@map("avenant_items")
 }
 
 // Historique des changements de prix pour un site dans un contrat

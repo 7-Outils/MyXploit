@@ -15,7 +15,6 @@ import {
   ChevronRight,
   Pencil,
   FileText,
-  TrendingUp,
   Euro,
   CheckCircle,
   Clock,
@@ -79,26 +78,40 @@ interface ContractSite {
   priceChanges?: PriceChange[];
 }
 
-interface AvenantPriceChange {
+interface AvenantItem {
   id: string;
+  type: string;
   effectiveDate: string;
+  description: string | null;
   deltaP1: number | null;
   deltaP2: number | null;
   deltaP3: number | null;
-  reason: string | null;
+  newAmountP1: number | null;
+  newAmountP2: number | null;
+  newAmountP3: number | null;
   contractSite: {
     id: string;
-    site: { id: string; name: string };
-  };
+    site: { id: string; name: string; type: string };
+  } | null;
+  equipment: {
+    id: string;
+    name: string;
+    type: string;
+  } | null;
 }
 
 interface Avenant {
   id: string;
   reference: string;
-  type: string;
-  effectiveDate: string;
+  signatureDate: string | null;
   description: string | null;
-  priceChanges: AvenantPriceChange[];
+  items: AvenantItem[];
+  _totals: {
+    deltaP1: number;
+    deltaP2: number;
+    deltaP3: number;
+    total: number;
+  };
 }
 
 interface Contract {
@@ -221,15 +234,19 @@ const equipmentTypes = [
   { value: "AUTRE", label: "Autre" },
 ];
 
-const avenantTypes = [
-  { value: "AJOUT_EQUIPEMENT", label: "Ajout d'équipement" },
-  { value: "RETRAIT_EQUIPEMENT", label: "Retrait d'équipement" },
-  { value: "MODIFICATION_PRIX", label: "Modification de prix" },
-  { value: "AJOUT_SITE", label: "Ajout de site" },
-  { value: "RETRAIT_SITE", label: "Retrait de site" },
-  { value: "MODIFICATION_PRESTATION", label: "Modification de prestation" },
-  { value: "AUTRE", label: "Autre" },
-];
+// Labels pour les types de modifications dans un avenant
+const avenantItemTypeLabels: Record<string, string> = {
+  AJOUT_SITE: "Ajout de site",
+  RETRAIT_SITE: "Retrait de site",
+  AJOUT_EQUIPEMENT: "Ajout d'équipement",
+  RETRAIT_EQUIPEMENT: "Retrait d'équipement",
+  MODIFICATION_PRIX_P1: "Modification P1",
+  MODIFICATION_PRIX_P2: "Modification P2",
+  MODIFICATION_PRIX_P3: "Modification P3",
+  AJOUT_PRESTATION: "Ajout de prestation",
+  RETRAIT_PRESTATION: "Retrait de prestation",
+  AUTRE: "Autre",
+};
 
 export default function ContractDetailPage() {
   const params = useParams();
@@ -710,14 +727,68 @@ export default function ContractDetailPage() {
 
     setCreatingAvenant(true);
     try {
-      // Déterminer le type principal de l'avenant
-      let type = "AUTRE";
-      if (priceChanges.length > 0 && newSites.length === 0 && removedSites.length === 0) {
-        type = "MODIFICATION_PRIX";
-      } else if (newSites.length > 0 && priceChanges.length === 0 && removedSites.length === 0) {
-        type = "AJOUT_SITE";
-      } else if (removedSites.length > 0 && priceChanges.length === 0 && newSites.length === 0) {
-        type = "RETRAIT_SITE";
+      // Convertir les anciennes données en items pour le nouveau modèle
+      const items: Array<{
+        type: string;
+        effectiveDate: string;
+        description?: string;
+        contractSiteId?: string;
+        siteId?: string;
+        contractType?: string;
+        hasP1?: boolean;
+        hasP2?: boolean;
+        hasP3?: boolean;
+        amountP1?: string;
+        amountP2?: string;
+        amountP3?: string;
+        deltaP1?: string;
+        deltaP2?: string;
+        deltaP3?: string;
+      }> = [];
+
+      // Ajouter les modifications de prix
+      for (const pc of priceChanges) {
+        if (pc.deltaP2) {
+          items.push({
+            type: "MODIFICATION_PRIX_P2",
+            effectiveDate: avenantFormData.effectiveDate,
+            description: pc.reason || undefined,
+            contractSiteId: pc.contractSiteId,
+            deltaP2: pc.deltaP2,
+          });
+        }
+        if (pc.deltaP3) {
+          items.push({
+            type: "MODIFICATION_PRIX_P3",
+            effectiveDate: avenantFormData.effectiveDate,
+            description: pc.reason || undefined,
+            contractSiteId: pc.contractSiteId,
+            deltaP3: pc.deltaP3,
+          });
+        }
+      }
+
+      // Ajouter les nouveaux sites
+      for (const ns of newSites) {
+        items.push({
+          type: "AJOUT_SITE",
+          effectiveDate: avenantFormData.effectiveDate,
+          siteId: ns.siteId,
+          contractType: ns.contractType,
+          hasP2: true,
+          hasP3: true,
+          amountP2: ns.amountP2 || undefined,
+          amountP3: ns.amountP3 || undefined,
+        });
+      }
+
+      // Ajouter les sites retirés
+      for (const rs of removedSites) {
+        items.push({
+          type: "RETRAIT_SITE",
+          effectiveDate: avenantFormData.effectiveDate,
+          contractSiteId: rs.contractSiteId,
+        });
       }
 
       const response = await fetch(`/api/contracts/${contractId}/avenants`, {
@@ -725,26 +796,9 @@ export default function ContractDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reference: avenantFormData.reference,
-          type,
-          effectiveDate: avenantFormData.effectiveDate,
+          signatureDate: avenantFormData.effectiveDate || null,
           description: avenantFormData.description,
-          priceChanges: priceChanges.map(pc => ({
-            contractSiteId: pc.contractSiteId,
-            deltaP2: pc.deltaP2 || null,
-            deltaP3: pc.deltaP3 || null,
-            reason: pc.reason || null,
-          })),
-          newSites: newSites.map(ns => ({
-            siteId: ns.siteId,
-            contractType: ns.contractType,
-            hasP2: true,
-            hasP3: true,
-            amountP2: ns.amountP2 || null,
-            amountP3: ns.amountP3 || null,
-          })),
-          removedSites: removedSites.map(rs => ({
-            contractSiteId: rs.contractSiteId,
-          })),
+          items,
         }),
       });
 
@@ -1240,18 +1294,25 @@ export default function ContractDetailPage() {
                   className="border border-gray-200 rounded-xl p-4"
                 >
                   <div className="flex items-start justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-medium text-primary-dark">
                           {avenant.reference}
                         </h4>
-                        <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs">
-                          {avenantTypes.find((t) => t.value === avenant.type)?.label || avenant.type}
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
+                          {avenant.items.length} modification{avenant.items.length > 1 ? "s" : ""}
                         </span>
+                        {avenant._totals.total !== 0 && (
+                          <span className={`px-2 py-0.5 rounded text-xs ${avenant._totals.total > 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                            {avenant._totals.total > 0 ? "+" : ""}{avenant._totals.total.toLocaleString("fr-FR")} €/an
+                          </span>
+                        )}
                       </div>
-                      <p className="text-sm text-text-secondary mt-1">
-                        Date d&apos;effet : {new Date(avenant.effectiveDate).toLocaleDateString("fr-FR")}
-                      </p>
+                      {avenant.signatureDate && (
+                        <p className="text-sm text-text-secondary mt-1">
+                          Signé le : {new Date(avenant.signatureDate).toLocaleDateString("fr-FR")}
+                        </p>
+                      )}
                       {avenant.description && (
                         <p className="text-sm text-text-secondary mt-1">
                           {avenant.description}
@@ -1259,7 +1320,6 @@ export default function ContractDetailPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <TrendingUp size={20} className="text-accent" />
                       <button
                         onClick={() => handleDeleteAvenant(avenant.id)}
                         disabled={deletingAvenantId === avenant.id}
@@ -1275,30 +1335,43 @@ export default function ContractDetailPage() {
                     </div>
                   </div>
 
-                  {/* Price changes */}
-                  {avenant.priceChanges && avenant.priceChanges.length > 0 && (
+                  {/* Items list */}
+                  {avenant.items && avenant.items.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-100">
                       <p className="text-xs font-medium text-text-secondary mb-2">
-                        Modifications de prix :
+                        Modifications :
                       </p>
                       <div className="space-y-2">
-                        {avenant.priceChanges.map((pc) => (
+                        {avenant.items.map((item) => (
                           <div
-                            key={pc.id}
-                            className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded"
+                            key={item.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded gap-2"
                           >
-                            <span className="text-primary-dark">
-                              {pc.contractSite?.site?.name || "Site"}
-                            </span>
-                            <div className="flex gap-3">
-                              {pc.deltaP2 && (
-                                <span className={`${pc.deltaP2 > 0 ? "text-red-600" : "text-green-600"}`}>
-                                  P2: {pc.deltaP2 > 0 ? "+" : ""}{pc.deltaP2.toLocaleString("fr-FR")} €
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">
+                                {avenantItemTypeLabels[item.type] || item.type}
+                              </span>
+                              <span className="text-primary-dark">
+                                {item.contractSite?.site?.name || item.equipment?.name || ""}
+                              </span>
+                              <span className="text-text-secondary text-xs">
+                                (effet: {new Date(item.effectiveDate).toLocaleDateString("fr-FR")})
+                              </span>
+                            </div>
+                            <div className="flex gap-3 text-xs">
+                              {item.deltaP1 !== null && item.deltaP1 !== 0 && (
+                                <span className={`${item.deltaP1 > 0 ? "text-red-600" : "text-green-600"}`}>
+                                  P1: {item.deltaP1 > 0 ? "+" : ""}{item.deltaP1.toLocaleString("fr-FR")} €
                                 </span>
                               )}
-                              {pc.deltaP3 && (
-                                <span className={`${pc.deltaP3 > 0 ? "text-red-600" : "text-green-600"}`}>
-                                  P3: {pc.deltaP3 > 0 ? "+" : ""}{pc.deltaP3.toLocaleString("fr-FR")} €
+                              {item.deltaP2 !== null && item.deltaP2 !== 0 && (
+                                <span className={`${item.deltaP2 > 0 ? "text-red-600" : "text-green-600"}`}>
+                                  P2: {item.deltaP2 > 0 ? "+" : ""}{item.deltaP2.toLocaleString("fr-FR")} €
+                                </span>
+                              )}
+                              {item.deltaP3 !== null && item.deltaP3 !== 0 && (
+                                <span className={`${item.deltaP3 > 0 ? "text-red-600" : "text-green-600"}`}>
+                                  P3: {item.deltaP3 > 0 ? "+" : ""}{item.deltaP3.toLocaleString("fr-FR")} €
                                 </span>
                               )}
                             </div>

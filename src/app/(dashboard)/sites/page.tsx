@@ -69,6 +69,40 @@ interface ImportResult {
   errors?: string[];
 }
 
+interface PreviewSite {
+  _index: number;
+  name: string;
+  type?: string;
+  _type: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  surface?: number;
+  energyType?: string;
+  _energyType: string;
+  contractType?: string;
+  _contractType: string;
+  hasP1?: boolean;
+  hasP2?: boolean;
+  hasP3?: boolean;
+  hasP4?: boolean;
+  amountP2?: number;
+  amountP3?: number;
+}
+
+const contractTypeLabels: Record<string, string> = {
+  MTI: "MTI - Marché Total Intéressement",
+  MCI: "MCI - Marché Chauffage Intéressement",
+  PFI: "PFI - Prestation Forfait Intéressement",
+  CPI: "CPI - Contrat Prestation Intéressement",
+  MT: "MT - Marché Total",
+  CP: "CP - Contrat de Performance",
+  PF: "PF - Prestations Forfaitisées",
+  MC: "MC - Marché Chauffage",
+  MF: "MF - Marché Forfait",
+  AUTRE: "Autre",
+};
+
 const siteTypeLabels: Record<SiteType, string> = {
   LYCEE: "Lycée",
   COLLEGE: "Collège",
@@ -105,6 +139,8 @@ export default function SitesPage() {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string>("");
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [previewSites, setPreviewSites] = useState<PreviewSite[]>([]);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -156,18 +192,80 @@ export default function SitesPage() {
     setImportFile(null);
     setSelectedContractId("");
     setImportResult(null);
+    setPreviewSites([]);
+    setImportStep("upload");
     fetchContracts();
     setShowImportModal(true);
   };
 
-  // Handle import
-  const handleImport = async () => {
+  // Handle preview (step 1)
+  const handlePreview = async () => {
     if (!importFile) return;
 
     setImporting(true);
     try {
       const formData = new FormData();
       formData.append("file", importFile);
+      formData.append("preview", "true");
+      if (selectedContractId) {
+        formData.append("contractId", selectedContractId);
+      }
+
+      const response = await fetch("/api/sites/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setImportResult({
+          success: false,
+          imported: 0,
+          linkedToContract: 0,
+          sites: [],
+          errors: [result.error || "Erreur lors de la lecture du fichier"],
+        });
+        setImportStep("result");
+      } else if (result.preview) {
+        setPreviewSites(result.sites);
+        setImportStep("preview");
+      }
+    } catch (err) {
+      setImportResult({
+        success: false,
+        imported: 0,
+        linkedToContract: 0,
+        sites: [],
+        errors: [err instanceof Error ? err.message : "Erreur inconnue"],
+      });
+      setImportStep("result");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Update preview site
+  const updatePreviewSite = (index: number, field: keyof PreviewSite, value: unknown) => {
+    setPreviewSites(prev => prev.map((site, i) =>
+      i === index ? { ...site, [field]: value } : site
+    ));
+  };
+
+  // Remove site from preview
+  const removePreviewSite = (index: number) => {
+    setPreviewSites(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle final import (step 2)
+  const handleImport = async () => {
+    if (previewSites.length === 0) return;
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile!);
+      formData.append("sitesData", JSON.stringify(previewSites));
       if (selectedContractId) {
         formData.append("contractId", selectedContractId);
       }
@@ -193,6 +291,7 @@ export default function SitesPage() {
           await fetchSites();
         }
       }
+      setImportStep("result");
     } catch (err) {
       setImportResult({
         success: false,
@@ -201,6 +300,7 @@ export default function SitesPage() {
         sites: [],
         errors: [err instanceof Error ? err.message : "Erreur inconnue"],
       });
+      setImportStep("result");
     } finally {
       setImporting(false);
     }
@@ -598,11 +698,18 @@ export default function SitesPage() {
       {/* Import Modal */}
       {showImportModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto ${importStep === "preview" ? "max-w-4xl" : "max-w-lg"}`}>
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-primary-dark">
-                Importer des sites
-              </h2>
+              <div>
+                <h2 className="text-xl font-bold text-primary-dark">
+                  Importer des sites
+                </h2>
+                {importStep === "preview" && (
+                  <p className="text-sm text-text-secondary mt-1">
+                    Vérifiez et modifiez les données avant validation
+                  </p>
+                )}
+              </div>
               <button
                 onClick={() => setShowImportModal(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -612,7 +719,8 @@ export default function SitesPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {!importResult ? (
+              {/* Step 1: Upload */}
+              {importStep === "upload" && (
                 <>
                   {/* File upload */}
                   <div>
@@ -698,8 +806,8 @@ export default function SitesPage() {
                       <div>
                         <span className="font-medium">Optionnel :</span> Type, Adresse, Ville, CP
                       </div>
-                      <div>Surface, Énergie, PCE, PDL, RAE</div>
-                      <div>P1, P2, P3, P4, Montant P2, Montant P3</div>
+                      <div>Surface, Énergie, PCE, PDL</div>
+                      <div>Type contrat, P1, P2, P3, P4, Montant P2/P3</div>
                     </div>
                   </div>
 
@@ -715,6 +823,174 @@ export default function SitesPage() {
                     <Button
                       className="flex-1"
                       disabled={!importFile || importing}
+                      onClick={handlePreview}
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 size={18} className="mr-2 animate-spin" />
+                          Analyse...
+                        </>
+                      ) : (
+                        "Suivant →"
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Preview */}
+              {importStep === "preview" && (
+                <>
+                  <div className="bg-blue-50 text-blue-700 p-3 rounded-lg text-sm mb-4">
+                    <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> détecté{previewSites.length > 1 ? "s" : ""}.
+                    Vous pouvez modifier les valeurs ci-dessous avant de valider l&apos;import.
+                  </div>
+
+                  <div className="overflow-x-auto -mx-6">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 border-y border-gray-100">
+                        <tr>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Nom</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Type</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Ville</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Énergie</th>
+                          {selectedContractId && (
+                            <>
+                              <th className="text-left px-4 py-2 font-medium text-text-secondary">Type contrat</th>
+                              <th className="text-center px-4 py-2 font-medium text-text-secondary">P1</th>
+                              <th className="text-center px-4 py-2 font-medium text-text-secondary">P2</th>
+                              <th className="text-center px-4 py-2 font-medium text-text-secondary">P3</th>
+                              <th className="text-right px-4 py-2 font-medium text-text-secondary">Montant P2</th>
+                              <th className="text-right px-4 py-2 font-medium text-text-secondary">Montant P3</th>
+                            </>
+                          )}
+                          <th className="px-4 py-2"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {previewSites.map((site, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={site.name}
+                                onChange={(e) => updatePreviewSite(index, "name", e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                value={site._type}
+                                onChange={(e) => updatePreviewSite(index, "_type", e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                              >
+                                {Object.entries(siteTypeLabels).map(([value, label]) => (
+                                  <option key={value} value={value}>{label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <input
+                                type="text"
+                                value={site.city || ""}
+                                onChange={(e) => updatePreviewSite(index, "city", e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select
+                                value={site._energyType}
+                                onChange={(e) => updatePreviewSite(index, "_energyType", e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                              >
+                                {Object.entries(energyTypeLabels).map(([value, label]) => (
+                                  <option key={value} value={value}>{label}</option>
+                                ))}
+                              </select>
+                            </td>
+                            {selectedContractId && (
+                              <>
+                                <td className="px-4 py-2">
+                                  <select
+                                    value={site._contractType}
+                                    onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)}
+                                    className="w-full px-2 py-1 border border-gray-200 rounded text-sm"
+                                  >
+                                    {Object.entries(contractTypeLabels).map(([value, label]) => (
+                                      <option key={value} value={value}>{label}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={site.hasP1 || false}
+                                    onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)}
+                                    className="w-4 h-4"
+                                  />
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={site.hasP2 || false}
+                                    onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)}
+                                    className="w-4 h-4"
+                                  />
+                                </td>
+                                <td className="px-4 py-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={site.hasP3 || false}
+                                    onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)}
+                                    className="w-4 h-4"
+                                  />
+                                </td>
+                                <td className="px-4 py-2">
+                                  <input
+                                    type="number"
+                                    value={site.amountP2 || ""}
+                                    onChange={(e) => updatePreviewSite(index, "amountP2", e.target.value ? parseFloat(e.target.value) : undefined)}
+                                    className="w-20 px-2 py-1 border border-gray-200 rounded text-sm text-right"
+                                    placeholder="0"
+                                  />
+                                </td>
+                                <td className="px-4 py-2">
+                                  <input
+                                    type="number"
+                                    value={site.amountP3 || ""}
+                                    onChange={(e) => updatePreviewSite(index, "amountP3", e.target.value ? parseFloat(e.target.value) : undefined)}
+                                    className="w-20 px-2 py-1 border border-gray-200 rounded text-sm text-right"
+                                    placeholder="0"
+                                  />
+                                </td>
+                              </>
+                            )}
+                            <td className="px-4 py-2">
+                              <button
+                                onClick={() => removePreviewSite(index)}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                title="Supprimer"
+                              >
+                                <X size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setImportStep("upload")}
+                    >
+                      ← Retour
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      disabled={previewSites.length === 0 || importing}
                       onClick={handleImport}
                     >
                       {importing ? (
@@ -724,15 +1000,17 @@ export default function SitesPage() {
                         </>
                       ) : (
                         <>
-                          <Upload size={18} className="mr-2" />
-                          Importer
+                          <CheckCircle size={18} className="mr-2" />
+                          Valider l&apos;import ({previewSites.length} site{previewSites.length > 1 ? "s" : ""})
                         </>
                       )}
                     </Button>
                   </div>
                 </>
-              ) : (
-                /* Import result */
+              )}
+
+              {/* Step 3: Result */}
+              {importStep === "result" && importResult && (
                 <div className="text-center">
                   {importResult.success ? (
                     <>

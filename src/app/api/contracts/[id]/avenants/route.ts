@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { AvenantItemType } from "@/generated/prisma/enums";
 
 // GET /api/contracts/[id]/avenants - List all avenants for a contract
 export async function GET(
@@ -29,16 +30,20 @@ export async function GET(
     const avenants = await prisma.avenant.findMany({
       where: { contractId },
       include: {
-        priceChanges: {
+        items: {
           include: {
             contractSite: {
               include: {
                 site: {
-                  select: { id: true, name: true },
+                  select: { id: true, name: true, type: true },
                 },
               },
             },
+            equipment: {
+              select: { id: true, name: true, type: true },
+            },
           },
+          orderBy: { effectiveDate: "asc" },
         },
         sitesEntrees: {
           include: {
@@ -55,10 +60,28 @@ export async function GET(
           },
         },
       },
-      orderBy: { effectiveDate: "desc" },
+      orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(avenants);
+    // Calculate totals for each avenant
+    const avenantsWithTotals = avenants.map((avenant) => {
+      const totalDeltaP1 = avenant.items.reduce((sum, item) => sum + (item.deltaP1 || 0), 0);
+      const totalDeltaP2 = avenant.items.reduce((sum, item) => sum + (item.deltaP2 || 0), 0);
+      const totalDeltaP3 = avenant.items.reduce((sum, item) => sum + (item.deltaP3 || 0), 0);
+      const totalDelta = totalDeltaP1 + totalDeltaP2 + totalDeltaP3;
+
+      return {
+        ...avenant,
+        _totals: {
+          deltaP1: totalDeltaP1,
+          deltaP2: totalDeltaP2,
+          deltaP3: totalDeltaP3,
+          total: totalDelta,
+        },
+      };
+    });
+
+    return NextResponse.json(avenantsWithTotals);
   } catch (error) {
     console.error("Error fetching avenants:", error);
     return NextResponse.json(
@@ -68,7 +91,7 @@ export async function GET(
   }
 }
 
-// POST /api/contracts/[id]/avenants - Create a new avenant
+// POST /api/contracts/[id]/avenants - Create a new avenant with items
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -114,113 +137,158 @@ export async function POST(
       data: {
         contractId,
         reference: body.reference,
-        type: body.type,
-        effectiveDate: new Date(body.effectiveDate),
+        signatureDate: body.signatureDate ? new Date(body.signatureDate) : null,
         description: body.description,
         documentUrl: body.documentUrl,
       },
     });
 
-    // If there are price changes for existing sites, create them
-    if (body.priceChanges && Array.isArray(body.priceChanges)) {
-      for (const change of body.priceChanges) {
-        // Get current amounts from contractSite
-        const contractSite = await prisma.contractSite.findUnique({
-          where: { id: change.contractSiteId },
-        });
+    // Process each item in the avenant
+    if (body.items && Array.isArray(body.items)) {
+      for (const item of body.items) {
+        const itemType = item.type as AvenantItemType;
+        const effectiveDate = new Date(item.effectiveDate);
 
-        if (contractSite) {
-          // Calculate new amounts (for reference in priceChange record)
-          const newAmountP1 = change.deltaP1
-            ? (contractSite.amountP1 || 0) + parseFloat(change.deltaP1)
-            : contractSite.amountP1;
-          const newAmountP2 = change.deltaP2
-            ? (contractSite.amountP2 || 0) + parseFloat(change.deltaP2)
-            : contractSite.amountP2;
-          const newAmountP3 = change.deltaP3
-            ? (contractSite.amountP3 || 0) + parseFloat(change.deltaP3)
-            : contractSite.amountP3;
-
-          // Create price change record
-          // Note: On ne modifie PAS contractSite.amountP2/P3 - ce sont les montants de BASE
-          await prisma.contractSitePriceChange.create({
-            data: {
-              contractSiteId: change.contractSiteId,
-              avenantId: avenant.id,
-              effectiveDate: new Date(body.effectiveDate),
-              amountP1: newAmountP1,
-              amountP2: newAmountP2,
-              amountP3: newAmountP3,
-              deltaP1: change.deltaP1 ? parseFloat(change.deltaP1) : null,
-              deltaP2: change.deltaP2 ? parseFloat(change.deltaP2) : null,
-              deltaP3: change.deltaP3 ? parseFloat(change.deltaP3) : null,
-              reason: change.reason,
-            },
-          });
-        }
-      }
-    }
-
-    // Ajouter de nouveaux sites au contrat via l'avenant
-    if (body.newSites && Array.isArray(body.newSites)) {
-      for (const newSite of body.newSites) {
-        // Vérifier que le site existe et appartient à l'organisation
-        const site = await prisma.site.findFirst({
-          where: {
-            id: newSite.siteId,
-            organizationId: user.organizationId,
-          },
-        });
-
-        if (site) {
-          // Créer le ContractSite avec integrationDate = date d'effet de l'avenant
-          await prisma.contractSite.create({
-            data: {
-              contractId,
-              siteId: newSite.siteId,
-              contractType: newSite.contractType || "MC",
-              hasP1: newSite.hasP1 || false,
-              hasP2: newSite.hasP2 || false,
-              hasP3: newSite.hasP3 || false,
-              hasP4: newSite.hasP4 || false,
-              amountP1: newSite.amountP1 ? parseFloat(newSite.amountP1) : null,
-              amountP2: newSite.amountP2 ? parseFloat(newSite.amountP2) : null,
-              amountP3: newSite.amountP3 ? parseFloat(newSite.amountP3) : null,
-              integrationDate: new Date(body.effectiveDate),
-              avenantEntreeId: avenant.id,
-            },
-          });
-        }
-      }
-    }
-
-    // Retirer des sites du contrat via l'avenant (mettre exitDate)
-    if (body.removedSites && Array.isArray(body.removedSites)) {
-      for (const removedSite of body.removedSites) {
-        await prisma.contractSite.update({
-          where: { id: removedSite.contractSiteId },
+        // Create the avenant item
+        const avenantItem = await prisma.avenantItem.create({
           data: {
-            exitDate: new Date(body.effectiveDate),
-            avenantSortieId: avenant.id,
+            avenantId: avenant.id,
+            type: itemType,
+            effectiveDate,
+            description: item.description,
+            contractSiteId: item.contractSiteId || null,
+            equipmentId: item.equipmentId || null,
+            deltaP1: item.deltaP1 ? parseFloat(item.deltaP1) : null,
+            deltaP2: item.deltaP2 ? parseFloat(item.deltaP2) : null,
+            deltaP3: item.deltaP3 ? parseFloat(item.deltaP3) : null,
+            newAmountP1: item.newAmountP1 ? parseFloat(item.newAmountP1) : null,
+            newAmountP2: item.newAmountP2 ? parseFloat(item.newAmountP2) : null,
+            newAmountP3: item.newAmountP3 ? parseFloat(item.newAmountP3) : null,
           },
         });
+
+        // Handle specific item types
+        switch (itemType) {
+          case "AJOUT_SITE":
+            // Add a new site to the contract
+            if (item.siteId) {
+              // Verify site exists and belongs to organization
+              const site = await prisma.site.findFirst({
+                where: {
+                  id: item.siteId,
+                  organizationId: user.organizationId,
+                },
+              });
+
+              if (site) {
+                await prisma.contractSite.create({
+                  data: {
+                    contractId,
+                    siteId: item.siteId,
+                    contractType: item.contractType || "MC",
+                    hasP1: item.hasP1 || false,
+                    hasP2: item.hasP2 || false,
+                    hasP3: item.hasP3 || false,
+                    hasP4: item.hasP4 || false,
+                    amountP1: item.amountP1 ? parseFloat(item.amountP1) : null,
+                    amountP2: item.amountP2 ? parseFloat(item.amountP2) : null,
+                    amountP3: item.amountP3 ? parseFloat(item.amountP3) : null,
+                    integrationDate: effectiveDate,
+                    avenantEntreeId: avenant.id,
+                  },
+                });
+              }
+            }
+            break;
+
+          case "RETRAIT_SITE":
+            // Remove a site from the contract
+            if (item.contractSiteId) {
+              await prisma.contractSite.update({
+                where: { id: item.contractSiteId },
+                data: {
+                  exitDate: effectiveDate,
+                  avenantSortieId: avenant.id,
+                },
+              });
+            }
+            break;
+
+          case "MODIFICATION_PRIX_P1":
+          case "MODIFICATION_PRIX_P2":
+          case "MODIFICATION_PRIX_P3":
+            // Create price change record for historical tracking
+            if (item.contractSiteId) {
+              const contractSite = await prisma.contractSite.findUnique({
+                where: { id: item.contractSiteId },
+              });
+
+              if (contractSite) {
+                // Calculate new amounts based on deltas
+                const newAmountP1 = item.deltaP1
+                  ? (contractSite.amountP1 || 0) + parseFloat(item.deltaP1)
+                  : contractSite.amountP1;
+                const newAmountP2 = item.deltaP2
+                  ? (contractSite.amountP2 || 0) + parseFloat(item.deltaP2)
+                  : contractSite.amountP2;
+                const newAmountP3 = item.deltaP3
+                  ? (contractSite.amountP3 || 0) + parseFloat(item.deltaP3)
+                  : contractSite.amountP3;
+
+                // Create legacy price change record
+                await prisma.contractSitePriceChange.create({
+                  data: {
+                    contractSiteId: item.contractSiteId,
+                    avenantId: avenant.id,
+                    effectiveDate,
+                    amountP1: newAmountP1,
+                    amountP2: newAmountP2,
+                    amountP3: newAmountP3,
+                    deltaP1: item.deltaP1 ? parseFloat(item.deltaP1) : null,
+                    deltaP2: item.deltaP2 ? parseFloat(item.deltaP2) : null,
+                    deltaP3: item.deltaP3 ? parseFloat(item.deltaP3) : null,
+                    reason: item.description,
+                  },
+                });
+
+                // Update avenantItem with new amounts
+                await prisma.avenantItem.update({
+                  where: { id: avenantItem.id },
+                  data: {
+                    newAmountP1,
+                    newAmountP2,
+                    newAmountP3,
+                  },
+                });
+              }
+            }
+            break;
+
+          // Other types don't need special handling for now
+          default:
+            break;
+        }
       }
     }
 
-    // Return the created avenant with relations
+    // Return the created avenant with all relations
     const createdAvenant = await prisma.avenant.findUnique({
       where: { id: avenant.id },
       include: {
-        priceChanges: {
+        items: {
           include: {
             contractSite: {
               include: {
                 site: {
-                  select: { id: true, name: true },
+                  select: { id: true, name: true, type: true },
                 },
               },
             },
+            equipment: {
+              select: { id: true, name: true, type: true },
+            },
           },
+          orderBy: { effectiveDate: "asc" },
         },
         sitesEntrees: {
           include: {
@@ -239,7 +307,20 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(createdAvenant, { status: 201 });
+    // Calculate totals
+    const totalDeltaP1 = createdAvenant?.items.reduce((sum, item) => sum + (item.deltaP1 || 0), 0) || 0;
+    const totalDeltaP2 = createdAvenant?.items.reduce((sum, item) => sum + (item.deltaP2 || 0), 0) || 0;
+    const totalDeltaP3 = createdAvenant?.items.reduce((sum, item) => sum + (item.deltaP3 || 0), 0) || 0;
+
+    return NextResponse.json({
+      ...createdAvenant,
+      _totals: {
+        deltaP1: totalDeltaP1,
+        deltaP2: totalDeltaP2,
+        deltaP3: totalDeltaP3,
+        total: totalDeltaP1 + totalDeltaP2 + totalDeltaP3,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error("Error creating avenant:", error);
     return NextResponse.json(

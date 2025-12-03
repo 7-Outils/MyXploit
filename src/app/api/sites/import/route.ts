@@ -27,6 +27,10 @@ interface ImportedSite {
   amountP1?: number;
   amountP2?: number;
   amountP3?: number;
+  // Preview fields (already parsed values from user modifications)
+  _type?: SiteType;
+  _energyType?: EnergyType;
+  _contractType?: ContractType;
 }
 
 const validSiteTypes = Object.values(SiteType);
@@ -155,6 +159,7 @@ function parseNumber(value: unknown): number | undefined {
 }
 
 // POST /api/sites/import - Import sites from Excel file
+// Use preview=true to just parse and return data without creating
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
@@ -169,6 +174,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const contractId = formData.get("contractId") as string | null;
+    const previewMode = formData.get("preview") === "true";
+    const sitesDataJson = formData.get("sitesData") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -298,21 +305,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Preview mode: return parsed data without creating
+    if (previewMode) {
+      return NextResponse.json({
+        preview: true,
+        sites: sitesToCreate.map((site, index) => ({
+          ...site,
+          _index: index,
+          _type: parseSiteType(site.type),
+          _energyType: parseEnergyType(site.energyType),
+          _contractType: parseContractType(site.contractType),
+        })),
+        errors: errors.length > 0 ? errors : undefined,
+        contractId: contractId || null,
+      });
+    }
+
+    // If sitesData provided, use it instead of parsed data (for confirmed import)
+    let finalSitesToCreate = sitesToCreate;
+    if (sitesDataJson) {
+      try {
+        finalSitesToCreate = JSON.parse(sitesDataJson);
+      } catch {
+        return NextResponse.json(
+          { error: "Données de sites invalides" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create sites in database
     const createdSites: Array<{ id: string; name: string }> = [];
     const createdContractSites: Array<{ siteId: string; siteName: string }> = [];
 
-    for (const siteData of sitesToCreate) {
+    for (const siteData of finalSitesToCreate) {
+      // Use _type/_energyType/_contractType if available (from preview), otherwise parse
+      const siteType = siteData._type || parseSiteType(siteData.type);
+      const energyType = siteData._energyType || parseEnergyType(siteData.energyType);
+      const contractType = siteData._contractType || parseContractType(siteData.contractType);
+
       const site = await prisma.site.create({
         data: {
           name: siteData.name,
-          type: parseSiteType(siteData.type),
+          type: siteType,
           address: siteData.address || "",
           city: siteData.city || "",
           postalCode: siteData.postalCode || "",
           surface: siteData.surface,
           surfaceChauffee: siteData.surfaceChauffee,
-          energyType: parseEnergyType(siteData.energyType),
+          energyType: energyType,
           nb: siteData.nb,
           nbUnit: parseNbUnit(siteData.nbUnit),
           pce: siteData.pce,
@@ -331,7 +372,7 @@ export async function POST(request: NextRequest) {
           data: {
             contractId: contract.id,
             siteId: site.id,
-            contractType: parseContractType(siteData.contractType),
+            contractType: contractType,
             hasP1: siteData.hasP1 || false,
             hasP2: siteData.hasP2 || false,
             hasP3: siteData.hasP3 || false,

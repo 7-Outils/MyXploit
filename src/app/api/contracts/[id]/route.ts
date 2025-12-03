@@ -31,18 +31,22 @@ export async function GET(
           },
         },
         avenants: {
-          orderBy: { effectiveDate: "desc" },
+          orderBy: { createdAt: "desc" },
           include: {
-            priceChanges: {
+            items: {
               include: {
                 contractSite: {
                   include: {
                     site: {
-                      select: { id: true, name: true },
+                      select: { id: true, name: true, type: true },
                     },
                   },
                 },
+                equipment: {
+                  select: { id: true, name: true, type: true },
+                },
               },
+              orderBy: { effectiveDate: "asc" },
             },
           },
         },
@@ -56,7 +60,26 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(contract);
+    // Add totals to each avenant
+    const contractWithTotals = {
+      ...contract,
+      avenants: contract.avenants.map((avenant) => {
+        const totalDeltaP1 = avenant.items.reduce((sum, item) => sum + (item.deltaP1 || 0), 0);
+        const totalDeltaP2 = avenant.items.reduce((sum, item) => sum + (item.deltaP2 || 0), 0);
+        const totalDeltaP3 = avenant.items.reduce((sum, item) => sum + (item.deltaP3 || 0), 0);
+        return {
+          ...avenant,
+          _totals: {
+            deltaP1: totalDeltaP1,
+            deltaP2: totalDeltaP2,
+            deltaP3: totalDeltaP3,
+            total: totalDeltaP1 + totalDeltaP2 + totalDeltaP3,
+          },
+        };
+      }),
+    };
+
+    return NextResponse.json(contractWithTotals);
   } catch (error) {
     console.error("Error fetching contract:", error);
     return NextResponse.json(
