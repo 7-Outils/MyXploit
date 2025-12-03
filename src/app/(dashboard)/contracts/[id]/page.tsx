@@ -341,6 +341,7 @@ export default function ContractDetailPage() {
     deltaP2: string;
     deltaP3: string;
     reason: string;
+    effectiveDate: string;
   }
   interface NewSiteItem {
     siteId: string;
@@ -348,15 +349,17 @@ export default function ContractDetailPage() {
     contractType: string;
     amountP2: string;
     amountP3: string;
+    effectiveDate: string;
   }
   interface RemovedSiteItem {
     contractSiteId: string;
     siteName: string;
+    effectiveDate: string;
   }
 
   const [avenantFormData, setAvenantFormData] = useState({
     reference: "",
-    effectiveDate: "",
+    signatureDate: "",
     description: "",
   });
   const [priceChanges, setPriceChanges] = useState<PriceChangeItem[]>([]);
@@ -369,15 +372,18 @@ export default function ContractDetailPage() {
     deltaP2: "",
     deltaP3: "",
     reason: "",
+    effectiveDate: "",
   });
   const [tempNewSite, setTempNewSite] = useState({
     siteId: "",
     contractType: "MC",
     amountP2: "",
     amountP3: "",
+    effectiveDate: "",
   });
   const [tempRemovedSite, setTempRemovedSite] = useState({
     contractSiteId: "",
+    effectiveDate: "",
   });
 
   const [deletingAvenantId, setDeletingAvenantId] = useState<string | null>(null);
@@ -751,7 +757,7 @@ export default function ContractDetailPage() {
         if (pc.deltaP2) {
           items.push({
             type: "MODIFICATION_PRIX_P2",
-            effectiveDate: avenantFormData.effectiveDate,
+            effectiveDate: pc.effectiveDate,
             description: pc.reason || undefined,
             contractSiteId: pc.contractSiteId,
             deltaP2: pc.deltaP2,
@@ -760,7 +766,7 @@ export default function ContractDetailPage() {
         if (pc.deltaP3) {
           items.push({
             type: "MODIFICATION_PRIX_P3",
-            effectiveDate: avenantFormData.effectiveDate,
+            effectiveDate: pc.effectiveDate,
             description: pc.reason || undefined,
             contractSiteId: pc.contractSiteId,
             deltaP3: pc.deltaP3,
@@ -772,7 +778,7 @@ export default function ContractDetailPage() {
       for (const ns of newSites) {
         items.push({
           type: "AJOUT_SITE",
-          effectiveDate: avenantFormData.effectiveDate,
+          effectiveDate: ns.effectiveDate,
           siteId: ns.siteId,
           contractType: ns.contractType,
           hasP2: true,
@@ -786,7 +792,7 @@ export default function ContractDetailPage() {
       for (const rs of removedSites) {
         items.push({
           type: "RETRAIT_SITE",
-          effectiveDate: avenantFormData.effectiveDate,
+          effectiveDate: rs.effectiveDate,
           contractSiteId: rs.contractSiteId,
         });
       }
@@ -796,7 +802,7 @@ export default function ContractDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reference: avenantFormData.reference,
-          signatureDate: avenantFormData.effectiveDate || null,
+          signatureDate: avenantFormData.signatureDate || null,
           description: avenantFormData.description,
           items,
         }),
@@ -806,13 +812,13 @@ export default function ContractDetailPage() {
         await fetchContract();
         setShowAvenantModal(false);
         // Reset form
-        setAvenantFormData({ reference: "", effectiveDate: "", description: "" });
+        setAvenantFormData({ reference: "", signatureDate: "", description: "" });
         setPriceChanges([]);
         setNewSites([]);
         setRemovedSites([]);
-        setTempPriceChange({ contractSiteId: "", deltaP2: "", deltaP3: "", reason: "" });
-        setTempNewSite({ siteId: "", contractType: "MC", amountP2: "", amountP3: "" });
-        setTempRemovedSite({ contractSiteId: "" });
+        setTempPriceChange({ contractSiteId: "", deltaP2: "", deltaP3: "", reason: "", effectiveDate: "" });
+        setTempNewSite({ siteId: "", contractType: "MC", amountP2: "", amountP3: "", effectiveDate: "" });
+        setTempRemovedSite({ contractSiteId: "", effectiveDate: "" });
         // Refresh financials if needed
         if (activeTab === "financier") {
           setFinancialData(null);
@@ -832,18 +838,18 @@ export default function ContractDetailPage() {
 
   // Fonctions pour ajouter des éléments aux listes
   const addPriceChange = () => {
-    if (!tempPriceChange.contractSiteId) return;
+    if (!tempPriceChange.contractSiteId || !tempPriceChange.effectiveDate) return;
     const site = contract?.contractSites.find(cs => cs.id === tempPriceChange.contractSiteId);
     if (!site) return;
     setPriceChanges([...priceChanges, {
       ...tempPriceChange,
       siteName: site.site.name,
     }]);
-    setTempPriceChange({ contractSiteId: "", deltaP2: "", deltaP3: "", reason: "" });
+    setTempPriceChange({ contractSiteId: "", deltaP2: "", deltaP3: "", reason: "", effectiveDate: "" });
   };
 
   const addNewSite = () => {
-    if (!tempNewSite.siteId) return;
+    if (!tempNewSite.siteId || !tempNewSite.effectiveDate) return;
     const site = availableSites.find(s => s.id === tempNewSite.siteId);
     if (!site) return;
     // Vérifier que le site n'est pas déjà ajouté
@@ -852,11 +858,11 @@ export default function ContractDetailPage() {
       ...tempNewSite,
       siteName: site.name,
     }]);
-    setTempNewSite({ siteId: "", contractType: "MC", amountP2: "", amountP3: "" });
+    setTempNewSite({ siteId: "", contractType: "MC", amountP2: "", amountP3: "", effectiveDate: "" });
   };
 
   const addRemovedSite = () => {
-    if (!tempRemovedSite.contractSiteId) return;
+    if (!tempRemovedSite.contractSiteId || !tempRemovedSite.effectiveDate) return;
     const site = contract?.contractSites.find(cs => cs.id === tempRemovedSite.contractSiteId);
     if (!site) return;
     // Vérifier que le site n'est pas déjà ajouté
@@ -864,8 +870,9 @@ export default function ContractDetailPage() {
     setRemovedSites([...removedSites, {
       contractSiteId: tempRemovedSite.contractSiteId,
       siteName: site.site.name,
+      effectiveDate: tempRemovedSite.effectiveDate,
     }]);
-    setTempRemovedSite({ contractSiteId: "" });
+    setTempRemovedSite({ contractSiteId: "", effectiveDate: "" });
   };
 
   const removePriceChange = (index: number) => {
@@ -2514,14 +2521,13 @@ export default function ContractDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Date d&apos;effet *
+                    Date de signature
                   </label>
                   <input
                     type="date"
-                    required
-                    value={avenantFormData.effectiveDate}
+                    value={avenantFormData.signatureDate}
                     onChange={(e) =>
-                      setAvenantFormData({ ...avenantFormData, effectiveDate: e.target.value })
+                      setAvenantFormData({ ...avenantFormData, signatureDate: e.target.value })
                     }
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
@@ -2557,6 +2563,9 @@ export default function ContractDetailPage() {
                       <div key={index} className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg text-sm">
                         <div>
                           <span className="font-medium">{pc.siteName}</span>
+                          <span className="text-accent ml-2 text-xs">
+                            {new Date(pc.effectiveDate).toLocaleDateString("fr-FR")}
+                          </span>
                           <span className="text-text-secondary ml-2">
                             {pc.deltaP2 && `P2: ${Number(pc.deltaP2) > 0 ? '+' : ''}${pc.deltaP2}€`}
                             {pc.deltaP2 && pc.deltaP3 && ' | '}
@@ -2578,7 +2587,7 @@ export default function ContractDetailPage() {
                 {/* Formulaire pour ajouter une modification */}
                 <div className="bg-gray-50 rounded-lg p-3 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
+                    <div>
                       <select
                         value={tempPriceChange.contractSiteId}
                         onChange={(e) => setTempPriceChange({ ...tempPriceChange, contractSiteId: e.target.value })}
@@ -2589,6 +2598,15 @@ export default function ContractDetailPage() {
                           <option key={cs.id} value={cs.id}>{cs.site.name}</option>
                         ))}
                       </select>
+                    </div>
+                    <div>
+                      <input
+                        type="date"
+                        placeholder="Date d'effet"
+                        value={tempPriceChange.effectiveDate}
+                        onChange={(e) => setTempPriceChange({ ...tempPriceChange, effectiveDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
                     </div>
                     <div>
                       <input
@@ -2625,7 +2643,7 @@ export default function ContractDetailPage() {
                     variant="outline"
                     size="sm"
                     onClick={addPriceChange}
-                    disabled={!tempPriceChange.contractSiteId || (!tempPriceChange.deltaP2 && !tempPriceChange.deltaP3)}
+                    disabled={!tempPriceChange.contractSiteId || !tempPriceChange.effectiveDate || (!tempPriceChange.deltaP2 && !tempPriceChange.deltaP3)}
                     className="w-full"
                   >
                     <Plus size={16} className="mr-1" />
@@ -2648,6 +2666,9 @@ export default function ContractDetailPage() {
                       <div key={index} className="flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg text-sm">
                         <div>
                           <span className="font-medium">{ns.siteName}</span>
+                          <span className="text-green-600 ml-2 text-xs">
+                            {new Date(ns.effectiveDate).toLocaleDateString("fr-FR")}
+                          </span>
                           <span className="text-text-secondary ml-2">
                             {ns.amountP2 && `P2: ${ns.amountP2}€`}
                             {ns.amountP2 && ns.amountP3 && ' | '}
@@ -2669,7 +2690,7 @@ export default function ContractDetailPage() {
                 {/* Formulaire pour ajouter un site */}
                 <div className="bg-gray-50 rounded-lg p-3 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
+                    <div>
                       <select
                         value={tempNewSite.siteId}
                         onChange={(e) => setTempNewSite({ ...tempNewSite, siteId: e.target.value })}
@@ -2684,6 +2705,15 @@ export default function ContractDetailPage() {
                             <option key={site.id} value={site.id}>{site.name} ({site.type})</option>
                           ))}
                       </select>
+                    </div>
+                    <div>
+                      <input
+                        type="date"
+                        placeholder="Date d'entrée"
+                        value={tempNewSite.effectiveDate}
+                        onChange={(e) => setTempNewSite({ ...tempNewSite, effectiveDate: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                      />
                     </div>
                     <div>
                       <select
@@ -2720,7 +2750,7 @@ export default function ContractDetailPage() {
                     variant="outline"
                     size="sm"
                     onClick={addNewSite}
-                    disabled={!tempNewSite.siteId}
+                    disabled={!tempNewSite.siteId || !tempNewSite.effectiveDate}
                     className="w-full"
                   >
                     <Plus size={16} className="mr-1" />
@@ -2741,7 +2771,12 @@ export default function ContractDetailPage() {
                   <div className="space-y-2 mb-3">
                     {removedSites.map((rs, index) => (
                       <div key={index} className="flex items-center justify-between bg-red-50 px-3 py-2 rounded-lg text-sm">
-                        <span className="font-medium">{rs.siteName}</span>
+                        <div>
+                          <span className="font-medium">{rs.siteName}</span>
+                          <span className="text-red-600 ml-2 text-xs">
+                            {new Date(rs.effectiveDate).toLocaleDateString("fr-FR")}
+                          </span>
+                        </div>
                         <button
                           type="button"
                           onClick={() => removeRemovedSite(index)}
@@ -2756,25 +2791,34 @@ export default function ContractDetailPage() {
 
                 {/* Formulaire pour retirer un site */}
                 <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-                  <select
-                    value={tempRemovedSite.contractSiteId}
-                    onChange={(e) => setTempRemovedSite({ contractSiteId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                  >
-                    <option value="">Sélectionner un site à retirer</option>
-                    {contract.contractSites
-                      .filter(cs => !cs.exitDate)
-                      .filter(cs => !removedSites.some(rs => rs.contractSiteId === cs.id))
-                      .map((cs) => (
-                        <option key={cs.id} value={cs.id}>{cs.site.name}</option>
-                      ))}
-                  </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <select
+                      value={tempRemovedSite.contractSiteId}
+                      onChange={(e) => setTempRemovedSite({ ...tempRemovedSite, contractSiteId: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    >
+                      <option value="">Sélectionner un site à retirer</option>
+                      {contract.contractSites
+                        .filter(cs => !cs.exitDate)
+                        .filter(cs => !removedSites.some(rs => rs.contractSiteId === cs.id))
+                        .map((cs) => (
+                          <option key={cs.id} value={cs.id}>{cs.site.name}</option>
+                        ))}
+                    </select>
+                    <input
+                      type="date"
+                      placeholder="Date de sortie"
+                      value={tempRemovedSite.effectiveDate}
+                      onChange={(e) => setTempRemovedSite({ ...tempRemovedSite, effectiveDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    />
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={addRemovedSite}
-                    disabled={!tempRemovedSite.contractSiteId}
+                    disabled={!tempRemovedSite.contractSiteId || !tempRemovedSite.effectiveDate}
                     className="w-full"
                   >
                     <Plus size={16} className="mr-1" />
