@@ -17,9 +17,13 @@ export async function GET(
         organizationId: user.organizationId,
       },
       include: {
-        sites: {
+        contractSites: {
           include: {
-            equipments: true,
+            site: {
+              include: {
+                equipments: true,
+              },
+            },
           },
         },
       },
@@ -79,33 +83,22 @@ export async function PUT(
 
     if (body.reference) updateData.reference = body.reference;
     if (body.title) updateData.title = body.title;
-    if (body.contractType) updateData.contractType = body.contractType;
     if (body.provider) updateData.provider = body.provider;
     if (body.startDate) updateData.startDate = new Date(body.startDate);
     if (body.endDate) updateData.endDate = new Date(body.endDate);
-    if (body.hasP1 !== undefined) updateData.hasP1 = body.hasP1;
-    if (body.hasP2 !== undefined) updateData.hasP2 = body.hasP2;
-    if (body.hasP3 !== undefined) updateData.hasP3 = body.hasP3;
-    if (body.hasP4 !== undefined) updateData.hasP4 = body.hasP4;
-    if (body.amountP1 !== undefined) updateData.amountP1 = body.amountP1 ? parseFloat(body.amountP1) : null;
-    if (body.amountP2 !== undefined) updateData.amountP2 = body.amountP2 ? parseFloat(body.amountP2) : null;
-    if (body.amountP3 !== undefined) updateData.amountP3 = body.amountP3 ? parseFloat(body.amountP3) : null;
     if (body.status) updateData.status = body.status;
     if (body.description !== undefined) updateData.description = body.description;
-
-    // Handle sites update (many-to-many)
-    if (body.siteIds !== undefined) {
-      updateData.sites = {
-        set: body.siteIds.map((siteId: string) => ({ id: siteId })),
-      };
-    }
 
     const contract = await prisma.contract.update({
       where: { id },
       data: updateData,
       include: {
-        sites: {
-          select: { id: true, name: true, type: true },
+        contractSites: {
+          include: {
+            site: {
+              select: { id: true, name: true, type: true, energyType: true },
+            },
+          },
         },
       },
     });

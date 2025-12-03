@@ -17,7 +17,11 @@ export async function GET(
         organizationId: user.organizationId,
       },
       include: {
-        contracts: true,
+        contractSites: {
+          include: {
+            contract: true,
+          },
+        },
         equipments: true,
         consumptions: {
           orderBy: { period: "desc" },

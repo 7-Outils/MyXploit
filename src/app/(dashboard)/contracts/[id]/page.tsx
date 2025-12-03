@@ -7,7 +7,6 @@ import {
   Building2,
   Plus,
   Calendar,
-  Euro,
   Loader2,
   X,
   ArrowLeft,
@@ -46,15 +45,9 @@ interface Site {
   equipments: Equipment[];
 }
 
-interface Contract {
+interface ContractSite {
   id: string;
-  reference: string;
-  title: string;
   contractType: string;
-  provider: string;
-  description: string | null;
-  startDate: string;
-  endDate: string;
   hasP1: boolean;
   hasP2: boolean;
   hasP3: boolean;
@@ -62,8 +55,19 @@ interface Contract {
   amountP1: number | null;
   amountP2: number | null;
   amountP3: number | null;
+  site: Site;
+}
+
+interface Contract {
+  id: string;
+  reference: string;
+  title: string;
+  provider: string;
+  description: string | null;
+  startDate: string;
+  endDate: string;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
-  sites: Site[];
+  contractSites: ContractSite[];
 }
 
 const statusLabels = {
@@ -143,6 +147,15 @@ export default function ContractDetailPage() {
     nbUnit: "PCS",
     pce: "",
     pdl: "",
+    // Contract-specific settings
+    contractType: "MC",
+    hasP1: false,
+    hasP2: false,
+    hasP3: false,
+    hasP4: false,
+    amountP1: "",
+    amountP2: "",
+    amountP3: "",
   });
 
   // Equipment creation modal
@@ -163,15 +176,10 @@ export default function ContractDetailPage() {
   const [contractFormData, setContractFormData] = useState({
     reference: "",
     title: "",
-    contractType: "MC",
     provider: "",
     description: "",
     startDate: "",
     endDate: "",
-    hasP1: false,
-    hasP2: false,
-    hasP3: false,
-    hasP4: false,
     status: "ACTIF",
   });
 
@@ -230,27 +238,44 @@ export default function ContractDetailPage() {
     e.preventDefault();
     setCreatingSite(true);
     try {
-      // Create the site
+      // Create the site first
       const siteResponse = await fetch("/api/sites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...siteFormData,
+          name: siteFormData.name,
+          type: siteFormData.type,
+          address: siteFormData.address,
+          city: siteFormData.city,
+          postalCode: siteFormData.postalCode,
+          energyType: siteFormData.energyType,
           surface: siteFormData.surface ? parseFloat(siteFormData.surface) : null,
           surfaceChauffee: siteFormData.surfaceChauffee ? parseFloat(siteFormData.surfaceChauffee) : null,
           nb: siteFormData.nb ? parseFloat(siteFormData.nb) : null,
+          nbUnit: siteFormData.nbUnit,
+          pce: siteFormData.pce,
+          pdl: siteFormData.pdl,
         }),
       });
 
       if (siteResponse.ok) {
         const newSite = await siteResponse.json();
 
-        // Attach the site to this contract
-        const currentSiteIds = contract?.sites.map((s) => s.id) || [];
-        await fetch(`/api/contracts/${contractId}`, {
-          method: "PUT",
+        // Add the site to this contract with contract type and prestations
+        await fetch(`/api/contracts/${contractId}/sites`, {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ siteIds: [...currentSiteIds, newSite.id] }),
+          body: JSON.stringify({
+            siteId: newSite.id,
+            contractType: siteFormData.contractType,
+            hasP1: siteFormData.hasP1,
+            hasP2: siteFormData.hasP2,
+            hasP3: siteFormData.hasP3,
+            hasP4: siteFormData.hasP4,
+            amountP1: siteFormData.amountP1,
+            amountP2: siteFormData.amountP2,
+            amountP3: siteFormData.amountP3,
+          }),
         });
 
         await fetchContract();
@@ -268,6 +293,14 @@ export default function ContractDetailPage() {
           nbUnit: "PCS",
           pce: "",
           pdl: "",
+          contractType: "MC",
+          hasP1: false,
+          hasP2: false,
+          hasP3: false,
+          hasP4: false,
+          amountP1: "",
+          amountP2: "",
+          amountP3: "",
         });
       }
     } catch (error) {
@@ -317,15 +350,10 @@ export default function ContractDetailPage() {
     setContractFormData({
       reference: contract.reference,
       title: contract.title,
-      contractType: contract.contractType,
       provider: contract.provider,
       description: contract.description || "",
       startDate: contract.startDate.split("T")[0],
       endDate: contract.endDate.split("T")[0],
-      hasP1: contract.hasP1,
-      hasP2: contract.hasP2,
-      hasP3: contract.hasP3,
-      hasP4: contract.hasP4,
       status: contract.status,
     });
     setShowEditContractModal(true);
@@ -341,15 +369,10 @@ export default function ContractDetailPage() {
         body: JSON.stringify({
           reference: contractFormData.reference,
           title: contractFormData.title,
-          contractType: contractFormData.contractType,
           provider: contractFormData.provider,
           description: contractFormData.description || null,
           startDate: contractFormData.startDate,
           endDate: contractFormData.endDate,
-          hasP1: contractFormData.hasP1,
-          hasP2: contractFormData.hasP2,
-          hasP3: contractFormData.hasP3,
-          hasP4: contractFormData.hasP4,
           status: contractFormData.status,
         }),
       });
@@ -425,10 +448,16 @@ export default function ContractDetailPage() {
     return null;
   }
 
-  const totalEquipments = contract.sites.reduce(
-    (sum, site) => sum + site.equipments.length,
+  // Aggregate data from contract sites
+  const totalEquipments = contract.contractSites.reduce(
+    (sum: number, cs: ContractSite) => sum + cs.site.equipments.length,
     0
   );
+  const hasAnyP1 = contract.contractSites.some((cs) => cs.hasP1);
+  const hasAnyP2 = contract.contractSites.some((cs) => cs.hasP2);
+  const hasAnyP3 = contract.contractSites.some((cs) => cs.hasP3);
+  const hasAnyP4 = contract.contractSites.some((cs) => cs.hasP4);
+  const uniqueContractTypes = [...new Set(contract.contractSites.map((cs) => cs.contractType))];
 
   return (
     <div className="space-y-6">
@@ -493,31 +522,39 @@ export default function ContractDetailPage() {
         <ChartCard title="" className="text-center">
           <div className="flex flex-col items-center -mt-2">
             <Settings size={24} className="text-blue-600 mb-2" />
-            <p className="text-xs text-text-secondary">Type de contrat</p>
-            <p className="text-lg font-bold text-primary-dark">
-              {contract.contractType}
-            </p>
+            <p className="text-xs text-text-secondary">Types de contrat</p>
+            <div className="flex flex-wrap gap-1 justify-center mt-1">
+              {uniqueContractTypes.length > 0 ? (
+                uniqueContractTypes.map((type) => (
+                  <span key={type} className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">
+                    {type}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-text-secondary">Aucun</span>
+              )}
+            </div>
           </div>
         </ChartCard>
 
         <ChartCard title="" className="text-center">
           <div className="flex flex-col items-center -mt-2">
-            <Euro size={24} className="text-green-600 mb-2" />
+            <Building2 size={24} className="text-green-600 mb-2" />
             <p className="text-xs text-text-secondary mb-2">Prestations</p>
             <div className="flex flex-wrap gap-1 justify-center">
-              {contract.hasP1 && (
+              {hasAnyP1 && (
                 <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs font-medium">P1</span>
               )}
-              {contract.hasP2 && (
+              {hasAnyP2 && (
                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">P2</span>
               )}
-              {contract.hasP3 && (
+              {hasAnyP3 && (
                 <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">P3</span>
               )}
-              {contract.hasP4 && (
+              {hasAnyP4 && (
                 <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">P4</span>
               )}
-              {!contract.hasP1 && !contract.hasP2 && !contract.hasP3 && !contract.hasP4 && (
+              {!hasAnyP1 && !hasAnyP2 && !hasAnyP3 && !hasAnyP4 && (
                 <span className="text-xs text-text-secondary">Aucune</span>
               )}
             </div>
@@ -529,7 +566,7 @@ export default function ContractDetailPage() {
             <Building2 size={24} className="text-accent mb-2" />
             <p className="text-xs text-text-secondary">Sites / Équipements</p>
             <p className="text-xl font-bold text-primary-dark">
-              {contract.sites.length} / {totalEquipments}
+              {contract.contractSites.length} / {totalEquipments}
             </p>
           </div>
         </ChartCard>
@@ -537,7 +574,7 @@ export default function ContractDetailPage() {
 
       {/* Sites List */}
       <ChartCard
-        title={`Sites du contrat (${contract.sites.length})`}
+        title={`Sites du contrat (${contract.contractSites.length})`}
         action={
           <Button variant="outline" size="sm" onClick={() => setShowSiteModal(true)}>
             <Plus size={16} className="mr-1" />
@@ -545,7 +582,7 @@ export default function ContractDetailPage() {
           </Button>
         }
       >
-        {contract.sites.length === 0 ? (
+        {contract.contractSites.length === 0 ? (
           <div className="text-center py-12">
             <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-text-secondary mb-4">
@@ -558,7 +595,8 @@ export default function ContractDetailPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {contract.sites.map((site) => {
+            {contract.contractSites.map((contractSite: ContractSite) => {
+              const site = contractSite.site;
               const isExpanded = expandedSites.has(site.id);
               return (
                 <div
@@ -582,13 +620,32 @@ export default function ContractDetailPage() {
                         <Building2 size={20} className="text-accent" />
                       </div>
                       <div>
-                        <p className="font-medium text-primary-dark">
-                          {site.name}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-primary-dark">
+                            {site.name}
+                          </p>
+                          <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">
+                            {contractSite.contractType}
+                          </span>
+                        </div>
                         <p className="text-sm text-text-secondary">
                           {site.type} • {site.city} • {site.equipments.length} équipement
                           {site.equipments.length > 1 ? "s" : ""}
                         </p>
+                        <div className="flex gap-1 mt-1">
+                          {contractSite.hasP1 && (
+                            <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">P1</span>
+                          )}
+                          {contractSite.hasP2 && (
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">P2</span>
+                          )}
+                          {contractSite.hasP3 && (
+                            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">P3</span>
+                          )}
+                          {contractSite.hasP4 && (
+                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">P4</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -646,7 +703,7 @@ export default function ContractDetailPage() {
                             Équipements ({site.equipments.length})
                           </p>
                           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {site.equipments.map((equipment) => (
+                            {site.equipments.map((equipment: Equipment) => (
                               <div
                                 key={equipment.id}
                                 className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
@@ -922,6 +979,81 @@ export default function ContractDetailPage() {
                 </div>
               </div>
 
+              {/* Contract settings for this site */}
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">Paramètres du contrat pour ce site</p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type de contrat *
+                  </label>
+                  <select
+                    required
+                    value={siteFormData.contractType}
+                    onChange={(e) =>
+                      setSiteFormData({ ...siteFormData, contractType: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    {contractTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-2">
+                    Prestations incluses
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={siteFormData.hasP1}
+                        onChange={(e) =>
+                          setSiteFormData({ ...siteFormData, hasP1: e.target.checked })
+                        }
+                        className="w-4 h-4 text-accent rounded focus:ring-accent"
+                      />
+                      <span className="text-sm text-primary-dark">P1 - Énergie</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={siteFormData.hasP2}
+                        onChange={(e) =>
+                          setSiteFormData({ ...siteFormData, hasP2: e.target.checked })
+                        }
+                        className="w-4 h-4 text-accent rounded focus:ring-accent"
+                      />
+                      <span className="text-sm text-primary-dark">P2 - Maintenance</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={siteFormData.hasP3}
+                        onChange={(e) =>
+                          setSiteFormData({ ...siteFormData, hasP3: e.target.checked })
+                        }
+                        className="w-4 h-4 text-accent rounded focus:ring-accent"
+                      />
+                      <span className="text-sm text-primary-dark">P3 - Travaux</span>
+                    </label>
+                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={siteFormData.hasP4}
+                        onChange={(e) =>
+                          setSiteFormData({ ...siteFormData, hasP4: e.target.checked })
+                        }
+                        className="w-4 h-4 text-accent rounded focus:ring-accent"
+                      />
+                      <span className="text-sm text-primary-dark">P4 - Financement</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
@@ -957,7 +1089,7 @@ export default function ContractDetailPage() {
                   Nouvel équipement
                 </h2>
                 <p className="text-sm text-text-secondary">
-                  {contract.sites.find((s) => s.id === selectedSiteId)?.name}
+                  {contract.contractSites.find((cs: ContractSite) => cs.site.id === selectedSiteId)?.site.name}
                 </p>
               </div>
               <button
@@ -1129,40 +1261,19 @@ export default function ContractDetailPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Type de contrat *
-                  </label>
-                  <select
-                    required
-                    value={contractFormData.contractType}
-                    onChange={(e) =>
-                      setContractFormData({ ...contractFormData, contractType: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    {contractTypes.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Titulaire (exploitant) *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={contractFormData.provider}
-                    onChange={(e) =>
-                      setContractFormData({ ...contractFormData, provider: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Titulaire (exploitant) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={contractFormData.provider}
+                  onChange={(e) =>
+                    setContractFormData({ ...contractFormData, provider: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
               </div>
 
               <div>
@@ -1210,57 +1321,9 @@ export default function ContractDetailPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-2">
-                  Prestations incluses
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={contractFormData.hasP1}
-                      onChange={(e) =>
-                        setContractFormData({ ...contractFormData, hasP1: e.target.checked })
-                      }
-                      className="w-4 h-4 text-accent rounded focus:ring-accent"
-                    />
-                    <span className="text-sm text-primary-dark">P1 - Énergie</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={contractFormData.hasP2}
-                      onChange={(e) =>
-                        setContractFormData({ ...contractFormData, hasP2: e.target.checked })
-                      }
-                      className="w-4 h-4 text-accent rounded focus:ring-accent"
-                    />
-                    <span className="text-sm text-primary-dark">P2 - Maintenance</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={contractFormData.hasP3}
-                      onChange={(e) =>
-                        setContractFormData({ ...contractFormData, hasP3: e.target.checked })
-                      }
-                      className="w-4 h-4 text-accent rounded focus:ring-accent"
-                    />
-                    <span className="text-sm text-primary-dark">P3 - Travaux</span>
-                  </label>
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={contractFormData.hasP4}
-                      onChange={(e) =>
-                        setContractFormData({ ...contractFormData, hasP4: e.target.checked })
-                      }
-                      className="w-4 h-4 text-accent rounded focus:ring-accent"
-                    />
-                    <span className="text-sm text-primary-dark">P4 - Financement</span>
-                  </label>
-                </div>
-              </div>
+              <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
+                Le type de contrat et les prestations (P1, P2, P3, P4) sont définis au niveau de chaque site.
+              </p>
 
               <div>
                 <label className="block text-sm font-medium text-primary-dark mb-1">

@@ -10,9 +10,12 @@ export async function GET() {
     const sites = await prisma.site.findMany({
       where: { organizationId: user.organizationId },
       include: {
-        contracts: {
-          where: { status: "ACTIF" },
-          select: { id: true, reference: true, provider: true },
+        contractSites: {
+          include: {
+            contract: {
+              select: { id: true, reference: true, provider: true, status: true },
+            },
+          },
         },
         _count: {
           select: {

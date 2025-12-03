@@ -117,14 +117,14 @@ model Site {
   updatedAt      DateTime   @updatedAt
 
   // Relations
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdBy    User?         @relation("CreatedBy", fields: [createdById], references: [id])
-  contracts    Contract[]
-  equipments   Equipment[]
-  consumptions Consumption[]
-  invoices     Invoice[]
-  alerts       Alert[]
-  meetings     Meeting[]
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy     User?          @relation("CreatedBy", fields: [createdById], references: [id])
+  contractSites ContractSite[] // Relation vers les contrats via la table pivot
+  equipments    Equipment[]
+  consumptions  Consumption[]
+  invoices      Invoice[]
+  alerts        Alert[]
+  meetings      Meeting[]
 
   @@map("sites")
 }
@@ -202,19 +202,9 @@ model Contract {
   id             String         @id @default(cuid())
   reference      String
   title          String
-  contractType   ContractType   @default(MC)
   provider       String // Exploitant (ENGIE, Dalkia, etc.)
   startDate      DateTime
   endDate        DateTime
-  // Prestations incluses dans le contrat
-  hasP1          Boolean        @default(false) // P1 - Combustible/Énergie
-  hasP2          Boolean        @default(false) // P2 - Petit entretien
-  hasP3          Boolean        @default(false) // P3 - Gros entretien/Renouvellement
-  hasP4          Boolean        @default(false) // P4 - Financement
-  // Montants (optionnels, peuvent être calculés depuis les sites)
-  amountP1       Float?         // Forfait P1 - Combustible
-  amountP2       Float?         // Forfait P2 - Petit entretien
-  amountP3       Float?         // Forfait P3 - Gros entretien
   status         ContractStatus @default(ACTIF)
   description    String?
   documentUrl    String?
@@ -223,11 +213,35 @@ model Contract {
   updatedAt      DateTime       @updatedAt
 
   // Relations
-  sites        Site[]       // Many-to-many: un contrat peut couvrir plusieurs sites
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  invoices     Invoice[]
+  contractSites ContractSite[] // Relation explicite avec les sites
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices      Invoice[]
 
   @@map("contracts")
+}
+
+// Table pivot pour la relation Contract-Site avec type et prestations par site
+model ContractSite {
+  id           String       @id @default(cuid())
+  contractId   String
+  siteId       String
+  contractType ContractType @default(MC) // Type de contrat pour CE site
+  hasP1        Boolean      @default(false) // P1 - Combustible/Énergie
+  hasP2        Boolean      @default(false) // P2 - Petit entretien
+  hasP3        Boolean      @default(false) // P3 - Gros entretien/Renouvellement
+  hasP4        Boolean      @default(false) // P4 - Financement
+  amountP1     Float?       // Forfait P1 pour ce site
+  amountP2     Float?       // Forfait P2 pour ce site
+  amountP3     Float?       // Forfait P3 pour ce site
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, siteId]) // Un site ne peut être qu'une fois dans un contrat
+  @@map("contract_sites")
 }
 
 // ============================================

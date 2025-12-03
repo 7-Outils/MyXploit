@@ -10,8 +10,12 @@ export async function GET() {
     const contracts = await prisma.contract.findMany({
       where: { organizationId: user.organizationId },
       include: {
-        sites: {
-          select: { id: true, name: true, type: true },
+        contractSites: {
+          include: {
+            site: {
+              select: { id: true, name: true, type: true, energyType: true },
+            },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -41,38 +45,24 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // siteIds peut être un tableau ou un seul ID (rétrocompatibilité)
-    const siteIds: string[] = Array.isArray(body.siteIds)
-      ? body.siteIds
-      : body.siteId
-        ? [body.siteId]
-        : [];
-
     const contract = await prisma.contract.create({
       data: {
         reference: body.reference,
         title: body.title,
-        contractType: body.contractType || "MC",
         provider: body.provider,
         startDate: new Date(body.startDate),
         endDate: new Date(body.endDate),
-        hasP1: body.hasP1 || false,
-        hasP2: body.hasP2 || false,
-        hasP3: body.hasP3 || false,
-        hasP4: body.hasP4 || false,
-        amountP1: body.amountP1 ? parseFloat(body.amountP1) : null,
-        amountP2: body.amountP2 ? parseFloat(body.amountP2) : null,
-        amountP3: body.amountP3 ? parseFloat(body.amountP3) : null,
         status: body.status || "ACTIF",
         description: body.description,
-        sites: {
-          connect: siteIds.map((id: string) => ({ id })),
-        },
         organizationId: user.organizationId,
       },
       include: {
-        sites: {
-          select: { id: true, name: true, type: true },
+        contractSites: {
+          include: {
+            site: {
+              select: { id: true, name: true, type: true, energyType: true },
+            },
+          },
         },
       },
     });
