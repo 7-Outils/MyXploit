@@ -443,7 +443,11 @@ export default function SitesPage() {
     setGeocoding(true);
     setGeocodeResult(null);
     try {
-      const response = await fetch("/api/sites/geocode", { method: "POST" });
+      const response = await fetch("/api/sites/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractId: selectedContract.id }),
+      });
       const result = await response.json();
 
       if (response.ok) {

@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { geocodeAddress } from "@/lib/geocoding";
 
-// POST /api/sites/geocode - Re-geocode all sites without coordinates
-export async function POST() {
+// POST /api/sites/geocode - Re-geocode sites without coordinates for a specific contract
+export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
 
@@ -15,29 +15,60 @@ export async function POST() {
       );
     }
 
-    // Find all sites without coordinates that have address and city
-    const sitesWithoutCoords = await prisma.site.findMany({
+    const body = await request.json();
+    const contractId = body.contractId;
+
+    if (!contractId) {
+      return NextResponse.json(
+        { error: "contractId requis" },
+        { status: 400 }
+      );
+    }
+
+    // Verify contract belongs to organization
+    const contract = await prisma.contract.findFirst({
       where: {
+        id: contractId,
         organizationId: user.organizationId,
-        latitude: null,
-        longitude: null,
-        address: { not: "" },
-        city: { not: "" },
-      },
-      select: {
-        id: true,
-        name: true,
-        address: true,
-        city: true,
-        postalCode: true,
       },
     });
+
+    if (!contract) {
+      return NextResponse.json(
+        { error: "Contrat non trouvé" },
+        { status: 404 }
+      );
+    }
+
+    // Find all sites linked to this contract without coordinates that have address and city
+    const contractSites = await prisma.contractSite.findMany({
+      where: { contractId },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            city: true,
+            postalCode: true,
+            latitude: true,
+            longitude: true,
+          },
+        },
+      },
+    });
+
+    // Filter to sites without coordinates
+    const sitesWithoutCoords = contractSites
+      .map((cs) => cs.site)
+      .filter((site) => !site.latitude && !site.longitude && site.address && site.city);
 
     if (sitesWithoutCoords.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "Tous les sites ont déjà des coordonnées GPS",
+        message: "Tous les sites de ce contrat ont déjà des coordonnées GPS",
         updated: 0,
+        failed: 0,
       });
     }
 
