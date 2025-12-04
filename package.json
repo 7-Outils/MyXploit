@@ -16,6 +16,7 @@
     "@prisma/adapter-neon": "^7.0.1",
     "@prisma/client": "^7.0.1",
     "@types/leaflet": "^1.9.21",
+    "@uploadthing/react": "^7.3.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "leaflet": "^1.9.4",
@@ -26,6 +27,7 @@
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",
     "tailwind-merge": "^2.5.4",
+    "uploadthing": "^7.7.4",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

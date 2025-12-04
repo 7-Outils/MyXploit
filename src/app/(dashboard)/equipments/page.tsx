@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { PhotoUpload } from "@/components/ui/photo-upload";
 
 type EquipmentDomain =
   | "CHAUFFAGE"
@@ -545,6 +546,7 @@ export default function EquipmentsPage() {
     accessibility: "NON_EVALUE" as AuditRating,
     compliance: "NON_EVALUE" as AuditRating,
     generalNotes: "",
+    photos: [] as string[],
   });
 
 
@@ -750,6 +752,7 @@ export default function EquipmentsPage() {
       accessibility: "NON_EVALUE",
       compliance: "NON_EVALUE",
       generalNotes: "",
+      photos: [],
     });
     setShowAuditModal(true);
   };
@@ -2137,6 +2140,15 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
                   rows={3}
                   placeholder="Remarques, anomalies constatées..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Photos</label>
+                <PhotoUpload
+                  value={auditFormData.photos}
+                  onChange={(urls) => setAuditFormData({ ...auditFormData, photos: urls })}
+                  maxFiles={10}
                 />
               </div>
 
