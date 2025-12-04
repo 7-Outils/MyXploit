@@ -421,6 +421,87 @@ function findDomain(input: string): string | null {
   return null;
 }
 
+// Valid audit ratings
+const VALID_RATINGS = ["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"];
+
+// Synonymes pour les notes d'audit
+const RATING_SYNONYMS: Record<string, string> = {
+  // Non évalué
+  "non évalué": "NON_EVALUE",
+  "non evalue": "NON_EVALUE",
+  "non evalué": "NON_EVALUE",
+  "n/a": "NON_EVALUE",
+  "-": "NON_EVALUE",
+  "": "NON_EVALUE",
+  // Critique
+  "critique": "CRITIQUE",
+  "crit": "CRITIQUE",
+  "1": "CRITIQUE",
+  // Mauvais
+  "mauvais": "MAUVAIS",
+  "mauv": "MAUVAIS",
+  "2": "MAUVAIS",
+  // Moyen
+  "moyen": "MOYEN",
+  "moy": "MOYEN",
+  "3": "MOYEN",
+  // Bon
+  "bon": "BON",
+  "4": "BON",
+  // Excellent
+  "excellent": "EXCELLENT",
+  "exc": "EXCELLENT",
+  "5": "EXCELLENT",
+};
+
+// Parse rating from input
+function parseRating(input: string | undefined): string {
+  if (!input || input.trim() === "") return "NON_EVALUE";
+
+  const normalized = normalize(input.trim());
+
+  // Check if already a valid rating
+  if (VALID_RATINGS.includes(input.toUpperCase())) {
+    return input.toUpperCase();
+  }
+
+  // Check synonyms
+  if (RATING_SYNONYMS[normalized]) {
+    return RATING_SYNONYMS[normalized];
+  }
+
+  return "NON_EVALUE";
+}
+
+// Parse date from various formats
+function parseDate(input: string | undefined): Date | null {
+  if (!input || input.trim() === "") return null;
+
+  const trimmed = input.trim();
+
+  // Try ISO format (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const date = new Date(trimmed);
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  // Try French format (DD/MM/YYYY)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    const [day, month, year] = trimmed.split("/").map(Number);
+    const date = new Date(year, month - 1, day);
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  // Try French format (DD-MM-YYYY)
+  if (/^\d{2}-\d{2}-\d{4}$/.test(trimmed)) {
+    const [day, month, year] = trimmed.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    if (!isNaN(date.getTime())) return date;
+  }
+
+  return null;
+}
+
 interface ImportRow {
   site?: string;
   type?: string;
@@ -446,6 +527,22 @@ interface ImportRow {
   level?: string;
   duree_vie?: string;
   lifespan?: string;
+  // Audit fields
+  date_audit?: string;
+  audit_date?: string;
+  auditeur?: string;
+  auditor?: string;
+  etat_visuel?: string;
+  visual_state?: string;
+  performance?: string;
+  securite?: string;
+  security?: string;
+  accessibilite?: string;
+  accessibility?: string;
+  conformite?: string;
+  compliance?: string;
+  notes?: string;
+  general_notes?: string;
 }
 
 // POST /api/equipments/import - Preview import
@@ -546,6 +643,16 @@ export async function POST(request: NextRequest) {
       lifespan?: number;
       message?: string;
       isDuplicate?: boolean;
+      // Audit fields
+      hasAudit?: boolean;
+      auditDate?: string;
+      auditor?: string;
+      visualState?: string;
+      performance?: string;
+      security?: string;
+      accessibility?: string;
+      compliance?: string;
+      generalNotes?: string;
     }> = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -669,6 +776,25 @@ export async function POST(request: NextRequest) {
         result.lifespan = DEFAULT_LIFESPAN[parsedType] || 15;
       }
 
+      // Parse audit fields if present
+      const auditDateStr = row.date_audit || row.audit_date;
+      const hasAuditData = auditDateStr || row.etat_visuel || row.visual_state ||
+                          row.performance || row.securite || row.security ||
+                          row.accessibilite || row.accessibility || row.conformite || row.compliance;
+
+      if (hasAuditData) {
+        result.hasAudit = true;
+        const auditDate = parseDate(auditDateStr);
+        result.auditDate = auditDate ? auditDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+        result.auditor = row.auditeur || row.auditor || undefined;
+        result.visualState = parseRating(row.etat_visuel || row.visual_state);
+        result.performance = parseRating(row.performance);
+        result.security = parseRating(row.securite || row.security);
+        result.accessibility = parseRating(row.accessibilite || row.accessibility);
+        result.compliance = parseRating(row.conformite || row.compliance);
+        result.generalNotes = row.notes || row.general_notes || undefined;
+      }
+
       // Duplicate detection
       let isDuplicate = false;
       let duplicateReason = "";
@@ -723,7 +849,8 @@ export async function POST(request: NextRequest) {
 
     for (const row of validRows) {
       try {
-        await prisma.equipment.create({
+        // Create equipment with optional audit
+        const equipment = await prisma.equipment.create({
           data: {
             name: row.name || undefined,
             domain: row.domain as "CHAUFFAGE" | "ECS" | "VENTILATION" | "CLIMATISATION" | "TRAITEMENT_EAU" | "PLOMBERIE" | "CFO_CFA" | "COMPTAGE" | "AUTRE",
@@ -741,6 +868,24 @@ export async function POST(request: NextRequest) {
             organizationId: user.organizationId,
           },
         });
+
+        // Create audit if audit data is present
+        if (row.hasAudit && equipment.id) {
+          await prisma.equipmentAudit.create({
+            data: {
+              equipmentId: equipment.id,
+              auditDate: row.auditDate ? new Date(row.auditDate) : new Date(),
+              auditor: row.auditor || null,
+              visualState: row.visualState as "NON_EVALUE" | "CRITIQUE" | "MAUVAIS" | "MOYEN" | "BON" | "EXCELLENT",
+              performance: row.performance as "NON_EVALUE" | "CRITIQUE" | "MAUVAIS" | "MOYEN" | "BON" | "EXCELLENT",
+              security: row.security as "NON_EVALUE" | "CRITIQUE" | "MAUVAIS" | "MOYEN" | "BON" | "EXCELLENT",
+              accessibility: row.accessibility as "NON_EVALUE" | "CRITIQUE" | "MAUVAIS" | "MOYEN" | "BON" | "EXCELLENT",
+              compliance: row.compliance as "NON_EVALUE" | "CRITIQUE" | "MAUVAIS" | "MOYEN" | "BON" | "EXCELLENT",
+              generalNotes: row.generalNotes || null,
+            },
+          });
+        }
+
         created++;
       } catch (err) {
         console.error(`Error creating equipment for row ${row.row}:`, err);

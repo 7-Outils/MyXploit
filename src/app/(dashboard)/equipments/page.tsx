@@ -432,7 +432,7 @@ const ratingColors: Record<AuditRating, string> = {
   EXCELLENT: "bg-emerald-100 text-emerald-700",
 };
 
-type ViewType = "list" | "audit" | "renewal" | "risk";
+type ViewType = "list" | "renewal" | "risk";
 
 export default function EquipmentsPage() {
   // Contract selection state
@@ -479,6 +479,8 @@ export default function EquipmentsPage() {
       power?: number;
       quantity?: number;
       message?: string;
+      hasAudit?: boolean;
+      auditDate?: string;
     }>;
   } | null>(null);
   const [importResult, setImportResult] = useState<{
@@ -545,31 +547,6 @@ export default function EquipmentsPage() {
     generalNotes: "",
   });
 
-  // Import audit modal states
-  const [showImportAuditModal, setShowImportAuditModal] = useState(false);
-  const [importingAudit, setImportingAudit] = useState(false);
-  const [importAuditFile, setImportAuditFile] = useState<File | null>(null);
-  const [importAuditStep, setImportAuditStep] = useState<"upload" | "preview" | "result">("upload");
-  const [importAuditPreview, setImportAuditPreview] = useState<{
-    total: number;
-    valid: number;
-    errors: number;
-    warnings: number;
-    results: Array<{
-      row: number;
-      status: "ok" | "warning" | "error";
-      equipmentId?: string;
-      equipmentName?: string;
-      site?: string;
-      auditDate?: string;
-      message?: string;
-    }>;
-  } | null>(null);
-  const [importAuditResult, setImportAuditResult] = useState<{
-    total: number;
-    created: number;
-    errors: number;
-  } | null>(null);
 
   // Fetch contracts on mount
   useEffect(() => {
@@ -804,130 +781,6 @@ export default function EquipmentsPage() {
     }
   };
 
-  // Import audit handlers
-  const resetImportAuditModal = () => {
-    setShowImportAuditModal(false);
-    setImportAuditFile(null);
-    setImportAuditStep("upload");
-    setImportAuditPreview(null);
-    setImportAuditResult(null);
-    setImportingAudit(false);
-  };
-
-  const handleImportAuditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImportAuditFile(file);
-    }
-  };
-
-  const parseAuditCSV = (text: string) => {
-    const lines = text.split("\n").filter((line) => line.trim());
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(";").map((h) => h.trim().toLowerCase());
-    const rows = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(";").map((v) => v.trim());
-      const row: Record<string, string> = {};
-
-      headers.forEach((header, idx) => {
-        row[header] = values[idx] || "";
-      });
-
-      rows.push(row);
-    }
-
-    return rows;
-  };
-
-  const handleImportAuditPreview = async () => {
-    if (!importAuditFile || !selectedContract) return;
-
-    setImportingAudit(true);
-    try {
-      const text = await importAuditFile.text();
-      const rows = parseAuditCSV(text);
-
-      const response = await fetch("/api/equipments/audits/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rows,
-          contractId: selectedContract.id,
-          preview: true,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erreur lors de l'analyse");
-      }
-
-      const data = await response.json();
-      setImportAuditPreview(data);
-      setImportAuditStep("preview");
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setImportingAudit(false);
-    }
-  };
-
-  const handleImportAuditConfirm = async () => {
-    if (!importAuditFile || !selectedContract) return;
-
-    setImportingAudit(true);
-    try {
-      const text = await importAuditFile.text();
-      const rows = parseAuditCSV(text);
-
-      const response = await fetch("/api/equipments/audits/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rows,
-          contractId: selectedContract.id,
-          preview: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erreur lors de l'import");
-      }
-
-      const data = await response.json();
-      setImportAuditResult({
-        total: data.total,
-        created: data.created,
-        errors: data.errors,
-      });
-      setImportAuditStep("result");
-
-      // Refresh data
-      await fetchEquipmentsForContract(selectedContract.id);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Erreur");
-    } finally {
-      setImportingAudit(false);
-    }
-  };
-
-  const downloadAuditTemplate = () => {
-    const headers = ["site", "type", "marque", "modele", "numero_serie", "date_audit", "auditeur", "etat_visuel", "performance", "securite", "accessibilite", "conformite", "notes"];
-    const example = ["École Jean Jaurès", "CHAUDIERE", "De Dietrich", "DTG 130", "12345", "2024-01-15", "J. Dupont", "BON", "BON", "MOYEN", "BON", "BON", "RAS"];
-    const csv = [headers.join(";"), example.join(";")].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "template_import_audits.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   // Group equipments by site
   const equipmentsBySite = useMemo(() => {
     const grouped: Record<string, { site: { id: string; name: string; city: string }; equipments: Equipment[] }> = {};
@@ -1066,12 +919,12 @@ export default function EquipmentsPage() {
 
   // Download template
   const downloadTemplate = () => {
-    const template = `site;type;marque;modele;annee;puissance;quantite;local;niveau
-Lycée Victor Hugo;Chaudière condensation;De Dietrich;GT 220;2015;300;;Chaufferie;Sous-sol
-Lycée Victor Hugo;Circulateur;Grundfos;Magna3;2018;1.5;;Chaufferie;Sous-sol
-Lycée Victor Hugo;Radiateur;;;;2;15;Salle 101;RDC
-Collège Jean Moulin;PAC air/eau;Daikin;Altherma;2020;50;;Local technique;Toiture
-Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
+    const template = `site;type;marque;modele;annee;puissance;quantite;local;niveau;date_audit;auditeur;etat_visuel;performance;securite;accessibilite;conformite;notes
+Lycée Victor Hugo;Chaudière condensation;De Dietrich;GT 220;2015;300;;Chaufferie;Sous-sol;2024-01-15;J. Dupont;BON;BON;MOYEN;BON;BON;RAS
+Lycée Victor Hugo;Circulateur;Grundfos;Magna3;2018;1.5;;Chaufferie;Sous-sol;2024-01-15;J. Dupont;EXCELLENT;EXCELLENT;BON;BON;EXCELLENT;
+Lycée Victor Hugo;Radiateur;;;;2;15;Salle 101;RDC;;;;;;;
+Collège Jean Moulin;PAC air/eau;Daikin;Altherma;2020;50;;Local technique;Toiture;2024-02-10;M. Martin;BON;EXCELLENT;BON;MOYEN;EXCELLENT;Accès difficile
+Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`;
 
     const blob = new Blob([template], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -1212,15 +1065,6 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
             Liste
           </button>
           <button
-            onClick={() => setActiveView("audit")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-              activeView === "audit" ? "bg-white text-primary-dark shadow-sm" : "text-text-secondary hover:text-primary-dark"
-            }`}
-          >
-            <ClipboardCheck size={16} />
-            Audits
-          </button>
-          <button
             onClick={() => setActiveView("renewal")}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
               activeView === "renewal" ? "bg-white text-primary-dark shadow-sm" : "text-text-secondary hover:text-primary-dark"
@@ -1239,13 +1083,6 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
             Risques
           </button>
         </div>
-
-        {activeView === "audit" && (
-          <Button variant="outline" onClick={() => setShowImportAuditModal(true)}>
-            <Upload size={16} className="mr-2" />
-            Importer audits
-          </Button>
-        )}
 
         <select
           value={domainFilter}
@@ -1330,6 +1167,8 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Puissance</th>
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Année</th>
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Statut</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Dernier audit</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3"></th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -1362,6 +1201,28 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                                       {statusLabels[eq.status]}
                                     </span>
                                   </td>
+                                  <td className="px-6 py-4 text-sm">
+                                    {eq.audits?.[0] ? (
+                                      <span className="text-text-secondary">
+                                        {new Date(eq.audits[0].auditDate).toLocaleDateString("fr-FR")}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAuditEquipment(eq);
+                                      }}
+                                      className="text-accent hover:text-accent/80"
+                                    >
+                                      <ClipboardCheck size={16} />
+                                    </Button>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1371,89 +1232,6 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                     </div>
                   ))}
                 </>
-              )}
-            </div>
-          )}
-
-          {/* AUDIT VIEW */}
-          {activeView === "audit" && (
-            <div className="space-y-4">
-              {filteredEquipments.length === 0 ? (
-                <ChartCard title="Aucun équipement">
-                  <p className="text-text-secondary text-center py-8">Aucun équipement à auditer</p>
-                </ChartCard>
-              ) : (
-                filteredEquipments.map((eq) => {
-                  const latestAudit = eq.audits?.[0];
-                  return (
-                    <ChartCard key={eq.id} title={eq.name || equipmentTypeLabels[eq.type]} subtitle={`${domainLabels[eq.domain]} • ${equipmentTypeLabels[eq.type]} • ${eq.site.name}`}>
-                      {latestAudit ? (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-text-secondary">
-                              Dernier audit: {new Date(latestAudit.auditDate).toLocaleDateString("fr-FR")}
-                              {latestAudit.auditor && ` par ${latestAudit.auditor}`}
-                            </span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleAuditEquipment(eq)}
-                            >
-                              <ClipboardCheck size={14} className="mr-1" />
-                              Nouvel audit
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                            <div className="text-center">
-                              <p className="text-xs text-text-secondary mb-1">État visuel</p>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ratingColors[latestAudit.visualState]}`}>
-                                {ratingLabels[latestAudit.visualState]}
-                              </span>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-text-secondary mb-1">Performance</p>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ratingColors[latestAudit.performance]}`}>
-                                {ratingLabels[latestAudit.performance]}
-                              </span>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-text-secondary mb-1">Sécurité</p>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ratingColors[latestAudit.security]}`}>
-                                {ratingLabels[latestAudit.security]}
-                              </span>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-text-secondary mb-1">Accessibilité</p>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ratingColors[latestAudit.accessibility]}`}>
-                                {ratingLabels[latestAudit.accessibility]}
-                              </span>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-text-secondary mb-1">Conformité</p>
-                              <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${ratingColors[latestAudit.compliance]}`}>
-                                {ratingLabels[latestAudit.compliance]}
-                              </span>
-                            </div>
-                          </div>
-                          {latestAudit.generalNotes && (
-                            <p className="text-sm text-text-secondary italic">{latestAudit.generalNotes}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-center py-4">
-                          <p className="text-text-secondary mb-3">Aucun audit réalisé</p>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAuditEquipment(eq)}
-                          >
-                            <ClipboardCheck size={14} className="mr-1" />
-                            Réaliser un audit
-                          </Button>
-                        </div>
-                      )}
-                    </ChartCard>
-                  );
-                })
               )}
             </div>
           )}
@@ -1863,7 +1641,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                     </p>
                     <div className="bg-white rounded p-3 text-xs font-mono overflow-x-auto">
                       <p><strong>site</strong> (obligatoire) — Nom du site (doit correspondre à un site du contrat)</p>
-                      <p><strong>type</strong> (obligatoire) — Type d'équipement (ex: chaudière, pompe, clim, VMC...)</p>
+                      <p><strong>type</strong> (obligatoire) — Type d&apos;équipement (ex: chaudière, pompe, clim, VMC...)</p>
                       <p><strong>marque</strong> — Marque (ex: De Dietrich, Daikin)</p>
                       <p><strong>modele</strong> — Modèle</p>
                       <p><strong>annee</strong> — Année de fabrication</p>
@@ -1871,9 +1649,18 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                       <p><strong>quantite</strong> — Quantité (pour les émetteurs)</p>
                       <p><strong>local</strong> — Localisation (ex: Chaufferie)</p>
                       <p><strong>niveau</strong> — Niveau (ex: Sous-sol, RDC)</p>
+                      <p className="mt-2 pt-2 border-t border-blue-200"><strong>Colonnes audit (optionnelles):</strong></p>
+                      <p><strong>date_audit</strong> — Date (YYYY-MM-DD ou DD/MM/YYYY)</p>
+                      <p><strong>auditeur</strong> — Nom de l&apos;auditeur</p>
+                      <p><strong>etat_visuel</strong> — Note (BON, MOYEN, MAUVAIS, CRITIQUE, EXCELLENT)</p>
+                      <p><strong>performance</strong> — Note</p>
+                      <p><strong>securite</strong> — Note</p>
+                      <p><strong>accessibilite</strong> — Note</p>
+                      <p><strong>conformite</strong> — Note</p>
+                      <p><strong>notes</strong> — Observations</p>
                     </div>
                     <p className="text-sm text-blue-600 mt-3">
-                      💡 Les types sont reconnus automatiquement : "pompe" → Circulateur, "clim" → Climatiseur, etc.
+                      💡 Les types sont reconnus automatiquement : &quot;pompe&quot; → Circulateur, &quot;clim&quot; → Climatiseur, etc.
                     </p>
                   </div>
 
@@ -1954,6 +1741,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                           <th className="text-left px-3 py-2">Site</th>
                           <th className="text-left px-3 py-2">Type</th>
                           <th className="text-left px-3 py-2">Reconnu</th>
+                          <th className="text-left px-3 py-2">Audit</th>
                           <th className="text-left px-3 py-2">Statut</th>
                         </tr>
                       </thead>
@@ -1965,6 +1753,16 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
                             <td className="px-3 py-2">{r.type || "-"}</td>
                             <td className="px-3 py-2 font-medium">
                               {r.typeParsed ? equipmentTypeLabels[r.typeParsed as EquipmentType] || r.typeParsed : "-"}
+                            </td>
+                            <td className="px-3 py-2">
+                              {r.hasAudit ? (
+                                <span className="flex items-center gap-1 text-accent">
+                                  <ClipboardCheck size={14} />
+                                  <span className="text-xs">{r.auditDate}</span>
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
                             </td>
                             <td className="px-3 py-2">
                               {r.status === "ok" && <CheckCircle size={16} className="text-green-600" />}
@@ -2362,206 +2160,6 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2`;
         </div>
       )}
 
-      {/* Import Audit Modal */}
-      {showImportAuditModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-primary-dark">
-                {importAuditStep === "upload" && "Importer des audits"}
-                {importAuditStep === "preview" && "Vérification de l'import"}
-                {importAuditStep === "result" && "Résultat de l'import"}
-              </h2>
-              <button onClick={resetImportAuditModal} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {/* Upload Step */}
-              {importAuditStep === "upload" && (
-                <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h3 className="font-medium text-blue-800 mb-2">Format du fichier CSV</h3>
-                    <p className="text-sm text-blue-700 mb-3">
-                      Le fichier doit contenir les colonnes suivantes (séparateur: point-virgule):
-                    </p>
-                    <div className="bg-white rounded p-3 text-xs font-mono overflow-x-auto">
-                      <p><strong>site</strong> — Nom du site</p>
-                      <p><strong>type</strong> — Type d&apos;équipement (ex: CHAUDIERE)</p>
-                      <p><strong>marque</strong> — Marque de l&apos;équipement</p>
-                      <p><strong>modele</strong> — Modèle</p>
-                      <p><strong>numero_serie</strong> — Numéro de série (si disponible)</p>
-                      <p><strong>date_audit</strong> — Date (YYYY-MM-DD ou DD/MM/YYYY)</p>
-                      <p><strong>auditeur</strong> — Nom de l&apos;auditeur</p>
-                      <p><strong>etat_visuel</strong> — Note (BON, MOYEN, MAUVAIS, CRITIQUE...)</p>
-                      <p><strong>performance</strong> — Note</p>
-                      <p><strong>securite</strong> — Note</p>
-                      <p><strong>accessibilite</strong> — Note</p>
-                      <p><strong>conformite</strong> — Note</p>
-                      <p><strong>notes</strong> — Observations</p>
-                    </div>
-                    <p className="text-sm text-blue-600 mt-3">
-                      💡 L&apos;équipement est identifié par numéro de série OU par site + type + marque + modèle
-                    </p>
-                  </div>
-
-                  <div>
-                    <Button variant="outline" onClick={downloadAuditTemplate} className="mb-4">
-                      <Download size={16} className="mr-2" />
-                      Télécharger le modèle CSV
-                    </Button>
-                  </div>
-
-                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleImportAuditFileChange}
-                      className="hidden"
-                      id="import-audit-file"
-                    />
-                    <label htmlFor="import-audit-file" className="cursor-pointer">
-                      <Upload size={40} className="mx-auto text-gray-400 mb-3" />
-                      <p className="text-sm text-text-secondary mb-2">
-                        Cliquez pour sélectionner un fichier CSV
-                      </p>
-                      {importAuditFile && (
-                        <p className="text-sm font-medium text-accent">{importAuditFile.name}</p>
-                      )}
-                    </label>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={resetImportAuditModal}>
-                      Annuler
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      onClick={handleImportAuditPreview}
-                      disabled={!importAuditFile || importingAudit}
-                    >
-                      {importingAudit ? (
-                        <>
-                          <Loader2 size={18} className="mr-2 animate-spin" />
-                          Analyse...
-                        </>
-                      ) : (
-                        "Analyser le fichier"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Preview Step */}
-              {importAuditStep === "preview" && importAuditPreview && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-green-50 rounded-lg p-4 text-center">
-                      <CheckCircle size={24} className="mx-auto text-green-600 mb-1" />
-                      <p className="text-2xl font-bold text-green-700">{importAuditPreview.valid}</p>
-                      <p className="text-sm text-green-600">Valides</p>
-                    </div>
-                    <div className="bg-yellow-50 rounded-lg p-4 text-center">
-                      <AlertCircle size={24} className="mx-auto text-yellow-600 mb-1" />
-                      <p className="text-2xl font-bold text-yellow-700">{importAuditPreview.warnings}</p>
-                      <p className="text-sm text-yellow-600">Avertissements</p>
-                    </div>
-                    <div className="bg-red-50 rounded-lg p-4 text-center">
-                      <XCircle size={24} className="mx-auto text-red-600 mb-1" />
-                      <p className="text-2xl font-bold text-red-700">{importAuditPreview.errors}</p>
-                      <p className="text-sm text-red-600">Erreurs</p>
-                    </div>
-                  </div>
-
-                  <div className="border border-gray-200 rounded-lg overflow-hidden max-h-64 overflow-y-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
-                        <tr>
-                          <th className="text-left px-3 py-2">Ligne</th>
-                          <th className="text-left px-3 py-2">Site</th>
-                          <th className="text-left px-3 py-2">Équipement</th>
-                          <th className="text-left px-3 py-2">Date</th>
-                          <th className="text-left px-3 py-2">Statut</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {importAuditPreview.results.map((r) => (
-                          <tr key={r.row} className={r.status === "error" ? "bg-red-50" : r.status === "warning" ? "bg-yellow-50" : ""}>
-                            <td className="px-3 py-2">{r.row}</td>
-                            <td className="px-3 py-2">{r.site || "-"}</td>
-                            <td className="px-3 py-2">{r.equipmentName || "-"}</td>
-                            <td className="px-3 py-2">{r.auditDate || "-"}</td>
-                            <td className="px-3 py-2">
-                              {r.status === "ok" && <CheckCircle size={16} className="text-green-600" />}
-                              {r.status === "warning" && (
-                                <span className="flex items-center gap-1 text-yellow-600">
-                                  <AlertCircle size={16} />
-                                  <span className="text-xs">{r.message}</span>
-                                </span>
-                              )}
-                              {r.status === "error" && (
-                                <span className="flex items-center gap-1 text-red-600">
-                                  <XCircle size={16} />
-                                  <span className="text-xs">{r.message}</span>
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1" onClick={() => setImportAuditStep("upload")}>
-                      Retour
-                    </Button>
-                    <Button
-                      className="flex-1"
-                      onClick={handleImportAuditConfirm}
-                      disabled={importingAudit || importAuditPreview.valid === 0}
-                    >
-                      {importingAudit ? (
-                        <>
-                          <Loader2 size={18} className="mr-2 animate-spin" />
-                          Import en cours...
-                        </>
-                      ) : (
-                        `Importer ${importAuditPreview.valid} audit(s)`
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Result Step */}
-              {importAuditStep === "result" && importAuditResult && (
-                <div className="space-y-6 text-center">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle size={32} className="text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary-dark mb-2">Import terminé !</h3>
-                    <p className="text-text-secondary">
-                      {importAuditResult.created} audit(s) importé(s) sur {importAuditResult.total}
-                    </p>
-                    {importAuditResult.errors > 0 && (
-                      <p className="text-red-600 text-sm mt-2">
-                        {importAuditResult.errors} erreur(s)
-                      </p>
-                    )}
-                  </div>
-                  <Button onClick={resetImportAuditModal} className="w-full">
-                    Fermer
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
