@@ -1311,8 +1311,13 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                 </ChartCard>
               ) : (
                 <>
-                  <div className="text-sm text-text-secondary">
-                    {filteredEquipments.length} équipement{filteredEquipments.length > 1 ? "s" : ""} sur {equipmentsBySite.length} site{equipmentsBySite.length > 1 ? "s" : ""}
+                  <div className="flex items-center justify-between text-xs text-text-secondary mb-2">
+                    <span>{filteredEquipments.length} équipement{filteredEquipments.length > 1 ? "s" : ""} • {equipmentsBySite.length} site{equipmentsBySite.length > 1 ? "s" : ""}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Critique</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span> À surveiller</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300"></span> Non audité</span>
+                    </div>
                   </div>
                   {equipmentsBySite.map(({ site, equipments: siteEquipments }) => {
                     // Calculate stats for this site
@@ -1337,43 +1342,27 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                     });
 
                     return (
-                    <div key={site.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                      {/* Site Header - Compact */}
+                    <div key={site.id} className="bg-white rounded-lg border border-gray-100 overflow-hidden">
+                      {/* Site Header - Ultra Compact */}
                       <button
                         onClick={() => toggleSiteExpand(site.id)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="flex-shrink-0">
-                            {siteScore ? (
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${siteScore.color}`}>
-                                {siteScore.percentage}%
-                              </div>
-                            ) : (
-                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <Building2 size={18} className="text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-left min-w-0">
-                            <h3 className="font-semibold text-primary-dark truncate">{site.name}</h3>
-                            <div className="flex items-center gap-2 text-xs text-text-secondary">
-                              <span>{site.city}</span>
-                              <span>•</span>
-                              <span>{siteEquipments.length} éq.</span>
-                              {criticalCount > 0 && (
-                                <span className="text-red-600 font-medium">🔴 {criticalCount}</span>
-                              )}
-                              {warningCount > 0 && (
-                                <span className="text-orange-600 font-medium">🟠 {warningCount}</span>
-                              )}
-                              {notAuditedCount > 0 && (
-                                <span className="text-gray-400">⚪ {notAuditedCount}</span>
-                              )}
-                            </div>
-                          </div>
+                        {siteScore ? (
+                          <span className={`flex-shrink-0 w-10 text-center text-xs font-bold px-1.5 py-0.5 rounded ${siteScore.color}`}>
+                            {siteScore.percentage}%
+                          </span>
+                        ) : (
+                          <span className="flex-shrink-0 w-10 text-center text-xs text-gray-400">—</span>
+                        )}
+                        <span className="font-medium text-sm text-primary-dark truncate flex-1 text-left">{site.name}</span>
+                        <span className="text-xs text-text-secondary">{siteEquipments.length} éq.</span>
+                        <div className="flex items-center gap-1">
+                          {criticalCount > 0 && <span className="w-2 h-2 rounded-full bg-red-500" title={`${criticalCount} critique(s)`}></span>}
+                          {warningCount > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" title={`${warningCount} à surveiller`}></span>}
+                          {notAuditedCount > 0 && <span className="w-2 h-2 rounded-full bg-gray-300" title={`${notAuditedCount} non audité(s)`}></span>}
                         </div>
-                        <ChevronDown size={18} className={`flex-shrink-0 text-gray-400 transition-transform ${expandedSites.includes(site.id) ? "rotate-180" : ""}`} />
+                        <ChevronDown size={16} className={`flex-shrink-0 text-gray-400 transition-transform ${expandedSites.includes(site.id) ? "rotate-180" : ""}`} />
                       </button>
 
                       {/* Equipments List - Compact */}
