@@ -1314,131 +1314,126 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                   <div className="text-sm text-text-secondary">
                     {filteredEquipments.length} équipement{filteredEquipments.length > 1 ? "s" : ""} sur {equipmentsBySite.length} site{equipmentsBySite.length > 1 ? "s" : ""}
                   </div>
-                  {equipmentsBySite.map(({ site, equipments: siteEquipments }) => (
+                  {equipmentsBySite.map(({ site, equipments: siteEquipments }) => {
+                    // Calculate stats for this site
+                    const siteScore = calculateSiteScore(siteEquipments);
+                    const criticalCount = siteEquipments.filter(eq => {
+                      if (!eq.audits?.[0]) return false;
+                      const score = calculateOverallScore(eq.audits[0]);
+                      return score.percentage < 20;
+                    }).length;
+                    const warningCount = siteEquipments.filter(eq => {
+                      if (!eq.audits?.[0]) return false;
+                      const score = calculateOverallScore(eq.audits[0]);
+                      return score.percentage >= 20 && score.percentage < 40;
+                    }).length;
+                    const notAuditedCount = siteEquipments.filter(eq => !eq.audits?.[0]).length;
+
+                    // Sort equipments: critical first, then warning, then by score
+                    const sortedEquipments = [...siteEquipments].sort((a, b) => {
+                      const scoreA = a.audits?.[0] ? calculateOverallScore(a.audits[0]).percentage : 999;
+                      const scoreB = b.audits?.[0] ? calculateOverallScore(b.audits[0]).percentage : 999;
+                      return scoreA - scoreB;
+                    });
+
+                    return (
                     <div key={site.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-                      {/* Site Header - Collapsible */}
+                      {/* Site Header - Compact */}
                       <button
                         onClick={() => toggleSiteExpand(site.id)}
-                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-                            <Building2 size={20} className="text-accent" />
-                          </div>
-                          <div className="text-left">
-                            <h3 className="font-semibold text-primary-dark">{site.name}</h3>
-                            <p className="text-sm text-text-secondary">
-                              {site.city} • {siteEquipments.length} équipement{siteEquipments.length > 1 ? "s" : ""}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {(() => {
-                            const siteScore = calculateSiteScore(siteEquipments);
-                            if (!siteScore) return <span className="text-sm text-gray-400">Non audité</span>;
-                            return (
-                              <div className="flex items-center gap-2">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium ${siteScore.color}`}>
-                                  {siteScore.percentage}%
-                                </span>
-                                <span className="text-xs text-text-secondary">
-                                  ({siteScore.audited}/{siteScore.total})
-                                </span>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex-shrink-0">
+                            {siteScore ? (
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${siteScore.color}`}>
+                                {siteScore.percentage}%
                               </div>
-                            );
-                          })()}
-                          {expandedSites.includes(site.id) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                            ) : (
+                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <Building2 size={18} className="text-gray-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left min-w-0">
+                            <h3 className="font-semibold text-primary-dark truncate">{site.name}</h3>
+                            <div className="flex items-center gap-2 text-xs text-text-secondary">
+                              <span>{site.city}</span>
+                              <span>•</span>
+                              <span>{siteEquipments.length} éq.</span>
+                              {criticalCount > 0 && (
+                                <span className="text-red-600 font-medium">🔴 {criticalCount}</span>
+                              )}
+                              {warningCount > 0 && (
+                                <span className="text-orange-600 font-medium">🟠 {warningCount}</span>
+                              )}
+                              {notAuditedCount > 0 && (
+                                <span className="text-gray-400">⚪ {notAuditedCount}</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
+                        <ChevronDown size={18} className={`flex-shrink-0 text-gray-400 transition-transform ${expandedSites.includes(site.id) ? "rotate-180" : ""}`} />
                       </button>
 
-                      {/* Equipments Table - Expanded */}
+                      {/* Equipments List - Compact */}
                       {expandedSites.includes(site.id) && (
-                        <div className="border-t border-gray-100 overflow-x-auto">
-                          <table className="w-full">
-                            <thead className="bg-background-secondary border-b border-gray-100">
-                              <tr>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Équipement</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Localisation</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Puissance</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Année</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Note</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Dernier audit</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3"></th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {siteEquipments.map((eq) => (
-                                <tr
-                                  key={eq.id}
-                                  onClick={() => handleEditEquipment(eq)}
-                                  className="hover:bg-gray-50 transition-colors cursor-pointer"
-                                >
-                                  <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                                        <Flame size={18} className="text-orange-600" />
-                                      </div>
-                                      <div>
-                                        <p className="font-medium text-primary-dark">{eq.name || equipmentTypeLabels[eq.type]}</p>
-                                        <p className="text-sm text-text-secondary">
-                                          {domainLabels[eq.domain]} • {equipmentTypeLabels[eq.type]} {eq.brand && `• ${eq.brand}`}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-text-secondary">
-                                    {eq.location || eq.level ? `${eq.location || ""}${eq.level ? ` (${eq.level})` : ""}` : "-"}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-text-secondary">{eq.power ? `${eq.power} kW` : "-"}</td>
-                                  <td className="px-6 py-4 text-sm text-text-secondary">{eq.year || "-"}</td>
-                                  <td className="px-6 py-4">
-                                    {eq.audits?.[0] ? (() => {
-                                      const overallScore = calculateOverallScore(eq.audits[0]);
-                                      return (
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallScore.color}`}>
-                                          {overallScore.percentage}%
-                                        </span>
-                                      );
-                                    })() : (
-                                      <span className="text-gray-400">-</span>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm">
-                                    {eq.audits?.[0] ? (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleViewAudit(eq, eq.audits[0]);
-                                        }}
-                                        className="text-accent hover:text-accent/80 hover:underline"
-                                      >
-                                        {new Date(eq.audits[0].auditDate).toLocaleDateString("fr-FR")}
-                                      </button>
-                                    ) : (
-                                      <span className="text-gray-400">-</span>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
+                        <div className="border-t border-gray-100">
+                          {sortedEquipments.map((eq) => {
+                            const eqScore = eq.audits?.[0] ? calculateOverallScore(eq.audits[0]) : null;
+                            return (
+                              <div
+                                key={eq.id}
+                                onClick={() => handleEditEquipment(eq)}
+                                className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-b-0"
+                              >
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  {eqScore ? (
+                                    <span className={`flex-shrink-0 w-12 text-center text-xs font-medium px-2 py-1 rounded ${eqScore.color}`}>
+                                      {eqScore.percentage}%
+                                    </span>
+                                  ) : (
+                                    <span className="flex-shrink-0 w-12 text-center text-xs text-gray-400 px-2 py-1">—</span>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-primary-dark truncate">
+                                      {eq.name || equipmentTypeLabels[eq.type]}
+                                    </p>
+                                    <p className="text-xs text-text-secondary truncate">
+                                      {equipmentTypeLabels[eq.type]} {eq.brand && `• ${eq.brand}`} {eq.location && `• ${eq.location}`}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                                  {eq.audits?.[0] && (
+                                    <button
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        handleAuditEquipment(eq);
+                                        handleViewAudit(eq, eq.audits[0]);
                                       }}
-                                      className="text-accent hover:text-accent/80"
+                                      className="text-xs text-accent hover:underline"
                                     >
-                                      <ClipboardCheck size={16} />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                      {new Date(eq.audits[0].auditDate).toLocaleDateString("fr-FR")}
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAuditEquipment(eq);
+                                    }}
+                                    className="p-1.5 text-accent hover:bg-accent/10 rounded"
+                                  >
+                                    <ClipboardCheck size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </>
               )}
             </div>
