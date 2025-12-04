@@ -2189,7 +2189,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-text-secondary mb-1">Performance</label>
+                    <label className="block text-xs text-text-secondary mb-1">Conformité</label>
                     <select
                       value={auditFormData.compliance}
                       onChange={(e) => setAuditFormData({ ...auditFormData, compliance: e.target.value as AuditRating })}
