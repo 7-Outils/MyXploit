@@ -419,11 +419,11 @@ const criteriaRatingLabels: Record<string, Record<AuditRating, string>> = {
   },
   compliance: {
     NON_EVALUE: "Non évalué",
-    CRITIQUE: "Obsolète / À remplacer",
-    MAUVAIS: "Technologie dépassée",
-    MOYEN: "Vieillissant",
-    BON: "Conforme aux standards actuels",
-    EXCELLENT: "Dernière génération",
+    CRITIQUE: "Très mauvaise performance",
+    MAUVAIS: "Performance dégradée",
+    MOYEN: "Performance moyenne",
+    BON: "Bonne performance",
+    EXCELLENT: "Performance optimale",
   },
 };
 
@@ -2189,7 +2189,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs text-text-secondary mb-1">Conformité</label>
+                    <label className="block text-xs text-text-secondary mb-1">Performance</label>
                     <select
                       value={auditFormData.compliance}
                       onChange={(e) => setAuditFormData({ ...auditFormData, compliance: e.target.value as AuditRating })}
@@ -2282,36 +2282,21 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
               {/* Ratings */}
               <div>
                 <label className="block text-sm font-medium text-primary-dark mb-3">Évaluations</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
                     { key: "visualState", label: "État visuel" },
-                    { key: "performance", label: "Performance" },
+                    { key: "performance", label: "Disponibilité" },
                     { key: "security", label: "Sécurité" },
                     { key: "accessibility", label: "Accessibilité" },
-                    { key: "compliance", label: "Conformité" },
+                    { key: "compliance", label: "Performance" },
                   ].map(({ key, label }) => {
                     const value = viewingAudit.audit[key as keyof Audit] as AuditRating;
-                    const ratingColors: Record<AuditRating, string> = {
-                      NON_EVALUE: "bg-gray-100 text-gray-600",
-                      CRITIQUE: "bg-red-100 text-red-700",
-                      MAUVAIS: "bg-orange-100 text-orange-700",
-                      MOYEN: "bg-yellow-100 text-yellow-700",
-                      BON: "bg-green-100 text-green-700",
-                      EXCELLENT: "bg-emerald-100 text-emerald-700",
-                    };
-                    const ratingLabels: Record<AuditRating, string> = {
-                      NON_EVALUE: "Non évalué",
-                      CRITIQUE: "Critique",
-                      MAUVAIS: "Mauvais",
-                      MOYEN: "Moyen",
-                      BON: "Bon",
-                      EXCELLENT: "Excellent",
-                    };
+                    const specificLabel = criteriaRatingLabels[key]?.[value] || value;
                     return (
                       <div key={key} className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-text-secondary mb-1">{label}</p>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ratingColors[value]}`}>
-                          {ratingLabels[value]}
+                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${ratingColors[value]}`}>
+                          {specificLabel}
                         </span>
                       </div>
                     );
