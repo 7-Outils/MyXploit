@@ -24,6 +24,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -554,6 +556,10 @@ export default function EquipmentsPage() {
   const [showViewAuditModal, setShowViewAuditModal] = useState(false);
   const [viewingAudit, setViewingAudit] = useState<{ equipment: Equipment; audit: Audit } | null>(null);
 
+  // Edit/Delete audit
+  const [editingAuditId, setEditingAuditId] = useState<string | null>(null);
+  const [deletingAudit, setDeletingAudit] = useState(false);
+
   // Fetch contracts on mount
   useEffect(() => {
     fetchContracts();
@@ -744,9 +750,10 @@ export default function EquipmentsPage() {
     }
   };
 
-  // Open audit modal
+  // Open audit modal (new audit)
   const handleAuditEquipment = (eq: Equipment) => {
     setAuditingEquipment(eq);
+    setEditingAuditId(null);
     setAuditFormData({
       auditDate: new Date().toISOString().split("T")[0],
       auditor: "",
@@ -761,32 +768,80 @@ export default function EquipmentsPage() {
     setShowAuditModal(true);
   };
 
+  // Edit existing audit
+  const handleEditAudit = (eq: Equipment, audit: Audit) => {
+    setAuditingEquipment(eq);
+    setEditingAuditId(audit.id);
+    setAuditFormData({
+      auditDate: new Date(audit.auditDate).toISOString().split("T")[0],
+      auditor: audit.auditor || "",
+      visualState: audit.visualState,
+      performance: audit.performance,
+      security: audit.security,
+      accessibility: audit.accessibility,
+      compliance: audit.compliance,
+      generalNotes: audit.generalNotes || "",
+      photos: audit.photos || [],
+    });
+    setShowViewAuditModal(false);
+    setShowAuditModal(true);
+  };
+
   // View audit details
   const handleViewAudit = (eq: Equipment, audit: Audit) => {
     setViewingAudit({ equipment: eq, audit });
     setShowViewAuditModal(true);
   };
 
-  // Save audit
+  // Delete audit
+  const handleDeleteAudit = async () => {
+    if (!viewingAudit || !selectedContract) return;
+    setDeletingAudit(true);
+    try {
+      const response = await fetch(
+        `/api/equipments/${viewingAudit.equipment.id}/audits/${viewingAudit.audit.id}`,
+        { method: "DELETE" }
+      );
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Erreur lors de la suppression");
+      }
+      await fetchEquipmentsForContract(selectedContract.id);
+      setShowViewAuditModal(false);
+      setViewingAudit(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setDeletingAudit(false);
+    }
+  };
+
+  // Save audit (create or update)
   const handleSaveAudit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auditingEquipment || !selectedContract) return;
     setSavingAudit(true);
     try {
-      const response = await fetch(`/api/equipments/${auditingEquipment.id}/audits`, {
-        method: "POST",
+      const url = editingAuditId
+        ? `/api/equipments/${auditingEquipment.id}/audits/${editingAuditId}`
+        : `/api/equipments/${auditingEquipment.id}/audits`;
+      const method = editingAuditId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(auditFormData),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Erreur lors de la création de l'audit");
+        throw new Error(data.error || `Erreur lors de ${editingAuditId ? "la modification" : "la création"} de l'audit`);
       }
 
       await fetchEquipmentsForContract(selectedContract.id);
       setShowAuditModal(false);
       setAuditingEquipment(null);
+      setEditingAuditId(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur");
     } finally {
@@ -2044,7 +2099,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
               <div>
-                <h2 className="text-xl font-bold text-primary-dark">Nouvel audit</h2>
+                <h2 className="text-xl font-bold text-primary-dark">{editingAuditId ? "Modifier l'audit" : "Nouvel audit"}</h2>
                 <p className="text-sm text-text-secondary">
                   {auditingEquipment.name || equipmentTypeLabels[auditingEquipment.type]} — {auditingEquipment.site.name}
                 </p>
@@ -2297,23 +2352,53 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex gap-3">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowViewAuditModal(false)}
-              >
-                Fermer
-              </Button>
-              <Button
-                className="flex-1"
-                onClick={() => {
-                  setShowViewAuditModal(false);
-                  handleAuditEquipment(viewingAudit.equipment);
-                }}
-              >
-                Nouvel audit
-              </Button>
+            <div className="p-6 border-t border-gray-200 space-y-3">
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => handleEditAudit(viewingAudit.equipment, viewingAudit.audit)}
+                >
+                  <Pencil size={16} className="mr-2" />
+                  Modifier
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    setShowViewAuditModal(false);
+                    handleAuditEquipment(viewingAudit.equipment);
+                  }}
+                >
+                  <Plus size={16} className="mr-2" />
+                  Nouvel audit
+                </Button>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowViewAuditModal(false)}
+                >
+                  Fermer
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => {
+                    if (confirm("Êtes-vous sûr de vouloir supprimer cet audit ? Cette action est irréversible.")) {
+                      handleDeleteAudit();
+                    }
+                  }}
+                  disabled={deletingAudit}
+                >
+                  {deletingAudit ? (
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 size={16} className="mr-2" />
+                  )}
+                  Supprimer
+                </Button>
+              </div>
             </div>
           </div>
         </div>
