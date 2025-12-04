@@ -175,6 +175,7 @@ interface Audit {
   accessibility: AuditRating;
   compliance: AuditRating;
   generalNotes: string | null;
+  photos: string[];
 }
 
 interface AnalyticsData {
@@ -549,6 +550,9 @@ export default function EquipmentsPage() {
     photos: [] as string[],
   });
 
+  // View audit modal
+  const [showViewAuditModal, setShowViewAuditModal] = useState(false);
+  const [viewingAudit, setViewingAudit] = useState<{ equipment: Equipment; audit: Audit } | null>(null);
 
   // Fetch contracts on mount
   useEffect(() => {
@@ -755,6 +759,12 @@ export default function EquipmentsPage() {
       photos: [],
     });
     setShowAuditModal(true);
+  };
+
+  // View audit details
+  const handleViewAudit = (eq: Equipment, audit: Audit) => {
+    setViewingAudit({ equipment: eq, audit });
+    setShowViewAuditModal(true);
   };
 
   // Save audit
@@ -1206,9 +1216,15 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                                   </td>
                                   <td className="px-6 py-4 text-sm">
                                     {eq.audits?.[0] ? (
-                                      <span className="text-text-secondary">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewAudit(eq, eq.audits[0]);
+                                        }}
+                                        className="text-accent hover:text-accent/80 hover:underline"
+                                      >
                                         {new Date(eq.audits[0].auditDate).toLocaleDateString("fr-FR")}
-                                      </span>
+                                      </button>
                                     ) : (
                                       <span className="text-gray-400">-</span>
                                     )}
@@ -2168,6 +2184,137 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Audit Modal */}
+      {showViewAuditModal && viewingAudit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-primary-dark">Détails de l&apos;audit</h2>
+                  <p className="text-sm text-text-secondary mt-1">
+                    {viewingAudit.equipment.name || equipmentTypeLabels[viewingAudit.equipment.type]} - {viewingAudit.equipment.site.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowViewAuditModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Date and Auditor */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-text-secondary mb-1">Date d&apos;audit</label>
+                  <p className="font-medium">{new Date(viewingAudit.audit.auditDate).toLocaleDateString("fr-FR")}</p>
+                </div>
+                {viewingAudit.audit.auditor && (
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-1">Auditeur</label>
+                    <p className="font-medium">{viewingAudit.audit.auditor}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Ratings */}
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-3">Évaluations</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    { key: "visualState", label: "État visuel" },
+                    { key: "performance", label: "Performance" },
+                    { key: "security", label: "Sécurité" },
+                    { key: "accessibility", label: "Accessibilité" },
+                    { key: "compliance", label: "Conformité" },
+                  ].map(({ key, label }) => {
+                    const value = viewingAudit.audit[key as keyof Audit] as AuditRating;
+                    const ratingColors: Record<AuditRating, string> = {
+                      NON_EVALUE: "bg-gray-100 text-gray-600",
+                      CRITIQUE: "bg-red-100 text-red-700",
+                      MAUVAIS: "bg-orange-100 text-orange-700",
+                      MOYEN: "bg-yellow-100 text-yellow-700",
+                      BON: "bg-green-100 text-green-700",
+                      EXCELLENT: "bg-emerald-100 text-emerald-700",
+                    };
+                    const ratingLabels: Record<AuditRating, string> = {
+                      NON_EVALUE: "Non évalué",
+                      CRITIQUE: "Critique",
+                      MAUVAIS: "Mauvais",
+                      MOYEN: "Moyen",
+                      BON: "Bon",
+                      EXCELLENT: "Excellent",
+                    };
+                    return (
+                      <div key={key} className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-text-secondary mb-1">{label}</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${ratingColors[value]}`}>
+                          {ratingLabels[value]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Notes */}
+              {viewingAudit.audit.generalNotes && (
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-2">Observations</label>
+                  <p className="text-text-secondary bg-gray-50 rounded-lg p-3">{viewingAudit.audit.generalNotes}</p>
+                </div>
+              )}
+
+              {/* Photos */}
+              {viewingAudit.audit.photos && viewingAudit.audit.photos.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-2">Photos ({viewingAudit.audit.photos.length})</label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {viewingAudit.audit.photos.map((photo, idx) => (
+                      <a
+                        key={idx}
+                        href={photo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 hover:border-accent transition-colors"
+                      >
+                        <img
+                          src={photo}
+                          alt={`Photo ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowViewAuditModal(false)}
+              >
+                Fermer
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => {
+                  setShowViewAuditModal(false);
+                  handleAuditEquipment(viewingAudit.equipment);
+                }}
+              >
+                Nouvel audit
+              </Button>
+            </div>
           </div>
         </div>
       )}
