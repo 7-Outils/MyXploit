@@ -1286,7 +1286,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Localisation</th>
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Puissance</th>
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Année</th>
-                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Statut</th>
+                                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Note</th>
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Dernier audit</th>
                                 <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3"></th>
                               </tr>
@@ -1317,9 +1317,16 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                                   <td className="px-6 py-4 text-sm text-text-secondary">{eq.power ? `${eq.power} kW` : "-"}</td>
                                   <td className="px-6 py-4 text-sm text-text-secondary">{eq.year || "-"}</td>
                                   <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[eq.status]}`}>
-                                      {statusLabels[eq.status]}
-                                    </span>
+                                    {eq.audits?.[0] ? (() => {
+                                      const overallScore = calculateOverallScore(eq.audits[0]);
+                                      return (
+                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallScore.color}`}>
+                                          {overallScore.score}/{overallScore.maxScore}
+                                        </span>
+                                      );
+                                    })() : (
+                                      <span className="text-gray-400">-</span>
+                                    )}
                                   </td>
                                   <td className="px-6 py-4 text-sm">
                                     {eq.audits?.[0] ? (
@@ -2097,31 +2104,6 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                     onChange={(e) => setEditFormData({ ...editFormData, level: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Durée de vie (ans)</label>
-                  <input
-                    type="number"
-                    value={editFormData.theoreticalLifespan}
-                    onChange={(e) => setEditFormData({ ...editFormData, theoreticalLifespan: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
-                    min="1"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Statut</label>
-                  <select
-                    value={editFormData.status}
-                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EquipmentStatus })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
-                  >
-                    {Object.entries(statusLabels).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
 
