@@ -447,6 +447,7 @@ const ratingScores: Record<AuditRating, number> = {
 };
 
 // Calculate overall score from audit ratings
+// The score is capped by the worst criterion to reflect real equipment condition
 function calculateOverallScore(audit: {
   visualState: AuditRating;
   performance: AuditRating;
@@ -463,7 +464,25 @@ function calculateOverallScore(audit: {
 
   const totalScore = evaluatedRatings.reduce((sum, r) => sum + ratingScores[r], 0);
   const maxScore = evaluatedRatings.length * 5;
-  const percentage = Math.round((totalScore / maxScore) * 100);
+  let percentage = Math.round((totalScore / maxScore) * 100);
+
+  // Find the worst rating among evaluated criteria
+  const worstRating = evaluatedRatings.reduce((worst, r) =>
+    ratingScores[r] < ratingScores[worst] ? r : worst
+  , evaluatedRatings[0]);
+
+  // Cap the percentage based on worst criterion
+  // This ensures an equipment with a critical issue can't get a good overall score
+  const maxPercentageByCriterion: Record<AuditRating, number> = {
+    NON_EVALUE: 100,
+    CRITIQUE: 20,    // Critique = max 20%
+    MAUVAIS: 40,     // Mauvais = max 40%
+    MOYEN: 60,       // Moyen = max 60%
+    BON: 80,         // Bon = max 80%
+    EXCELLENT: 100,  // Excellent = no cap
+  };
+
+  percentage = Math.min(percentage, maxPercentageByCriterion[worstRating]);
 
   let label: string;
   let color: string;
@@ -486,6 +505,46 @@ function calculateOverallScore(audit: {
   }
 
   return { score: totalScore, maxScore, percentage, evaluated: evaluatedRatings.length, label, color };
+}
+
+// Calculate site score from all equipment scores (average of equipment percentages)
+function calculateSiteScore(equipments: Equipment[]): { percentage: number; label: string; color: string; audited: number; total: number } | null {
+  // Get equipments with audits
+  const equipmentsWithAudits = equipments.filter(eq => eq.audits && eq.audits.length > 0);
+
+  if (equipmentsWithAudits.length === 0) {
+    return null;
+  }
+
+  // Calculate average percentage from all equipment scores
+  const totalPercentage = equipmentsWithAudits.reduce((sum, eq) => {
+    const score = calculateOverallScore(eq.audits[0]);
+    return sum + score.percentage;
+  }, 0);
+
+  const percentage = Math.round(totalPercentage / equipmentsWithAudits.length);
+
+  let label: string;
+  let color: string;
+
+  if (percentage >= 80) {
+    label = "Excellent";
+    color = "bg-emerald-100 text-emerald-700";
+  } else if (percentage >= 60) {
+    label = "Bon";
+    color = "bg-green-100 text-green-700";
+  } else if (percentage >= 40) {
+    label = "Moyen";
+    color = "bg-yellow-100 text-yellow-700";
+  } else if (percentage >= 20) {
+    label = "Mauvais";
+    color = "bg-orange-100 text-orange-700";
+  } else {
+    label = "Critique";
+    color = "bg-red-100 text-red-700";
+  }
+
+  return { percentage, label, color, audited: equipmentsWithAudits.length, total: equipments.length };
 }
 
 type ViewType = "list" | "renewal" | "risk";
@@ -1273,7 +1332,23 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                             </p>
                           </div>
                         </div>
-                        {expandedSites.includes(site.id) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        <div className="flex items-center gap-3">
+                          {(() => {
+                            const siteScore = calculateSiteScore(siteEquipments);
+                            if (!siteScore) return <span className="text-sm text-gray-400">Non audité</span>;
+                            return (
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium ${siteScore.color}`}>
+                                  {siteScore.percentage}%
+                                </span>
+                                <span className="text-xs text-text-secondary">
+                                  ({siteScore.audited}/{siteScore.total})
+                                </span>
+                              </div>
+                            );
+                          })()}
+                          {expandedSites.includes(site.id) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
                       </button>
 
                       {/* Equipments Table - Expanded */}
