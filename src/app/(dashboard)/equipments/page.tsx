@@ -436,6 +436,58 @@ const ratingColors: Record<AuditRating, string> = {
   EXCELLENT: "bg-emerald-100 text-emerald-700",
 };
 
+// Score values for each rating (NON_EVALUE is excluded from calculation)
+const ratingScores: Record<AuditRating, number> = {
+  NON_EVALUE: 0,
+  CRITIQUE: 1,
+  MAUVAIS: 2,
+  MOYEN: 3,
+  BON: 4,
+  EXCELLENT: 5,
+};
+
+// Calculate overall score from audit ratings
+function calculateOverallScore(audit: {
+  visualState: AuditRating;
+  performance: AuditRating;
+  security: AuditRating;
+  accessibility: AuditRating;
+  compliance: AuditRating;
+}): { score: number; maxScore: number; evaluated: number; label: string; color: string } {
+  const ratings = [audit.visualState, audit.performance, audit.security, audit.accessibility, audit.compliance];
+  const evaluatedRatings = ratings.filter(r => r !== "NON_EVALUE");
+
+  if (evaluatedRatings.length === 0) {
+    return { score: 0, maxScore: 0, evaluated: 0, label: "Non évalué", color: "bg-gray-100 text-gray-600" };
+  }
+
+  const totalScore = evaluatedRatings.reduce((sum, r) => sum + ratingScores[r], 0);
+  const maxScore = evaluatedRatings.length * 5;
+  const percentage = (totalScore / maxScore) * 100;
+
+  let label: string;
+  let color: string;
+
+  if (percentage >= 80) {
+    label = "Excellent";
+    color = "bg-emerald-100 text-emerald-700";
+  } else if (percentage >= 60) {
+    label = "Bon";
+    color = "bg-green-100 text-green-700";
+  } else if (percentage >= 40) {
+    label = "Moyen";
+    color = "bg-yellow-100 text-yellow-700";
+  } else if (percentage >= 20) {
+    label = "Mauvais";
+    color = "bg-orange-100 text-orange-700";
+  } else {
+    label = "Critique";
+    color = "bg-red-100 text-red-700";
+  }
+
+  return { score: totalScore, maxScore, evaluated: evaluatedRatings.length, label, color };
+}
+
 type ViewType = "list" | "renewal" | "risk";
 
 export default function EquipmentsPage() {
@@ -2265,6 +2317,39 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
             </div>
 
             <div className="p-6 space-y-6">
+              {/* Overall Score */}
+              {(() => {
+                const overallScore = calculateOverallScore(viewingAudit.audit);
+                return (
+                  <div className={`rounded-xl p-4 ${overallScore.color}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium opacity-80">Note globale</p>
+                        <p className="text-2xl font-bold">{overallScore.label}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-3xl font-bold">
+                          {overallScore.score}/{overallScore.maxScore}
+                        </p>
+                        <p className="text-sm opacity-80">
+                          {overallScore.evaluated}/5 critères évalués
+                        </p>
+                      </div>
+                    </div>
+                    {overallScore.evaluated > 0 && (
+                      <div className="mt-3">
+                        <div className="w-full bg-white/30 rounded-full h-2">
+                          <div
+                            className="bg-white/80 h-2 rounded-full transition-all"
+                            style={{ width: `${(overallScore.score / overallScore.maxScore) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Date and Auditor */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
