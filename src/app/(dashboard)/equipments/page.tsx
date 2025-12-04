@@ -453,17 +453,17 @@ function calculateOverallScore(audit: {
   security: AuditRating;
   accessibility: AuditRating;
   compliance: AuditRating;
-}): { score: number; maxScore: number; evaluated: number; label: string; color: string } {
+}): { score: number; maxScore: number; percentage: number; evaluated: number; label: string; color: string } {
   const ratings = [audit.visualState, audit.performance, audit.security, audit.accessibility, audit.compliance];
   const evaluatedRatings = ratings.filter(r => r !== "NON_EVALUE");
 
   if (evaluatedRatings.length === 0) {
-    return { score: 0, maxScore: 0, evaluated: 0, label: "Non évalué", color: "bg-gray-100 text-gray-600" };
+    return { score: 0, maxScore: 0, percentage: 0, evaluated: 0, label: "Non évalué", color: "bg-gray-100 text-gray-600" };
   }
 
   const totalScore = evaluatedRatings.reduce((sum, r) => sum + ratingScores[r], 0);
   const maxScore = evaluatedRatings.length * 5;
-  const percentage = (totalScore / maxScore) * 100;
+  const percentage = Math.round((totalScore / maxScore) * 100);
 
   let label: string;
   let color: string;
@@ -485,7 +485,7 @@ function calculateOverallScore(audit: {
     color = "bg-red-100 text-red-700";
   }
 
-  return { score: totalScore, maxScore, evaluated: evaluatedRatings.length, label, color };
+  return { score: totalScore, maxScore, percentage, evaluated: evaluatedRatings.length, label, color };
 }
 
 type ViewType = "list" | "renewal" | "risk";
@@ -1321,7 +1321,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                                       const overallScore = calculateOverallScore(eq.audits[0]);
                                       return (
                                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${overallScore.color}`}>
-                                          {overallScore.score}/{overallScore.maxScore}
+                                          {overallScore.percentage}%
                                         </span>
                                       );
                                     })() : (
@@ -2311,7 +2311,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                       </div>
                       <div className="text-right">
                         <p className="text-3xl font-bold">
-                          {overallScore.score}/{overallScore.maxScore}
+                          {overallScore.percentage}%
                         </p>
                         <p className="text-sm opacity-80">
                           {overallScore.evaluated}/5 critères évalués
@@ -2323,7 +2323,7 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                         <div className="w-full bg-white/30 rounded-full h-2">
                           <div
                             className="bg-white/80 h-2 rounded-full transition-all"
-                            style={{ width: `${(overallScore.score / overallScore.maxScore) * 100}%` }}
+                            style={{ width: `${overallScore.percentage}%` }}
                           />
                         </div>
                       </div>
