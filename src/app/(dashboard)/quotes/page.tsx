@@ -131,6 +131,29 @@ export default function QuotesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [matchedSiteId, setMatchedSiteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [contractSites, setContractSites] = useState<Site[]>([]);
+  const [loadingContractSites, setLoadingContractSites] = useState(false);
+
+  // Fetch sites for a specific contract
+  const fetchContractSites = async (contractId: string) => {
+    if (!contractId) {
+      setContractSites([]);
+      return;
+    }
+    setLoadingContractSites(true);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/sites`);
+      if (res.ok) {
+        const data = await res.json();
+        setContractSites(Array.isArray(data) ? data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching contract sites:", error);
+      setContractSites([]);
+    } finally {
+      setLoadingContractSites(false);
+    }
+  };
 
   // Import form data (editable)
   const [importFormData, setImportFormData] = useState({
@@ -361,11 +384,6 @@ export default function QuotesPage() {
       setCreating(false);
     }
   };
-
-  // Filter contracts by selected site
-  const filteredImportContracts = importFormData.siteId
-    ? contracts.filter(() => true) // Show all contracts for now
-    : contracts;
 
   // Filter quotes by selected contract
   const filteredQuotes = selectedContractFilter
@@ -720,39 +738,52 @@ export default function QuotesPage() {
                     </div>
                   </div>
 
-                  {/* Site */}
+                  {/* Contrat */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Contrat *
+                    </label>
+                    <select
+                      value={importFormData.contractId}
+                      onChange={(e) => {
+                        const contractId = e.target.value;
+                        setImportFormData({ ...importFormData, contractId, siteId: "" });
+                        fetchContractSites(contractId);
+                      }}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Sélectionner un contrat</option>
+                      {contracts.map((contract) => (
+                        <option key={contract.id} value={contract.id}>
+                          {contract.reference} - {contract.provider}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Site (filtré par contrat) */}
                   <div>
                     <label className="block text-sm font-medium text-primary-dark mb-1">
                       Site {matchedSiteId && <span className="text-green-600 text-xs">(détecté automatiquement)</span>}
                     </label>
                     <select
                       value={importFormData.siteId}
-                      onChange={(e) => setImportFormData({ ...importFormData, siteId: e.target.value, contractId: "" })}
+                      onChange={(e) => setImportFormData({ ...importFormData, siteId: e.target.value })}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      disabled={!importFormData.contractId || loadingContractSites}
                     >
-                      <option value="">Sélectionner un site</option>
-                      {sites.map((site) => (
+                      <option value="">
+                        {!importFormData.contractId
+                          ? "Sélectionnez d'abord un contrat"
+                          : loadingContractSites
+                          ? "Chargement..."
+                          : contractSites.length === 0
+                          ? "Aucun site pour ce contrat"
+                          : "Sélectionner un site"}
+                      </option>
+                      {contractSites.map((site) => (
                         <option key={site.id} value={site.id}>
                           {site.name} ({site.city})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Contrat */}
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">
-                      Contrat associé
-                    </label>
-                    <select
-                      value={importFormData.contractId}
-                      onChange={(e) => setImportFormData({ ...importFormData, contractId: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    >
-                      <option value="">Aucun contrat</option>
-                      {filteredImportContracts.map((contract) => (
-                        <option key={contract.id} value={contract.id}>
-                          {contract.reference} - {contract.provider}
                         </option>
                       ))}
                     </select>
@@ -929,6 +960,28 @@ export default function QuotesPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Contrat *
+                </label>
+                <select
+                  value={formData.contractId}
+                  onChange={(e) => {
+                    const contractId = e.target.value;
+                    setFormData({ ...formData, contractId, siteId: "" });
+                    fetchContractSites(contractId);
+                  }}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">Sélectionner un contrat</option>
+                  {contracts.map((contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {contract.reference} - {contract.provider}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
@@ -940,11 +993,20 @@ export default function QuotesPage() {
                       setFormData({ ...formData, siteId: e.target.value })
                     }
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    disabled={!formData.contractId || loadingContractSites}
                   >
-                    <option value="">-- Aucun site --</option>
-                    {sites.map((site) => (
+                    <option value="">
+                      {!formData.contractId
+                        ? "Sélectionnez d'abord un contrat"
+                        : loadingContractSites
+                        ? "Chargement..."
+                        : contractSites.length === 0
+                        ? "Aucun site pour ce contrat"
+                        : "Sélectionner un site"}
+                    </option>
+                    {contractSites.map((site) => (
                       <option key={site.id} value={site.id}>
-                        {site.name}
+                        {site.name} ({site.city})
                       </option>
                     ))}
                   </select>
@@ -963,26 +1025,6 @@ export default function QuotesPage() {
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Contrat
-                </label>
-                <select
-                  value={formData.contractId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, contractId: e.target.value })
-                  }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                >
-                  <option value="">-- Aucun contrat --</option>
-                  {contracts.map((contract) => (
-                    <option key={contract.id} value={contract.id}>
-                      {contract.reference} - {contract.provider}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div>
