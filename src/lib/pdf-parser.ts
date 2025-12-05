@@ -50,25 +50,31 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     }
   }
 
-  // 2. SITE / CHANTIER - Arrêter à "Adresse de facturation" ou mots-clés similaires
-  const siteMatch = text.match(/Adresse\s*de\s*Chantier\s*:?\s*([\s\S]*?)(?:Adresse\s*de\s*facturation|ADRESSE\s*DE\s*FACTURATION|Facturer\s*[àa]|Client|Description|Descriptif|N°\s*Description|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+  // 2. SITE / CHANTIER - Arrêter à "Adresse de facturation"
+  const siteMatch = text.match(/Adresse\s*de\s*Chantier\s*:?\s*([\s\S]*?)(?:Adresse\s*de\s*facturation|ADRESSE\s*DE\s*FACTURATION|Facturer\s*[àa]|Client\s*:|Description|Descriptif|N°\s*Description)/i);
 
   if (siteMatch) {
     const siteInfo = siteMatch[1].trim();
-    const lines = siteInfo.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
 
-    if (lines.length > 0) {
-      // Première ligne = nom du site
-      result.siteName = lines[0];
-
-      // Chercher la ville (code postal + nom)
-      for (const line of lines) {
-        const cityMatch = line.match(/(\d{5})\s+([A-ZÀ-Üa-zà-ü\s\-]+)/);
-        if (cityMatch) {
-          result.siteCity = cityMatch[2].trim().toUpperCase();
-          break;
-        }
+    // Extraire le nom du site - couper avant les mots d'adresse
+    const nameMatch = siteInfo.match(/^([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s'''-]+?)(?:\s+(?:\d+\s*)?(?:Allée|Rue|Avenue|Boulevard|Place|Chemin|Impasse|Route|Cours|Passage|Quai)\s)/i);
+    if (nameMatch) {
+      result.siteName = nameMatch[1].trim();
+    } else {
+      // Fallback: prendre jusqu'au premier nombre ou code postal
+      const fallbackMatch = siteInfo.match(/^([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s'''-]+?)(?:\s+\d)/);
+      if (fallbackMatch) {
+        result.siteName = fallbackMatch[1].trim();
+      } else {
+        // Dernier recours: premiers mots significatifs
+        result.siteName = siteInfo.split(/\s{2,}|\n/)[0]?.trim().substring(0, 50) || null;
       }
+    }
+
+    // Extraire la ville (code postal + nom)
+    const cityMatch = siteInfo.match(/(\d{5})\s+([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s\-]+?)(?:\s|$)/);
+    if (cityMatch) {
+      result.siteCity = cityMatch[2].trim().toUpperCase();
     }
   }
 
@@ -97,40 +103,43 @@ export function parseQuoteFromText(text: string): ParsedQuote {
 
   // 4. MONTANT TOTAL HT
   const parseAmount = (str: string): number => {
-    // Nettoyer: espaces, remplacer virgule par point
-    const cleaned = str.replace(/\s/g, "").replace(",", ".").replace(/€/g, "").replace(/EUR/gi, "");
+    // Nettoyer: espaces insécables, espaces normaux, remplacer virgule par point
+    let cleaned = str.replace(/[\s\u00A0\u202F]/g, ""); // Tous types d'espaces
+    cleaned = cleaned.replace(",", ".").replace(/€/g, "").replace(/EUR/gi, "");
     return parseFloat(cleaned) || 0;
   };
 
-  // Patterns pour montant HT - chercher les plus gros montants
+  // Patterns pour montant HT
   const htPatterns = [
-    /Total\s*HT\s*:?\s*([\d\s]+[,\.]\d{2})/i,
-    /Montant\s*HT\s*:?\s*([\d\s]+[,\.]\d{2})/i,
-    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s]+[,\.]\d{2})/i,
-    /Total\s*HT\s*([\d\s]+[,\.]\d{2})\s*€?/i,
-    /HT\s*:?\s*([\d\s]+[,\.]\d{2})\s*€/i,
+    /Total\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i,
+    /Montant\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i,
+    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i,
+    /Total\s*HT\s*([\d\s\u00A0]+[,\.]\d{2})/i,
   ];
 
   for (const pattern of htPatterns) {
     const match = text.match(pattern);
     if (match) {
       const amount = parseAmount(match[1]);
-      if (amount > 100) { // Montant minimum raisonnable
+      if (amount > 100) {
         result.amountHT = amount;
         break;
       }
     }
   }
 
-  // Fallback: chercher un pattern plus large pour les montants
+  // Fallback: chercher tous les montants format "XX XXX,XX" et prendre le plus grand
   if (!result.amountHT) {
-    // Chercher "57 551,00" ou "57551.00" format
-    const amountMatch = text.match(/Total\s*HT[\s\S]{0,30}?([\d]{1,3}(?:[\s\.]?\d{3})*[,\.]\d{2})/i);
-    if (amountMatch) {
-      const amount = parseAmount(amountMatch[1]);
-      if (amount > 100) {
-        result.amountHT = amount;
+    const allAmounts = text.matchAll(/([\d]{1,3}[\s\u00A0]?\d{3}[,\.]\d{2})/g);
+    let maxAmount = 0;
+    for (const match of allAmounts) {
+      const amount = parseAmount(match[1]);
+      if (amount > maxAmount && amount < 10000000) { // Max raisonnable: 10M€
+        maxAmount = amount;
       }
+    }
+    if (maxAmount > 100) {
+      result.amountHT = maxAmount;
     }
   }
 
