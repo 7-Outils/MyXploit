@@ -78,26 +78,35 @@ export function parseQuoteFromText(text: string): ParsedQuote {
   const providerPatterns = [
     /(?:Fournisseur|Prestataire|Émetteur)\s*:?\s*(.+)/i,
     /(?:Raison sociale|Société)\s*:?\s*(.+)/i,
+    /Signature\s+([A-ZÀ-Ü][A-ZÀ-Ü\.\s\-\&\']+)\s*:/i,  // "Signature T.É.P.I. EXPLOITATION :"
   ];
 
   for (const pattern of providerPatterns) {
-    const match = normalizedText.match(pattern);
+    const match = text.match(pattern);
     if (match && match[1]) {
-      result.provider = match[1].trim().split(/\s{2,}/)[0] || null;
-      break;
+      const provider = match[1].trim().split(/\s{2,}/)[0];
+      if (provider && provider.length > 3 && !/^(Banque|RIB|IBAN|BIC)/i.test(provider)) {
+        result.provider = provider;
+        break;
+      }
     }
   }
 
   // Fallback: première ligne en majuscules qui ressemble à un nom d'entreprise
   if (!result.provider && lines.length > 0) {
-    for (let i = 0; i < Math.min(5, lines.length); i++) {
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
       const line = lines[i].trim();
-      // Chercher une ligne qui ressemble à un nom d'entreprise (majuscules, au moins 3 caractères)
-      if (line.length > 3 && line.length < 50 && /^[A-ZÀ-Ü][A-ZÀ-Ü\s\.\-\&\']+$/.test(line)) {
-        // Éviter les lignes qui sont juste "DEVIS" ou des dates
-        if (!/^(DEVIS|FACTURE|DATE|N°|\d)/.test(line)) {
-          result.provider = line;
-          break;
+      // Chercher une ligne qui ressemble à un nom d'entreprise
+      // Doit contenir des lettres majuscules et peut contenir . - & '
+      if (line.length > 3 && line.length < 60) {
+        // Pattern pour nom d'entreprise type "T.É.P.I. EXPLOITATION"
+        if (/^[A-ZÀ-Ü][A-ZÀ-Ü\.\s\-\&\'ÉÈÊËÀÂÄÙÛÜÔÖÎÏÇ]+$/i.test(line) &&
+            line.toUpperCase() === line) {
+          // Éviter les lignes techniques
+          if (!/^(DEVIS|FACTURE|DATE|N°|SIRET|APE|RCS|TVA|IBAN|BIC|RIB|BANQUE|\d)/i.test(line)) {
+            result.provider = line;
+            break;
+          }
         }
       }
     }
@@ -158,62 +167,64 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     return parseFloat(cleaned) || 0;
   };
 
-  // Chercher Total HT avec plusieurs patterns
+  // Chercher Total HT avec plusieurs patterns (avec ou sans ":")
   const htPatterns = [
-    /Total\s*HT\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /Montant\s*HT\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /HT\s*:?\s*([\d\s,\.]+)\s*€/i,
+    /Total\s*HT\s*:?\s*([\d\s,\.]+)/i,
+    /Montant\s*HT\s*:?\s*([\d\s,\.]+)/i,
+    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s,\.]+)/i,
     /Sous[\s\-]?total\s*HT\s*:?\s*([\d\s,\.]+)/i,
   ];
   for (const pattern of htPatterns) {
-    const match = normalizedText.match(pattern);
+    const match = text.match(pattern);
     if (match) {
-      result.amountHT = parseAmount(match[1]);
-      break;
+      const amount = parseAmount(match[1]);
+      if (amount > 0) {
+        result.amountHT = amount;
+        break;
+      }
     }
   }
 
   // Chercher TVA
   const tvaPatterns = [
-    /(?:Total\s*)?TVA\s*(?:\d+(?:[,\.]\d+)?%?)?\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /Montant\s*TVA\s*:?\s*([\d\s,\.]+)\s*€?/i,
+    /Total\s*TVA\s*:?\s*([\d\s,\.]+)/i,
+    /Montant\s*TVA\s*:?\s*([\d\s,\.]+)/i,
+    /TVA\s*(?:\d+(?:[,\.]\d+)?%?)?\s*:?\s*([\d\s,\.]+)/i,
   ];
   for (const pattern of tvaPatterns) {
-    const match = normalizedText.match(pattern);
+    const match = text.match(pattern);
     if (match) {
-      result.amountTVA = parseAmount(match[1]);
-      break;
+      const amount = parseAmount(match[1]);
+      if (amount > 0) {
+        result.amountTVA = amount;
+        break;
+      }
     }
   }
 
   // Chercher Total TTC
   const ttcPatterns = [
-    /Total\s*TTC\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /Montant\s*TTC\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /Net\s*[àa]\s*payer\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /TOTAL\s*GENERAL\s*:?\s*([\d\s,\.]+)\s*€?/i,
-    /TOTAL\s*:?\s*([\d\s,\.]+)\s*€\s*TTC/i,
-    /TTC\s*:?\s*([\d\s,\.]+)\s*€/i,
+    /Total\s*TTC\s*:?\s*([\d\s,\.]+)/i,
+    /Montant\s*TTC\s*:?\s*([\d\s,\.]+)/i,
+    /Net\s*[àa]\s*payer\s*:?\s*([\d\s,\.]+)\s*€/i,
+    /TOTAL\s*GENERAL\s*:?\s*([\d\s,\.]+)/i,
   ];
   for (const pattern of ttcPatterns) {
-    const match = normalizedText.match(pattern);
+    const match = text.match(pattern);
     if (match) {
-      result.amountTTC = parseAmount(match[1]);
-      break;
+      const amount = parseAmount(match[1]);
+      if (amount > 0) {
+        result.amountTTC = amount;
+        break;
+      }
     }
   }
 
-  // Si on a trouvé HT mais pas TTC, chercher le dernier gros montant
-  if (result.amountHT && !result.amountTTC) {
-    // Chercher tous les montants dans le texte
-    const allAmounts = normalizedText.match(/([\d\s]+[,\.][\d]{2})\s*€/g);
-    if (allAmounts && allAmounts.length > 0) {
-      const lastAmount = allAmounts[allAmounts.length - 1];
-      const parsed = parseAmount(lastAmount);
-      if (parsed > result.amountHT) {
-        result.amountTTC = parsed;
-      }
+  // Fallback: chercher "Net à payer" suivi d'un montant
+  if (!result.amountTTC) {
+    const netMatch = text.match(/Net\s*[àa]\s*payer[\s\S]{0,20}?([\d\s]+[,\.][\d]{2})\s*€/i);
+    if (netMatch) {
+      result.amountTTC = parseAmount(netMatch[1]);
     }
   }
 
