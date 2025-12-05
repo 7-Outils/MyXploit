@@ -13,7 +13,6 @@ import {
   MapPin,
   FileUp,
   AlertCircle,
-  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -116,18 +115,13 @@ export default function QuotesPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<{
     reference: string | null;
-    provider: string | null;
-    client: string | null;
-    amountHT: number | null;
-    amountTTC: number | null;
-    issueDate: Date | null;
     siteName: string | null;
     siteCity: string | null;
-    itemsCount: number;
+    objet: string | null;
+    amountHT: number | null;
   } | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [matchedSiteId, setMatchedSiteId] = useState<string | null>(null);
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
@@ -254,66 +248,22 @@ export default function QuotesPage() {
         return;
       }
 
-      // Show preview
+      // Show preview with 4 key fields
       setImportPreview({
         reference: result.parsed.reference,
-        provider: result.parsed.provider,
-        client: result.parsed.client,
-        amountHT: result.parsed.amountHT,
-        amountTTC: result.parsed.amountTTC,
-        issueDate: result.parsed.issueDate,
         siteName: result.parsed.siteName,
         siteCity: result.parsed.siteCity,
-        itemsCount: result.parsed.items?.length || 0,
+        objet: result.parsed.objet,
+        amountHT: result.parsed.amountHT,
       });
 
       // Set matched site if found
-      if (result.quote?.site) {
-        setMatchedSiteId(result.quote.site.id);
+      if (result.matchedSite) {
+        setMatchedSiteId(result.matchedSite.id);
       }
     } catch (error) {
       console.error("Error importing:", error);
       setImportError("Erreur lors de l'analyse du PDF");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const handleImportConfirm = async () => {
-    if (!selectedFile) return;
-
-    setImporting(true);
-    setImportError(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("autoCreate", "true");
-      if (matchedSiteId) formData.append("siteId", matchedSiteId);
-      if (selectedContractId) formData.append("contractId", selectedContractId);
-
-      const response = await fetch("/api/quotes/import", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        setImportError(result.error || "Erreur lors de la création");
-        return;
-      }
-
-      // Success
-      await fetchData();
-      setShowImportModal(false);
-      setSelectedFile(null);
-      setImportPreview(null);
-      setMatchedSiteId(null);
-      setSelectedContractId(null);
-    } catch (error) {
-      console.error("Error confirming import:", error);
-      setImportError("Erreur lors de la création du devis");
     } finally {
       setImporting(false);
     }
@@ -520,7 +470,6 @@ export default function QuotesPage() {
                   setImportPreview(null);
                   setImportError(null);
                   setMatchedSiteId(null);
-                  setSelectedContractId(null);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
@@ -578,99 +527,46 @@ export default function QuotesPage() {
                 </div>
               )}
 
-              {/* Preview */}
+              {/* Preview - 4 champs clés */}
               {importPreview && (
                 <div className="bg-green-50 p-4 rounded-lg space-y-3">
                   <p className="font-medium text-green-800 flex items-center gap-2">
                     <Check size={18} />
                     Données extraites du PDF
                   </p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-green-600">Référence:</span>{" "}
-                      <span className="font-medium">{importPreview.reference || "-"}</span>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between py-1 border-b border-green-200">
+                      <span className="text-green-700">N° Devis:</span>
+                      <span className="font-semibold text-green-900">{importPreview.reference || "-"}</span>
                     </div>
-                    <div>
-                      <span className="text-green-600">Fournisseur:</span>{" "}
-                      <span className="font-medium">{importPreview.provider || "-"}</span>
+                    <div className="flex justify-between py-1 border-b border-green-200">
+                      <span className="text-green-700">Site:</span>
+                      <span className="font-semibold text-green-900">
+                        {importPreview.siteName || "-"}
+                        {importPreview.siteCity && ` (${importPreview.siteCity})`}
+                      </span>
                     </div>
-                    {importPreview.client && (
-                      <div className="col-span-2">
-                        <span className="text-green-600">Client:</span>{" "}
-                        <span className="font-medium">{importPreview.client}</span>
-                      </div>
-                    )}
-                    <div>
-                      <span className="text-green-600">Montant HT:</span>{" "}
-                      <span className="font-medium">
+                    <div className="flex justify-between py-1 border-b border-green-200">
+                      <span className="text-green-700">Objet:</span>
+                      <span className="font-semibold text-green-900">{importPreview.objet || "-"}</span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-green-700">Montant HT:</span>
+                      <span className="font-bold text-green-900 text-base">
                         {importPreview.amountHT?.toLocaleString("fr-FR") || "-"} €
                       </span>
                     </div>
-                    <div>
-                      <span className="text-green-600">Montant TTC:</span>{" "}
-                      <span className="font-medium">
-                        {importPreview.amountTTC?.toLocaleString("fr-FR") || "-"} €
-                      </span>
-                    </div>
-                    {(importPreview.siteName || importPreview.siteCity) && (
-                      <div className="col-span-2">
-                        <span className="text-green-600">Site détecté:</span>{" "}
-                        <span className="font-medium">
-                          {importPreview.siteName || ""} {importPreview.siteCity && `(${importPreview.siteCity})`}
-                        </span>
-                      </div>
-                    )}
-                    {importPreview.itemsCount > 0 && (
-                      <div className="col-span-2">
-                        <span className="text-green-600">Lignes de devis:</span>{" "}
-                        <span className="font-medium">{importPreview.itemsCount} lignes</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
 
-              {/* Site Selection */}
-              {importPreview && (
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1 flex items-center gap-2">
-                    <MapPin size={16} />
-                    Site associé
-                  </label>
-                  <select
-                    value={matchedSiteId || ""}
-                    onChange={(e) => setMatchedSiteId(e.target.value || null)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="">-- Sélectionner un site --</option>
-                    {sites.map((site) => (
-                      <option key={site.id} value={site.id}>
-                        {site.name} ({site.city})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Contract Selection */}
-              {importPreview && (
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1 flex items-center gap-2">
-                    <Building2 size={16} />
-                    Contrat associé
-                  </label>
-                  <select
-                    value={selectedContractId || ""}
-                    onChange={(e) => setSelectedContractId(e.target.value || null)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  >
-                    <option value="">-- Sélectionner un contrat --</option>
-                    {contracts.map((contract) => (
-                      <option key={contract.id} value={contract.id}>
-                        {contract.reference} - {contract.provider}
-                      </option>
-                    ))}
-                  </select>
+              {/* Site correspondant */}
+              {importPreview && matchedSiteId && (
+                <div className="bg-blue-50 p-3 rounded-lg flex items-center gap-2">
+                  <MapPin size={16} className="text-blue-600" />
+                  <span className="text-sm text-blue-800">
+                    Site correspondant trouvé: <strong>{sites.find(s => s.id === matchedSiteId)?.name}</strong>
+                  </span>
                 </div>
               )}
 
@@ -678,7 +574,6 @@ export default function QuotesPage() {
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
-                  variant="outline"
                   className="flex-1"
                   onClick={() => {
                     setShowImportModal(false);
@@ -686,25 +581,9 @@ export default function QuotesPage() {
                     setImportPreview(null);
                     setImportError(null);
                     setMatchedSiteId(null);
-                    setSelectedContractId(null);
                   }}
                 >
-                  Annuler
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1"
-                  disabled={!importPreview || importing}
-                  onClick={handleImportConfirm}
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 size={18} className="mr-2 animate-spin" />
-                      Création...
-                    </>
-                  ) : (
-                    "Créer le devis"
-                  )}
+                  Fermer
                 </Button>
               </div>
             </div>

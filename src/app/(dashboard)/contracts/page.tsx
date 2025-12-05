@@ -82,6 +82,15 @@ export default function ContractsPage() {
     fetchData();
   }, []);
 
+  // Convertir JJ/MM/AAAA en YYYY-MM-DD
+  const parseFrenchDate = (dateStr: string): string => {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    }
+    return dateStr; // Retourne tel quel si format incorrect
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
@@ -89,7 +98,11 @@ export default function ContractsPage() {
       const response = await fetch("/api/contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          startDate: parseFrenchDate(formData.startDate),
+          endDate: parseFrenchDate(formData.endDate),
+        }),
       });
       if (response.ok) {
         await fetchData();
@@ -410,8 +423,9 @@ export default function ContractsPage() {
                     Date de début *
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     required
+                    placeholder="01/01/2024"
                     value={formData.startDate}
                     onChange={(e) =>
                       setFormData({ ...formData, startDate: e.target.value })
@@ -424,8 +438,9 @@ export default function ContractsPage() {
                     Date de fin *
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     required
+                    placeholder="31/12/2035"
                     value={formData.endDate}
                     onChange={(e) =>
                       setFormData({ ...formData, endDate: e.target.value })

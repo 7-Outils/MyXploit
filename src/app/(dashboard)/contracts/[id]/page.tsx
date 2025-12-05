@@ -521,6 +521,25 @@ export default function ContractDetailPage() {
     }
   };
 
+  // Convertir YYYY-MM-DD en JJ/MM/AAAA
+  const formatToFrench = (isoDate: string): string => {
+    const date = isoDate.split("T")[0];
+    const parts = date.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return date;
+  };
+
+  // Convertir JJ/MM/AAAA en YYYY-MM-DD
+  const parseFrenchDate = (dateStr: string): string => {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    }
+    return dateStr;
+  };
+
   const openEditContractModal = () => {
     if (!contract) return;
     setContractFormData({
@@ -528,8 +547,8 @@ export default function ContractDetailPage() {
       title: contract.title,
       provider: contract.provider,
       description: contract.description || "",
-      startDate: contract.startDate.split("T")[0],
-      endDate: contract.endDate.split("T")[0],
+      startDate: formatToFrench(contract.startDate),
+      endDate: formatToFrench(contract.endDate),
       status: contract.status,
     });
     setShowEditContractModal(true);
@@ -572,8 +591,8 @@ export default function ContractDetailPage() {
           title: contractFormData.title,
           provider: contractFormData.provider,
           description: contractFormData.description || null,
-          startDate: contractFormData.startDate,
-          endDate: contractFormData.endDate,
+          startDate: parseFrenchDate(contractFormData.startDate),
+          endDate: parseFrenchDate(contractFormData.endDate),
           status: contractFormData.status,
         }),
       });
@@ -1888,8 +1907,9 @@ export default function ContractDetailPage() {
                     Date de début *
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     required
+                    placeholder="01/01/2024"
                     value={contractFormData.startDate}
                     onChange={(e) =>
                       setContractFormData({ ...contractFormData, startDate: e.target.value })
@@ -1902,8 +1922,9 @@ export default function ContractDetailPage() {
                     Date de fin *
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     required
+                    placeholder="31/12/2035"
                     value={contractFormData.endDate}
                     onChange={(e) =>
                       setContractFormData({ ...contractFormData, endDate: e.target.value })
