@@ -176,6 +176,7 @@ export default function QuotesPage() {
     amountHT: "",
     amountTVA: "",
     amountTTC: "",
+    quoteType: "" as "" | "P3" | "P5" | "ASTREINTE",
     validUntil: "",
     siteId: "",
     contractId: "",
@@ -220,6 +221,7 @@ export default function QuotesPage() {
           amountHT: parseFloat(formData.amountHT) || 0,
           amountTVA: formData.amountTVA ? parseFloat(formData.amountTVA) : null,
           amountTTC: parseFloat(formData.amountTTC || formData.amountHT) || 0,
+          quoteType: formData.quoteType || null,
           siteId: formData.siteId || null,
           contractId: formData.contractId || null,
         }),
@@ -236,6 +238,7 @@ export default function QuotesPage() {
           amountHT: "",
           amountTVA: "",
           amountTTC: "",
+          quoteType: "",
           validUntil: "",
           siteId: "",
           contractId: "",
@@ -731,8 +734,8 @@ export default function QuotesPage() {
                         className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                       >
                         <option value="">Sélectionner</option>
-                        <option value="P3">P3 - Maintenance</option>
-                        <option value="P5">P5 - Gros travaux</option>
+                        <option value="P3">P3 - Gros entretien & Renouvellement</option>
+                        <option value="P5">P5 - Hors marché</option>
                         <option value="ASTREINTE">Astreinte</option>
                       </select>
                     </div>
@@ -960,26 +963,45 @@ export default function QuotesPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Contrat *
-                </label>
-                <select
-                  value={formData.contractId}
-                  onChange={(e) => {
-                    const contractId = e.target.value;
-                    setFormData({ ...formData, contractId, siteId: "" });
-                    fetchContractSites(contractId);
-                  }}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                >
-                  <option value="">Sélectionner un contrat</option>
-                  {contracts.map((contract) => (
-                    <option key={contract.id} value={contract.id}>
-                      {contract.reference} - {contract.provider}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Contrat *
+                  </label>
+                  <select
+                    value={formData.contractId}
+                    onChange={(e) => {
+                      const contractId = e.target.value;
+                      setFormData({ ...formData, contractId, siteId: "" });
+                      fetchContractSites(contractId);
+                    }}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">Sélectionner un contrat</option>
+                    {contracts.map((contract) => (
+                      <option key={contract.id} value={contract.id}>
+                        {contract.reference} - {contract.provider}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type de devis
+                  </label>
+                  <select
+                    value={formData.quoteType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, quoteType: e.target.value as "" | "P3" | "P5" | "ASTREINTE" })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">Sélectionner</option>
+                    <option value="P3">P3 - Gros entretien & Renouvellement</option>
+                    <option value="P5">P5 - Hors marché</option>
+                    <option value="ASTREINTE">Astreinte</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
