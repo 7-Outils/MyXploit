@@ -263,7 +263,8 @@ export default function QuotesPage() {
       }
     } catch (error) {
       console.error("Error importing:", error);
-      setImportError("Erreur lors de l'analyse du PDF");
+      const errorMessage = error instanceof Error ? error.message : "Erreur réseau";
+      setImportError(`Erreur lors de l'analyse du PDF: ${errorMessage}`);
     } finally {
       setImporting(false);
     }
