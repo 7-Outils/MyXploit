@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
+import { TelereleveCard } from "@/components/energy/TelereleveCard";
 
 interface Site {
   id: string;
@@ -196,6 +197,9 @@ export default function EnergyPage() {
           iconColor="text-red-600"
         />
       </div>
+
+      {/* Télérelève */}
+      <TelereleveCard />
 
       {/* Charts */}
       <div className="grid lg:grid-cols-3 gap-6">

@@ -1,0 +1,451 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import {
+  Wifi,
+  WifiOff,
+  RefreshCw,
+  Settings,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  X,
+  ExternalLink,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ChartCard } from "@/components/dashboard/chart-card";
+
+interface ProviderStatus {
+  isConnected: boolean;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  tokenExpiresAt: string | null;
+}
+
+interface ProvidersData {
+  grdf: ProviderStatus;
+  enedis: ProviderStatus;
+}
+
+export function TelereleveCard() {
+  const [providers, setProviders] = useState<ProvidersData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState<"grdf" | "enedis" | null>(null);
+  const [showGRDFModal, setShowGRDFModal] = useState(false);
+  const [grdfForm, setGrdfForm] = useState({ clientId: "", clientSecret: "" });
+  const [connecting, setConnecting] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchProviders = async () => {
+    try {
+      const res = await fetch("/api/energy/providers");
+      if (res.ok) {
+        const data = await res.json();
+        setProviders(data);
+      }
+    } catch (error) {
+      console.error("Error fetching providers:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProviders();
+
+    // Check for Enedis callback messages in URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("enedis_success") === "true") {
+      setMessage({ type: "success", text: "Connexion Enedis établie avec succès !" });
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      fetchProviders();
+    } else if (params.get("enedis_error")) {
+      setMessage({ type: "error", text: `Erreur Enedis: ${params.get("enedis_error")}` });
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  const handleGRDFConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConnecting(true);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/energy/grdf/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(grdfForm),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage({ type: "success", text: "Connexion GRDF établie avec succès !" });
+        setShowGRDFModal(false);
+        setGrdfForm({ clientId: "", clientSecret: "" });
+        fetchProviders();
+      } else {
+        setMessage({ type: "error", text: data.error || "Erreur de connexion GRDF" });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Erreur réseau" });
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleEnedisConnect = async () => {
+    try {
+      const res = await fetch("/api/energy/enedis/authorize");
+      if (res.ok) {
+        const data = await res.json();
+        // Redirect to Enedis OAuth
+        window.location.href = data.authorizationUrl;
+      } else {
+        const data = await res.json();
+        setMessage({ type: "error", text: data.error || "Erreur Enedis" });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Erreur réseau" });
+    }
+  };
+
+  const handleSync = async (provider: "grdf" | "enedis") => {
+    setSyncing(provider);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/energy/${provider}/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage({
+          type: "success",
+          text: `${provider.toUpperCase()}: ${data.message}`,
+        });
+        fetchProviders();
+      } else {
+        setMessage({ type: "error", text: data.error || "Erreur de synchronisation" });
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Erreur réseau" });
+    } finally {
+      setSyncing(null);
+    }
+  };
+
+  const handleDisconnect = async (provider: "grdf" | "enedis") => {
+    if (!confirm(`Êtes-vous sûr de vouloir déconnecter ${provider.toUpperCase()} ?`)) {
+      return;
+    }
+
+    try {
+      const endpoint = provider === "grdf" ? "/api/energy/grdf/connect" : "/api/energy/enedis/disconnect";
+      const res = await fetch(endpoint, { method: "DELETE" });
+
+      if (res.ok) {
+        setMessage({ type: "success", text: `${provider.toUpperCase()} déconnecté` });
+        fetchProviders();
+      }
+    } catch (error) {
+      setMessage({ type: "error", text: "Erreur de déconnexion" });
+    }
+  };
+
+  if (loading) {
+    return (
+      <ChartCard title="Télérelève automatique">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-accent" />
+        </div>
+      </ChartCard>
+    );
+  }
+
+  return (
+    <>
+      <ChartCard
+        title="Télérelève automatique"
+        subtitle="Récupération automatique des données GRDF et Enedis"
+      >
+        {/* Message */}
+        {message && (
+          <div
+            className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+              message.type === "success"
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
+            {message.type === "success" ? (
+              <CheckCircle size={18} />
+            ) : (
+              <XCircle size={18} />
+            )}
+            <span className="text-sm">{message.text}</span>
+            <button
+              onClick={() => setMessage(null)}
+              className="ml-auto p-1 hover:bg-black/10 rounded"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* GRDF Card */}
+          <div className="border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  providers?.grdf.isConnected
+                    ? "bg-green-100 text-green-600"
+                    : "bg-gray-100 text-gray-400"
+                }`}
+              >
+                {providers?.grdf.isConnected ? <Wifi size={20} /> : <WifiOff size={20} />}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-primary-dark">GRDF</h3>
+                <p className="text-xs text-text-secondary">Gaz naturel</p>
+              </div>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  providers?.grdf.isConnected
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {providers?.grdf.isConnected ? "Connecté" : "Non connecté"}
+              </span>
+            </div>
+
+            {providers?.grdf.isConnected && providers.grdf.lastSyncAt && (
+              <p className="text-xs text-text-secondary mb-3">
+                Dernière sync:{" "}
+                {new Date(providers.grdf.lastSyncAt).toLocaleString("fr-FR")}
+              </p>
+            )}
+
+            {providers?.grdf.lastError && (
+              <p className="text-xs text-red-600 mb-3">{providers.grdf.lastError}</p>
+            )}
+
+            <div className="flex gap-2">
+              {providers?.grdf.isConnected ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSync("grdf")}
+                    disabled={syncing === "grdf"}
+                    className="flex-1"
+                  >
+                    {syncing === "grdf" ? (
+                      <Loader2 size={14} className="mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw size={14} className="mr-1" />
+                    )}
+                    Synchroniser
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDisconnect("grdf")}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Déconnecter
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => setShowGRDFModal(true)}
+                  className="w-full"
+                >
+                  <Settings size={14} className="mr-1" />
+                  Configurer GRDF
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Enedis Card */}
+          <div className="border border-gray-200 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  providers?.enedis.isConnected
+                    ? "bg-green-100 text-green-600"
+                    : "bg-gray-100 text-gray-400"
+                }`}
+              >
+                {providers?.enedis.isConnected ? <Wifi size={20} /> : <WifiOff size={20} />}
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-primary-dark">Enedis</h3>
+                <p className="text-xs text-text-secondary">Électricité</p>
+              </div>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  providers?.enedis.isConnected
+                    ? "bg-green-100 text-green-700"
+                    : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                {providers?.enedis.isConnected ? "Connecté" : "Non connecté"}
+              </span>
+            </div>
+
+            {providers?.enedis.isConnected && providers.enedis.lastSyncAt && (
+              <p className="text-xs text-text-secondary mb-3">
+                Dernière sync:{" "}
+                {new Date(providers.enedis.lastSyncAt).toLocaleString("fr-FR")}
+              </p>
+            )}
+
+            {providers?.enedis.lastError && (
+              <p className="text-xs text-red-600 mb-3">{providers.enedis.lastError}</p>
+            )}
+
+            <div className="flex gap-2">
+              {providers?.enedis.isConnected ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSync("enedis")}
+                    disabled={syncing === "enedis"}
+                    className="flex-1"
+                  >
+                    {syncing === "enedis" ? (
+                      <Loader2 size={14} className="mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw size={14} className="mr-1" />
+                    )}
+                    Synchroniser
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDisconnect("enedis")}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    Déconnecter
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleEnedisConnect}
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                >
+                  <ExternalLink size={14} className="mr-1" />
+                  Connecter avec Enedis
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+          <p className="text-xs text-blue-700">
+            <strong>Note :</strong> Pour utiliser la télérelève, vous devez avoir un contrat GRDF ADICT
+            et/ou autoriser l&apos;accès à vos données Enedis. Les PCE (gaz) et PDL (électricité) doivent être
+            configurés sur vos sites.
+          </p>
+        </div>
+      </ChartCard>
+
+      {/* GRDF Configuration Modal */}
+      {showGRDFModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Configuration GRDF ADICT
+              </h2>
+              <button
+                onClick={() => setShowGRDFModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleGRDFConnect} className="p-6 space-y-4">
+              <p className="text-sm text-text-secondary">
+                Entrez vos identifiants GRDF ADICT. Vous pouvez les obtenir depuis votre{" "}
+                <a
+                  href="https://monespace.grdf.fr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  Espace Client GRDF
+                </a>
+                .
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Client ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={grdfForm.clientId}
+                  onChange={(e) => setGrdfForm({ ...grdfForm, clientId: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="Votre Client ID GRDF"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Client Secret *
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={grdfForm.clientSecret}
+                  onChange={(e) => setGrdfForm({ ...grdfForm, clientSecret: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="Votre Client Secret GRDF"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowGRDFModal(false)}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={connecting}>
+                  {connecting ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Connexion...
+                    </>
+                  ) : (
+                    "Connecter"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

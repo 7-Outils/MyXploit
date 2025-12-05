@@ -23,15 +23,16 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users        User[]
-  sites        Site[]
-  contracts    Contract[]
-  invoices     Invoice[]
-  quotes       Quote[]
-  meetings     Meeting[]
-  alerts       Alert[]
-  equipments   Equipment[]
-  consumptions Consumption[]
+  users           User[]
+  sites           Site[]
+  contracts       Contract[]
+  invoices        Invoice[]
+  quotes          Quote[]
+  meetings        Meeting[]
+  alerts          Alert[]
+  equipments      Equipment[]
+  consumptions    Consumption[]
+  energyProviders EnergyProvider[]
 
   @@map("organizations")
 }
@@ -674,4 +675,38 @@ model Alert {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("alerts")
+}
+
+// ============================================
+// TELERELEVE - Fournisseurs d'énergie (GRDF, Enedis)
+// ============================================
+
+enum EnergyProviderType {
+  GRDF
+  ENEDIS
+}
+
+model EnergyProvider {
+  id             String             @id @default(cuid())
+  organizationId String
+  provider       EnergyProviderType
+
+  // OAuth tokens (stockés chiffrés)
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+
+  // Statut connexion
+  isConnected    Boolean  @default(false)
+  lastSyncAt     DateTime?
+  lastError      String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@map("energy_providers")
 }
