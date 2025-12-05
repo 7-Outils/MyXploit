@@ -2,8 +2,7 @@
  * Service de parsing PDF pour extraction de devis
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse");
+import { extractText } from "unpdf";
 
 export interface ParsedQuote {
   reference: string | null;
@@ -35,8 +34,8 @@ export interface ParsedQuoteItem {
  * Extraire le texte d'un PDF
  */
 export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
-  const data = await pdfParse(pdfBuffer);
-  return data.text;
+  const { text } = await extractText(pdfBuffer, { mergePages: true });
+  return text;
 }
 
 /**
