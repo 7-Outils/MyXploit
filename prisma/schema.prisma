@@ -126,6 +126,7 @@ model Site {
   invoices      Invoice[]
   alerts        Alert[]
   meetings      Meeting[]
+  quotes        Quote[]
 
   @@map("sites")
 }
@@ -371,6 +372,7 @@ model Contract {
   avenants      Avenant[]      // Avenants du contrat
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices      Invoice[]
+  quotes        Quote[]
 
   @@map("contracts")
 }
@@ -583,26 +585,54 @@ enum QuoteStatus {
   ACCEPTE
   REFUSE
   EXPIRE
+  COMMANDE    // Transformé en commande
+  FACTURE     // Facturé
 }
 
 model Quote {
   id             String      @id @default(cuid())
   reference      String
   title          String
-  provider       String
-  amount         Float
+  provider       String      // Fournisseur (ex: T.É.P.I. EXPLOITATION)
+  client         String?     // Client facturé (ex: IDEX ENERGIES)
+  amountHT       Float       @default(0) // Montant HT
+  amountTVA      Float?      // Montant TVA
+  amountTTC      Float       @default(0) // Montant TTC
   status         QuoteStatus @default(BROUILLON)
-  validUntil     DateTime
+  issueDate      DateTime    @default(now()) // Date d'émission
+  validUntil     DateTime    // Date de validité
   description    String?
-  documentUrl    String?
+  documentUrl    String?     // URL du PDF original
+  siteId         String?     // Site concerné
+  contractId     String?     // Contrat lié
   organizationId String
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site?        @relation(fields: [siteId], references: [id])
+  contract     Contract?    @relation(fields: [contractId], references: [id])
+  items        QuoteItem[]
 
   @@map("quotes")
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  lineNumber  Int     // Numéro de ligne
+  description String  // Description du poste
+  quantity    Float   // Quantité
+  unit        String  // Unité (HEUR, FORF, KG, U, etc.)
+  unitPrice   Float   // Prix unitaire HT
+  totalHT     Float   // Montant HT de la ligne
+  tvaRate     Float?  // Taux de TVA (ex: 20.00)
+
+  // Relations
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@map("quote_items")
 }
 
 // ============================================

@@ -9,6 +9,11 @@ export async function GET() {
 
     const quotes = await prisma.quote.findMany({
       where: { organizationId: user.organizationId },
+      include: {
+        site: { select: { id: true, name: true, city: true } },
+        contract: { select: { id: true, reference: true, provider: true } },
+        items: true,
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -41,11 +46,21 @@ export async function POST(request: NextRequest) {
         reference: body.reference,
         title: body.title,
         provider: body.provider,
-        amount: parseFloat(body.amount),
+        client: body.client,
+        amountHT: parseFloat(body.amountHT || body.amount || 0),
+        amountTVA: body.amountTVA ? parseFloat(body.amountTVA) : null,
+        amountTTC: parseFloat(body.amountTTC || body.amount || 0),
         status: body.status || "BROUILLON",
+        issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
         validUntil: new Date(body.validUntil),
         description: body.description,
+        siteId: body.siteId || null,
+        contractId: body.contractId || null,
         organizationId: user.organizationId,
+      },
+      include: {
+        site: { select: { id: true, name: true } },
+        contract: { select: { id: true, reference: true } },
       },
     });
 

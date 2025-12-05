@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Calculator,
   Plus,
@@ -9,21 +9,68 @@ import {
   Loader2,
   X,
   Check,
+  Upload,
+  MapPin,
+  FileUp,
+  AlertCircle,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
+
+interface QuoteSite {
+  id: string;
+  name: string;
+  city?: string;
+}
+
+interface QuoteContract {
+  id: string;
+  reference: string;
+  provider?: string;
+}
+
+interface QuoteItem {
+  id: string;
+  lineNumber: number;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalHT: number;
+  tvaRate: number | null;
+}
 
 interface Quote {
   id: string;
   reference: string;
   title: string;
   provider: string;
+  client: string | null;
   description: string | null;
-  status: "BROUILLON" | "ENVOYE" | "ACCEPTE" | "REFUSE" | "EXPIRE";
-  amount: number;
+  status: "BROUILLON" | "ENVOYE" | "ACCEPTE" | "REFUSE" | "EXPIRE" | "COMMANDE" | "FACTURE";
+  amountHT: number;
+  amountTVA: number | null;
+  amountTTC: number;
+  issueDate: string;
   validUntil: string;
   createdAt: string;
+  site: QuoteSite | null;
+  contract: QuoteContract | null;
+  items: QuoteItem[];
+}
+
+interface Site {
+  id: string;
+  name: string;
+  city: string;
+}
+
+interface Contract {
+  id: string;
+  reference: string;
+  provider: string;
 }
 
 const statusConfig = {
@@ -47,29 +94,72 @@ const statusConfig = {
     label: "Expiré",
     color: "bg-gray-100 text-gray-700",
   },
+  COMMANDE: {
+    label: "Commandé",
+    color: "bg-blue-100 text-blue-700",
+  },
+  FACTURE: {
+    label: "Facturé",
+    color: "bg-purple-100 text-purple-700",
+  },
 };
 
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<{
+    reference: string | null;
+    provider: string | null;
+    client: string | null;
+    amountHT: number | null;
+    amountTTC: number | null;
+    issueDate: Date | null;
+    siteName: string | null;
+    siteCity: string | null;
+    itemsCount: number;
+  } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [matchedSiteId, setMatchedSiteId] = useState<string | null>(null);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     reference: "",
     title: "",
     provider: "",
+    client: "",
     description: "",
-    amount: "",
+    amountHT: "",
+    amountTVA: "",
+    amountTTC: "",
     validUntil: "",
+    siteId: "",
+    contractId: "",
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/quotes");
-      const data = await response.json();
-      setQuotes(Array.isArray(data) ? data : []);
+      const [quotesRes, sitesRes, contractsRes] = await Promise.all([
+        fetch("/api/quotes"),
+        fetch("/api/sites"),
+        fetch("/api/contracts"),
+      ]);
+      const [quotesData, sitesData, contractsData] = await Promise.all([
+        quotesRes.json(),
+        sitesRes.json(),
+        contractsRes.json(),
+      ]);
+      setQuotes(Array.isArray(quotesData) ? quotesData : []);
+      setSites(Array.isArray(sitesData) ? sitesData : []);
+      setContracts(Array.isArray(contractsData) ? contractsData : []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -88,7 +178,14 @@ export default function QuotesPage() {
       const response = await fetch("/api/quotes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          amountHT: parseFloat(formData.amountHT) || 0,
+          amountTVA: formData.amountTVA ? parseFloat(formData.amountTVA) : null,
+          amountTTC: parseFloat(formData.amountTTC || formData.amountHT) || 0,
+          siteId: formData.siteId || null,
+          contractId: formData.contractId || null,
+        }),
       });
       if (response.ok) {
         await fetchData();
@@ -97,9 +194,14 @@ export default function QuotesPage() {
           reference: "",
           title: "",
           provider: "",
+          client: "",
           description: "",
-          amount: "",
+          amountHT: "",
+          amountTVA: "",
+          amountTTC: "",
           validUntil: "",
+          siteId: "",
+          contractId: "",
         });
       }
     } catch (error) {
@@ -124,15 +226,105 @@ export default function QuotesPage() {
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setImportError(null);
+    setImportPreview(null);
+    setImporting(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/quotes/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setImportError(result.error || "Erreur lors de l'import");
+        return;
+      }
+
+      // Show preview
+      setImportPreview({
+        reference: result.parsed.reference,
+        provider: result.parsed.provider,
+        client: result.parsed.client,
+        amountHT: result.parsed.amountHT,
+        amountTTC: result.parsed.amountTTC,
+        issueDate: result.parsed.issueDate,
+        siteName: result.parsed.siteName,
+        siteCity: result.parsed.siteCity,
+        itemsCount: result.parsed.items?.length || 0,
+      });
+
+      // Set matched site if found
+      if (result.quote?.site) {
+        setMatchedSiteId(result.quote.site.id);
+      }
+    } catch (error) {
+      console.error("Error importing:", error);
+      setImportError("Erreur lors de l'analyse du PDF");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    if (!selectedFile) return;
+
+    setImporting(true);
+    setImportError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("autoCreate", "true");
+      if (matchedSiteId) formData.append("siteId", matchedSiteId);
+      if (selectedContractId) formData.append("contractId", selectedContractId);
+
+      const response = await fetch("/api/quotes/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setImportError(result.error || "Erreur lors de la création");
+        return;
+      }
+
+      // Success
+      await fetchData();
+      setShowImportModal(false);
+      setSelectedFile(null);
+      setImportPreview(null);
+      setMatchedSiteId(null);
+      setSelectedContractId(null);
+    } catch (error) {
+      console.error("Error confirming import:", error);
+      setImportError("Erreur lors de la création du devis");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const pendingQuotes = quotes.filter((q) => q.status === "ENVOYE");
-  const totalAmount = quotes.reduce((sum, q) => sum + q.amount, 0);
+  const totalAmount = quotes.reduce((sum, q) => sum + (q.amountTTC || q.amountHT || 0), 0);
   const acceptedAmount = quotes
-    .filter((q) => q.status === "ACCEPTE")
-    .reduce((sum, q) => sum + q.amount, 0);
+    .filter((q) => q.status === "ACCEPTE" || q.status === "COMMANDE" || q.status === "FACTURE")
+    .reduce((sum, q) => sum + (q.amountTTC || q.amountHT || 0), 0);
   const acceptanceRate =
     quotes.length > 0
       ? Math.round(
-          (quotes.filter((q) => q.status === "ACCEPTE").length / quotes.length) *
+          (quotes.filter((q) => ["ACCEPTE", "COMMANDE", "FACTURE"].includes(q.status)).length / quotes.length) *
             100
         )
       : 0;
@@ -157,10 +349,16 @@ export default function QuotesPage() {
             Analysez et comparez les devis de vos prestataires
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus size={18} className="mr-2" />
-          Nouveau devis
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowImportModal(true)}>
+            <Upload size={18} className="mr-2" />
+            Importer PDF
+          </Button>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus size={18} className="mr-2" />
+            Nouveau devis
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -196,10 +394,16 @@ export default function QuotesPage() {
         <ChartCard title="" className="flex flex-col items-center justify-center py-12">
           <Calculator size={48} className="text-gray-300 mb-4" />
           <p className="text-text-secondary mb-4">Aucun devis</p>
-          <Button onClick={() => setShowModal(true)}>
-            <Plus size={18} className="mr-2" />
-            Créer un devis
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImportModal(true)}>
+              <Upload size={18} className="mr-2" />
+              Importer PDF
+            </Button>
+            <Button onClick={() => setShowModal(true)}>
+              <Plus size={18} className="mr-2" />
+              Créer un devis
+            </Button>
+          </div>
         </ChartCard>
       ) : (
         <ChartCard title={`${quotes.length} devis`}>
@@ -221,14 +425,27 @@ export default function QuotesPage() {
                       </p>
                       <p className="text-sm text-text-secondary">
                         {quote.reference} • {quote.provider}
+                        {quote.client && ` → ${quote.client}`}
                       </p>
+                      {quote.site && (
+                        <p className="text-xs text-text-secondary flex items-center gap-1 mt-0.5">
+                          <MapPin size={12} />
+                          {quote.site.name}
+                          {quote.site.city && ` (${quote.site.city})`}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
                       <p className="font-semibold text-primary-dark">
-                        {quote.amount.toLocaleString()} €
+                        {(quote.amountTTC || quote.amountHT || 0).toLocaleString("fr-FR")} € TTC
                       </p>
+                      {quote.amountHT > 0 && quote.amountHT !== quote.amountTTC && (
+                        <p className="text-xs text-text-secondary">
+                          {quote.amountHT.toLocaleString("fr-FR")} € HT
+                        </p>
+                      )}
                       <p className="text-sm text-text-secondary">
                         Valide jusqu&apos;au{" "}
                         {new Date(quote.validUntil).toLocaleDateString("fr-FR")}
@@ -248,6 +465,7 @@ export default function QuotesPage() {
                               handleStatusChange(quote.id, "ACCEPTE");
                             }}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                            title="Accepter"
                           >
                             <Check size={16} />
                           </button>
@@ -257,10 +475,23 @@ export default function QuotesPage() {
                               handleStatusChange(quote.id, "REFUSE");
                             }}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                            title="Refuser"
                           >
                             <X size={16} />
                           </button>
                         </div>
+                      )}
+                      {quote.status === "ACCEPTE" && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStatusChange(quote.id, "COMMANDE");
+                          }}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                          title="Passer en commande"
+                        >
+                          <FileText size={16} />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -269,6 +500,213 @@ export default function QuotesPage() {
             })}
           </div>
         </ChartCard>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Importer un devis PDF
+              </h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setSelectedFile(null);
+                  setImportPreview(null);
+                  setImportError(null);
+                  setMatchedSiteId(null);
+                  setSelectedContractId(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* File Upload */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                  importing ? "border-gray-200 bg-gray-50" : "border-gray-300 hover:border-accent hover:bg-accent/5"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  disabled={importing}
+                />
+                {importing ? (
+                  <>
+                    <Loader2 size={40} className="mx-auto text-accent animate-spin mb-3" />
+                    <p className="text-text-secondary">Analyse du PDF en cours...</p>
+                  </>
+                ) : selectedFile ? (
+                  <>
+                    <FileUp size={40} className="mx-auto text-accent mb-3" />
+                    <p className="font-medium text-primary-dark">{selectedFile.name}</p>
+                    <p className="text-sm text-text-secondary mt-1">
+                      Cliquez pour changer de fichier
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={40} className="mx-auto text-gray-400 mb-3" />
+                    <p className="font-medium text-primary-dark">
+                      Cliquez pour sélectionner un PDF
+                    </p>
+                    <p className="text-sm text-text-secondary mt-1">
+                      ou glissez-déposez le fichier ici
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Error */}
+              {importError && (
+                <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start gap-3">
+                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+                  <p>{importError}</p>
+                </div>
+              )}
+
+              {/* Preview */}
+              {importPreview && (
+                <div className="bg-green-50 p-4 rounded-lg space-y-3">
+                  <p className="font-medium text-green-800 flex items-center gap-2">
+                    <Check size={18} />
+                    Données extraites du PDF
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <span className="text-green-600">Référence:</span>{" "}
+                      <span className="font-medium">{importPreview.reference || "-"}</span>
+                    </div>
+                    <div>
+                      <span className="text-green-600">Fournisseur:</span>{" "}
+                      <span className="font-medium">{importPreview.provider || "-"}</span>
+                    </div>
+                    {importPreview.client && (
+                      <div className="col-span-2">
+                        <span className="text-green-600">Client:</span>{" "}
+                        <span className="font-medium">{importPreview.client}</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-green-600">Montant HT:</span>{" "}
+                      <span className="font-medium">
+                        {importPreview.amountHT?.toLocaleString("fr-FR") || "-"} €
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-green-600">Montant TTC:</span>{" "}
+                      <span className="font-medium">
+                        {importPreview.amountTTC?.toLocaleString("fr-FR") || "-"} €
+                      </span>
+                    </div>
+                    {(importPreview.siteName || importPreview.siteCity) && (
+                      <div className="col-span-2">
+                        <span className="text-green-600">Site détecté:</span>{" "}
+                        <span className="font-medium">
+                          {importPreview.siteName || ""} {importPreview.siteCity && `(${importPreview.siteCity})`}
+                        </span>
+                      </div>
+                    )}
+                    {importPreview.itemsCount > 0 && (
+                      <div className="col-span-2">
+                        <span className="text-green-600">Lignes de devis:</span>{" "}
+                        <span className="font-medium">{importPreview.itemsCount} lignes</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Site Selection */}
+              {importPreview && (
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1 flex items-center gap-2">
+                    <MapPin size={16} />
+                    Site associé
+                  </label>
+                  <select
+                    value={matchedSiteId || ""}
+                    onChange={(e) => setMatchedSiteId(e.target.value || null)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">-- Sélectionner un site --</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name} ({site.city})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Contract Selection */}
+              {importPreview && (
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1 flex items-center gap-2">
+                    <Building2 size={16} />
+                    Contrat associé
+                  </label>
+                  <select
+                    value={selectedContractId || ""}
+                    onChange={(e) => setSelectedContractId(e.target.value || null)}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">-- Sélectionner un contrat --</option>
+                    {contracts.map((contract) => (
+                      <option key={contract.id} value={contract.id}>
+                        {contract.reference} - {contract.provider}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setSelectedFile(null);
+                    setImportPreview(null);
+                    setImportError(null);
+                    setMatchedSiteId(null);
+                    setSelectedContractId(null);
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  disabled={!importPreview || importing}
+                  onClick={handleImportConfirm}
+                >
+                  {importing ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Création...
+                    </>
+                  ) : (
+                    "Créer le devis"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Create Modal */}
@@ -337,21 +775,89 @@ export default function QuotesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Client facturé
+                </label>
+                <input
+                  type="text"
+                  value={formData.client}
+                  onChange={(e) =>
+                    setFormData({ ...formData, client: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="IDEX ENERGIES"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Montant (€) *
+                    Montant HT (€) *
                   </label>
                   <input
                     type="number"
+                    step="0.01"
                     required
-                    value={formData.amount}
+                    value={formData.amountHT}
                     onChange={(e) =>
-                      setFormData({ ...formData, amount: e.target.value })
+                      setFormData({ ...formData, amountHT: e.target.value })
                     }
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                     placeholder="45000"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    TVA (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.amountTVA}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amountTVA: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    placeholder="9000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    TTC (€)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.amountTTC}
+                    onChange={(e) =>
+                      setFormData({ ...formData, amountTTC: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    placeholder="54000"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Site
+                  </label>
+                  <select
+                    value={formData.siteId}
+                    onChange={(e) =>
+                      setFormData({ ...formData, siteId: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">-- Aucun site --</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-primary-dark mb-1">
@@ -367,6 +873,26 @@ export default function QuotesPage() {
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Contrat
+                </label>
+                <select
+                  value={formData.contractId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, contractId: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">-- Aucun contrat --</option>
+                  {contracts.map((contract) => (
+                    <option key={contract.id} value={contract.id}>
+                      {contract.reference} - {contract.provider}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
