@@ -124,6 +124,17 @@ export default function QuotesPage() {
   const [matchedSiteId, setMatchedSiteId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Import form data (editable)
+  const [importFormData, setImportFormData] = useState({
+    reference: "",
+    title: "",
+    provider: "",
+    issueDate: new Date().toISOString().split("T")[0],
+    amountHT: "",
+    siteId: "",
+    contractId: "",
+  });
+
   const [formData, setFormData] = useState({
     reference: "",
     title: "",
@@ -257,6 +268,18 @@ export default function QuotesPage() {
         amountHT: result.parsed.amountHT,
       });
 
+      // Pre-fill import form with parsed data
+      const matchedSite = result.matchedSite?.id || "";
+      setImportFormData({
+        reference: result.parsed.reference || "",
+        title: result.parsed.objet || "",
+        provider: "",
+        issueDate: new Date().toISOString().split("T")[0],
+        amountHT: result.parsed.amountHT?.toString() || "",
+        siteId: matchedSite,
+        contractId: "",
+      });
+
       // Set matched site if found
       if (result.matchedSite) {
         setMatchedSiteId(result.matchedSite.id);
@@ -269,6 +292,72 @@ export default function QuotesPage() {
       setImporting(false);
     }
   };
+
+  // Handle import form submit
+  const handleImportSubmit = async () => {
+    if (!importFormData.reference || !importFormData.title) {
+      setImportError("Veuillez remplir la référence et l'objet");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const validUntil = new Date(importFormData.issueDate);
+      validUntil.setMonth(validUntil.getMonth() + 3);
+
+      const response = await fetch("/api/quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reference: importFormData.reference,
+          title: importFormData.title,
+          provider: importFormData.provider || "À définir",
+          amountHT: parseFloat(importFormData.amountHT) || 0,
+          amountTTC: parseFloat(importFormData.amountHT) * 1.2 || 0,
+          issueDate: importFormData.issueDate,
+          validUntil: validUntil.toISOString(),
+          siteId: importFormData.siteId || null,
+          contractId: importFormData.contractId || null,
+          status: "BROUILLON",
+        }),
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || "Erreur lors de la création");
+      }
+
+      // Reset and close
+      setShowImportModal(false);
+      setSelectedFile(null);
+      setImportPreview(null);
+      setImportError(null);
+      setMatchedSiteId(null);
+      setImportFormData({
+        reference: "",
+        title: "",
+        provider: "",
+        issueDate: new Date().toISOString().split("T")[0],
+        amountHT: "",
+        siteId: "",
+        contractId: "",
+      });
+      fetchData();
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Erreur lors de la création");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // Filter contracts by selected site
+  const filteredImportContracts = importFormData.siteId
+    ? contracts.filter((c) => {
+        // We need to check if the contract is linked to this site
+        // For now, show all contracts - ideally we'd filter by site
+        return true;
+      })
+    : contracts;
 
   const pendingQuotes = quotes.filter((q) => q.status === "ENVOYE");
   const totalAmount = quotes.reduce((sum, q) => sum + (q.amountTTC || q.amountHT || 0), 0);
@@ -528,46 +617,125 @@ export default function QuotesPage() {
                 </div>
               )}
 
-              {/* Preview - 4 champs clés */}
+              {/* Formulaire éditable après parsing */}
               {importPreview && (
-                <div className="bg-green-50 p-4 rounded-lg space-y-3">
-                  <p className="font-medium text-green-800 flex items-center gap-2">
-                    <Check size={18} />
-                    Données extraites du PDF
-                  </p>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between py-1 border-b border-green-200">
-                      <span className="text-green-700">N° Devis:</span>
-                      <span className="font-semibold text-green-900">{importPreview.reference || "-"}</span>
+                <div className="space-y-4">
+                  <div className="bg-green-50 p-3 rounded-lg flex items-center gap-2">
+                    <Check size={18} className="text-green-600" />
+                    <span className="text-sm text-green-800">
+                      PDF analysé - Vérifiez et complétez les informations
+                    </span>
+                  </div>
+
+                  {/* Référence */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      N° Devis *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={importFormData.reference}
+                      onChange={(e) => setImportFormData({ ...importFormData, reference: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="DE21003489"
+                    />
+                  </div>
+
+                  {/* Objet des travaux */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Objet des travaux *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={importFormData.title}
+                      onChange={(e) => setImportFormData({ ...importFormData, title: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="Remplacement des pompes"
+                    />
+                  </div>
+
+                  {/* Date et Montant */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-primary-dark mb-1">
+                        Date du devis
+                      </label>
+                      <input
+                        type="date"
+                        value={importFormData.issueDate}
+                        onChange={(e) => setImportFormData({ ...importFormData, issueDate: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      />
                     </div>
-                    <div className="flex justify-between py-1 border-b border-green-200">
-                      <span className="text-green-700">Site:</span>
-                      <span className="font-semibold text-green-900">
-                        {importPreview.siteName || "-"}
-                        {importPreview.siteCity && ` (${importPreview.siteCity})`}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-green-200">
-                      <span className="text-green-700">Objet:</span>
-                      <span className="font-semibold text-green-900">{importPreview.objet || "-"}</span>
-                    </div>
-                    <div className="flex justify-between py-1">
-                      <span className="text-green-700">Montant HT:</span>
-                      <span className="font-bold text-green-900 text-base">
-                        {importPreview.amountHT?.toLocaleString("fr-FR") || "-"} €
-                      </span>
+                    <div>
+                      <label className="block text-sm font-medium text-primary-dark mb-1">
+                        Montant HT (€)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={importFormData.amountHT}
+                        onChange={(e) => setImportFormData({ ...importFormData, amountHT: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        placeholder="57551.00"
+                      />
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Site correspondant */}
-              {importPreview && matchedSiteId && (
-                <div className="bg-blue-50 p-3 rounded-lg flex items-center gap-2">
-                  <MapPin size={16} className="text-blue-600" />
-                  <span className="text-sm text-blue-800">
-                    Site correspondant trouvé: <strong>{sites.find(s => s.id === matchedSiteId)?.name}</strong>
-                  </span>
+                  {/* Fournisseur */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Fournisseur
+                    </label>
+                    <input
+                      type="text"
+                      value={importFormData.provider}
+                      onChange={(e) => setImportFormData({ ...importFormData, provider: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="T.É.P.I. EXPLOITATION"
+                    />
+                  </div>
+
+                  {/* Site */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Site {matchedSiteId && <span className="text-green-600 text-xs">(détecté automatiquement)</span>}
+                    </label>
+                    <select
+                      value={importFormData.siteId}
+                      onChange={(e) => setImportFormData({ ...importFormData, siteId: e.target.value, contractId: "" })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Sélectionner un site</option>
+                      {sites.map((site) => (
+                        <option key={site.id} value={site.id}>
+                          {site.name} ({site.city})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Contrat */}
+                  <div>
+                    <label className="block text-sm font-medium text-primary-dark mb-1">
+                      Contrat associé
+                    </label>
+                    <select
+                      value={importFormData.contractId}
+                      onChange={(e) => setImportFormData({ ...importFormData, contractId: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    >
+                      <option value="">Aucun contrat</option>
+                      {filteredImportContracts.map((contract) => (
+                        <option key={contract.id} value={contract.id}>
+                          {contract.reference} - {contract.provider}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -575,6 +743,7 @@ export default function QuotesPage() {
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
+                  variant="outline"
                   className="flex-1"
                   onClick={() => {
                     setShowImportModal(false);
@@ -584,8 +753,25 @@ export default function QuotesPage() {
                     setMatchedSiteId(null);
                   }}
                 >
-                  Fermer
+                  Annuler
                 </Button>
+                {importPreview && (
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={handleImportSubmit}
+                    disabled={creating}
+                  >
+                    {creating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        Création...
+                      </>
+                    ) : (
+                      "Importer le devis"
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
