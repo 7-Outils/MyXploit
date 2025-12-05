@@ -34,7 +34,9 @@ export interface ParsedQuoteItem {
  * Extraire le texte d'un PDF
  */
 export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
-  const { text } = await extractText(pdfBuffer, { mergePages: true });
+  // unpdf needs Uint8Array, not Node Buffer
+  const uint8Array = new Uint8Array(pdfBuffer);
+  const { text } = await extractText(uint8Array, { mergePages: true });
   return text;
 }
 

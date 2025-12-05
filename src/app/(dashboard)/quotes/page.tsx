@@ -247,7 +247,10 @@ export default function QuotesPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        setImportError(result.error || "Erreur lors de l'import");
+        const errorMsg = result.details
+          ? `${result.error}: ${result.details}`
+          : result.error || "Erreur lors de l'import";
+        setImportError(errorMsg);
         return;
       }
 

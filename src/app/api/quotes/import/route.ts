@@ -62,7 +62,16 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Parse PDF
-    const parsed = await parseQuotePDF(buffer);
+    let parsed;
+    try {
+      parsed = await parseQuotePDF(buffer);
+    } catch (pdfError) {
+      console.error("PDF parsing error:", pdfError);
+      return NextResponse.json(
+        { error: "Erreur lors de l'analyse du PDF", details: pdfError instanceof Error ? pdfError.message : String(pdfError) },
+        { status: 400 }
+      );
+    }
 
     // Find matching site if not provided
     let matchedSite: { id: string; name: string } | null = null;
