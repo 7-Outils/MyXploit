@@ -36,8 +36,6 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     rawText: text,
   };
 
-  const normalizedText = text.replace(/\s+/g, " ");
-
   // 1. RÉFÉRENCE DU DEVIS
   const refPatterns = [
     /DEVIS\s*N°?\s*:?\s*([A-Z0-9\-]+)/i,
@@ -52,88 +50,86 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     }
   }
 
-  // 2. SITE / CHANTIER
-  // Chercher "Adresse de Chantier" ou "Site" ou "Lieu"
-  const sitePatterns = [
-    /Adresse\s*de\s*Chantier\s*:?\s*([^\n]+(?:\n[^\n]+)?)/i,
-    /Chantier\s*:?\s*([^\n]+)/i,
-    /Site\s*:?\s*([^\n]+)/i,
-    /Lieu\s*(?:d['']intervention)?\s*:?\s*([^\n]+)/i,
-  ];
+  // 2. SITE / CHANTIER - Arrêter à "Adresse de facturation" ou mots-clés similaires
+  const siteMatch = text.match(/Adresse\s*de\s*Chantier\s*:?\s*([\s\S]*?)(?:Adresse\s*de\s*facturation|ADRESSE\s*DE\s*FACTURATION|Facturer\s*[àa]|Client|Description|Descriptif|N°\s*Description|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
 
-  for (const pattern of sitePatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const siteInfo = match[1].trim();
-      // Extraire le nom du site (première partie avant l'adresse)
-      // Ex: "Piscine de l'Agora 123 rue..." -> "Piscine de l'Agora"
-      const nameMatch = siteInfo.match(/^([A-ZÀ-Ü][A-Za-zÀ-ü\s''-]+?)(?:\s+\d|\s+[Rr]ue|\s+[Aa]venue|\s+[Bb]oulevard|\s+[Pp]lace|$)/);
-      if (nameMatch) {
-        result.siteName = nameMatch[1].trim();
-      } else {
-        result.siteName = siteInfo.split(/\d/)[0]?.trim() || siteInfo;
-      }
+  if (siteMatch) {
+    const siteInfo = siteMatch[1].trim();
+    const lines = siteInfo.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
 
-      // Extraire la ville (code postal + ville)
-      const cityMatch = siteInfo.match(/(\d{5})\s+([A-ZÀ-Ü][A-Za-zÀ-ü\s\-]+)/i);
-      if (cityMatch) {
-        result.siteCity = cityMatch[2].trim().toUpperCase();
+    if (lines.length > 0) {
+      // Première ligne = nom du site
+      result.siteName = lines[0];
+
+      // Chercher la ville (code postal + nom)
+      for (const line of lines) {
+        const cityMatch = line.match(/(\d{5})\s+([A-ZÀ-Üa-zà-ü\s\-]+)/);
+        if (cityMatch) {
+          result.siteCity = cityMatch[2].trim().toUpperCase();
+          break;
+        }
       }
-      break;
     }
   }
 
-  // 3. OBJET DES TRAVAUX
+  // 3. OBJET DES TRAVAUX - Chercher "Remplacement", "Installation", "Travaux" etc.
+  // Pattern pour lignes de devis typiques: "1 Remplacement des pompes..."
   const objetPatterns = [
+    // Lignes commençant par un numéro puis description de travaux
+    /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,80})/im,
+    // Champ "Objet" explicite
     /Objet\s*(?:des\s*travaux)?\s*:?\s*([^\n]+)/i,
-    /Descriptif\s*(?:des\s*travaux)?\s*:?\s*([^\n]+)/i,
     /Nature\s*des\s*travaux\s*:?\s*([^\n]+)/i,
-    /Intitul[ée]\s*:?\s*([^\n]+)/i,
-    /Travaux\s*:?\s*([^\n]+)/i,
   ];
 
   for (const pattern of objetPatterns) {
     const match = text.match(pattern);
     if (match) {
-      const objet = match[1].trim();
-      // Nettoyer l'objet (enlever les références de ligne, etc.)
-      if (objet.length > 3 && objet.length < 200) {
+      let objet = match[1].trim();
+      // Nettoyer - enlever les quantités/prix à la fin
+      objet = objet.replace(/\s+\d+[\s,\.]*\d*\s*(€|EUR|U\.|Ens|Forf|ML|M2|M3|H)?.*$/i, "").trim();
+      if (objet.length > 5 && objet.length < 150) {
         result.objet = objet;
         break;
       }
     }
   }
 
-  // Fallback: chercher dans les premières lignes de description
-  if (!result.objet) {
-    // Chercher après "Description" ou dans la section des lignes
-    const descMatch = normalizedText.match(/(?:Description|Désignation)[^]*?(\d+\s+([A-ZÀ-Ü][A-Za-zÀ-ü\s''\-]+?)(?:\s+\d|U\.|Ens\.|Forf))/i);
-    if (descMatch && descMatch[2]) {
-      result.objet = descMatch[2].trim();
-    }
-  }
-
   // 4. MONTANT TOTAL HT
   const parseAmount = (str: string): number => {
-    const cleaned = str.replace(/\s/g, "").replace(",", ".").replace(/€/g, "");
+    // Nettoyer: espaces, remplacer virgule par point
+    const cleaned = str.replace(/\s/g, "").replace(",", ".").replace(/€/g, "").replace(/EUR/gi, "");
     return parseFloat(cleaned) || 0;
   };
 
+  // Patterns pour montant HT - chercher les plus gros montants
   const htPatterns = [
-    /Total\s*HT\s*:?\s*([\d\s,\.]+)/i,
-    /Montant\s*HT\s*:?\s*([\d\s,\.]+)/i,
-    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s,\.]+)/i,
-    /Sous[\s\-]?total\s*HT\s*:?\s*([\d\s,\.]+)/i,
-    /HT\s*:?\s*([\d\s,\.]+)\s*€/i,
+    /Total\s*HT\s*:?\s*([\d\s]+[,\.]\d{2})/i,
+    /Montant\s*HT\s*:?\s*([\d\s]+[,\.]\d{2})/i,
+    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s]+[,\.]\d{2})/i,
+    /Total\s*HT\s*([\d\s]+[,\.]\d{2})\s*€?/i,
+    /HT\s*:?\s*([\d\s]+[,\.]\d{2})\s*€/i,
   ];
 
   for (const pattern of htPatterns) {
     const match = text.match(pattern);
     if (match) {
       const amount = parseAmount(match[1]);
-      if (amount > 0) {
+      if (amount > 100) { // Montant minimum raisonnable
         result.amountHT = amount;
         break;
+      }
+    }
+  }
+
+  // Fallback: chercher un pattern plus large pour les montants
+  if (!result.amountHT) {
+    // Chercher "57 551,00" ou "57551.00" format
+    const amountMatch = text.match(/Total\s*HT[\s\S]{0,30}?([\d]{1,3}(?:[\s\.]?\d{3})*[,\.]\d{2})/i);
+    if (amountMatch) {
+      const amount = parseAmount(amountMatch[1]);
+      if (amount > 100) {
+        result.amountHT = amount;
       }
     }
   }
