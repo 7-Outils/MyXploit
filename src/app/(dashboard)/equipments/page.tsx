@@ -1314,8 +1314,10 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                   <div className="flex items-center justify-between text-xs text-text-secondary mb-2">
                     <span>{filteredEquipments.length} équipement{filteredEquipments.length > 1 ? "s" : ""} • {equipmentsBySite.length} site{equipmentsBySite.length > 1 ? "s" : ""}</span>
                     <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Critique</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span> Bon</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500"></span> Moyen</span>
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500"></span> À surveiller</span>
+                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Critique</span>
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300"></span> Non audité</span>
                     </div>
                   </div>
@@ -1333,6 +1335,16 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                       return score.percentage >= 20 && score.percentage < 40;
                     }).length;
                     const notAuditedCount = siteEquipments.filter(eq => !eq.audits?.[0]).length;
+                    const mediumCount = siteEquipments.filter(eq => {
+                      if (!eq.audits?.[0]) return false;
+                      const score = calculateOverallScore(eq.audits[0]);
+                      return score.percentage >= 40 && score.percentage < 60;
+                    }).length;
+                    const goodCount = siteEquipments.filter(eq => {
+                      if (!eq.audits?.[0]) return false;
+                      const score = calculateOverallScore(eq.audits[0]);
+                      return score.percentage >= 60;
+                    }).length;
 
                     // Sort equipments: critical first, then warning, then by score
                     const sortedEquipments = [...siteEquipments].sort((a, b) => {
@@ -1358,8 +1370,10 @@ Collège Jean Moulin;VMC double flux;Atlantic;Duolix;2019;2;;Combles;R+2;;;;;;;`
                         <span className="font-medium text-sm text-primary-dark truncate flex-1 text-left">{site.name}</span>
                         <span className="text-xs text-text-secondary">{siteEquipments.length} éq.</span>
                         <div className="flex items-center gap-1">
-                          {criticalCount > 0 && <span className="w-2 h-2 rounded-full bg-red-500" title={`${criticalCount} critique(s)`}></span>}
+                          {goodCount > 0 && <span className="w-2 h-2 rounded-full bg-green-500" title={`${goodCount} bon(s)`}></span>}
+                          {mediumCount > 0 && <span className="w-2 h-2 rounded-full bg-yellow-500" title={`${mediumCount} moyen(s)`}></span>}
                           {warningCount > 0 && <span className="w-2 h-2 rounded-full bg-orange-500" title={`${warningCount} à surveiller`}></span>}
+                          {criticalCount > 0 && <span className="w-2 h-2 rounded-full bg-red-500" title={`${criticalCount} critique(s)`}></span>}
                           {notAuditedCount > 0 && <span className="w-2 h-2 rounded-full bg-gray-300" title={`${notAuditedCount} non audité(s)`}></span>}
                         </div>
                         <ChevronDown size={16} className={`flex-shrink-0 text-gray-400 transition-transform ${expandedSites.includes(site.id) ? "rotate-180" : ""}`} />
