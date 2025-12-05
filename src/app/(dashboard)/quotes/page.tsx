@@ -120,6 +120,7 @@ export default function QuotesPage() {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [selectedContractFilter, setSelectedContractFilter] = useState<string>("");
   const [importPreview, setImportPreview] = useState<{
     reference: string | null;
     siteName: string | null;
@@ -363,22 +364,24 @@ export default function QuotesPage() {
 
   // Filter contracts by selected site
   const filteredImportContracts = importFormData.siteId
-    ? contracts.filter((c) => {
-        // We need to check if the contract is linked to this site
-        // For now, show all contracts - ideally we'd filter by site
-        return true;
-      })
+    ? contracts.filter(() => true) // Show all contracts for now
     : contracts;
 
-  const pendingQuotes = quotes.filter((q) => q.status === "ENVOYE");
-  const totalAmount = quotes.reduce((sum, q) => sum + (q.amountTTC || q.amountHT || 0), 0);
-  const acceptedAmount = quotes
+  // Filter quotes by selected contract
+  const filteredQuotes = selectedContractFilter
+    ? quotes.filter((q) => q.contract?.id === selectedContractFilter)
+    : quotes;
+
+  // Stats based on filtered quotes
+  const pendingQuotes = filteredQuotes.filter((q) => q.status === "ENVOYE" || q.status === "BROUILLON");
+  const totalAmount = filteredQuotes.reduce((sum, q) => sum + (q.amountHT || 0), 0);
+  const acceptedAmount = filteredQuotes
     .filter((q) => q.status === "ACCEPTE" || q.status === "COMMANDE" || q.status === "FACTURE")
-    .reduce((sum, q) => sum + (q.amountTTC || q.amountHT || 0), 0);
+    .reduce((sum, q) => sum + (q.amountHT || 0), 0);
   const acceptanceRate =
-    quotes.length > 0
+    filteredQuotes.length > 0
       ? Math.round(
-          (quotes.filter((q) => ["ACCEPTE", "COMMANDE", "FACTURE"].includes(q.status)).length / quotes.length) *
+          (filteredQuotes.filter((q) => ["ACCEPTE", "COMMANDE", "FACTURE"].includes(q.status)).length / filteredQuotes.length) *
             100
         )
       : 0;
@@ -404,6 +407,19 @@ export default function QuotesPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* Contract filter */}
+          <select
+            value={selectedContractFilter}
+            onChange={(e) => setSelectedContractFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm"
+          >
+            <option value="">Tous les contrats</option>
+            {contracts.map((contract) => (
+              <option key={contract.id} value={contract.id}>
+                {contract.reference}
+              </option>
+            ))}
+          </select>
           <Button variant="outline" onClick={() => setShowImportModal(true)}>
             <Upload size={18} className="mr-2" />
             Importer PDF
@@ -444,10 +460,12 @@ export default function QuotesPage() {
       </div>
 
       {/* Quotes List */}
-      {quotes.length === 0 ? (
+      {filteredQuotes.length === 0 ? (
         <ChartCard title="" className="flex flex-col items-center justify-center py-12">
           <Calculator size={48} className="text-gray-300 mb-4" />
-          <p className="text-text-secondary mb-4">Aucun devis</p>
+          <p className="text-text-secondary mb-4">
+            {selectedContractFilter ? "Aucun devis pour ce contrat" : "Aucun devis"}
+          </p>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowImportModal(true)}>
               <Upload size={18} className="mr-2" />
@@ -460,9 +478,9 @@ export default function QuotesPage() {
           </div>
         </ChartCard>
       ) : (
-        <ChartCard title={`${quotes.length} devis`}>
+        <ChartCard title={`${filteredQuotes.length} devis${selectedContractFilter ? " pour ce contrat" : ""}`}>
           <div className="space-y-4">
-            {quotes.map((quote) => {
+            {filteredQuotes.map((quote) => {
               const status = statusConfig[quote.status];
               return (
                 <div
@@ -506,47 +524,22 @@ export default function QuotesPage() {
                           {quoteTypeConfig[quote.quoteType].label}
                         </span>
                       )}
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}
+                      <select
+                        value={quote.status}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(quote.id, e.target.value);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${status.color}`}
                       >
-                        {status.label}
-                      </span>
-                      {quote.status === "ENVOYE" && (
-                        <div className="flex gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStatusChange(quote.id, "ACCEPTE");
-                            }}
-                            className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                            title="Accepter"
-                          >
-                            <Check size={16} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStatusChange(quote.id, "REFUSE");
-                            }}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                            title="Refuser"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      )}
-                      {quote.status === "ACCEPTE" && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStatusChange(quote.id, "COMMANDE");
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                          title="Passer en commande"
-                        >
-                          <FileText size={16} />
-                        </button>
-                      )}
+                        <option value="BROUILLON">Brouillon</option>
+                        <option value="ENVOYE">En attente</option>
+                        <option value="ACCEPTE">Accepté</option>
+                        <option value="REFUSE">Refusé</option>
+                        <option value="COMMANDE">Commandé</option>
+                        <option value="FACTURE">Facturé</option>
+                      </select>
                     </div>
                   </div>
                 </div>
