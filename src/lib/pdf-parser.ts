@@ -79,21 +79,28 @@ export function parseQuoteFromText(text: string): ParsedQuote {
   }
 
   // 3. OBJET DES TRAVAUX - Chercher "Remplacement", "Installation", "Travaux" etc.
-  // Pattern pour lignes de devis typiques: "1 Remplacement des pompes..."
   const objetPatterns = [
-    // Lignes commençant par un numéro puis description de travaux
-    /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,80})/im,
     // Champ "Objet" explicite
     /Objet\s*(?:des\s*travaux)?\s*:?\s*([^\n]+)/i,
     /Nature\s*des\s*travaux\s*:?\s*([^\n]+)/i,
+    // Lignes commençant par un numéro puis description de travaux
+    /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,80})/im,
+    // Recherche directe de mots-clés de travaux (sans numéro)
+    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+(?:des?|du|de la|d')\s+[A-Za-zÀ-ü\s]+)/i,
   ];
 
   for (const pattern of objetPatterns) {
     const match = text.match(pattern);
     if (match) {
       let objet = match[1].trim();
-      // Nettoyer - enlever les quantités/prix à la fin
+      // Nettoyer - enlever les quantités/prix à la fin et caractères indésirables
       objet = objet.replace(/\s+\d+[\s,\.]*\d*\s*(€|EUR|U\.|Ens|Forf|ML|M2|M3|H)?.*$/i, "").trim();
+      objet = objet.replace(/\s{2,}/g, " ").trim(); // Espaces multiples
+      // Couper si trop long (garder la partie principale)
+      if (objet.length > 80) {
+        const shortened = objet.match(/^(.{20,80}?)(?:\s+(?:avec|et|pour|sur|dans|en)\s|,|\.|$)/);
+        if (shortened) objet = shortened[1].trim();
+      }
       if (objet.length > 5 && objet.length < 150) {
         result.objet = objet;
         break;
@@ -109,37 +116,43 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     return parseFloat(cleaned) || 0;
   };
 
-  // Patterns pour montant HT
-  const htPatterns = [
-    /Total\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i,
-    /Montant\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i,
-    /TOTAL\s*HORS\s*TAXE[S]?\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i,
-    /Total\s*HT\s*([\d\s\u00A0]+[,\.]\d{2})/i,
-  ];
+  // Chercher spécifiquement "Total HT" suivi d'un montant (pas TTC!)
+  // Format possible: "Total HT 57 551,00" ou "Total HT : 57551.00 €"
+  const htMatch = text.match(/Total\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i);
+  if (htMatch) {
+    const amount = parseAmount(htMatch[1]);
+    if (amount > 100) {
+      result.amountHT = amount;
+    }
+  }
 
-  for (const pattern of htPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      const amount = parseAmount(match[1]);
+  // Fallback: chercher "Sous-total HT" ou "Montant HT"
+  if (!result.amountHT) {
+    const fallbackMatch = text.match(/(?:Sous[\s-]?total|Montant)\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i);
+    if (fallbackMatch) {
+      const amount = parseAmount(fallbackMatch[1]);
       if (amount > 100) {
         result.amountHT = amount;
-        break;
       }
     }
   }
 
-  // Fallback: chercher tous les montants format "XX XXX,XX" et prendre le plus grand
+  // Dernier recours: chercher tous les montants et prendre le 2ème plus grand (HT < TTC)
   if (!result.amountHT) {
-    const allAmounts = text.matchAll(/([\d]{1,3}[\s\u00A0]?\d{3}[,\.]\d{2})/g);
-    let maxAmount = 0;
-    for (const match of allAmounts) {
+    const allAmounts: number[] = [];
+    const matches = text.matchAll(/([\d]{1,3}[\s\u00A0]?\d{3}[,\.]\d{2})/g);
+    for (const match of matches) {
       const amount = parseAmount(match[1]);
-      if (amount > maxAmount && amount < 10000000) { // Max raisonnable: 10M€
-        maxAmount = amount;
+      if (amount > 100 && amount < 10000000) {
+        allAmounts.push(amount);
       }
     }
-    if (maxAmount > 100) {
-      result.amountHT = maxAmount;
+    // Trier et prendre le 2ème (HT) au lieu du 1er (TTC)
+    allAmounts.sort((a, b) => b - a);
+    if (allAmounts.length >= 2) {
+      result.amountHT = allAmounts[1]; // 2ème plus grand = HT
+    } else if (allAmounts.length === 1) {
+      result.amountHT = allAmounts[0];
     }
   }
 
