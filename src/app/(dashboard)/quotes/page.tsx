@@ -48,6 +48,7 @@ interface Quote {
   provider: string;
   client: string | null;
   description: string | null;
+  quoteType: "P3" | "P5" | "ASTREINTE" | null;
   status: "BROUILLON" | "ENVOYE" | "ACCEPTE" | "REFUSE" | "EXPIRE" | "COMMANDE" | "FACTURE";
   amountHT: number;
   amountTVA: number | null;
@@ -59,6 +60,12 @@ interface Quote {
   contract: QuoteContract | null;
   items: QuoteItem[];
 }
+
+const quoteTypeConfig = {
+  P3: { label: "P3", color: "bg-blue-100 text-blue-700" },
+  P5: { label: "P5", color: "bg-purple-100 text-purple-700" },
+  ASTREINTE: { label: "Astreinte", color: "bg-orange-100 text-orange-700" },
+};
 
 interface Site {
   id: string;
@@ -131,6 +138,7 @@ export default function QuotesPage() {
     provider: "",
     issueDate: new Date().toISOString().split("T")[0],
     amountHT: "",
+    quoteType: "" as "" | "P3" | "P5" | "ASTREINTE",
     siteId: "",
     contractId: "",
   });
@@ -276,6 +284,7 @@ export default function QuotesPage() {
         provider: "",
         issueDate: new Date().toISOString().split("T")[0],
         amountHT: result.parsed.amountHT?.toString() || "",
+        quoteType: "",
         siteId: matchedSite,
         contractId: "",
       });
@@ -312,6 +321,7 @@ export default function QuotesPage() {
           reference: importFormData.reference,
           title: importFormData.title,
           provider: importFormData.provider || "À définir",
+          quoteType: importFormData.quoteType || null,
           amountHT: parseFloat(importFormData.amountHT) || 0,
           amountTTC: parseFloat(importFormData.amountHT) * 1.2 || 0,
           issueDate: importFormData.issueDate,
@@ -339,6 +349,7 @@ export default function QuotesPage() {
         provider: "",
         issueDate: new Date().toISOString().split("T")[0],
         amountHT: "",
+        quoteType: "",
         siteId: "",
         contractId: "",
       });
@@ -482,19 +493,19 @@ export default function QuotesPage() {
                   <div className="flex items-center gap-6">
                     <div className="text-right">
                       <p className="font-semibold text-primary-dark">
-                        {(quote.amountTTC || quote.amountHT || 0).toLocaleString("fr-FR")} € TTC
+                        {(quote.amountHT || 0).toLocaleString("fr-FR")} € HT
                       </p>
-                      {quote.amountHT > 0 && quote.amountHT !== quote.amountTTC && (
-                        <p className="text-xs text-text-secondary">
-                          {quote.amountHT.toLocaleString("fr-FR")} € HT
-                        </p>
-                      )}
                       <p className="text-sm text-text-secondary">
                         Valide jusqu&apos;au{" "}
                         {new Date(quote.validUntil).toLocaleDateString("fr-FR")}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
+                      {quote.quoteType && (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${quoteTypeConfig[quote.quoteType].color}`}>
+                          {quoteTypeConfig[quote.quoteType].label}
+                        </span>
+                      )}
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}
                       >
@@ -685,18 +696,35 @@ export default function QuotesPage() {
                     </div>
                   </div>
 
-                  {/* Fournisseur */}
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">
-                      Fournisseur
-                    </label>
-                    <input
-                      type="text"
-                      value={importFormData.provider}
-                      onChange={(e) => setImportFormData({ ...importFormData, provider: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                      placeholder="T.É.P.I. EXPLOITATION"
-                    />
+                  {/* Fournisseur et Type */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-primary-dark mb-1">
+                        Fournisseur
+                      </label>
+                      <input
+                        type="text"
+                        value={importFormData.provider}
+                        onChange={(e) => setImportFormData({ ...importFormData, provider: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        placeholder="T.É.P.I."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-primary-dark mb-1">
+                        Type de devis *
+                      </label>
+                      <select
+                        value={importFormData.quoteType}
+                        onChange={(e) => setImportFormData({ ...importFormData, quoteType: e.target.value as "" | "P3" | "P5" | "ASTREINTE" })}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      >
+                        <option value="">Sélectionner</option>
+                        <option value="P3">P3 - Maintenance</option>
+                        <option value="P5">P5 - Gros travaux</option>
+                        <option value="ASTREINTE">Astreinte</option>
+                      </select>
+                    </div>
                   </div>
 
                   {/* Site */}

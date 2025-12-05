@@ -589,12 +589,19 @@ enum QuoteStatus {
   FACTURE     // Facturé
 }
 
+enum QuoteType {
+  P3          // Maintenance préventive
+  P5          // Gros travaux
+  ASTREINTE   // Astreinte (à régulariser)
+}
+
 model Quote {
   id             String      @id @default(cuid())
   reference      String
   title          String
   provider       String      // Fournisseur (ex: T.É.P.I. EXPLOITATION)
   client         String?     // Client facturé (ex: IDEX ENERGIES)
+  quoteType      QuoteType?  // Type: P3, P5, Astreinte
   amountHT       Float       @default(0) // Montant HT
   amountTVA      Float?      // Montant TVA
   amountTTC      Float       @default(0) // Montant TTC

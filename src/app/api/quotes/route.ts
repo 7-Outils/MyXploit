@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
         title: body.title,
         provider: body.provider,
         client: body.client,
+        quoteType: body.quoteType || null,
         amountHT: parseFloat(body.amountHT || body.amount || 0),
         amountTVA: body.amountTVA ? parseFloat(body.amountTVA) : null,
         amountTTC: parseFloat(body.amountTTC || body.amount || 0),
