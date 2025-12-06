@@ -135,9 +135,10 @@ export async function POST(request: NextRequest) {
           // Upsert consumption
           await prisma.consumption.upsert({
             where: {
-              siteId_energyType_period: {
+              siteId_energyType_usage_period: {
                 siteId: site.id,
                 energyType: "GAZ",
+                usage: "CHAUFFAGE", // Default usage for GRDF data
                 period: period,
               },
             },
@@ -150,6 +151,7 @@ export async function POST(request: NextRequest) {
               siteId: site.id,
               organizationId: user.organizationId,
               energyType: "GAZ",
+              usage: "CHAUFFAGE",
               period: period,
               quantity: quantityKwh,
               unit: "kWh",

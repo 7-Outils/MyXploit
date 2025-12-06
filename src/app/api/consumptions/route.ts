@@ -52,11 +52,12 @@ export async function POST(request: NextRequest) {
       data: {
         siteId: body.siteId,
         energyType: body.energyType,
+        usage: body.usage || "MIXTE",
         period: new Date(body.period),
         quantity: parseFloat(body.quantity),
         unit: body.unit,
         cost: body.cost ? parseFloat(body.cost) : null,
-        dju: body.dju ? parseFloat(body.dju) : null,
+        djuReel: body.djuReel ? parseFloat(body.djuReel) : null,
         organizationId: user.organizationId,
       },
     });

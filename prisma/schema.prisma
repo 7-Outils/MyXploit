@@ -43,16 +43,24 @@ enum UserRole {
   READER
 }
 
+// Profil métier de l'utilisateur (expérience personnalisée)
+enum UserProfile {
+  EXPLOITANT   // Entreprise de maintenance (Engie, Dalkia, etc.) - Focus: interventions, équipements, rapports
+  CLIENT       // Propriétaire/gestionnaire du patrimoine - Focus: coûts, conformité contrat, performance
+  AMO          // Assistant Maîtrise d'Ouvrage - Focus: audits, pilotage global, reporting
+}
+
 model User {
-  id             String   @id @default(cuid())
-  clerkId        String   @unique // ID from Clerk
+  id             String       @id @default(cuid())
+  clerkId        String       @unique // ID from Clerk
   email          String
   firstName      String?
   lastName       String?
-  role           UserRole @default(READER)
+  role           UserRole     @default(READER)
+  profile        UserProfile? // Profil métier (null = pas encore choisi)
   organizationId String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -83,7 +91,16 @@ enum EnergyType {
   FIOUL
   BOIS
   RESEAU_CHALEUR
+  EAU           // Appoint d'eau
   AUTRE
+}
+
+// Usage de l'énergie (pour séparer chauffage et ECS)
+enum EnergyUsage {
+  CHAUFFAGE     // Chauffage seul (soumis aux DJU)
+  ECS           // Eau Chaude Sanitaire (non soumis aux DJU)
+  MIXTE         // Chauffage + ECS combiné
+  AUTRE         // Autre usage
 }
 
 enum NbUnit {
@@ -104,6 +121,8 @@ model Site {
   // Données énergétiques P1
   nb             Float?     // Niveau de Base / Cible énergétique (MWh)
   nbUnit         NbUnit?    // Unité du NB (PCS ou Utile)
+  djuContractuel Float?     // DJU Contractuels (trentenaire station météo)
+  stationMeteo   String?    // Station météo de référence (ex: "ORLY", "LYON-BRON")
   pce            String?    // Point de Comptage et d'Estimation (compteur gaz)
   pdl            String?    // Point de Livraison (compteur électricité)
   rae            String?    // Référence Acheminement Électricité
@@ -509,23 +528,27 @@ model ContractSitePriceChange {
 // ============================================
 
 model Consumption {
-  id             String     @id @default(cuid())
+  id             String      @id @default(cuid())
   siteId         String
   organizationId String
   energyType     EnergyType
-  period         DateTime // Mois de consommation
-  quantity       Float // kWh ou m³ ou litres
-  unit           String // kWh, m³, L
-  cost           Float? // Coût en €
-  dju            Float? // Degrés Jours Unifiés
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  usage          EnergyUsage @default(MIXTE) // Chauffage, ECS, Mixte
+  period         DateTime    // Mois de consommation
+  quantity       Float       // kWh ou m³ ou litres
+  unit           String      // kWh, m³, L
+  cost           Float?      // Coût en €
+  djuReel        Float?      // DJU Réels de la période (pour calcul N'B)
+  // Champs calculés (optionnel, pour cache)
+  quantityEcs    Float?      // Part ECS déduite (si MIXTE)
+  quantityChauffage Float?   // Part Chauffage (si MIXTE)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   // Relations
   site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([siteId, energyType, period])
+  @@unique([siteId, energyType, usage, period])
   @@map("consumptions")
 }
 

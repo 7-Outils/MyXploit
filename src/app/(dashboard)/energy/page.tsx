@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   BarChart3,
   TrendingDown,
   TrendingUp,
   AlertTriangle,
-  Zap,
   Plus,
   Loader2,
   X,
+  Upload,
+  FileSpreadsheet,
+  Check,
+  Flame,
+  ThermometerSun,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -21,15 +26,57 @@ interface Site {
   id: string;
   name: string;
   type: string;
+  nb: number | null;
+  djuContractuel: number | null;
 }
 
-interface Consumption {
-  id: string;
-  type: "ELECTRICITE" | "GAZ" | "EAU" | "FIOUL" | "CHALEUR";
-  value: number;
-  unit: string;
-  period: string;
-  site: Site;
+interface MonthlyData {
+  month: string;
+  label: string;
+  nc: number;
+  nbPrime: number;
+  djr: number;
+  ecs: number;
+}
+
+interface SitePerformance {
+  siteId: string;
+  siteName: string;
+  siteType: string;
+  city: string;
+  energyType: string;
+  nb: number | null;
+  nbUnit: string | null;
+  djuContractuel: number | null;
+  stationMeteo: string | null;
+  nc: number;
+  nbPrime: number;
+  djrTotal: number;
+  ecsTotal: number;
+  mixteTotal: number;
+  delta: number;
+  deltaPercent: number;
+  status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
+  monthlyData: { month: string; nc: number; nbPrime: number; djr: number; ecs: number }[];
+}
+
+interface AnalyticsData {
+  year: number;
+  period: { start: string; end: string };
+  summary: {
+    totalSites: number;
+    totalNc: number;
+    totalNbPrime: number;
+    totalDelta: number;
+    deltaPercent: number;
+    status: string;
+    sitesEnEconomie: number;
+    sitesEnDepassement: number;
+    sitesObjectifAtteint: number;
+  };
+  monthlyData: MonthlyData[];
+  performanceByType: { type: string; nc: number; nbPrime: number; count: number; deltaPercent: number }[];
+  sites: SitePerformance[];
 }
 
 interface Alert {
@@ -38,40 +85,132 @@ interface Alert {
   priority: "BASSE" | "MOYENNE" | "HAUTE" | "CRITIQUE";
   title: string;
   message: string;
-  site: Site | null;
+  site: { id: string; name: string } | null;
   createdAt: string;
   isRead: boolean;
 }
 
+interface Consumption {
+  id: string;
+  energyType: string;
+  usage: string;
+  quantity: number;
+  unit: string;
+  period: string;
+  djuReel: number | null;
+  cost: number | null;
+  site: { id: string; name: string };
+}
+
+const ENERGY_TYPE_LABELS: Record<string, string> = {
+  GAZ: "Gaz",
+  ELECTRICITE: "Électricité",
+  FIOUL: "Fioul",
+  BOIS: "Bois",
+  RESEAU_CHALEUR: "RCU",
+  EAU: "Eau",
+  AUTRE: "Autre",
+};
+
+const USAGE_LABELS: Record<string, string> = {
+  CHAUFFAGE: "Chauffage",
+  ECS: "ECS",
+  MIXTE: "Mixte",
+  AUTRE: "Autre",
+};
+
+const SITE_TYPE_LABELS: Record<string, string> = {
+  LYCEE: "Lycée",
+  COLLEGE: "Collège",
+  ECOLE: "École",
+  MAIRIE: "Mairie",
+  HOPITAL: "Hôpital",
+  GYMNASE: "Gymnase",
+  PISCINE: "Piscine",
+  MEDIATHEQUE: "Médiathèque",
+  AUTRE: "Autre",
+};
+
 export default function EnergyPage() {
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [consumptions, setConsumptions] = useState<Consumption[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedSite, setSelectedSite] = useState<string>("");
 
+  // Modals
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  // Create form
   const [formData, setFormData] = useState({
-    type: "ELECTRICITE",
-    value: "",
-    unit: "kWh",
-    period: "",
     siteId: "",
+    energyType: "GAZ",
+    usage: "CHAUFFAGE",
+    period: "",
+    quantity: "",
+    unit: "kWh",
+    cost: "",
+    djuReel: "",
   });
 
-  const fetchData = async () => {
+  // Import state
+  const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
+  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState({
+    site: "",
+    period: "",
+    quantity: "",
+    cost: "",
+    dju: "",
+    energyType: "",
+    usage: "",
+    pce: "",
+    pdl: "",
+  });
+  const [importOptions, setImportOptions] = useState({
+    energyType: "GAZ",
+    usage: "CHAUFFAGE",
+    unit: "kWh",
+  });
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    updated: number;
+    errors: { row: number; site: string; error: string }[];
+    totalErrors: number;
+  } | null>(null);
+
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [consumptionsRes, alertsRes, sitesRes] = await Promise.all([
+      const params = new URLSearchParams();
+      params.set("year", selectedYear.toString());
+      if (selectedSite) params.set("siteId", selectedSite);
+
+      const [analyticsRes, consumptionsRes, alertsRes, sitesRes] = await Promise.all([
+        fetch(`/api/consumptions/analytics?${params}`),
         fetch("/api/consumptions"),
-        fetch("/api/alerts"),
+        fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
         fetch("/api/sites"),
       ]);
-      const [consumptionsData, alertsData, sitesData] = await Promise.all([
+
+      const [analyticsData, consumptionsData, alertsData, sitesData] = await Promise.all([
+        analyticsRes.json(),
         consumptionsRes.json(),
         alertsRes.json(),
         sitesRes.json(),
       ]);
+
+      if (!analyticsRes.ok) {
+        console.error("Analytics error:", analyticsData);
+      } else {
+        setAnalytics(analyticsData);
+      }
+
       setConsumptions(Array.isArray(consumptionsData) ? consumptionsData : []);
       setAlerts(Array.isArray(alertsData) ? alertsData : []);
       setSites(sitesData);
@@ -80,11 +219,11 @@ export default function EnergyPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedYear, selectedSite]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,17 +232,29 @@ export default function EnergyPage() {
       const response = await fetch("/api/consumptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          siteId: formData.siteId,
+          energyType: formData.energyType,
+          usage: formData.usage,
+          period: formData.period,
+          quantity: formData.quantity,
+          unit: formData.unit,
+          cost: formData.cost || null,
+          djuReel: formData.djuReel || null,
+        }),
       });
       if (response.ok) {
         await fetchData();
-        setShowModal(false);
+        setShowCreateModal(false);
         setFormData({
-          type: "ELECTRICITE",
-          value: "",
-          unit: "kWh",
-          period: "",
           siteId: "",
+          energyType: "GAZ",
+          usage: "CHAUFFAGE",
+          period: "",
+          quantity: "",
+          unit: "kWh",
+          cost: "",
+          djuReel: "",
         });
       }
     } catch (error) {
@@ -113,31 +264,129 @@ export default function EnergyPage() {
     }
   };
 
-  // Calculer les statistiques
-  const totalElec = consumptions
-    .filter((c) => c.type === "ELECTRICITE")
-    .reduce((sum, c) => sum + c.value, 0);
-  const totalGaz = consumptions
-    .filter((c) => c.type === "GAZ")
-    .reduce((sum, c) => sum + c.value, 0);
-  const activeAlerts = alerts.filter((a) => !a.isRead);
-  const criticalAlerts = alerts.filter((a) => a.priority === "CRITIQUE");
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Données pour le graphique (agrégées par mois)
-  const monthlyData = [
-    { label: "Jan", value: 850, target: 900 },
-    { label: "Fév", value: 920, target: 880 },
-    { label: "Mar", value: 780, target: 800 },
-    { label: "Avr", value: 650, target: 700 },
-    { label: "Mai", value: 520, target: 550 },
-    { label: "Jun", value: 480, target: 500 },
-    { label: "Jul", value: 420, target: 450 },
-    { label: "Aoû", value: 410, target: 440 },
-    { label: "Sep", value: 550, target: 580 },
-    { label: "Oct", value: 720, target: 750 },
-    { label: "Nov", value: 880, target: 850 },
-    { label: "Déc", value: 950, target: 920 },
-  ];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split("\n").filter((line) => line.trim());
+
+      if (lines.length < 2) {
+        alert("Le fichier CSV doit contenir au moins un en-tête et une ligne de données");
+        return;
+      }
+
+      // Detect separator
+      const separator = lines[0].includes(";") ? ";" : ",";
+      const headers = lines[0].split(separator).map((h) => h.trim().replace(/^"|"$/g, ""));
+      setCsvHeaders(headers);
+
+      const data = lines.slice(1).map((line) => {
+        const values = line.split(separator).map((v) => v.trim().replace(/^"|"$/g, ""));
+        const row: Record<string, string> = {};
+        headers.forEach((h, i) => {
+          row[h] = values[i] || "";
+        });
+        return row;
+      });
+
+      setCsvData(data);
+
+      // Try to auto-detect mapping
+      const autoMapping = { ...mapping };
+      headers.forEach((h) => {
+        const lowerH = h.toLowerCase();
+        if (lowerH.includes("site") || lowerH.includes("nom") || lowerH.includes("batiment")) {
+          autoMapping.site = h;
+        } else if (lowerH.includes("period") || lowerH.includes("mois") || lowerH.includes("date")) {
+          autoMapping.period = h;
+        } else if (lowerH.includes("quantit") || lowerH.includes("conso") || lowerH.includes("kwh") || lowerH.includes("volume")) {
+          autoMapping.quantity = h;
+        } else if (lowerH.includes("cout") || lowerH.includes("prix") || lowerH.includes("montant") || lowerH === "€") {
+          autoMapping.cost = h;
+        } else if (lowerH.includes("dju") || lowerH.includes("degr")) {
+          autoMapping.dju = h;
+        } else if (lowerH.includes("pce")) {
+          autoMapping.pce = h;
+        } else if (lowerH.includes("pdl") || lowerH.includes("prm")) {
+          autoMapping.pdl = h;
+        } else if (lowerH.includes("energie") || lowerH.includes("type")) {
+          autoMapping.energyType = h;
+        } else if (lowerH.includes("usage")) {
+          autoMapping.usage = h;
+        }
+      });
+      setMapping(autoMapping);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    if (!mapping.site || !mapping.period || !mapping.quantity) {
+      alert("Veuillez mapper au moins: Site, Période et Quantité");
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const response = await fetch("/api/consumptions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: csvData,
+          mapping,
+          options: importOptions,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setImportResult(result);
+        if (result.imported > 0 || result.updated > 0) {
+          await fetchData();
+        }
+      } else {
+        alert(result.error || "Erreur lors de l'import");
+      }
+    } catch (error) {
+      console.error("Error importing:", error);
+      alert("Erreur lors de l'import");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+    setCsvData([]);
+    setCsvHeaders([]);
+    setImportResult(null);
+    setMapping({
+      site: "",
+      period: "",
+      quantity: "",
+      cost: "",
+      dju: "",
+      energyType: "",
+      usage: "",
+      pce: "",
+      pdl: "",
+    });
+  };
+
+  // Chart data from analytics
+  const chartData = analytics?.monthlyData?.map((m) => ({
+    label: m.label,
+    value: Math.round(m.nc / 1000), // Convert to MWh
+    target: Math.round(m.nbPrime / 1000),
+  })) || [];
+
+  const activeAlerts = alerts.filter((a) => !a.isRead);
 
   if (loading) {
     return (
@@ -152,51 +401,87 @@ export default function EnergyPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary-dark">
-            Suivi énergétique
-          </h1>
+          <h1 className="text-2xl font-bold text-primary-dark">Performance énergétique</h1>
           <p className="text-text-secondary">
-            Analysez vos consommations et détectez les dérives
+            Analysez NC vs N&apos;B et détectez les dérives
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">Exporter rapport</Button>
-          <Button onClick={() => setShowModal(true)}>
+        <div className="flex gap-2 flex-wrap">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+          >
+            {[2025, 2024, 2023, 2022].map((year) => (
+              <option key={year} value={year}>
+                Saison {year - 1}/{year}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedSite}
+            onChange={(e) => setSelectedSite(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+          >
+            <option value="">Tous les sites</option>
+            {sites.map((site) => (
+              <option key={site.id} value={site.id}>
+                {site.name}
+              </option>
+            ))}
+          </select>
+          <Button variant="outline" onClick={() => setShowImportModal(true)}>
+            <Upload size={18} className="mr-2" />
+            Importer CSV
+          </Button>
+          <Button onClick={() => setShowCreateModal(true)}>
             <Plus size={18} className="mr-2" />
-            Saisir conso
+            Saisir relevé
           </Button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Électricité"
-          value={`${(totalElec / 1000).toFixed(0)} MWh`}
-          icon={Zap}
-          iconColor="text-yellow-600"
-        />
-        <StatsCard
-          title="Gaz"
-          value={`${(totalGaz / 1000).toFixed(0)} MWh`}
-          icon={TrendingDown}
-          iconColor="text-blue-600"
-        />
-        <StatsCard
-          title="Relevés"
-          value={consumptions.length.toString()}
-          icon={BarChart3}
-          iconColor="text-accent"
-        />
-        <StatsCard
-          title="Alertes actives"
-          value={activeAlerts.length.toString()}
-          change={`${criticalAlerts.length} critiques`}
-          changeType={criticalAlerts.length > 0 ? "negative" : "neutral"}
-          icon={AlertTriangle}
-          iconColor="text-red-600"
-        />
-      </div>
+      {/* Performance Summary */}
+      {analytics && (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatsCard
+            title="NC (Conso. réelle)"
+            value={`${(analytics.summary.totalNc / 1000).toFixed(0)} MWh`}
+            icon={Flame}
+            iconColor="text-orange-600"
+          />
+          <StatsCard
+            title="N'B (Théorique)"
+            value={`${(analytics.summary.totalNbPrime / 1000).toFixed(0)} MWh`}
+            icon={ThermometerSun}
+            iconColor="text-blue-600"
+          />
+          <StatsCard
+            title="Écart NC/N'B"
+            value={`${analytics.summary.deltaPercent > 0 ? "+" : ""}${analytics.summary.deltaPercent}%`}
+            change={analytics.summary.status === "ECONOMIE" ? "Économie" : analytics.summary.status === "DEPASSEMENT" ? "Dépassement" : "Objectif atteint"}
+            changeType={analytics.summary.deltaPercent <= 0 ? "positive" : "negative"}
+            icon={analytics.summary.deltaPercent <= 0 ? TrendingDown : TrendingUp}
+            iconColor={analytics.summary.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}
+          />
+          <StatsCard
+            title="Sites"
+            value={`${analytics.summary.sitesEnEconomie}/${analytics.summary.totalSites}`}
+            change={`en économie`}
+            changeType="positive"
+            icon={Building2}
+            iconColor="text-accent"
+          />
+          <StatsCard
+            title="Alertes dérives"
+            value={activeAlerts.length.toString()}
+            change={activeAlerts.filter((a) => a.priority === "CRITIQUE").length > 0 ? `${activeAlerts.filter((a) => a.priority === "CRITIQUE").length} critiques` : "Aucune critique"}
+            changeType={activeAlerts.filter((a) => a.priority === "CRITIQUE").length > 0 ? "negative" : "neutral"}
+            icon={AlertTriangle}
+            iconColor="text-red-600"
+          />
+        </div>
+      )}
 
       {/* Télérelève */}
       <TelereleveCard />
@@ -205,42 +490,45 @@ export default function EnergyPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         <ChartCard
           title="Consommation mensuelle"
-          subtitle="Réel vs Référence DJU (MWh)"
+          subtitle="NC (Réel) vs N'B (Théorique ajusté DJU)"
           className="lg:col-span-2"
-          action={
-            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent/20">
-              <option>2024</option>
-              <option>2023</option>
-              <option>2022</option>
-            </select>
-          }
         >
-          <SimpleBarChart data={monthlyData} height={250} />
-          <div className="flex items-center justify-center gap-6 mt-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gradient-to-t from-accent to-accent-light rounded" />
-              <span className="text-text-secondary">Consommation réelle</span>
+          {chartData.length > 0 ? (
+            <>
+              <SimpleBarChart data={chartData} height={250} />
+              <div className="flex items-center justify-center gap-6 mt-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gradient-to-t from-accent to-accent-light rounded" />
+                  <span className="text-text-secondary">NC (Conso. réelle)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-200 rounded" />
+                  <span className="text-text-secondary">N&apos;B (Théorique)</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <BarChart3 className="w-12 h-12 text-gray-300 mb-3" />
+              <p className="text-text-secondary">Aucune donnée pour cette période</p>
+              <p className="text-sm text-gray-400 mt-1">Importez vos relevés exploitant via CSV</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-gray-200 rounded" />
-              <span className="text-text-secondary">Référence DJU</span>
-            </div>
-          </div>
+          )}
         </ChartCard>
 
         {/* Alerts */}
         <ChartCard
           title="Alertes dérives"
           action={
-            <button className="text-sm text-accent hover:underline">
-              Voir toutes
-            </button>
+            <button className="text-sm text-accent hover:underline">Voir toutes</button>
           }
         >
           {activeAlerts.length === 0 ? (
-            <p className="text-text-secondary text-center py-8">
-              Aucune alerte active
-            </p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Check className="w-10 h-10 text-green-500 mb-2" />
+              <p className="text-text-secondary">Aucune alerte active</p>
+              <p className="text-sm text-gray-400">Tous les sites sont dans les cibles</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {activeAlerts.slice(0, 5).map((alert) => (
@@ -256,12 +544,8 @@ export default function EnergyPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-medium text-primary-dark">
-                        {alert.title}
-                      </p>
-                      <p className="text-sm text-text-secondary">
-                        {alert.message}
-                      </p>
+                      <p className="font-medium text-primary-dark">{alert.title}</p>
+                      <p className="text-sm text-text-secondary">{alert.message}</p>
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-1 rounded ${
@@ -285,56 +569,52 @@ export default function EnergyPage() {
         </ChartCard>
       </div>
 
-      {/* Recent consumptions */}
-      {consumptions.length > 0 && (
-        <ChartCard title="Derniers relevés">
+      {/* Performance by site */}
+      {analytics && analytics.sites.length > 0 && (
+        <ChartCard title="Performance par site">
           <div className="overflow-x-auto -mx-6 -my-6">
             <table className="w-full">
               <thead className="bg-background-secondary border-b border-gray-100">
                 <tr>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">
-                    Site
-                  </th>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">
-                    Type
-                  </th>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">
-                    Période
-                  </th>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">
-                    Valeur
-                  </th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Type</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NC (MWh)</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">N&apos;B (MWh)</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Écart</th>
+                  <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {consumptions.slice(0, 10).map((consumption) => (
-                  <tr key={consumption.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-primary-dark">
-                      {consumption.site?.name || "-"}
+                {analytics.sites.map((site) => (
+                  <tr key={site.siteId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium text-primary-dark">{site.siteName}</p>
+                        <p className="text-xs text-gray-500">{site.city}</p>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          consumption.type === "ELECTRICITE"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : consumption.type === "GAZ"
-                            ? "bg-blue-100 text-blue-700"
-                            : consumption.type === "EAU"
-                            ? "bg-cyan-100 text-cyan-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {consumption.type}
+                      <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                        {SITE_TYPE_LABELS[site.siteType] || site.siteType}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-text-secondary">
-                      {new Date(consumption.period).toLocaleDateString("fr-FR", {
-                        month: "long",
-                        year: "numeric",
-                      })}
+                    <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
+                    <td className="px-6 py-4 text-right text-gray-600">{(site.nbPrime / 1000).toFixed(1)}</td>
+                    <td className={`px-6 py-4 text-right font-medium ${site.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {site.deltaPercent > 0 ? "+" : ""}{site.deltaPercent}%
                     </td>
-                    <td className="px-6 py-4 font-medium text-primary-dark">
-                      {consumption.value.toLocaleString()} {consumption.unit}
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          site.status === "ECONOMIE"
+                            ? "bg-green-100 text-green-700"
+                            : site.status === "DEPASSEMENT"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {site.status === "ECONOMIE" ? "Économie" : site.status === "DEPASSEMENT" ? "Dépassement" : "Objectif"}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -344,154 +624,209 @@ export default function EnergyPage() {
         </ChartCard>
       )}
 
-      {/* Performance by site type */}
-      <ChartCard title="Performance par type de bâtiment">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { type: "Scolaire", performance: 92, trend: -5 },
-            { type: "Administratif", performance: 88, trend: -3 },
-            { type: "Sportif", performance: 78, trend: +2 },
-            { type: "Culturel", performance: 95, trend: -8 },
-          ].map((item) => (
-            <div
-              key={item.type}
-              className="bg-background-secondary rounded-xl p-4 text-center"
-            >
-              <p className="text-sm text-text-secondary mb-2">{item.type}</p>
-              <p className="text-3xl font-bold text-primary-dark">
-                {item.performance}%
-              </p>
-              <p
-                className={`text-sm mt-1 flex items-center justify-center gap-1 ${
-                  item.trend < 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {item.trend < 0 ? (
-                  <TrendingDown size={14} />
-                ) : (
-                  <TrendingUp size={14} />
-                )}
-                {Math.abs(item.trend)}% vs N-1
-              </p>
-            </div>
-          ))}
-        </div>
-      </ChartCard>
+      {/* Performance by type */}
+      {analytics && analytics.performanceByType.length > 0 && (
+        <ChartCard title="Performance par type de bâtiment">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {analytics.performanceByType.map((item) => (
+              <div key={item.type} className="bg-background-secondary rounded-xl p-4 text-center">
+                <p className="text-sm text-text-secondary mb-2">
+                  {SITE_TYPE_LABELS[item.type] || item.type}
+                </p>
+                <p className={`text-3xl font-bold ${item.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}`}>
+                  {item.deltaPercent > 0 ? "+" : ""}{item.deltaPercent}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{item.count} site{item.count > 1 ? "s" : ""}</p>
+              </div>
+            ))}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Recent consumptions */}
+      {consumptions.length > 0 && (
+        <ChartCard title="Derniers relevés">
+          <div className="overflow-x-auto -mx-6 -my-6">
+            <table className="w-full">
+              <thead className="bg-background-secondary border-b border-gray-100">
+                <tr>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Énergie</th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Usage</th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Période</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Quantité</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">DJU</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {consumptions.slice(0, 10).map((consumption) => (
+                  <tr key={consumption.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm text-primary-dark">{consumption.site?.name || "-"}</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          consumption.energyType === "ELECTRICITE"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : consumption.energyType === "GAZ"
+                            ? "bg-blue-100 text-blue-700"
+                            : consumption.energyType === "EAU"
+                            ? "bg-cyan-100 text-cyan-700"
+                            : consumption.energyType === "RESEAU_CHALEUR"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {ENERGY_TYPE_LABELS[consumption.energyType] || consumption.energyType}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                        {USAGE_LABELS[consumption.usage] || consumption.usage}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-text-secondary">
+                      {new Date(consumption.period).toLocaleDateString("fr-FR", {
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium text-primary-dark">
+                      {consumption.quantity.toLocaleString()} {consumption.unit}
+                    </td>
+                    <td className="px-6 py-4 text-right text-gray-500">
+                      {consumption.djuReel ? `${consumption.djuReel} DJU` : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartCard>
+      )}
 
       {/* Create Modal */}
-      {showModal && (
+      {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-primary-dark">
-                Saisir une consommation
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
+              <h2 className="text-xl font-bold text-primary-dark">Saisir un relevé</h2>
+              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Site *
-                </label>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Site *</label>
                 <select
                   required
                   value={formData.siteId}
-                  onChange={(e) =>
-                    setFormData({ ...formData, siteId: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                 >
                   <option value="">Sélectionner un site</option>
                   {sites.map((site) => (
-                    <option key={site.id} value={site.id}>
-                      {site.name}
-                    </option>
+                    <option key={site.id} value={site.id}>{site.name}</option>
                   ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Type d&apos;énergie *
-                  </label>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Type d&apos;énergie *</label>
                   <select
                     required
-                    value={formData.type}
+                    value={formData.energyType}
                     onChange={(e) => {
                       const type = e.target.value;
                       let unit = "kWh";
                       if (type === "EAU") unit = "m³";
                       if (type === "FIOUL") unit = "L";
-                      setFormData({ ...formData, type, unit });
+                      setFormData({ ...formData, energyType: type, unit });
                     }}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   >
-                    <option value="ELECTRICITE">Électricité</option>
                     <option value="GAZ">Gaz</option>
-                    <option value="EAU">Eau</option>
+                    <option value="ELECTRICITE">Électricité</option>
+                    <option value="RESEAU_CHALEUR">Réseau de chaleur</option>
                     <option value="FIOUL">Fioul</option>
-                    <option value="CHALEUR">Réseau de chaleur</option>
+                    <option value="BOIS">Bois</option>
+                    <option value="EAU">Eau</option>
+                    <option value="AUTRE">Autre</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Période *
-                  </label>
-                  <input
-                    type="month"
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Usage *</label>
+                  <select
                     required
-                    value={formData.period}
-                    onChange={(e) =>
-                      setFormData({ ...formData, period: e.target.value })
-                    }
+                    value={formData.usage}
+                    onChange={(e) => setFormData({ ...formData, usage: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                  />
+                  >
+                    <option value="CHAUFFAGE">Chauffage</option>
+                    <option value="ECS">ECS (Eau chaude)</option>
+                    <option value="MIXTE">Mixte (Chauff + ECS)</option>
+                    <option value="AUTRE">Autre</option>
+                  </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Période *</label>
+                <input
+                  type="month"
+                  required
+                  value={formData.period}
+                  onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Valeur *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.value}
-                    onChange={(e) =>
-                      setFormData({ ...formData, value: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-                    placeholder="12500"
-                  />
+                  <label className="block text-sm font-medium text-primary-dark mb-1">Quantité *</label>
+                  <div className="flex">
+                    <input
+                      type="number"
+                      required
+                      step="0.01"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                      className="flex-1 px-4 py-2.5 border border-gray-200 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="12500"
+                    />
+                    <span className="px-4 py-2.5 bg-gray-100 border border-l-0 border-gray-200 rounded-r-lg text-gray-600">
+                      {formData.unit}
+                    </span>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">
-                    Unité
-                  </label>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">DJU Réels</label>
                   <input
-                    type="text"
-                    value={formData.unit}
-                    readOnly
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50"
+                    type="number"
+                    step="0.1"
+                    value={formData.djuReel}
+                    onChange={(e) => setFormData({ ...formData, djuReel: e.target.value })}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    placeholder="350"
                   />
                 </div>
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">Coût (€)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.cost}
+                  onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="1250.50"
+                />
+              </div>
+
               <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowModal(false)}
-                >
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>
                   Annuler
                 </Button>
                 <Button type="submit" className="flex-1" disabled={creating}>
@@ -506,6 +841,326 @@ export default function EnergyPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-primary-dark">Importer des relevés CSV</h2>
+                <p className="text-sm text-text-secondary mt-1">
+                  Importez les exports de votre exploitant (GRDF, Engie, etc.)
+                </p>
+              </div>
+              <button onClick={closeImportModal} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Step 1: Upload */}
+              {csvData.length === 0 && (
+                <div>
+                  <label className="block cursor-pointer">
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-accent transition-colors">
+                      <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-lg font-medium text-primary-dark mb-2">
+                        Glissez votre fichier CSV ici
+                      </p>
+                      <p className="text-sm text-text-secondary mb-4">
+                        ou cliquez pour sélectionner un fichier
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Formats supportés: CSV avec séparateur virgule ou point-virgule
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {/* Step 2: Mapping */}
+              {csvData.length > 0 && !importResult && (
+                <>
+                  <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-3">
+                    <Check size={20} />
+                    <span>{csvData.length} lignes détectées dans le fichier</span>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-primary-dark mb-3">Correspondance des colonnes</h3>
+                    <p className="text-sm text-text-secondary mb-4">
+                      Associez les colonnes de votre fichier aux champs de l&apos;application
+                    </p>
+
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Site / Bâtiment *
+                        </label>
+                        <select
+                          value={mapping.site}
+                          onChange={(e) => setMapping({ ...mapping, site: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="">-- Sélectionner --</option>
+                          {csvHeaders.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Période / Date *
+                        </label>
+                        <select
+                          value={mapping.period}
+                          onChange={(e) => setMapping({ ...mapping, period: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="">-- Sélectionner --</option>
+                          {csvHeaders.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Quantité / Consommation *
+                        </label>
+                        <select
+                          value={mapping.quantity}
+                          onChange={(e) => setMapping({ ...mapping, quantity: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="">-- Sélectionner --</option>
+                          {csvHeaders.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Coût (€)
+                        </label>
+                        <select
+                          value={mapping.cost}
+                          onChange={(e) => setMapping({ ...mapping, cost: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="">-- Non mappé --</option>
+                          {csvHeaders.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          DJU Réels
+                        </label>
+                        <select
+                          value={mapping.dju}
+                          onChange={(e) => setMapping({ ...mapping, dju: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="">-- Non mappé --</option>
+                          {csvHeaders.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          PCE (compteur gaz)
+                        </label>
+                        <select
+                          value={mapping.pce}
+                          onChange={(e) => setMapping({ ...mapping, pce: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="">-- Non mappé --</option>
+                          {csvHeaders.map((h) => (
+                            <option key={h} value={h}>{h}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-primary-dark mb-3">Options par défaut</h3>
+                    <p className="text-sm text-text-secondary mb-4">
+                      Ces valeurs seront utilisées si non présentes dans le fichier
+                    </p>
+
+                    <div className="grid sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Type d&apos;énergie
+                        </label>
+                        <select
+                          value={importOptions.energyType}
+                          onChange={(e) => setImportOptions({ ...importOptions, energyType: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="GAZ">Gaz</option>
+                          <option value="ELECTRICITE">Électricité</option>
+                          <option value="RESEAU_CHALEUR">Réseau de chaleur</option>
+                          <option value="FIOUL">Fioul</option>
+                          <option value="BOIS">Bois</option>
+                          <option value="EAU">Eau</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Usage
+                        </label>
+                        <select
+                          value={importOptions.usage}
+                          onChange={(e) => setImportOptions({ ...importOptions, usage: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="CHAUFFAGE">Chauffage</option>
+                          <option value="ECS">ECS (Eau chaude)</option>
+                          <option value="MIXTE">Mixte</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-primary-dark mb-1">
+                          Unité
+                        </label>
+                        <select
+                          value={importOptions.unit}
+                          onChange={(e) => setImportOptions({ ...importOptions, unit: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        >
+                          <option value="kWh">kWh</option>
+                          <option value="MWh">MWh</option>
+                          <option value="m³">m³</option>
+                          <option value="L">Litres</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  <div>
+                    <h3 className="font-semibold text-primary-dark mb-3">Aperçu (5 premières lignes)</h3>
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            {csvHeaders.slice(0, 6).map((h) => (
+                              <th key={h} className="px-3 py-2 text-left font-medium text-gray-600">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {csvData.slice(0, 5).map((row, i) => (
+                            <tr key={i}>
+                              {csvHeaders.slice(0, 6).map((h) => (
+                                <td key={h} className="px-3 py-2 text-gray-700">{row[h]}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: Results */}
+              {importResult && (
+                <div className="space-y-4">
+                  <div className={`p-4 rounded-lg ${importResult.errors.length === 0 ? "bg-green-50" : "bg-yellow-50"}`}>
+                    <div className="flex items-center gap-3">
+                      {importResult.errors.length === 0 ? (
+                        <Check className="text-green-600" size={24} />
+                      ) : (
+                        <AlertTriangle className="text-yellow-600" size={24} />
+                      )}
+                      <div>
+                        <p className="font-semibold text-primary-dark">
+                          Import terminé
+                        </p>
+                        <p className="text-sm text-text-secondary">
+                          {importResult.imported} créés, {importResult.updated} mis à jour
+                          {importResult.totalErrors > 0 && `, ${importResult.totalErrors} erreurs`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {importResult.errors.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-primary-dark mb-2">Erreurs ({importResult.totalErrors})</h4>
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                        {importResult.errors.map((err, i) => (
+                          <div key={i} className="text-sm py-1 border-b border-gray-200 last:border-0">
+                            <span className="font-medium">Ligne {err.row}</span>
+                            <span className="text-gray-500"> ({err.site}): </span>
+                            <span className="text-red-600">{err.error}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
+                {csvData.length === 0 ? (
+                  <Button type="button" variant="outline" className="flex-1" onClick={closeImportModal}>
+                    Annuler
+                  </Button>
+                ) : importResult ? (
+                  <Button className="flex-1" onClick={closeImportModal}>
+                    Fermer
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setCsvData([]);
+                        setCsvHeaders([]);
+                      }}
+                    >
+                      Changer de fichier
+                    </Button>
+                    <Button
+                      className="flex-1"
+                      onClick={handleImport}
+                      disabled={importing || !mapping.site || !mapping.period || !mapping.quantity}
+                    >
+                      {importing ? (
+                        <>
+                          <Loader2 size={18} className="mr-2 animate-spin" />
+                          Import en cours...
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={18} className="mr-2" />
+                          Importer {csvData.length} lignes
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

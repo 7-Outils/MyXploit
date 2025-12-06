@@ -158,9 +158,10 @@ export async function POST(request: NextRequest) {
           // Upsert consumption
           await prisma.consumption.upsert({
             where: {
-              siteId_energyType_period: {
+              siteId_energyType_usage_period: {
                 siteId: site.id,
                 energyType: "ELECTRICITE",
+                usage: "CHAUFFAGE", // Default usage for Enedis data
                 period: period,
               },
             },
@@ -173,6 +174,7 @@ export async function POST(request: NextRequest) {
               siteId: site.id,
               organizationId: user.organizationId,
               energyType: "ELECTRICITE",
+              usage: "CHAUFFAGE",
               period: period,
               quantity: quantityKwh,
               unit: "kWh",
