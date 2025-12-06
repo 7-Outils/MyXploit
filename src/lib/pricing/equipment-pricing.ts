@@ -479,7 +479,14 @@ export function calculateMarketDimensioning(
 
   const totalP2Annual = p2Details.reduce((sum, p) => sum + p.annualCost, 0);
   const totalP3GEAnnual = p3GEDetails.reduce((sum, p) => sum + p.annualCost, 0);
-  const totalP3RAnnual = p3RDetails.reduce((sum, p) => sum + p.annualProvision, 0);
+
+  // P3 R annuel = uniquement les renouvellements NON urgents (LOW, MEDIUM, NONE)
+  // Les travaux obligatoires (HIGH, CRITICAL) sont comptés séparément
+  const mandatoryEquipmentIds = new Set(mandatoryWorks.map(m => m.equipment.id));
+  const totalP3RAnnual = p3RDetails
+    .filter(p => !mandatoryEquipmentIds.has(p.equipmentId))
+    .reduce((sum, p) => sum + p.annualProvision, 0);
+
   const totalHoursP2 = p2Details.reduce((sum, p) => sum + p.hoursPerYear, 0);
 
   return {
