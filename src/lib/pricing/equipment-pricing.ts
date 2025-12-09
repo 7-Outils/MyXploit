@@ -88,6 +88,28 @@ export const P2_HOURS_BY_TYPE: Record<string, { hours: number; frequency: number
   COMPTEUR_GAZ: { hours: 0.25, frequency: 1, level: "TECHNICIEN" },
   COMPTEUR_EAU: { hours: 0.25, frequency: 1, level: "TECHNICIEN" },
 
+  // === PISCINE ===
+  FILTRE_PISCINE: { hours: 2, frequency: 12, level: "TECHNICIEN" }, // Contrôle hebdo + rétrolavages
+  POMPE_FILTRATION: { hours: 1, frequency: 4, level: "TECHNICIEN" },
+  PAC_PISCINE: { hours: 4, frequency: 2, level: "TECHNICIEN_SPECIALISE" },
+  ECHANGEUR_PISCINE: { hours: 2, frequency: 2, level: "TECHNICIEN_SPECIALISE" },
+  CHAUDIERE_PISCINE: { hours: 5, frequency: 2, level: "TECHNICIEN_SPECIALISE" },
+  ELECTROLYSEUR_SEL: { hours: 2, frequency: 4, level: "TECHNICIEN_SPECIALISE" }, // Contrôle électrodes
+  TRAITEMENT_CHLORE: { hours: 1, frequency: 12, level: "TECHNICIEN" }, // Vérification hebdo
+  TRAITEMENT_UV: { hours: 1, frequency: 4, level: "TECHNICIEN_SPECIALISE" },
+  TRAITEMENT_OZONE: { hours: 2, frequency: 4, level: "TECHNICIEN_SPECIALISE" },
+  REGULATEUR_PH: { hours: 1, frequency: 12, level: "TECHNICIEN" }, // Étalonnage régulier
+  REGULATEUR_CHLORE: { hours: 1, frequency: 12, level: "TECHNICIEN" },
+  POMPE_DOSEUSE: { hours: 0.5, frequency: 12, level: "TECHNICIEN" },
+  SONDE_PH: { hours: 0.5, frequency: 12, level: "TECHNICIEN" }, // Étalonnage mensuel
+  SONDE_REDOX: { hours: 0.5, frequency: 12, level: "TECHNICIEN" },
+  SONDE_TEMPERATURE_EAU: { hours: 0.25, frequency: 4, level: "TECHNICIEN" },
+  DESHUMIDIFICATEUR: { hours: 4, frequency: 4, level: "TECHNICIEN_SPECIALISE" }, // Maintenance importante
+  CTA_PISCINE: { hours: 8, frequency: 4, level: "TECHNICIEN_SPECIALISE" }, // Spécifique ambiance piscine
+  BACHE_TAMPON: { hours: 1, frequency: 2, level: "TECHNICIEN" },
+  NAGE_CONTRE_COURANT: { hours: 1, frequency: 2, level: "TECHNICIEN" },
+  ROBOT_NETTOYAGE: { hours: 0.5, frequency: 4, level: "TECHNICIEN" },
+
   // === AUTRE ===
   AUTRE: { hours: 1, frequency: 1, level: "TECHNICIEN" },
 };
@@ -125,6 +147,27 @@ export const LIFESPAN_BY_TYPE: Record<string, number> = {
   SPLIT: 12,
   ROOFTOP: 15,
   ADOUCISSEUR: 10,
+  // PISCINE
+  FILTRE_PISCINE: 15,
+  POMPE_FILTRATION: 10,
+  PAC_PISCINE: 12,
+  ECHANGEUR_PISCINE: 15,
+  CHAUDIERE_PISCINE: 20,
+  ELECTROLYSEUR_SEL: 5, // Électrodes à remplacer régulièrement
+  TRAITEMENT_CHLORE: 10,
+  TRAITEMENT_UV: 8, // Lampes à changer
+  TRAITEMENT_OZONE: 10,
+  REGULATEUR_PH: 8,
+  REGULATEUR_CHLORE: 8,
+  POMPE_DOSEUSE: 8,
+  SONDE_PH: 2, // Sondes pH à changer fréquemment
+  SONDE_REDOX: 2,
+  SONDE_TEMPERATURE_EAU: 10,
+  DESHUMIDIFICATEUR: 15,
+  CTA_PISCINE: 20,
+  BACHE_TAMPON: 25,
+  NAGE_CONTRE_COURANT: 15,
+  ROBOT_NETTOYAGE: 5,
   AUTRE: 15,
 };
 
@@ -186,6 +229,27 @@ export const REPLACEMENT_COST_BY_TYPE: Record<string, { base: number; perKw?: nu
   COMPTEUR_CALORIES: { base: 1500 },
   COMPTEUR_GAZ: { base: 800 },
   COMPTEUR_EAU: { base: 400 },
+  // PISCINE
+  FILTRE_PISCINE: { base: 8000 }, // Filtre à sable industriel
+  POMPE_FILTRATION: { base: 3000, perKw: 200 },
+  PAC_PISCINE: { base: 15000, perKw: 150 },
+  ECHANGEUR_PISCINE: { base: 5000, perKw: 50 },
+  CHAUDIERE_PISCINE: { base: 12000, perKw: 60 },
+  ELECTROLYSEUR_SEL: { base: 4000 },
+  TRAITEMENT_CHLORE: { base: 3000 },
+  TRAITEMENT_UV: { base: 8000 },
+  TRAITEMENT_OZONE: { base: 15000 },
+  REGULATEUR_PH: { base: 2500 },
+  REGULATEUR_CHLORE: { base: 2500 },
+  POMPE_DOSEUSE: { base: 800 },
+  SONDE_PH: { base: 300 },
+  SONDE_REDOX: { base: 350 },
+  SONDE_TEMPERATURE_EAU: { base: 200 },
+  DESHUMIDIFICATEUR: { base: 25000, perKw: 100 }, // Gros équipement piscine couverte
+  CTA_PISCINE: { base: 40000, perKw: 150 }, // CTA spécifique piscine (corrosion, humidité)
+  BACHE_TAMPON: { base: 5000 },
+  NAGE_CONTRE_COURANT: { base: 6000, perKw: 300 },
+  ROBOT_NETTOYAGE: { base: 8000 },
   AUTRE: { base: 1000 },
 };
 
@@ -561,5 +625,26 @@ export const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   COMPTEUR_CALORIES: "Compteur calories",
   COMPTEUR_GAZ: "Compteur gaz",
   COMPTEUR_EAU: "Compteur eau",
+  // PISCINE
+  FILTRE_PISCINE: "Filtre piscine",
+  POMPE_FILTRATION: "Pompe filtration",
+  PAC_PISCINE: "PAC piscine",
+  ECHANGEUR_PISCINE: "Échangeur piscine",
+  CHAUDIERE_PISCINE: "Chaudière piscine",
+  ELECTROLYSEUR_SEL: "Électrolyseur sel",
+  TRAITEMENT_CHLORE: "Traitement chlore",
+  TRAITEMENT_UV: "Traitement UV",
+  TRAITEMENT_OZONE: "Traitement ozone",
+  REGULATEUR_PH: "Régulateur pH",
+  REGULATEUR_CHLORE: "Régulateur chlore",
+  POMPE_DOSEUSE: "Pompe doseuse",
+  SONDE_PH: "Sonde pH",
+  SONDE_REDOX: "Sonde redox",
+  SONDE_TEMPERATURE_EAU: "Sonde température eau",
+  DESHUMIDIFICATEUR: "Déshumidificateur",
+  CTA_PISCINE: "CTA piscine",
+  BACHE_TAMPON: "Bâche tampon",
+  NAGE_CONTRE_COURANT: "Nage contre-courant",
+  ROBOT_NETTOYAGE: "Robot nettoyage",
   AUTRE: "Autre",
 };

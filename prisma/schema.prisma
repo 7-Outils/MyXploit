@@ -164,6 +164,7 @@ enum EquipmentDomain {
   PLOMBERIE
   CFO_CFA       // Courants Forts / Courants Faibles (électricité)
   COMPTAGE      // Compteurs et instruments de mesure
+  PISCINE       // Traitement eau et chauffage piscines
   AUTRE
 }
 
@@ -254,6 +255,27 @@ enum EquipmentType {
   SONDE_HYGROMETRIE      // Sonde d'hygrométrie
   CAPTEUR_CO2            // Capteur CO2
   CAPTEUR_QUALITE_AIR    // Capteur qualité d'air
+  // === PISCINE ===
+  FILTRE_PISCINE         // Filtre à sable/diatomée/verre
+  POMPE_FILTRATION       // Pompe de filtration piscine
+  PAC_PISCINE            // Pompe à chaleur piscine
+  ECHANGEUR_PISCINE      // Échangeur thermique piscine
+  CHAUDIERE_PISCINE      // Chaudière dédiée piscine
+  ELECTROLYSEUR_SEL      // Électrolyseur au sel
+  TRAITEMENT_CHLORE      // Système de chloration
+  TRAITEMENT_UV          // Traitement UV
+  TRAITEMENT_OZONE       // Traitement ozone
+  REGULATEUR_PH          // Régulateur pH automatique
+  REGULATEUR_CHLORE      // Régulateur chlore/redox
+  POMPE_DOSEUSE          // Pompe doseuse produits
+  SONDE_PH               // Sonde pH
+  SONDE_REDOX            // Sonde redox/chlore
+  SONDE_TEMPERATURE_EAU  // Sonde température eau bassin
+  DESHUMIDIFICATEUR      // Déshumidificateur hall bassin
+  CTA_PISCINE            // Centrale traitement air piscine
+  BACHE_TAMPON           // Bâche tampon / bac tampon
+  NAGE_CONTRE_COURANT    // Système nage contre-courant
+  ROBOT_NETTOYAGE        // Robot de nettoyage automatique
   // === AUTRE ===
   AUTRE
 }
