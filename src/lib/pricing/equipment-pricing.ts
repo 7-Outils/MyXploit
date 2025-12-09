@@ -642,47 +642,71 @@ export function calculatePoolAnalysis(config: PoolAnalysisConfig): PoolAnalysisE
 
 /**
  * Exemples de configurations type pour les analyses d'eau piscine
+ * Chaque contrat/site peut définir sa propre configuration
  */
 export const POOL_ANALYSIS_PRESETS = {
-  // Piscine publique - 1 analyse/jour, 7j/7, 40 semaines
-  STANDARD: {
+  // Piscine ouverte toute l'année 365j/365j - 1 analyse/jour
+  ANNUEL_365: {
+    enabled: true,
+    perDay: 1,
+    daysPerWeek: 7,
+    weeksPerYear: 52, // 364 jours ~= 365
+    minutesPerVisit: 30,
+    label: "Toute l'année (365j) - 1x/jour",
+  },
+  // Piscine ouverte toute l'année - 2 analyses/jour
+  ANNUEL_365_2X: {
+    enabled: true,
+    perDay: 2,
+    daysPerWeek: 7,
+    weeksPerYear: 52,
+    minutesPerVisit: 30,
+    label: "Toute l'année (365j) - 2x/jour",
+  },
+  // Piscine ouverte toute l'année - 3 analyses/jour
+  ANNUEL_365_3X: {
+    enabled: true,
+    perDay: 3,
+    daysPerWeek: 7,
+    weeksPerYear: 52,
+    minutesPerVisit: 30,
+    label: "Toute l'année (365j) - 3x/jour",
+  },
+  // Piscine publique - 1 analyse/jour, 7j/7, 40 semaines (fermeture été/hiver)
+  STANDARD_40SEM: {
     enabled: true,
     perDay: 1,
     daysPerWeek: 7,
     weeksPerYear: 40,
     minutesPerVisit: 30,
+    label: "40 semaines - 1x/jour",
   },
-  // Piscine publique - 2 analyses/jour (matin/soir)
-  INTENSIVE: {
+  // Piscine publique - 2 analyses/jour (matin/soir), 40 semaines
+  INTENSIVE_40SEM: {
     enabled: true,
     perDay: 2,
     daysPerWeek: 7,
     weeksPerYear: 40,
     minutesPerVisit: 30,
+    label: "40 semaines - 2x/jour",
   },
-  // Grande piscine - 3 analyses/jour
-  HAUTE_FREQUENCE: {
-    enabled: true,
-    perDay: 3,
-    daysPerWeek: 7,
-    weeksPerYear: 40,
-    minutesPerVisit: 30,
-  },
-  // Piscine ouverte seulement en semaine
-  SEMAINE_SEULEMENT: {
+  // Piscine scolaire - 5j/semaine, période scolaire
+  SCOLAIRE: {
     enabled: true,
     perDay: 1,
     daysPerWeek: 5,
-    weeksPerYear: 40,
+    weeksPerYear: 36, // ~36 semaines scolaires
     minutesPerVisit: 30,
+    label: "Scolaire (36 sem, 5j/sem)",
   },
   // Piscine saisonnière (été uniquement)
-  SAISONNIER: {
+  SAISONNIER_ETE: {
     enabled: true,
     perDay: 1,
     daysPerWeek: 7,
     weeksPerYear: 16, // ~4 mois d'été
     minutesPerVisit: 30,
+    label: "Saisonnier été (16 sem)",
   },
   // Ponctuel / sur demande
   PONCTUEL: {
@@ -691,6 +715,7 @@ export const POOL_ANALYSIS_PRESETS = {
     daysPerWeek: 2, // 2 fois par semaine
     weeksPerYear: 40,
     minutesPerVisit: 30,
+    label: "Ponctuel (2x/sem)",
   },
 } as const;
 
