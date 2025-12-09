@@ -19,6 +19,7 @@ import {
   User,
   Target,
   FileSpreadsheet,
+  Bell,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -95,6 +96,13 @@ const allNavigation = [
     name: "Chiffrage AO",
     href: "/pricing",
     icon: FileSpreadsheet,
+    profiles: ["EXPLOITANT"] as UserProfileType[],
+  },
+  {
+    id: "renewals",
+    name: "Renouvellements",
+    href: "/renewals",
+    icon: Bell,
     profiles: ["EXPLOITANT"] as UserProfileType[],
   },
 ];

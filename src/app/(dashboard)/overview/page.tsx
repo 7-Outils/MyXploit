@@ -17,6 +17,8 @@ import {
   Target,
   Euro,
   CheckCircle,
+  Bell,
+  ChevronRight,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -82,6 +84,17 @@ interface Quote {
   status: string;
 }
 
+interface ExpiringContract {
+  id: string;
+  reference: string;
+  title: string;
+  provider: string;
+  endDate: string;
+  daysUntilExpiry: number;
+  urgency: "EXPIRED" | "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  siteCount: number;
+}
+
 const consumptionData = [
   { label: "Jan", value: 850, target: 900 },
   { label: "Fév", value: 920, target: 880 },
@@ -119,10 +132,10 @@ const QUICK_ACTIONS = {
     { href: "/meetings", icon: Calendar, label: "Planifier visite" },
   ],
   EXPLOITANT: [
+    { href: "/renewals", icon: Bell, label: "Renouvellements" },
     { href: "/equipments", icon: Wrench, label: "Équipements" },
     { href: "/quotes", icon: Receipt, label: "Mes devis" },
-    { href: "/sites", icon: Building2, label: "Sites" },
-    { href: "/energy", icon: BarChart3, label: "Relevés" },
+    { href: "/pricing", icon: FileText, label: "Chiffrage AO" },
   ],
 };
 
@@ -135,13 +148,14 @@ export default function OverviewPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes] =
+        const [contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes, expiringRes] =
           await Promise.all([
             fetch("/api/contracts"),
             fetch("/api/invoices"),
@@ -149,9 +163,10 @@ export default function OverviewPage() {
             fetch("/api/alerts"),
             fetch("/api/equipments"),
             fetch("/api/quotes"),
+            fetch("/api/contracts/expiring?months=6"),
           ]);
 
-        const [contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData] =
+        const [contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData, expiringData] =
           await Promise.all([
             contractsRes.json(),
             invoicesRes.json(),
@@ -159,6 +174,7 @@ export default function OverviewPage() {
             alertsRes.json(),
             equipmentsRes.json(),
             quotesRes.json(),
+            expiringRes.json(),
           ]);
 
         setContracts(Array.isArray(contractsData) ? contractsData : []);
@@ -167,6 +183,7 @@ export default function OverviewPage() {
         setAlerts(Array.isArray(alertsData) ? alertsData : []);
         setEquipments(Array.isArray(equipmentsData) ? equipmentsData : []);
         setQuotes(Array.isArray(quotesData) ? quotesData : []);
+        setExpiringContracts(expiringData?.contracts || []);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -513,6 +530,71 @@ export default function OverviewPage() {
           </ChartCard>
         )}
       </div>
+
+      {/* Expiring Contracts Alert for EXPLOITANT */}
+      {profile === "EXPLOITANT" && expiringContracts.length > 0 && (
+        <ChartCard
+          title={
+            <span className="flex items-center gap-2">
+              <Bell size={18} className="text-orange-500" />
+              Contrats à renouveler
+            </span>
+          }
+          subtitle={`${expiringContracts.length} contrat(s) arrivent à échéance dans les 6 prochains mois`}
+          action={
+            <Link href="/renewals" className="text-sm text-accent hover:underline flex items-center gap-1">
+              Voir tout <ChevronRight size={14} />
+            </Link>
+          }
+        >
+          <div className="space-y-3">
+            {expiringContracts.slice(0, 4).map((contract) => {
+              const urgencyConfig = {
+                EXPIRED: { color: "bg-gray-100 text-gray-700", dot: "bg-gray-500", label: "Expiré" },
+                CRITICAL: { color: "bg-red-100 text-red-700", dot: "bg-red-500", label: "Critique" },
+                HIGH: { color: "bg-orange-100 text-orange-700", dot: "bg-orange-500", label: "Urgent" },
+                MEDIUM: { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500", label: "Moyen" },
+                LOW: { color: "bg-blue-100 text-blue-700", dot: "bg-blue-500", label: "Planifié" },
+              };
+              const config = urgencyConfig[contract.urgency];
+
+              return (
+                <Link
+                  key={contract.id}
+                  href={`/dimensioning?contractId=${contract.id}`}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-primary-dark truncate">{contract.title}</p>
+                      <p className="text-xs text-gray-500">{contract.siteCount} site(s) • {contract.provider}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-xs px-2 py-1 rounded ${config.color}`}>
+                      {contract.daysUntilExpiry < 0
+                        ? `Expiré depuis ${Math.abs(contract.daysUntilExpiry)}j`
+                        : contract.daysUntilExpiry === 0
+                        ? "Aujourd'hui"
+                        : `${contract.daysUntilExpiry}j`}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-400" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {expiringContracts.length > 4 && (
+            <Link
+              href="/renewals"
+              className="mt-4 block text-center text-sm text-accent hover:underline"
+            >
+              +{expiringContracts.length - 4} autre(s) contrat(s)
+            </Link>
+          )}
+        </ChartCard>
+      )}
 
       {/* Activity & Quick Actions */}
       <div className="grid lg:grid-cols-2 gap-6">
