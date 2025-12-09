@@ -1075,17 +1075,19 @@ export default function ContractDetailPage() {
           <Euro size={16} className="inline mr-2" />
           Financier
         </button>
-        <button
-          onClick={() => setActiveTab("decompteP3")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "decompteP3"
-              ? "border-accent text-accent"
-              : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          <Calculator size={16} className="inline mr-2" />
-          Décompte P3
-        </button>
+        {hasAnyP3 && (
+          <button
+            onClick={() => setActiveTab("decompteP3")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "decompteP3"
+                ? "border-accent text-accent"
+                : "border-transparent text-text-secondary hover:text-primary-dark"
+            }`}
+          >
+            <Calculator size={16} className="inline mr-2" />
+            Décompte P3
+          </button>
+        )}
       </div>
 
       {/* Sites List */}
@@ -1397,7 +1399,7 @@ export default function ContractDetailPage() {
               </div>
 
               {/* Seasons breakdown with acomptes */}
-              <ChartCard title={`${financialData.periodLabel || "Saisons de chauffe"} (P2 + P3)`}>
+              <ChartCard title={`${financialData.periodLabel || "Saisons de chauffe"} (${hasAnyP2 && hasAnyP3 ? "P2 + P3" : hasAnyP2 ? "P2" : hasAnyP3 ? "P3" : ""})`}>
                 <div className="space-y-6">
                   {financialData.seasons.map((season) => (
                     <div
@@ -1437,7 +1439,9 @@ export default function ContractDetailPage() {
                             {season.total.toLocaleString("fr-FR")} € HT
                           </p>
                           <p className="text-xs text-text-secondary">
-                            P2: {season.totalP2.toLocaleString("fr-FR")} € | P3: {season.totalP3.toLocaleString("fr-FR")} €
+                            {hasAnyP2 && `P2: ${season.totalP2.toLocaleString("fr-FR")} €`}
+                            {hasAnyP2 && hasAnyP3 && " | "}
+                            {hasAnyP3 && `P3: ${season.totalP3.toLocaleString("fr-FR")} €`}
                           </p>
                         </div>
                       </div>
@@ -1497,7 +1501,9 @@ export default function ContractDetailPage() {
                                     {site.total.toLocaleString("fr-FR")} €
                                   </span>
                                   <p className="text-xs text-text-secondary">
-                                    P2: {site.amountP2.toLocaleString("fr-FR")} € | P3: {site.amountP3.toLocaleString("fr-FR")} €
+                                    {hasAnyP2 && `P2: ${site.amountP2.toLocaleString("fr-FR")} €`}
+                                    {hasAnyP2 && hasAnyP3 && " | "}
+                                    {hasAnyP3 && `P3: ${site.amountP3.toLocaleString("fr-FR")} €`}
                                   </p>
                                 </div>
                               </div>
