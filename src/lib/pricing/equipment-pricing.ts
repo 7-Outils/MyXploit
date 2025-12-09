@@ -568,6 +568,132 @@ export function calculateMarketDimensioning(
   };
 }
 
+// ============================================
+// ANALYSE EAU PISCINE
+// ============================================
+
+/**
+ * Configuration des analyses d'eau piscine pour un site
+ */
+export interface PoolAnalysisConfig {
+  enabled: boolean;
+  perDay: number;       // Nombre d'analyses par jour (1, 2, 3...)
+  daysPerWeek: number;  // Jours par semaine (7=quotidien, 5=semaine, etc.)
+  weeksPerYear: number; // Semaines par an (ex: 40 si piscine fermée 12 semaines)
+  minutesPerVisit: number; // Durée par passage en minutes
+}
+
+/**
+ * Résultat du calcul d'analyse eau piscine
+ */
+export interface PoolAnalysisEstimate {
+  enabled: boolean;
+  visitsPerYear: number;
+  hoursPerYear: number;
+  hourlyRate: number;
+  annualCost: number;
+  details: {
+    perDay: number;
+    daysPerWeek: number;
+    weeksPerYear: number;
+    minutesPerVisit: number;
+  };
+}
+
+/**
+ * Calcule le coût annuel des analyses d'eau piscine pour un site
+ */
+export function calculatePoolAnalysis(config: PoolAnalysisConfig): PoolAnalysisEstimate {
+  if (!config.enabled) {
+    return {
+      enabled: false,
+      visitsPerYear: 0,
+      hoursPerYear: 0,
+      hourlyRate: HOURLY_RATES.TECHNICIEN,
+      annualCost: 0,
+      details: {
+        perDay: 0,
+        daysPerWeek: 0,
+        weeksPerYear: 0,
+        minutesPerVisit: 0,
+      },
+    };
+  }
+
+  const visitsPerYear = config.perDay * config.daysPerWeek * config.weeksPerYear;
+  const hoursPerYear = (visitsPerYear * config.minutesPerVisit) / 60;
+  const hourlyRate = HOURLY_RATES.TECHNICIEN; // Niveau technicien pour les analyses
+  const annualCost = hoursPerYear * hourlyRate;
+
+  return {
+    enabled: true,
+    visitsPerYear,
+    hoursPerYear: Math.round(hoursPerYear * 10) / 10,
+    hourlyRate,
+    annualCost: Math.round(annualCost),
+    details: {
+      perDay: config.perDay,
+      daysPerWeek: config.daysPerWeek,
+      weeksPerYear: config.weeksPerYear,
+      minutesPerVisit: config.minutesPerVisit,
+    },
+  };
+}
+
+/**
+ * Exemples de configurations type pour les analyses d'eau piscine
+ */
+export const POOL_ANALYSIS_PRESETS = {
+  // Piscine publique - 1 analyse/jour, 7j/7, 40 semaines
+  STANDARD: {
+    enabled: true,
+    perDay: 1,
+    daysPerWeek: 7,
+    weeksPerYear: 40,
+    minutesPerVisit: 30,
+  },
+  // Piscine publique - 2 analyses/jour (matin/soir)
+  INTENSIVE: {
+    enabled: true,
+    perDay: 2,
+    daysPerWeek: 7,
+    weeksPerYear: 40,
+    minutesPerVisit: 30,
+  },
+  // Grande piscine - 3 analyses/jour
+  HAUTE_FREQUENCE: {
+    enabled: true,
+    perDay: 3,
+    daysPerWeek: 7,
+    weeksPerYear: 40,
+    minutesPerVisit: 30,
+  },
+  // Piscine ouverte seulement en semaine
+  SEMAINE_SEULEMENT: {
+    enabled: true,
+    perDay: 1,
+    daysPerWeek: 5,
+    weeksPerYear: 40,
+    minutesPerVisit: 30,
+  },
+  // Piscine saisonnière (été uniquement)
+  SAISONNIER: {
+    enabled: true,
+    perDay: 1,
+    daysPerWeek: 7,
+    weeksPerYear: 16, // ~4 mois d'été
+    minutesPerVisit: 30,
+  },
+  // Ponctuel / sur demande
+  PONCTUEL: {
+    enabled: true,
+    perDay: 1,
+    daysPerWeek: 2, // 2 fois par semaine
+    weeksPerYear: 40,
+    minutesPerVisit: 30,
+  },
+} as const;
+
 // Labels français pour les types d'équipements
 export const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   CHAUDIERE: "Chaudière",

@@ -437,6 +437,15 @@ model ContractSite {
   exitDate        DateTime?  // Si renseigné, le site sort du contrat à cette date
   avenantEntreeId String?    // Avenant d'entrée (si ajouté après le début)
   avenantSortieId String?    // Avenant de sortie (si retiré)
+
+  // === ANALYSE EAU PISCINE ===
+  // Configuration des passages d'analyse d'eau pour les bassins (piscines)
+  poolAnalysisEnabled     Boolean  @default(false)  // Analyse d'eau activée pour ce site
+  poolAnalysisPerDay      Int?     // Nombre d'analyses par jour (1, 2, 3...)
+  poolAnalysisDaysPerWeek Int?     // Jours par semaine (7=quotidien, 5=semaine, etc.)
+  poolAnalysisWeeksPerYear Int?    // Semaines par an (ex: 40 si piscine fermée 12 semaines)
+  poolAnalysisMinutesPerVisit Int? @default(30) // Durée par passage en minutes
+
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
