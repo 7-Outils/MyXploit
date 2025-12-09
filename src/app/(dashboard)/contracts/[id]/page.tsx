@@ -113,9 +113,10 @@ interface Contract {
   startDate: string;
   endDate: string;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
-  yearType: "CIVIL" | "HEATING_SEASON";
+  yearType: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   yearStartMonth: number;
   yearStartDay: number;
+  billingFrequency: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
   contractSites: ContractSite[];
   avenants: Avenant[];
 }
@@ -168,8 +169,19 @@ interface FinancialSummary {
 }
 
 interface FinancialData {
+  contract?: {
+    id: string;
+    reference: string;
+    title: string;
+    startDate: string;
+    endDate: string;
+    yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
+    billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
+  };
   summary: FinancialSummary;
   seasons: Season[];
+  periodLabel?: string;
+  billingFrequency?: string;
 }
 
 const statusLabels = {
@@ -275,6 +287,8 @@ export default function ContractDetailPage() {
     startDate: "",
     endDate: "",
     status: "ACTIF",
+    yearType: "HEATING_SEASON" as "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL",
+    billingFrequency: "TRIMESTRIEL" as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL",
   });
 
   // Site edit modal
@@ -588,6 +602,8 @@ export default function ContractDetailPage() {
       startDate: formatToFrench(contract.startDate),
       endDate: formatToFrench(contract.endDate),
       status: contract.status,
+      yearType: contract.yearType || "HEATING_SEASON",
+      billingFrequency: contract.billingFrequency || "TRIMESTRIEL",
     });
     setShowEditContractModal(true);
   };
@@ -632,6 +648,8 @@ export default function ContractDetailPage() {
           startDate: parseFrenchDate(contractFormData.startDate),
           endDate: parseFrenchDate(contractFormData.endDate),
           status: contractFormData.status,
+          yearType: contractFormData.yearType,
+          billingFrequency: contractFormData.billingFrequency,
         }),
       });
 
@@ -1373,13 +1391,13 @@ export default function ContractDetailPage() {
                     <p className="text-xl font-bold text-primary-dark">
                       {financialData.summary.totalContract.toLocaleString("fr-FR")} €
                     </p>
-                    <p className="text-xs text-text-secondary">{financialData.summary.seasonCount} saisons</p>
+                    <p className="text-xs text-text-secondary">{financialData.summary.seasonCount} {financialData.periodLabel?.toLowerCase() || "périodes"}</p>
                   </div>
                 </ChartCard>
               </div>
 
               {/* Seasons breakdown with acomptes */}
-              <ChartCard title="Saisons de chauffe (P2 + P3)">
+              <ChartCard title={`${financialData.periodLabel || "Saisons de chauffe"} (P2 + P3)`}>
                 <div className="space-y-6">
                   {financialData.seasons.map((season) => (
                     <div
@@ -1396,7 +1414,7 @@ export default function ContractDetailPage() {
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold text-primary-dark text-lg">
-                            Saison {season.label}
+                            {financialData.contract?.yearType === "CIVIL" ? "Année" : financialData.contract?.yearType === "CONTRACTUAL" ? "Année" : "Saison"} {season.label}
                           </h4>
                           {season.isCurrent && (
                             <span className="px-2 py-0.5 bg-accent text-white rounded text-xs">
@@ -2177,9 +2195,41 @@ export default function ContractDetailPage() {
                 </div>
               </div>
 
-              <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
-                Le type de contrat et les prestations (P1, P2, P3, P4) sont définis au niveau de chaque site.
-              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type d&apos;année
+                  </label>
+                  <select
+                    value={contractFormData.yearType}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, yearType: e.target.value as "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL" })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="HEATING_SEASON">Saison de chauffe (juil. → juin)</option>
+                    <option value="CIVIL">Année civile (janv. → déc.)</option>
+                    <option value="CONTRACTUAL">Année contractuelle</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Fréquence de facturation
+                  </label>
+                  <select
+                    value={contractFormData.billingFrequency}
+                    onChange={(e) =>
+                      setContractFormData({ ...contractFormData, billingFrequency: e.target.value as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL" })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="MENSUEL">Mensuel (12 éch./an)</option>
+                    <option value="TRIMESTRIEL">Trimestriel (4 éch./an)</option>
+                    <option value="SEMESTRIEL">Semestriel (2 éch./an)</option>
+                    <option value="ANNUEL">Annuel (1 éch./an)</option>
+                  </select>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-primary-dark mb-1">
@@ -2198,6 +2248,12 @@ export default function ContractDetailPage() {
                   <option value="RESILIE">Résilié</option>
                 </select>
               </div>
+
+              <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
+                <strong>Saison de chauffe :</strong> Pour le chauffage (P1, intéressement) - 1er juillet → 30 juin<br />
+                <strong>Année civile :</strong> Pour piscines ou autres - 1er janvier → 31 décembre<br />
+                <strong>Année contractuelle :</strong> Débute à la date anniversaire du contrat
+              </p>
 
               <div className="flex gap-3 pt-4">
                 <Button

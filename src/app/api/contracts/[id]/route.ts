@@ -131,10 +131,11 @@ export async function PUT(
     if (body.endDate) updateData.endDate = new Date(body.endDate);
     if (body.status) updateData.status = body.status;
     if (body.description !== undefined) updateData.description = body.description;
-    // Year type configuration
+    // Year type and billing configuration
     if (body.yearType) updateData.yearType = body.yearType;
     if (body.yearStartMonth !== undefined) updateData.yearStartMonth = parseInt(body.yearStartMonth);
     if (body.yearStartDay !== undefined) updateData.yearStartDay = parseInt(body.yearStartDay);
+    if (body.billingFrequency) updateData.billingFrequency = body.billingFrequency;
 
     const contract = await prisma.contract.update({
       where: { id },

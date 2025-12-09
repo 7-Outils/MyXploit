@@ -464,25 +464,36 @@ enum ContractStatus {
 
 // Type d'année contractuelle (pour le calcul des prorata)
 enum ContractYearType {
-  CIVIL         // Année civile: 01/01 - 31/12
+  CIVIL          // Année civile: 01/01 - 31/12
   HEATING_SEASON // Saison de chauffe: configurable (ex: 01/07 - 30/06)
+  CONTRACTUAL    // Année contractuelle: débute à la date anniversaire du contrat
+}
+
+// Fréquence de facturation
+enum BillingFrequency {
+  MENSUEL      // 12 échéances par an
+  TRIMESTRIEL  // 4 échéances par an (défaut)
+  SEMESTRIEL   // 2 échéances par an
+  ANNUEL       // 1 échéance par an
 }
 
 model Contract {
-  id             String           @id @default(cuid())
-  reference      String
-  title          String
-  provider       String // Exploitant (ENGIE, Dalkia, etc.)
-  startDate      DateTime
-  endDate        DateTime
-  status         ContractStatus   @default(ACTIF)
-  description    String?
-  documentUrl    String?
+  id               String           @id @default(cuid())
+  reference        String
+  title            String
+  provider         String // Exploitant (ENGIE, Dalkia, etc.)
+  startDate        DateTime
+  endDate          DateTime
+  status           ContractStatus   @default(ACTIF)
+  description      String?
+  documentUrl      String?
   // Type d'année contractuelle (saison de chauffe par défaut: 01/07 - 30/06)
-  yearType       ContractYearType @default(HEATING_SEASON)
-  yearStartMonth Int              @default(7) // Mois de début (1-12), 7 = juillet
-  yearStartDay   Int              @default(1) // Jour de début (1-31)
-  organizationId String
+  yearType         ContractYearType @default(HEATING_SEASON)
+  yearStartMonth   Int              @default(7) // Mois de début (1-12), 7 = juillet
+  yearStartDay     Int              @default(1) // Jour de début (1-31)
+  // Fréquence de facturation
+  billingFrequency BillingFrequency @default(TRIMESTRIEL)
+  organizationId   String
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

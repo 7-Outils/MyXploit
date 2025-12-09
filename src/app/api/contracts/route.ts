@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
         status: body.status || "ACTIF",
         description: body.description,
         organizationId: user.organizationId,
+        yearType: body.yearType || "HEATING_SEASON",
+        billingFrequency: body.billingFrequency || "TRIMESTRIEL",
       },
       include: {
         contractSites: {

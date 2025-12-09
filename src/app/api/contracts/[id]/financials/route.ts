@@ -64,6 +64,21 @@ export async function GET(
       },
     });
 
+    // Type d'année contractuelle et fréquence de facturation
+    const yearType = contract?.yearType || "HEATING_SEASON";
+    const yearStartMonth = contract?.yearStartMonth || 7; // Défaut: juillet
+    const yearStartDay = contract?.yearStartDay || 1;
+    const billingFrequency = contract?.billingFrequency || "TRIMESTRIEL";
+
+    // Nombre d'échéances selon la fréquence
+    const frequencyConfig = {
+      MENSUEL: { count: 12, label: "Échéance" },
+      TRIMESTRIEL: { count: 4, label: "Acompte" },
+      SEMESTRIEL: { count: 2, label: "Échéance" },
+      ANNUEL: { count: 1, label: "Échéance" },
+    };
+    const { count: periodsPerYear, label: periodLabel } = frequencyConfig[billingFrequency as keyof typeof frequencyConfig];
+
     if (!contract) {
       return NextResponse.json(
         { error: "Contrat non trouvé" },
@@ -74,79 +89,99 @@ export async function GET(
     const today = new Date();
     const seasons: SeasonData[] = [];
 
-    // Determine current heating season based on today's date
-    // Season runs from July 1 to June 30
-    const getCurrentSeasonStart = (date: Date): Date => {
+    // Calcul du début de période selon le type d'année
+    // CIVIL: 01/01 - 31/12
+    // HEATING_SEASON: configurable (défaut 01/07 - 30/06)
+    // CONTRACTUAL: date anniversaire du contrat
+    const contractStartMonth = contract.startDate.getMonth(); // 0-11
+    const contractStartDay = contract.startDate.getDate();
+
+    const getYearStart = (date: Date): Date => {
       const year = date.getFullYear();
       const month = date.getMonth(); // 0-11
-      // If we're in Jan-June, season started previous year
-      // If we're in Jul-Dec, season started this year
-      if (month < 6) { // Jan-June
-        return new Date(year - 1, 6, 1); // July 1 of previous year
-      } else { // Jul-Dec
-        return new Date(year, 6, 1); // July 1 of current year
+
+      if (yearType === "CIVIL") {
+        // Année civile: toujours 1er janvier de l'année en cours
+        return new Date(year, 0, 1);
+      } else if (yearType === "CONTRACTUAL") {
+        // Année contractuelle: commence à la date anniversaire du contrat
+        // Si on est avant la date anniversaire, l'année a commencé l'année précédente
+        if (month < contractStartMonth || (month === contractStartMonth && date.getDate() < contractStartDay)) {
+          return new Date(year - 1, contractStartMonth, contractStartDay);
+        } else {
+          return new Date(year, contractStartMonth, contractStartDay);
+        }
+      } else {
+        // Saison de chauffe: commence au mois configuré
+        const startMonth = yearStartMonth - 1; // 0-indexed
+        // Si on est avant le mois de début, la saison a commencé l'année précédente
+        if (month < startMonth || (month === startMonth && date.getDate() < yearStartDay)) {
+          return new Date(year - 1, startMonth, yearStartDay);
+        } else {
+          return new Date(year, startMonth, yearStartDay);
+        }
       }
     };
 
-    // Generate acomptes for a season
-    const generateAcomptes = (seasonStart: Date, seasonTotalP2: number, seasonTotalP3: number): Acompte[] => {
-      const year1 = seasonStart.getFullYear();
-      const year2 = year1 + 1;
+    const getYearEnd = (yearStart: Date): Date => {
+      if (yearType === "CIVIL") {
+        // Année civile: 31 décembre de la même année
+        return new Date(yearStart.getFullYear(), 11, 31);
+      } else if (yearType === "CONTRACTUAL") {
+        // Année contractuelle: jour avant la date anniversaire suivante
+        const endYear = yearStart.getFullYear() + 1;
+        const endDate = new Date(endYear, contractStartMonth, contractStartDay);
+        endDate.setDate(endDate.getDate() - 1);
+        return endDate;
+      } else {
+        // Saison de chauffe: jour avant le début de la saison suivante
+        const endYear = yearStart.getFullYear() + 1;
+        const endDate = new Date(endYear, yearStartMonth - 1, yearStartDay);
+        endDate.setDate(endDate.getDate() - 1);
+        return endDate;
+      }
+    };
 
-      const acomptes: Acompte[] = [
-        {
-          number: 1,
-          label: "Acompte 1",
-          periodStart: new Date(year1, 6, 1), // 01/07
-          periodEnd: new Date(year1, 8, 30), // 30/09
-          billingDate: new Date(year1, 8, 30), // 30/09
-          percentage: 25,
-          amountP2: seasonTotalP2 * 0.25,
-          amountP3: seasonTotalP3 * 0.25,
-          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
-          isPaid: today > new Date(year1, 8, 30),
-          isCurrent: today >= new Date(year1, 6, 1) && today <= new Date(year1, 8, 30),
-        },
-        {
-          number: 2,
-          label: "Acompte 2",
-          periodStart: new Date(year1, 9, 1), // 01/10
-          periodEnd: new Date(year1, 11, 31), // 31/12
-          billingDate: new Date(year1, 11, 31), // 31/12
-          percentage: 25,
-          amountP2: seasonTotalP2 * 0.25,
-          amountP3: seasonTotalP3 * 0.25,
-          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
-          isPaid: today > new Date(year1, 11, 31),
-          isCurrent: today >= new Date(year1, 9, 1) && today <= new Date(year1, 11, 31),
-        },
-        {
-          number: 3,
-          label: "Acompte 3",
-          periodStart: new Date(year2, 0, 1), // 01/01
-          periodEnd: new Date(year2, 2, 31), // 31/03
-          billingDate: new Date(year2, 2, 31), // 31/03
-          percentage: 25,
-          amountP2: seasonTotalP2 * 0.25,
-          amountP3: seasonTotalP3 * 0.25,
-          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
-          isPaid: today > new Date(year2, 2, 31),
-          isCurrent: today >= new Date(year2, 0, 1) && today <= new Date(year2, 2, 31),
-        },
-        {
-          number: 4,
-          label: "Acompte 4",
-          periodStart: new Date(year2, 3, 1), // 01/04
-          periodEnd: new Date(year2, 5, 30), // 30/06
-          billingDate: new Date(year2, 5, 30), // 30/06
-          percentage: 25,
-          amountP2: seasonTotalP2 * 0.25,
-          amountP3: seasonTotalP3 * 0.25,
-          total: (seasonTotalP2 + seasonTotalP3) * 0.25,
-          isPaid: today > new Date(year2, 5, 30),
-          isCurrent: today >= new Date(year2, 3, 1) && today <= new Date(year2, 5, 30),
-        },
-      ];
+    const getYearLabel = (yearStart: Date): string => {
+      if (yearType === "CIVIL") {
+        return yearStart.getFullYear().toString();
+      } else {
+        // Pour HEATING_SEASON et CONTRACTUAL, afficher année/année+1
+        return `${yearStart.getFullYear()}/${yearStart.getFullYear() + 1}`;
+      }
+    };
+
+    // Generate acomptes/échéances for a season/year based on billing frequency
+    const generateAcomptes = (yearStart: Date, yearEnd: Date, seasonTotalP2: number, seasonTotalP3: number): Acompte[] => {
+      const acomptes: Acompte[] = [];
+      const totalDays = Math.round((yearEnd.getTime() - yearStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+      const daysPerPeriod = Math.floor(totalDays / periodsPerYear);
+      const percentagePerPeriod = 100 / periodsPerYear;
+
+      // Générer les échéances selon la fréquence
+      let currentStart = new Date(yearStart);
+      for (let i = 0; i < periodsPerYear; i++) {
+        const isLast = i === periodsPerYear - 1;
+        const periodEnd = isLast
+          ? new Date(yearEnd)
+          : new Date(currentStart.getTime() + daysPerPeriod * 24 * 60 * 60 * 1000 - 1);
+
+        acomptes.push({
+          number: i + 1,
+          label: `${periodLabel} ${i + 1}`,
+          periodStart: new Date(currentStart),
+          periodEnd: periodEnd,
+          billingDate: periodEnd,
+          percentage: percentagePerPeriod,
+          amountP2: seasonTotalP2 / periodsPerYear,
+          amountP3: seasonTotalP3 / periodsPerYear,
+          total: (seasonTotalP2 + seasonTotalP3) / periodsPerYear,
+          isPaid: today > periodEnd,
+          isCurrent: today >= currentStart && today <= periodEnd,
+        });
+
+        currentStart = new Date(periodEnd.getTime() + 24 * 60 * 60 * 1000);
+      }
 
       return acomptes.map(a => ({
         ...a,
@@ -242,49 +277,59 @@ export async function GET(
       return siteTotals;
     };
 
-    // Generate seasons from contract start to end
-    const currentSeasonStart = getCurrentSeasonStart(today);
+    // Generate seasons/years from contract start to end
+    const currentYearStart = getYearStart(today);
 
-    // Find first season that includes contract start
-    let seasonStart = new Date(contract.startDate.getFullYear(), 6, 1);
-    if (seasonStart > contract.startDate) {
-      seasonStart = new Date(contract.startDate.getFullYear() - 1, 6, 1);
-    }
+    // Find first year/season that includes contract start
+    let periodStart = getYearStart(contract.startDate);
 
-    while (seasonStart <= contract.endDate) {
-      const seasonEnd = new Date(seasonStart.getFullYear() + 1, 5, 30); // June 30 of next year
+    while (periodStart <= contract.endDate) {
+      const periodEnd = getYearEnd(periodStart);
 
-      // Skip if season ends before contract starts
-      if (seasonEnd < contract.startDate) {
-        seasonStart = new Date(seasonStart.getFullYear() + 1, 6, 1);
+      // Skip if period ends before contract starts
+      if (periodEnd < contract.startDate) {
+        // Move to next period
+        if (yearType === "CIVIL") {
+          periodStart = new Date(periodStart.getFullYear() + 1, 0, 1);
+        } else if (yearType === "CONTRACTUAL") {
+          periodStart = new Date(periodStart.getFullYear() + 1, contractStartMonth, contractStartDay);
+        } else {
+          periodStart = new Date(periodStart.getFullYear() + 1, yearStartMonth - 1, yearStartDay);
+        }
         continue;
       }
 
-      const label = `${seasonStart.getFullYear()}/${seasonStart.getFullYear() + 1}`;
-      const sites = calculateSiteAmounts(seasonStart, seasonEnd);
+      const label = getYearLabel(periodStart);
+      const sites = calculateSiteAmounts(periodStart, periodEnd);
       const totalP2 = sites.reduce((sum, s) => sum + s.amountP2, 0);
       const totalP3 = sites.reduce((sum, s) => sum + s.amountP3, 0);
 
-      const isCurrent = seasonStart.getTime() === currentSeasonStart.getTime();
-      const isPast = seasonEnd < today && !isCurrent;
-      const isFuture = seasonStart > today;
+      const isCurrent = periodStart.getTime() === currentYearStart.getTime();
+      const isPast = periodEnd < today && !isCurrent;
+      const isFuture = periodStart > today;
 
       seasons.push({
         label,
-        startDate: seasonStart,
-        endDate: seasonEnd,
+        startDate: periodStart,
+        endDate: periodEnd,
         totalP2: Math.round(totalP2 * 100) / 100,
         totalP3: Math.round(totalP3 * 100) / 100,
         total: Math.round((totalP2 + totalP3) * 100) / 100,
-        acomptes: generateAcomptes(seasonStart, totalP2, totalP3),
+        acomptes: generateAcomptes(periodStart, periodEnd, totalP2, totalP3),
         sites,
         isPast,
         isCurrent,
         isFuture,
       });
 
-      // Move to next season
-      seasonStart = new Date(seasonStart.getFullYear() + 1, 6, 1);
+      // Move to next period
+      if (yearType === "CIVIL") {
+        periodStart = new Date(periodStart.getFullYear() + 1, 0, 1);
+      } else if (yearType === "CONTRACTUAL") {
+        periodStart = new Date(periodStart.getFullYear() + 1, contractStartMonth, contractStartDay);
+      } else {
+        periodStart = new Date(periodStart.getFullYear() + 1, yearStartMonth - 1, yearStartDay);
+      }
     }
 
     // Calculate summary
@@ -316,6 +361,13 @@ export async function GET(
       seasonCount: seasons.length,
     };
 
+    // Label pour l'UI selon le type d'année
+    const yearTypeLabels = {
+      CIVIL: "Années",
+      HEATING_SEASON: "Saisons de chauffe",
+      CONTRACTUAL: "Années contractuelles",
+    };
+
     return NextResponse.json({
       contract: {
         id: contract.id,
@@ -323,9 +375,13 @@ export async function GET(
         title: contract.title,
         startDate: contract.startDate,
         endDate: contract.endDate,
+        yearType: contract.yearType,
+        billingFrequency: contract.billingFrequency,
       },
       summary,
       seasons,
+      periodLabel: yearTypeLabels[yearType as keyof typeof yearTypeLabels] || "Périodes",
+      billingFrequency,
     });
   } catch (error) {
     console.error("Error calculating financials:", error);

@@ -10,10 +10,12 @@ import {
   X,
   Building2,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 
 interface Site {
   id: string;
@@ -51,11 +53,15 @@ const statusLabels = {
 };
 
 export default function ContractsPage() {
+  const { user } = useUserProfile();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"ACTIF" | "ALL" | "EXPIRE" | "RESILIE" | "EN_ATTENTE">("ACTIF");
+
+  const isAdmin = user?.role === "ADMIN";
 
   const [formData, setFormData] = useState({
     reference: "",
@@ -63,6 +69,8 @@ export default function ContractsPage() {
     provider: "",
     startDate: "",
     endDate: "",
+    yearType: "HEATING_SEASON" as "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL",
+    billingFrequency: "TRIMESTRIEL" as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL",
   });
 
   const fetchData = async () => {
@@ -113,12 +121,42 @@ export default function ContractsPage() {
           provider: "",
           startDate: "",
           endDate: "",
+          yearType: "HEATING_SEASON",
+          billingFrequency: "TRIMESTRIEL",
         });
       }
     } catch (error) {
       console.error("Error creating contract:", error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, contractId: string, contractTitle: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le contrat "${contractTitle}" ? Cette action est irréversible.`)) {
+      return;
+    }
+
+    setDeletingId(contractId);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        await fetchData();
+      } else {
+        const data = await response.json();
+        alert(data.error || "Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error("Error deleting contract:", error);
+      alert("Erreur lors de la suppression du contrat");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -342,6 +380,20 @@ export default function ContractsPage() {
                           <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">P4</span>
                         )}
                       </div>
+                      {isAdmin && (
+                        <button
+                          onClick={(e) => handleDelete(e, contract.id, contract.title)}
+                          disabled={deletingId === contract.id}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Supprimer le contrat"
+                        >
+                          {deletingId === contract.id ? (
+                            <Loader2 size={18} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={18} />
+                          )}
+                        </button>
+                      )}
                       <ChevronRight size={20} className="text-text-secondary" />
                     </div>
                   </div>
@@ -450,8 +502,46 @@ export default function ContractsPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Type d&apos;année
+                  </label>
+                  <select
+                    value={formData.yearType}
+                    onChange={(e) =>
+                      setFormData({ ...formData, yearType: e.target.value as "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL" })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="HEATING_SEASON">Saison de chauffe (juil. → juin)</option>
+                    <option value="CIVIL">Année civile (janv. → déc.)</option>
+                    <option value="CONTRACTUAL">Année contractuelle</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-primary-dark mb-1">
+                    Fréquence de facturation
+                  </label>
+                  <select
+                    value={formData.billingFrequency}
+                    onChange={(e) =>
+                      setFormData({ ...formData, billingFrequency: e.target.value as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL" })
+                    }
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="MENSUEL">Mensuel (12 éch./an)</option>
+                    <option value="TRIMESTRIEL">Trimestriel (4 éch./an)</option>
+                    <option value="SEMESTRIEL">Semestriel (2 éch./an)</option>
+                    <option value="ANNUEL">Annuel (1 éch./an)</option>
+                  </select>
+                </div>
+              </div>
+
               <p className="text-sm text-text-secondary bg-gray-50 p-3 rounded-lg">
-                Vous pourrez ajouter des sites et définir le type de contrat et les prestations (P1, P2, P3, P4) pour chaque site après la création.
+                <strong>Saison de chauffe</strong> : Pour le chauffage (P1, intéressement) - 1er juillet → 30 juin<br />
+                <strong>Année civile</strong> : Pour piscines ou autres - 1er janvier → 31 décembre<br />
+                <strong>Année contractuelle</strong> : Débute à la date anniversaire du contrat
               </p>
 
               <div className="flex gap-3 pt-4">
