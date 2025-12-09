@@ -799,3 +799,251 @@ export const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   ROBOT_NETTOYAGE: "Robot nettoyage",
   AUTRE: "Autre",
 };
+
+// ============================================
+// ESTIMATIONS CONSOMMATIONS BASSINS PISCINE
+// ============================================
+
+// Type de bassin (doit correspondre à l'enum Prisma)
+export type PoolBasinType =
+  | "BASSIN_SPORTIF"
+  | "BASSIN_APPRENTISSAGE"
+  | "BASSIN_LUDIQUE"
+  | "PATAUGEOIRE"
+  | "FOSSE_PLONGEE"
+  | "BASSIN_NORDIQUE"
+  | "BASSIN_EXTERIEUR"
+  | "SPA_JACUZZI"
+  | "TOBOGGAN"
+  | "RIVIERE"
+  | "AUTRE";
+
+export type PoolTreatmentType =
+  | "CHLORE"
+  | "BROME"
+  | "SEL"
+  | "UV"
+  | "OZONE"
+  | "CHLORE_UV"
+  | "CHLORE_OZONE"
+  | "SEL_UV"
+  | "AUTRE";
+
+/**
+ * Pertes d'eau hebdomadaires par type de bassin (% du volume)
+ * Inclut évaporation, rétrolavages, éclaboussures, vidanges partielles
+ */
+export const WATER_LOSS_PERCENT_WEEKLY: Record<PoolBasinType, number> = {
+  BASSIN_SPORTIF: 3,        // Intérieur, peu d'éclaboussures
+  BASSIN_APPRENTISSAGE: 4,  // Plus d'activité, enfants
+  BASSIN_LUDIQUE: 5,        // Beaucoup d'activité
+  PATAUGEOIRE: 6,           // Vidanges fréquentes, hygiène
+  FOSSE_PLONGEE: 2,         // Peu d'évaporation, profond
+  BASSIN_NORDIQUE: 12,      // Extérieur chauffé = forte évaporation
+  BASSIN_EXTERIEUR: 8,      // Extérieur non chauffé
+  SPA_JACUZZI: 10,          // Haute température, bulles
+  TOBOGGAN: 5,              // Éclaboussures
+  RIVIERE: 4,               // Courant = évaporation modérée
+  AUTRE: 4,
+};
+
+/**
+ * Consommation de chlore annuelle par m³ de bassin (kg/m³/an)
+ * Varie selon le type de bassin (fréquentation, température)
+ */
+export const CHLORINE_CONSUMPTION_KG_PER_M3_YEAR: Record<PoolBasinType, number> = {
+  BASSIN_SPORTIF: 0.8,
+  BASSIN_APPRENTISSAGE: 1.0,
+  BASSIN_LUDIQUE: 1.2,
+  PATAUGEOIRE: 1.5,         // Plus de matière organique
+  FOSSE_PLONGEE: 0.6,
+  BASSIN_NORDIQUE: 1.0,
+  BASSIN_EXTERIEUR: 1.2,    // UV solaire dégrade le chlore
+  SPA_JACUZZI: 2.0,         // Haute température, petits volumes
+  TOBOGGAN: 1.0,
+  RIVIERE: 0.9,
+  AUTRE: 1.0,
+};
+
+/**
+ * Réduction de consommation chlore selon le traitement complémentaire
+ */
+export const TREATMENT_CHLORINE_REDUCTION: Record<PoolTreatmentType, number> = {
+  CHLORE: 1.0,              // Pas de réduction
+  BROME: 0.9,               // Légèrement moins
+  SEL: 0.7,                 // Électrolyse produit le chlore
+  UV: 0.6,                  // UV réduit besoin chlore
+  OZONE: 0.5,               // Ozone très efficace
+  CHLORE_UV: 0.5,
+  CHLORE_OZONE: 0.4,
+  SEL_UV: 0.4,
+  AUTRE: 1.0,
+};
+
+/**
+ * Prix moyens des produits de traitement (€/kg ou €/L)
+ */
+export const CHEMICAL_PRICES = {
+  chlore: 3.5,              // €/kg chlore
+  phPlus: 2.0,              // €/kg pH+
+  phMoins: 1.5,             // €/kg pH-
+  antiAlgues: 8.0,          // €/L
+  floculant: 5.0,           // €/L
+  sel: 0.3,                 // €/kg sel piscine
+};
+
+/**
+ * Configuration d'un bassin pour l'estimation
+ */
+export interface PoolBasinForEstimate {
+  type: PoolBasinType;
+  volume: number;           // m³
+  treatmentType: PoolTreatmentType;
+  indoor: boolean;
+  heated: boolean;
+  avgDailyBathers?: number;
+  weeksPerYear?: number;    // Semaines d'ouverture (défaut 40)
+}
+
+/**
+ * Résultat des estimations de consommation
+ */
+export interface PoolConsumptionEstimate {
+  basin: {
+    type: PoolBasinType;
+    volume: number;
+    weeksPerYear: number;
+  };
+  water: {
+    weeklyLossPercent: number;
+    weeklyLossM3: number;
+    annualLossM3: number;
+    annualCostEuro: number; // Coût eau (~4€/m³)
+  };
+  chemicals: {
+    chlorineKgPerYear: number;
+    chlorineCostEuro: number;
+    phProductsKgPerYear: number;
+    phProductsCostEuro: number;
+    antiAlguesLPerYear: number;
+    antiAlguesCostEuro: number;
+    totalChemicalsCostEuro: number;
+  };
+  totalAnnualCost: number;
+}
+
+/**
+ * Calcule les estimations de consommation pour un bassin
+ */
+export function calculatePoolConsumption(basin: PoolBasinForEstimate): PoolConsumptionEstimate {
+  const weeksPerYear = basin.weeksPerYear || 40;
+
+  // === PERTES D'EAU ===
+  const weeklyLossPercent = WATER_LOSS_PERCENT_WEEKLY[basin.type];
+  // Ajustement si extérieur ou chauffé
+  let adjustedLossPercent = weeklyLossPercent;
+  if (!basin.indoor) adjustedLossPercent *= 1.3;
+  if (basin.heated && !basin.indoor) adjustedLossPercent *= 1.2;
+
+  const weeklyLossM3 = (basin.volume * adjustedLossPercent) / 100;
+  const annualLossM3 = weeklyLossM3 * weeksPerYear;
+  const waterPricePerM3 = 4.0; // €/m³ moyen France
+  const annualWaterCost = annualLossM3 * waterPricePerM3;
+
+  // === PRODUITS CHIMIQUES ===
+  // Chlore
+  const baseChlorineKg = basin.volume * CHLORINE_CONSUMPTION_KG_PER_M3_YEAR[basin.type];
+  const treatmentReduction = TREATMENT_CHLORINE_REDUCTION[basin.treatmentType];
+  const chlorineKgPerYear = baseChlorineKg * treatmentReduction * (weeksPerYear / 52);
+  const chlorineCost = chlorineKgPerYear * CHEMICAL_PRICES.chlore;
+
+  // pH (environ 30% du chlore en masse)
+  const phProductsKg = chlorineKgPerYear * 0.3;
+  const phCost = phProductsKg * ((CHEMICAL_PRICES.phPlus + CHEMICAL_PRICES.phMoins) / 2);
+
+  // Anti-algues (environ 0.5L/m³/an)
+  const antiAlguesL = basin.volume * 0.5 * (weeksPerYear / 52);
+  const antiAlguesCost = antiAlguesL * CHEMICAL_PRICES.antiAlgues;
+
+  const totalChemicalsCost = chlorineCost + phCost + antiAlguesCost;
+  const totalAnnualCost = annualWaterCost + totalChemicalsCost;
+
+  return {
+    basin: {
+      type: basin.type,
+      volume: basin.volume,
+      weeksPerYear,
+    },
+    water: {
+      weeklyLossPercent: Math.round(adjustedLossPercent * 10) / 10,
+      weeklyLossM3: Math.round(weeklyLossM3 * 10) / 10,
+      annualLossM3: Math.round(annualLossM3),
+      annualCostEuro: Math.round(annualWaterCost),
+    },
+    chemicals: {
+      chlorineKgPerYear: Math.round(chlorineKgPerYear),
+      chlorineCostEuro: Math.round(chlorineCost),
+      phProductsKgPerYear: Math.round(phProductsKg),
+      phProductsCostEuro: Math.round(phCost),
+      antiAlguesLPerYear: Math.round(antiAlguesL),
+      antiAlguesCostEuro: Math.round(antiAlguesCost),
+      totalChemicalsCostEuro: Math.round(totalChemicalsCost),
+    },
+    totalAnnualCost: Math.round(totalAnnualCost),
+  };
+}
+
+/**
+ * Calcule les estimations pour plusieurs bassins (site complet)
+ */
+export function calculateSitePoolConsumption(
+  basins: PoolBasinForEstimate[]
+): {
+  basins: PoolConsumptionEstimate[];
+  totals: {
+    totalVolume: number;
+    annualWaterLossM3: number;
+    annualWaterCost: number;
+    annualChemicalsCost: number;
+    totalAnnualCost: number;
+  };
+} {
+  const results = basins.map(calculatePoolConsumption);
+
+  const totals = {
+    totalVolume: basins.reduce((sum, b) => sum + b.volume, 0),
+    annualWaterLossM3: results.reduce((sum, r) => sum + r.water.annualLossM3, 0),
+    annualWaterCost: results.reduce((sum, r) => sum + r.water.annualCostEuro, 0),
+    annualChemicalsCost: results.reduce((sum, r) => sum + r.chemicals.totalChemicalsCostEuro, 0),
+    totalAnnualCost: results.reduce((sum, r) => sum + r.totalAnnualCost, 0),
+  };
+
+  return { basins: results, totals };
+}
+
+// Labels français pour les types de bassins
+export const POOL_BASIN_TYPE_LABELS: Record<PoolBasinType, string> = {
+  BASSIN_SPORTIF: "Bassin sportif",
+  BASSIN_APPRENTISSAGE: "Bassin d'apprentissage",
+  BASSIN_LUDIQUE: "Bassin ludique",
+  PATAUGEOIRE: "Pataugeoire",
+  FOSSE_PLONGEE: "Fosse de plongée",
+  BASSIN_NORDIQUE: "Bassin nordique",
+  BASSIN_EXTERIEUR: "Bassin extérieur",
+  SPA_JACUZZI: "Spa / Jacuzzi",
+  TOBOGGAN: "Réception toboggan",
+  RIVIERE: "Rivière à courant",
+  AUTRE: "Autre",
+};
+
+export const POOL_TREATMENT_TYPE_LABELS: Record<PoolTreatmentType, string> = {
+  CHLORE: "Chlore",
+  BROME: "Brome",
+  SEL: "Électrolyse sel",
+  UV: "Traitement UV",
+  OZONE: "Ozonation",
+  CHLORE_UV: "Chlore + UV",
+  CHLORE_OZONE: "Chlore + Ozone",
+  SEL_UV: "Sel + UV",
+  AUTRE: "Autre",
+};

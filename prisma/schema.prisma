@@ -146,6 +146,7 @@ model Site {
   alerts        Alert[]
   meetings      Meeting[]
   quotes        Quote[]
+  poolBasins    PoolBasin[]    // Bassins de piscine pour ce site
 
   @@map("sites")
 }
@@ -358,6 +359,83 @@ model EquipmentAudit {
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 
   @@map("equipment_audits")
+}
+
+// ============================================
+// BASSINS DE PISCINE
+// ============================================
+
+// Type de bassin
+enum PoolBasinType {
+  BASSIN_SPORTIF      // Bassin de nage 25m/50m
+  BASSIN_APPRENTISSAGE // Bassin d'apprentissage (faible profondeur)
+  BASSIN_LUDIQUE      // Bassin ludique / loisirs
+  PATAUGEOIRE         // Pataugeoire enfants
+  FOSSE_PLONGEE       // Fosse de plongée
+  BASSIN_NORDIQUE     // Bassin nordique (extérieur chauffé)
+  BASSIN_EXTERIEUR    // Bassin extérieur non chauffé
+  SPA_JACUZZI         // Spa / Jacuzzi / Bain bouillonnant
+  TOBOGGAN            // Réception toboggan
+  RIVIERE             // Rivière à courant
+  AUTRE
+}
+
+// Type de traitement d'eau
+enum PoolTreatmentType {
+  CHLORE              // Chlore liquide ou galets
+  BROME               // Brome
+  SEL                 // Électrolyse au sel
+  UV                  // Traitement UV
+  OZONE               // Ozonation
+  CHLORE_UV           // Chlore + UV
+  CHLORE_OZONE        // Chlore + Ozone
+  SEL_UV              // Sel + UV
+  AUTRE
+}
+
+// Type de filtration
+enum PoolFiltrationType {
+  SABLE               // Filtre à sable
+  VERRE               // Média filtrant verre
+  DIATOMEE            // Diatomées
+  CARTOUCHE           // Cartouches
+  PRECOAT             // Précoat
+  AUTRE
+}
+
+// Modèle Bassin de piscine (plusieurs bassins par site)
+model PoolBasin {
+  id              String             @id @default(cuid())
+  siteId          String
+  name            String             // Nom du bassin (ex: "Grand bassin", "Pataugeoire")
+  type            PoolBasinType
+  // Dimensions
+  volume          Float              // Volume en m³
+  surface         Float?             // Surface en m²
+  length          Float?             // Longueur en m
+  width           Float?             // Largeur en m
+  depthMin        Float?             // Profondeur min en m
+  depthMax        Float?             // Profondeur max en m
+  // Configuration
+  indoor          Boolean            @default(true)  // Intérieur ou extérieur
+  heated          Boolean            @default(true)  // Chauffé ou non
+  targetTemp      Float?             // Température cible en °C (ex: 28°C)
+  // Traitement et filtration
+  treatmentType   PoolTreatmentType  @default(CHLORE)
+  filtrationType  PoolFiltrationType @default(SABLE)
+  // Usage et fréquentation
+  usage           String?            // "public", "scolaire", "competition", "loisir"
+  avgDailyBathers Int?               // Fréquentation moyenne jour
+  weeksPerYear    Int?               @default(40)    // Semaines d'ouverture/an
+  // Notes
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@map("pool_basins")
 }
 
 // ============================================
