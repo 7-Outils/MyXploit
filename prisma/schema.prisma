@@ -142,6 +142,7 @@ model Site {
   contractSites ContractSite[] // Relation vers les contrats via la table pivot
   equipments    Equipment[]
   consumptions  Consumption[]
+  meters        Meter[]        // Compteurs du site (schéma de comptage)
   invoices      Invoice[]
   alerts        Alert[]
   meetings      Meeting[]
@@ -527,6 +528,16 @@ model ContractSite {
   avenantEntreeId String?    // Avenant d'entrée (si ajouté après le début)
   avenantSortieId String?    // Avenant de sortie (si retiré)
 
+  // === COEFFICIENTS ENERGETIQUES ===
+  // Coefficient Q : énergie pour produire 1m³ d'ECS (MWh/m³)
+  // Varie selon T° eau froide, T° ECS, rendement. Typiquement 0.10 à 0.14
+  coefficientQ   Float?   @default(0.12)
+  // Coefficient PCS : Pouvoir Calorifique Supérieur du gaz (kWh/m³)
+  // Fourni par GRDF, typiquement ~11.2 kWh/m³
+  coefficientPCS Float?   @default(11.2)
+  // Rendement chaudière (pour calculs avancés)
+  rendementChaudiere Float? @default(0.90)
+
   // === ANALYSE EAU PISCINE ===
   // Configuration des passages d'analyse d'eau pour les bassins (piscines)
   poolAnalysisEnabled     Boolean  @default(false)  // Analyse d'eau activée pour ce site
@@ -670,6 +681,111 @@ model Consumption {
 
   @@unique([siteId, energyType, usage, period])
   @@map("consumptions")
+}
+
+// ============================================
+// COMPTEURS ET RELEVES
+// ============================================
+
+// Type de compteur
+enum MeterType {
+  PRINCIPAL      // Compteur distributeur (GRDF/Enedis) - source API
+  DIVISIONNAIRE  // Sous-compteur (relevé exploitant)
+}
+
+// Fluide/énergie mesuré
+enum MeterFluid {
+  GAZ            // Compteur gaz (m³)
+  ELECTRICITE    // Compteur électrique (kWh)
+  EAU_CHAUDE     // Compteur ECS volumétrique (m³)
+  EAU_FROIDE     // Compteur eau froide (m³)
+  CHALEUR        // Compteur calorifique (kWh/MWh)
+  FIOUL          // Jauge fioul (litres)
+}
+
+// Source des données
+enum MeterDataSource {
+  API            // Données télérelevées (GRDF/Enedis)
+  MANUEL         // Relevé exploitant
+}
+
+// Compteur (principal ou sous-compteur)
+model Meter {
+  id            String          @id @default(cuid())
+  siteId        String
+  name          String          // Ex: "Compteur gaz principal", "Sous-compteur ECS bâtiment A"
+  reference     String?         // PCE, PDL, ou numéro série interne
+  type          MeterType       @default(DIVISIONNAIRE)
+  fluid         MeterFluid
+  dataSource    MeterDataSource @default(MANUEL)
+  unit          String          @default("m3") // m³, kWh, MWh, L
+
+  // Hiérarchie (sous-compteur rattaché à un principal)
+  parentId      String?
+  parent        Meter?          @relation("MeterHierarchy", fields: [parentId], references: [id])
+  children      Meter[]         @relation("MeterHierarchy")
+
+  // Pour le calcul chauffage : ce compteur est-il déduit du principal ?
+  // Ex: ECS déduit du gaz total pour obtenir le chauffage
+  isDeductedFromParent Boolean  @default(false)
+
+  // Coefficient de conversion (si applicable)
+  // Ex: pour ECS volumétrique → énergie : coefficient Q
+  conversionCoefficient Float?  // Ex: 0.12 MWh/m³ pour ECS
+  conversionUnit        String? // Unité après conversion (ex: "MWh")
+
+  // Actif ou non
+  isActive      Boolean         @default(true)
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  site          Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  readings      MeterReading[]
+
+  @@index([siteId])
+  @@map("meters")
+}
+
+// Relevé de compteur
+model MeterReading {
+  id            String          @id @default(cuid())
+  meterId       String
+
+  // Date et période
+  readingDate   DateTime        // Date du relevé
+  periodStart   DateTime?       // Début de période (pour conso)
+  periodEnd     DateTime?       // Fin de période (pour conso)
+
+  // Valeurs
+  indexValue    Float?          // Index compteur (si relevé d'index)
+  consumption   Float?          // Consommation sur la période
+  unit          String          @default("m3") // Unité de la valeur
+
+  // Valeur convertie (si coefficient appliqué)
+  consumptionConverted Float?   // Ex: m³ ECS → MWh
+  unitConverted        String?  // Unité après conversion
+
+  // Source et validation
+  source        MeterDataSource // API ou MANUEL
+  isValidated   Boolean         @default(false) // Validé par l'AMO/client
+  validatedAt   DateTime?
+  validatedBy   String?         // Nom du validateur
+
+  // Notes
+  notes         String?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  meter         Meter           @relation(fields: [meterId], references: [id], onDelete: Cascade)
+
+  @@index([meterId])
+  @@index([readingDate])
+  @@index([periodStart, periodEnd])
+  @@map("meter_readings")
 }
 
 // ============================================

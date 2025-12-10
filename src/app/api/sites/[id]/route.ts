@@ -20,10 +20,30 @@ export async function GET(
       include: {
         contractSites: {
           include: {
-            contract: true,
+            contract: {
+              select: {
+                id: true,
+                reference: true,
+                title: true,
+              },
+            },
           },
         },
         equipments: true,
+        meters: {
+          where: { parentId: null }, // Only root meters (tree structure)
+          include: {
+            children: {
+              include: {
+                children: true,
+                _count: { select: { readings: true } },
+              },
+              orderBy: { name: "asc" },
+            },
+            _count: { select: { readings: true } },
+          },
+          orderBy: { name: "asc" },
+        },
         consumptions: {
           orderBy: { period: "desc" },
           take: 12,

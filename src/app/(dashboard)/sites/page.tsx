@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   Building2,
@@ -174,6 +175,8 @@ const energyTypeLabels: Record<EnergyType, string> = {
 type ViewType = "list" | "map" | "analytics";
 
 export default function SitesPage() {
+  const router = useRouter();
+
   // Contract selection state
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
@@ -677,7 +680,11 @@ export default function SitesPage() {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {filteredSites.map((site) => (
-                          <tr key={site.id} className="hover:bg-gray-50 cursor-pointer transition-colors">
+                          <tr
+                            key={site.id}
+                            className="hover:bg-gray-50 cursor-pointer transition-colors"
+                            onClick={() => router.push(`/sites/${site.id}`)}
+                          >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
