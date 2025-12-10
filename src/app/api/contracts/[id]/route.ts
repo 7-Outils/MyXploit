@@ -182,6 +182,11 @@ export async function DELETE(
         id,
         organizationId: user.organizationId,
       },
+      include: {
+        contractSites: {
+          select: { siteId: true }
+        }
+      }
     });
 
     if (!existingContract) {
@@ -191,9 +196,37 @@ export async function DELETE(
       );
     }
 
+    // Get site IDs linked to this contract
+    const siteIds = existingContract.contractSites.map(cs => cs.siteId);
+
+    // Find sites that are ONLY linked to this contract (not shared with others)
+    const sitesToDelete: string[] = [];
+    for (const siteId of siteIds) {
+      const otherLinks = await prisma.contractSite.count({
+        where: {
+          siteId,
+          contractId: { not: id }
+        }
+      });
+      if (otherLinks === 0) {
+        sitesToDelete.push(siteId);
+      }
+    }
+
+    // Delete contract (cascade will delete contractSites)
     await prisma.contract.delete({ where: { id } });
 
-    return NextResponse.json({ success: true });
+    // Delete orphan sites (only linked to this contract)
+    if (sitesToDelete.length > 0) {
+      await prisma.site.deleteMany({
+        where: { id: { in: sitesToDelete } }
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      deletedSites: sitesToDelete.length
+    });
   } catch (error) {
     console.error("Error deleting contract:", error);
     return NextResponse.json(
