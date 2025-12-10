@@ -17,7 +17,6 @@ import {
   FileText,
   Euro,
   CheckCircle,
-  Clock,
   Trash2,
   Calculator,
 } from "lucide-react";
@@ -1340,7 +1339,7 @@ export default function ContractDetailPage() {
         </ChartCard>
       )}
 
-      {/* Financier Tab */}
+      {/* Financier Tab - Simplified */}
       {activeTab === "financier" && (
         <div className="space-y-6">
           {loadingFinancials ? (
@@ -1350,12 +1349,25 @@ export default function ContractDetailPage() {
           ) : financialData ? (
             <>
               {/* Summary Cards */}
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <ChartCard title="" className="text-center">
                   <div className="flex flex-col items-center -mt-2">
-                    <Calendar size={24} className="text-accent mb-2" />
-                    <p className="text-xs text-text-secondary">Saison en cours</p>
-                    <p className="text-xl font-bold text-primary-dark">
+                    <Euro size={24} className="text-accent mb-2" />
+                    <p className="text-xs text-text-secondary">Total contrat</p>
+                    <p className="text-2xl font-bold text-primary-dark">
+                      {financialData.summary.totalContract.toLocaleString("fr-FR")} €
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      {financialData.summary.seasonCount} {financialData.periodLabel?.toLowerCase() || "périodes"}
+                    </p>
+                  </div>
+                </ChartCard>
+
+                <ChartCard title="" className="text-center">
+                  <div className="flex flex-col items-center -mt-2">
+                    <Calendar size={24} className="text-blue-600 mb-2" />
+                    <p className="text-xs text-text-secondary">Période en cours</p>
+                    <p className="text-2xl font-bold text-primary-dark">
                       {financialData.summary.currentSeasonTotal.toLocaleString("fr-FR")} €
                     </p>
                     <p className="text-xs text-text-secondary">{financialData.summary.currentSeasonLabel}</p>
@@ -1365,8 +1377,8 @@ export default function ContractDetailPage() {
                 <ChartCard title="" className="text-center">
                   <div className="flex flex-col items-center -mt-2">
                     <CheckCircle size={24} className="text-green-600 mb-2" />
-                    <p className="text-xs text-text-secondary">Saison en cours - Payé</p>
-                    <p className="text-xl font-bold text-green-600">
+                    <p className="text-xs text-text-secondary">Payé cette période</p>
+                    <p className="text-2xl font-bold text-green-600">
                       {financialData.summary.currentSeasonPaid.toLocaleString("fr-FR")} €
                     </p>
                     <p className="text-xs text-text-secondary">
@@ -1374,145 +1386,113 @@ export default function ContractDetailPage() {
                     </p>
                   </div>
                 </ChartCard>
-
-                <ChartCard title="" className="text-center">
-                  <div className="flex flex-col items-center -mt-2">
-                    <Clock size={24} className="text-blue-600 mb-2" />
-                    <p className="text-xs text-text-secondary">Saisons futures</p>
-                    <p className="text-xl font-bold text-primary-dark">
-                      {financialData.summary.totalFutureSeasons.toLocaleString("fr-FR")} €
-                    </p>
-                    <p className="text-xs text-text-secondary">Prévisionnel</p>
-                  </div>
-                </ChartCard>
-
-                <ChartCard title="" className="text-center">
-                  <div className="flex flex-col items-center -mt-2">
-                    <Euro size={24} className="text-accent mb-2" />
-                    <p className="text-xs text-text-secondary">Total contrat</p>
-                    <p className="text-xl font-bold text-primary-dark">
-                      {financialData.summary.totalContract.toLocaleString("fr-FR")} €
-                    </p>
-                    <p className="text-xs text-text-secondary">{financialData.summary.seasonCount} {financialData.periodLabel?.toLowerCase() || "périodes"}</p>
-                  </div>
-                </ChartCard>
               </div>
 
-              {/* Seasons breakdown with acomptes */}
-              <ChartCard title={`${financialData.periodLabel || "Saisons de chauffe"} (${hasAnyP2 && hasAnyP3 ? "P2 + P3" : hasAnyP2 ? "P2" : hasAnyP3 ? "P3" : ""})`}>
-                <div className="space-y-6">
-                  {financialData.seasons.map((season) => (
-                    <div
-                      key={season.label}
-                      className={`border rounded-xl p-4 ${
-                        season.isCurrent
-                          ? "border-accent bg-accent/5"
-                          : season.isPast
-                          ? "border-green-200 bg-green-50/50"
-                          : "border-gray-200"
-                      }`}
-                    >
-                      {/* Season Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-primary-dark text-lg">
-                            {financialData.contract?.yearType === "CIVIL" ? "Année" : financialData.contract?.yearType === "CONTRACTUAL" ? "Année" : "Saison"} {season.label}
-                          </h4>
-                          {season.isCurrent && (
-                            <span className="px-2 py-0.5 bg-accent text-white rounded text-xs">
-                              En cours
-                            </span>
-                          )}
-                          {season.isPast && (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                              Terminée
-                            </span>
-                          )}
-                          {season.isFuture && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                              À venir
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold text-primary-dark">
-                            {season.total.toLocaleString("fr-FR")} € HT
-                          </p>
-                          <p className="text-xs text-text-secondary">
-                            {hasAnyP2 && `P2: ${season.totalP2.toLocaleString("fr-FR")} €`}
-                            {hasAnyP2 && hasAnyP3 && " | "}
-                            {hasAnyP3 && `P3: ${season.totalP3.toLocaleString("fr-FR")} €`}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* 4 Acomptes Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                        {season.acomptes.map((acompte) => (
-                          <div
-                            key={acompte.number}
-                            className={`p-3 rounded-lg border ${
-                              acompte.isCurrent
-                                ? "border-accent bg-accent/10"
-                                : acompte.isPaid
-                                ? "border-green-200 bg-green-50"
-                                : "border-gray-200 bg-gray-50"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium text-text-secondary">
-                                {acompte.label}
-                              </span>
-                              {acompte.isCurrent && (
-                                <span className="w-2 h-2 bg-accent rounded-full animate-pulse"></span>
-                              )}
-                              {acompte.isPaid && (
-                                <CheckCircle size={12} className="text-green-600" />
-                              )}
-                            </div>
-                            <p className="font-bold text-primary-dark">
-                              {acompte.total.toLocaleString("fr-FR")} €
-                            </p>
-                            <p className="text-xs text-text-secondary">
-                              {new Date(acompte.periodStart).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} - {new Date(acompte.periodEnd).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
-                            </p>
-                            <p className="text-xs text-text-secondary mt-1">
-                              Fact. {new Date(acompte.billingDate).toLocaleDateString("fr-FR")}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Site breakdown */}
-                      {season.sites.length > 0 && (
-                        <div className="border-t border-gray-100 pt-3">
-                          <p className="text-xs font-medium text-text-secondary mb-2">Détail par site</p>
-                          <div className="space-y-2">
-                            {season.sites.map((site) => (
-                              <div
-                                key={site.siteId}
-                                className="flex items-center justify-between text-sm bg-white px-3 py-2 rounded border border-gray-100"
-                              >
-                                <span className="text-primary-dark font-medium">
-                                  {site.siteName}
-                                </span>
-                                <div className="text-right">
-                                  <span className="font-medium text-primary-dark">
-                                    {site.total.toLocaleString("fr-FR")} €
-                                  </span>
-                                  <p className="text-xs text-text-secondary">
-                                    {hasAnyP2 && `P2: ${site.amountP2.toLocaleString("fr-FR")} €`}
-                                    {hasAnyP2 && hasAnyP3 && " | "}
-                                    {hasAnyP3 && `P3: ${site.amountP3.toLocaleString("fr-FR")} €`}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+              {/* Quick Links to detailed pages */}
+              <ChartCard title="Accès rapide">
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <Link
+                    href="/invoices"
+                    className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-accent hover:bg-accent/5 transition-all group"
+                  >
+                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                      <FileText size={24} className="text-blue-600" />
                     </div>
-                  ))}
+                    <div>
+                      <p className="font-semibold text-primary-dark">Facturation</p>
+                      <p className="text-sm text-text-secondary">Acomptes et échéances</p>
+                    </div>
+                  </Link>
+
+                  <Link
+                    href="/budget"
+                    className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-accent hover:bg-accent/5 transition-all group"
+                  >
+                    <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center group-hover:bg-green-100 transition-colors">
+                      <Euro size={24} className="text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-primary-dark">Budget</p>
+                      <p className="text-sm text-text-secondary">Analyse par période</p>
+                    </div>
+                  </Link>
+
+                  {hasAnyP3 && (
+                    <Link
+                      href="/decompte-p3"
+                      className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-accent hover:bg-accent/5 transition-all group"
+                    >
+                      <div className="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                        <Calculator size={24} className="text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-primary-dark">Décompte P3</p>
+                        <p className="text-sm text-text-secondary">Pot P3 et solde</p>
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              </ChartCard>
+
+              {/* Montants de base par site */}
+              <ChartCard title="Montants contractuels par site">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Site</th>
+                        <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Type</th>
+                        {hasAnyP2 && <th className="text-right py-3 px-4 text-sm font-medium text-blue-600">P2 / an</th>}
+                        {hasAnyP3 && <th className="text-right py-3 px-4 text-sm font-medium text-green-600">P3 / an</th>}
+                        <th className="text-right py-3 px-4 text-sm font-medium text-primary-dark">Total / an</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contract.contractSites.map((cs) => (
+                        <tr key={cs.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <span className="font-medium text-primary-dark">{cs.site.name}</span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">
+                              {cs.contractType}
+                            </span>
+                          </td>
+                          {hasAnyP2 && (
+                            <td className="py-3 px-4 text-right text-blue-600 font-medium">
+                              {cs.amountP2 ? `${cs.amountP2.toLocaleString("fr-FR")} €` : "-"}
+                            </td>
+                          )}
+                          {hasAnyP3 && (
+                            <td className="py-3 px-4 text-right text-green-600 font-medium">
+                              {cs.amountP3 ? `${cs.amountP3.toLocaleString("fr-FR")} €` : "-"}
+                            </td>
+                          )}
+                          <td className="py-3 px-4 text-right font-bold text-primary-dark">
+                            {((cs.amountP2 || 0) + (cs.amountP3 || 0)).toLocaleString("fr-FR")} €
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 font-bold">
+                        <td className="py-3 px-4 text-primary-dark" colSpan={2}>Total annuel</td>
+                        {hasAnyP2 && (
+                          <td className="py-3 px-4 text-right text-blue-600">
+                            {contract.contractSites.reduce((sum, cs) => sum + (cs.amountP2 || 0), 0).toLocaleString("fr-FR")} €
+                          </td>
+                        )}
+                        {hasAnyP3 && (
+                          <td className="py-3 px-4 text-right text-green-600">
+                            {contract.contractSites.reduce((sum, cs) => sum + (cs.amountP3 || 0), 0).toLocaleString("fr-FR")} €
+                          </td>
+                        )}
+                        <td className="py-3 px-4 text-right text-primary-dark">
+                          {contract.contractSites.reduce((sum, cs) => sum + (cs.amountP2 || 0) + (cs.amountP3 || 0), 0).toLocaleString("fr-FR")} €
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </ChartCard>
             </>

@@ -20,6 +20,8 @@ import {
   Target,
   FileSpreadsheet,
   Bell,
+  Wallet,
+  PiggyBank,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -68,6 +70,20 @@ const allNavigation = [
     name: "Facturation",
     href: "/invoices",
     icon: Receipt,
+    profiles: ["CLIENT", "AMO"] as UserProfileType[],
+  },
+  {
+    id: "budget",
+    name: "Budget",
+    href: "/budget",
+    icon: Wallet,
+    profiles: ["CLIENT", "AMO"] as UserProfileType[],
+  },
+  {
+    id: "decompte-p3",
+    name: "Décompte P3",
+    href: "/decompte-p3",
+    icon: PiggyBank,
     profiles: ["CLIENT", "AMO"] as UserProfileType[],
   },
   {
