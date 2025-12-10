@@ -110,12 +110,28 @@ interface FinancialData {
   periodLabel?: string;
 }
 
-interface P3BalanceData {
-  invoices: { id: string; reference: string; amount: number; issueDate: string; siteName: string | null }[];
-  quotes: { id: string; reference: string; amount: number; date: string; siteName: string | null; status: string }[];
+interface P3YearData {
+  year: string;
+  label: string;
+  invoices: { id: string; reference: string; issueDate: string; amount: number; siteName: string }[];
+  quotes: { id: string; reference: string; title: string; issueDate: string; amountHT: number; status: string; siteName: string | null }[];
   totalInvoices: number;
   totalQuotes: number;
   balance: number;
+  cumulativeBalance: number;
+}
+
+interface P3BalanceData {
+  contractId: string;
+  contractReference: string;
+  startDate: string;
+  endDate: string;
+  years: P3YearData[];
+  totals: {
+    totalInvoices: number;
+    totalQuotes: number;
+    finalBalance: number;
+  };
 }
 
 // Configs
@@ -177,7 +193,7 @@ function FinancierPageContent() {
   // Décompte P3 state
   const [p3Data, setP3Data] = useState<P3BalanceData | null>(null);
   const [loadingP3, setLoadingP3] = useState(false);
-  const [expandedP3Years, setExpandedP3Years] = useState<Set<number>>(new Set());
+  const [expandedP3Years, setExpandedP3Years] = useState<Set<string>>(new Set());
 
   // Form data
   const [importPreview, setImportPreview] = useState<{
@@ -292,8 +308,11 @@ function FinancierPageContent() {
       if (response.ok) {
         const data = await response.json();
         setP3Data(data);
-        const currentYear = new Date().getFullYear();
-        setExpandedP3Years(new Set([currentYear]));
+        // Expand the most recent year by default
+        if (data.years && data.years.length > 0) {
+          const lastYear = data.years[data.years.length - 1];
+          setExpandedP3Years(new Set([lastYear.year]));
+        }
       }
     } catch (error) {
       console.error("Error fetching P3 balance:", error);
@@ -527,7 +546,7 @@ function FinancierPageContent() {
     });
   };
 
-  const toggleP3Year = (year: number) => {
+  const toggleP3Year = (year: string) => {
     setExpandedP3Years((prev) => {
       const next = new Set(prev);
       if (next.has(year)) next.delete(year);
@@ -590,41 +609,6 @@ function FinancierPageContent() {
     };
   }, [financialData]);
 
-  // Computed values for P3
-  const p3ByYear = useMemo(() => {
-    if (!p3Data) return [];
-    const allDates = [
-      ...p3Data.invoices.map((i) => new Date(i.issueDate)),
-      ...p3Data.quotes.map((q) => new Date(q.date)),
-    ];
-    if (allDates.length === 0) return [];
-
-    const years = [...new Set(allDates.map((d) => d.getFullYear()))].sort((a, b) => b - a);
-    let cumulativeBalance = 0;
-
-    return years
-      .sort((a, b) => a - b)
-      .map((year) => {
-        const yearInvoices = p3Data.invoices.filter(
-          (i) => new Date(i.issueDate).getFullYear() === year
-        );
-        const yearQuotes = p3Data.quotes.filter((q) => new Date(q.date).getFullYear() === year);
-        const receipts = yearInvoices.reduce((sum, i) => sum + i.amount, 0);
-        const expenses = yearQuotes.reduce((sum, q) => sum + q.amount, 0);
-        cumulativeBalance += receipts - expenses;
-
-        return {
-          year,
-          invoices: yearInvoices,
-          quotes: yearQuotes,
-          receipts,
-          expenses,
-          yearBalance: receipts - expenses,
-          cumulativeBalance,
-        };
-      })
-      .sort((a, b) => b.year - a.year);
-  }, [p3Data]);
 
   // Loading
   if (loadingContracts) {
@@ -787,7 +771,6 @@ function FinancierPageContent() {
         <DecompteP3Content
           loading={loadingP3}
           p3Data={p3Data}
-          p3ByYear={p3ByYear}
           expandedP3Years={expandedP3Years}
           toggleP3Year={toggleP3Year}
         />
@@ -1228,15 +1211,13 @@ function BudgetContent({
 function DecompteP3Content({
   loading,
   p3Data,
-  p3ByYear,
   expandedP3Years,
   toggleP3Year,
 }: {
   loading: boolean;
   p3Data: P3BalanceData | null;
-  p3ByYear: { year: number; invoices: { id: string; reference: string; amount: number; issueDate: string; siteName: string | null }[]; quotes: { id: string; reference: string; amount: number; date: string; siteName: string | null; status: string }[]; receipts: number; expenses: number; yearBalance: number; cumulativeBalance: number }[];
-  expandedP3Years: Set<number>;
-  toggleP3Year: (year: number) => void;
+  expandedP3Years: Set<string>;
+  toggleP3Year: (year: string) => void;
 }) {
   if (loading) {
     return (
@@ -1257,22 +1238,24 @@ function DecompteP3Content({
     );
   }
 
+  const { totals, years } = p3Data;
+
   return (
     <>
       {/* Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
-        <StatsCard title="Factures P3 (encaissements)" value={`${p3Data.totalInvoices.toLocaleString("fr-FR")} €`} icon={ArrowUpRight} iconColor="text-green-600" />
-        <StatsCard title="Devis P3 (dépenses)" value={`${p3Data.totalQuotes.toLocaleString("fr-FR")} €`} icon={ArrowDownRight} iconColor="text-red-600" />
+        <StatsCard title="Factures P3 (encaissements)" value={`${totals.totalInvoices.toLocaleString("fr-FR")} €`} icon={ArrowUpRight} iconColor="text-green-600" />
+        <StatsCard title="Devis P3 (dépenses)" value={`${totals.totalQuotes.toLocaleString("fr-FR")} €`} icon={ArrowDownRight} iconColor="text-red-600" />
         <StatsCard
           title="Solde cagnotte P3"
-          value={`${p3Data.balance.toLocaleString("fr-FR")} €`}
+          value={`${totals.finalBalance.toLocaleString("fr-FR")} €`}
           icon={PiggyBank}
-          iconColor={p3Data.balance >= 0 ? "text-green-600" : "text-red-600"}
+          iconColor={totals.finalBalance >= 0 ? "text-green-600" : "text-red-600"}
         />
       </div>
 
       {/* By year */}
-      {p3ByYear.length === 0 ? (
+      {years.length === 0 ? (
         <ChartCard title="">
           <div className="text-center py-12">
             <PiggyBank size={48} className="mx-auto text-gray-300 mb-4" />
@@ -1281,10 +1264,11 @@ function DecompteP3Content({
         </ChartCard>
       ) : (
         <div className="space-y-4">
-          {p3ByYear.map(({ year, invoices, quotes, receipts, expenses, yearBalance, cumulativeBalance }) => {
+          {[...years].reverse().map((yearData) => {
+            const { year, label, invoices, quotes, totalInvoices, totalQuotes, balance, cumulativeBalance } = yearData;
             const isExpanded = expandedP3Years.has(year);
-            const currentYear = new Date().getFullYear();
-            const isCurrent = year === currentYear;
+            const currentYear = new Date().getFullYear().toString();
+            const isCurrent = year === currentYear || year.startsWith(currentYear);
 
             return (
               <div key={year} className={`border rounded-xl overflow-hidden ${isCurrent ? "border-accent" : "border-gray-200"}`}>
@@ -1296,7 +1280,7 @@ function DecompteP3Content({
                     {isExpanded ? <ChevronDown size={18} className="text-text-secondary" /> : <ChevronRight size={18} className="text-text-secondary" />}
                     <div className="text-left">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-primary-dark">{year}</span>
+                        <span className="font-semibold text-primary-dark">{label}</span>
                         {isCurrent && <span className="px-2 py-0.5 bg-accent text-white text-xs rounded-full">En cours</span>}
                       </div>
                       <span className="text-xs text-text-secondary">
@@ -1305,9 +1289,9 @@ function DecompteP3Content({
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-bold ${yearBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {yearBalance >= 0 ? "+" : ""}
-                      {yearBalance.toLocaleString("fr-FR")} €
+                    <p className={`font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {balance >= 0 ? "+" : ""}
+                      {balance.toLocaleString("fr-FR")} €
                     </p>
                     <p className="text-xs text-text-secondary">Solde cumulé: {cumulativeBalance.toLocaleString("fr-FR")} €</p>
                   </div>
@@ -1318,7 +1302,7 @@ function DecompteP3Content({
                       <div>
                         <p className="text-xs font-medium text-green-700 mb-2 flex items-center gap-1">
                           <ArrowUpRight size={14} />
-                          Factures P3 (+{receipts.toLocaleString("fr-FR")} €)
+                          Factures P3 (+{totalInvoices.toLocaleString("fr-FR")} €)
                         </p>
                         <div className="space-y-2">
                           {invoices.map((inv) => (
@@ -1340,7 +1324,7 @@ function DecompteP3Content({
                       <div>
                         <p className="text-xs font-medium text-red-700 mb-2 flex items-center gap-1">
                           <ArrowDownRight size={14} />
-                          Devis P3 (-{expenses.toLocaleString("fr-FR")} €)
+                          Devis P3 (-{totalQuotes.toLocaleString("fr-FR")} €)
                         </p>
                         <div className="space-y-2">
                           {quotes.map((q) => (
@@ -1348,11 +1332,11 @@ function DecompteP3Content({
                               <div>
                                 <p className="font-medium text-primary-dark text-sm">{q.reference}</p>
                                 <p className="text-xs text-text-secondary">
-                                  {new Date(q.date).toLocaleDateString("fr-FR")}
+                                  {new Date(q.issueDate).toLocaleDateString("fr-FR")}
                                   {q.siteName && ` • ${q.siteName}`}
                                 </p>
                               </div>
-                              <p className="font-medium text-red-600">-{q.amount.toLocaleString("fr-FR")} €</p>
+                              <p className="font-medium text-red-600">-{q.amountHT.toLocaleString("fr-FR")} €</p>
                             </div>
                           ))}
                         </div>
