@@ -369,30 +369,11 @@ export default function ContractDetailPage() {
   const [deletingAvenantId, setDeletingAvenantId] = useState<string | null>(null);
 
   // Tab state for contract view
-  const [activeTab, setActiveTab] = useState<"sites" | "avenants" | "financier" | "decompteP3">("sites");
+  const [activeTab, setActiveTab] = useState<"sites" | "avenants" | "financier">("sites");
 
   // Financial data
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [loadingFinancials, setLoadingFinancials] = useState(false);
-
-  // P3 Balance data
-  interface P3YearData {
-    year: string;
-    label: string;
-    invoices: { id: string; reference: string; issueDate: string; amount: number; siteName: string }[];
-    quotes: { id: string; reference: string; title: string; issueDate: string; amountHT: number; status: string; siteName: string | null }[];
-    totalInvoices: number;
-    totalQuotes: number;
-    balance: number;
-    cumulativeBalance: number;
-  }
-  interface P3BalanceData {
-    contractId: string;
-    years: P3YearData[];
-    totals: { totalInvoices: number; totalQuotes: number; finalBalance: number };
-  }
-  const [p3Data, setP3Data] = useState<P3BalanceData | null>(null);
-  const [loadingP3, setLoadingP3] = useState(false);
 
   const fetchFinancials = async () => {
     setLoadingFinancials(true);
@@ -406,21 +387,6 @@ export default function ContractDetailPage() {
       console.error("Error fetching financials:", error);
     } finally {
       setLoadingFinancials(false);
-    }
-  };
-
-  const fetchP3Balance = async () => {
-    setLoadingP3(true);
-    try {
-      const response = await fetch(`/api/contracts/${contractId}/p3-balance`);
-      if (response.ok) {
-        const data = await response.json();
-        setP3Data(data);
-      }
-    } catch (error) {
-      console.error("Error fetching P3 balance:", error);
-    } finally {
-      setLoadingP3(false);
     }
   };
 
@@ -450,9 +416,6 @@ export default function ContractDetailPage() {
   useEffect(() => {
     if (activeTab === "financier" && !financialData && !loadingFinancials) {
       fetchFinancials();
-    }
-    if (activeTab === "decompteP3" && !p3Data && !loadingP3) {
-      fetchP3Balance();
     }
   }, [activeTab]);
 
@@ -1074,19 +1037,6 @@ export default function ContractDetailPage() {
           <Euro size={16} className="inline mr-2" />
           Financier
         </button>
-        {hasAnyP3 && (
-          <button
-            onClick={() => setActiveTab("decompteP3")}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "decompteP3"
-                ? "border-accent text-accent"
-                : "border-transparent text-text-secondary hover:text-primary-dark"
-            }`}
-          >
-            <Calculator size={16} className="inline mr-2" />
-            Décompte P3
-          </button>
-        )}
       </div>
 
       {/* Sites List */}
@@ -1502,200 +1452,6 @@ export default function ContractDetailPage() {
                 <Euro size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-text-secondary">
                   Aucune donnée financière disponible
-                </p>
-              </div>
-            </ChartCard>
-          )}
-        </div>
-      )}
-
-      {/* Décompte P3 Tab */}
-      {activeTab === "decompteP3" && (
-        <div className="space-y-6">
-          {loadingP3 ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-accent" />
-            </div>
-          ) : p3Data ? (
-            <>
-              {/* Summary Cards */}
-              <div className="grid sm:grid-cols-3 gap-4">
-                <ChartCard title="" className="text-center">
-                  <div className="flex flex-col items-center -mt-2">
-                    <Euro size={24} className="text-green-600 mb-2" />
-                    <p className="text-xs text-text-secondary">Factures P3 (Recettes)</p>
-                    <p className="text-xl font-bold text-green-600">
-                      +{p3Data.totals.totalInvoices.toLocaleString("fr-FR")} €
-                    </p>
-                    <p className="text-xs text-text-secondary">Alimentation du pot</p>
-                  </div>
-                </ChartCard>
-
-                <ChartCard title="" className="text-center">
-                  <div className="flex flex-col items-center -mt-2">
-                    <FileText size={24} className="text-red-600 mb-2" />
-                    <p className="text-xs text-text-secondary">Devis P3 validés (Dépenses)</p>
-                    <p className="text-xl font-bold text-red-600">
-                      -{p3Data.totals.totalQuotes.toLocaleString("fr-FR")} €
-                    </p>
-                    <p className="text-xs text-text-secondary">Travaux réalisés</p>
-                  </div>
-                </ChartCard>
-
-                <ChartCard title="" className="text-center">
-                  <div className="flex flex-col items-center -mt-2">
-                    <Calculator size={24} className={p3Data.totals.finalBalance >= 0 ? "text-green-600 mb-2" : "text-red-600 mb-2"} />
-                    <p className="text-xs text-text-secondary">Solde P3</p>
-                    <p className={`text-xl font-bold ${p3Data.totals.finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {p3Data.totals.finalBalance >= 0 ? "+" : ""}{p3Data.totals.finalBalance.toLocaleString("fr-FR")} €
-                    </p>
-                    <p className="text-xs text-text-secondary">
-                      {p3Data.totals.finalBalance >= 0 ? "Excédent (à restituer)" : "Déficit"}
-                    </p>
-                  </div>
-                </ChartCard>
-              </div>
-
-              {/* Yearly breakdown */}
-              <ChartCard title="Décompte P3 par année">
-                {p3Data.years.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Calculator size={48} className="mx-auto text-gray-300 mb-4" />
-                    <p className="text-text-secondary">
-                      Aucune facture ou devis P3 pour ce contrat
-                    </p>
-                    <p className="text-sm text-text-secondary mt-2">
-                      Les factures de type P3 et les devis validés de type P3 apparaîtront ici
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Période</th>
-                          <th className="text-right py-3 px-4 text-sm font-medium text-green-600">Factures P3</th>
-                          <th className="text-right py-3 px-4 text-sm font-medium text-red-600">Devis P3</th>
-                          <th className="text-right py-3 px-4 text-sm font-medium text-text-secondary">Solde</th>
-                          <th className="text-right py-3 px-4 text-sm font-medium text-primary-dark">Solde cumulé</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {p3Data.years.map((year) => (
-                          <tr key={year.year} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <span className="font-medium text-primary-dark">{year.label}</span>
-                            </td>
-                            <td className="py-3 px-4 text-right text-green-600 font-medium">
-                              +{year.totalInvoices.toLocaleString("fr-FR")} €
-                            </td>
-                            <td className="py-3 px-4 text-right text-red-600 font-medium">
-                              -{year.totalQuotes.toLocaleString("fr-FR")} €
-                            </td>
-                            <td className={`py-3 px-4 text-right font-medium ${year.balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                              {year.balance >= 0 ? "+" : ""}{year.balance.toLocaleString("fr-FR")} €
-                            </td>
-                            <td className={`py-3 px-4 text-right font-bold ${year.cumulativeBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
-                              {year.cumulativeBalance >= 0 ? "+" : ""}{year.cumulativeBalance.toLocaleString("fr-FR")} €
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-gray-50 font-bold">
-                          <td className="py-3 px-4 text-primary-dark">Total</td>
-                          <td className="py-3 px-4 text-right text-green-600">
-                            +{p3Data.totals.totalInvoices.toLocaleString("fr-FR")} €
-                          </td>
-                          <td className="py-3 px-4 text-right text-red-600">
-                            -{p3Data.totals.totalQuotes.toLocaleString("fr-FR")} €
-                          </td>
-                          <td className={`py-3 px-4 text-right ${p3Data.totals.finalBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                            {p3Data.totals.finalBalance >= 0 ? "+" : ""}{p3Data.totals.finalBalance.toLocaleString("fr-FR")} €
-                          </td>
-                          <td className="py-3 px-4"></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
-              </ChartCard>
-
-              {/* Detail of movements by year */}
-              {p3Data.years.filter(y => y.invoices.length > 0 || y.quotes.length > 0).map((year) => (
-                <ChartCard key={year.year} title={`Détail ${year.label}`}>
-                  <div className="space-y-4">
-                    {/* Invoices */}
-                    {year.invoices.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-green-600 mb-2 flex items-center gap-2">
-                          <Euro size={16} />
-                          Factures P3 ({year.invoices.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {year.invoices.map((inv) => (
-                            <div key={inv.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                              <div>
-                                <p className="font-medium text-primary-dark">{inv.reference}</p>
-                                <p className="text-sm text-text-secondary">
-                                  {inv.siteName} • {new Date(inv.issueDate).toLocaleDateString("fr-FR")}
-                                </p>
-                              </div>
-                              <span className="font-bold text-green-600">
-                                +{inv.amount.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Quotes */}
-                    {year.quotes.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-red-600 mb-2 flex items-center gap-2">
-                          <FileText size={16} />
-                          Devis P3 validés ({year.quotes.length})
-                        </h4>
-                        <div className="space-y-2">
-                          {year.quotes.map((quote) => (
-                            <div key={quote.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                              <div>
-                                <p className="font-medium text-primary-dark">{quote.reference}</p>
-                                <p className="text-sm text-text-secondary">
-                                  {quote.title}
-                                </p>
-                                <p className="text-xs text-text-secondary">
-                                  {quote.siteName || "—"} • {new Date(quote.issueDate).toLocaleDateString("fr-FR")} • {quote.status}
-                                </p>
-                              </div>
-                              <span className="font-bold text-red-600">
-                                -{quote.amountHT.toLocaleString("fr-FR")} €
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </ChartCard>
-              ))}
-
-              {/* Info box */}
-              <div className="p-4 bg-blue-50 rounded-xl">
-                <p className="text-sm text-blue-700">
-                  <strong>Note :</strong> Le décompte P3 est spécifique aux marchés de chauffage français.
-                  Les factures P3 alimentent le &quot;pot P3&quot;, les devis P3 validés (acceptés, commandés, facturés)
-                  le consomment. Le solde positif est restitué au client en fin de contrat.
-                </p>
-              </div>
-            </>
-          ) : (
-            <ChartCard title="">
-              <div className="text-center py-12">
-                <Calculator size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-text-secondary">
-                  Aucune donnée P3 disponible
                 </p>
               </div>
             </ChartCard>

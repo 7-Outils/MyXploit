@@ -134,6 +134,28 @@ interface P3BalanceData {
   };
 }
 
+interface SiteP3Analytics {
+  siteId: string;
+  siteName: string;
+  siteCity: string;
+  p3Invoices: number;
+  p3InvoiceCount: number;
+  p3Quotes: number;
+  p3QuoteCount: number;
+  p3Balance: number;
+}
+
+interface SiteAnalyticsData {
+  contractId: string;
+  contractReference: string;
+  sites: SiteP3Analytics[];
+  totals: {
+    p3Invoices: number;
+    p3Quotes: number;
+    p3Balance: number;
+  };
+}
+
 // Configs
 const typeConfig = {
   P1: { label: "P1 - Énergie", color: "bg-orange-100 text-orange-700" },
@@ -151,7 +173,7 @@ const statusConfig = {
   PAYEE: { label: "Payée", color: "bg-blue-100 text-blue-700", icon: Check },
 };
 
-type Tab = "facturation" | "budget" | "decompte-p3";
+type Tab = "facturation" | "budget" | "decompte-p3" | "analyse-sites";
 type StatusFilter = "ALL" | "BROUILLON" | "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "PAYEE";
 type TypeFilter = "ALL" | "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
 
@@ -194,6 +216,10 @@ function FinancierPageContent() {
   const [p3Data, setP3Data] = useState<P3BalanceData | null>(null);
   const [loadingP3, setLoadingP3] = useState(false);
   const [expandedP3Years, setExpandedP3Years] = useState<Set<string>>(new Set());
+
+  // Site analytics state
+  const [siteAnalytics, setSiteAnalytics] = useState<SiteAnalyticsData | null>(null);
+  const [loadingSiteAnalytics, setLoadingSiteAnalytics] = useState(false);
 
   // Form data
   const [importPreview, setImportPreview] = useState<{
@@ -246,6 +272,8 @@ function FinancierPageContent() {
         fetchFinancials(selectedContract.id);
       } else if (activeTab === "decompte-p3") {
         fetchP3Balance(selectedContract.id);
+      } else if (activeTab === "analyse-sites") {
+        fetchSiteAnalytics(selectedContract.id);
       }
     }
   }, [selectedContract, activeTab]);
@@ -318,6 +346,21 @@ function FinancierPageContent() {
       console.error("Error fetching P3 balance:", error);
     } finally {
       setLoadingP3(false);
+    }
+  };
+
+  const fetchSiteAnalytics = async (contractId: string) => {
+    try {
+      setLoadingSiteAnalytics(true);
+      const response = await fetch(`/api/contracts/${contractId}/site-analytics`);
+      if (response.ok) {
+        const data = await response.json();
+        setSiteAnalytics(data);
+      }
+    } catch (error) {
+      console.error("Error fetching site analytics:", error);
+    } finally {
+      setLoadingSiteAnalytics(false);
     }
   };
 
@@ -719,6 +762,7 @@ function FinancierPageContent() {
             { id: "facturation" as Tab, label: "Facturation", icon: Receipt },
             { id: "budget" as Tab, label: "Budget", icon: Wallet },
             { id: "decompte-p3" as Tab, label: "Décompte P3", icon: PiggyBank },
+            { id: "analyse-sites" as Tab, label: "Analyse sites", icon: Building2 },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -773,6 +817,13 @@ function FinancierPageContent() {
           p3Data={p3Data}
           expandedP3Years={expandedP3Years}
           toggleP3Year={toggleP3Year}
+        />
+      )}
+
+      {activeTab === "analyse-sites" && (
+        <SiteAnalyticsContent
+          loading={loadingSiteAnalytics}
+          data={siteAnalytics}
         />
       )}
 
@@ -1353,6 +1404,167 @@ function DecompteP3Content({
   );
 }
 
+function SiteAnalyticsContent({
+  loading,
+  data,
+}: {
+  loading: boolean;
+  data: SiteAnalyticsData | null;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <ChartCard title="">
+        <div className="text-center py-12">
+          <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-text-secondary">Aucune donnée disponible</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  const { sites, totals } = data;
+
+  // Sites with negative P3 balance (overspent P3)
+  const p3OverspentSites = sites.filter(s => s.p3Balance < 0);
+  const p3PositiveSites = sites.filter(s => s.p3Balance > 0);
+
+  return (
+    <>
+      {/* Summary Stats */}
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatsCard
+          title="Factures P3 (encaissements)"
+          value={`${totals.p3Invoices.toLocaleString("fr-FR")} €`}
+          icon={ArrowUpRight}
+          iconColor="text-green-600"
+        />
+        <StatsCard
+          title="Devis P3 (dépenses)"
+          value={`${totals.p3Quotes.toLocaleString("fr-FR")} €`}
+          icon={ArrowDownRight}
+          iconColor="text-red-600"
+        />
+        <StatsCard
+          title="Solde P3 global"
+          value={`${totals.p3Balance.toLocaleString("fr-FR")} €`}
+          icon={PiggyBank}
+          iconColor={totals.p3Balance >= 0 ? "text-green-600" : "text-red-600"}
+        />
+      </div>
+
+      {/* Alerts */}
+      {p3OverspentSites.length > 0 && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={20} className="text-red-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-red-800">Sites avec solde P3 négatif</p>
+              <p className="text-sm text-red-700 mt-1">
+                {p3OverspentSites.length} site{p3OverspentSites.length > 1 ? "s ont" : " a"} sur-consommé leur cagnotte P3.
+                À prévoir pour le prochain contrat : augmenter le P3 ou réduire les interventions.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sites table */}
+      <ChartCard title="Décompte P3 par site">
+        {sites.length === 0 ? (
+          <div className="text-center py-8">
+            <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
+            <p className="text-text-secondary">Aucun site avec activité P3</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-sm font-medium text-text-secondary">Site</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-green-600">Factures P3</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-red-600">Devis P3</th>
+                  <th className="text-right py-3 px-4 text-sm font-medium text-primary-dark">Solde P3</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sites.map((site) => {
+                  const isP3Negative = site.p3Balance < 0;
+                  return (
+                    <tr
+                      key={site.siteId}
+                      className={`border-b border-gray-100 hover:bg-gray-50 ${isP3Negative ? "bg-red-50/50" : ""}`}
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-primary-dark">{site.siteName}</span>
+                          {isP3Negative && (
+                            <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs rounded">Déficit</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-secondary">{site.siteCity}</p>
+                      </td>
+                      <td className="py-3 px-4 text-right text-green-600">
+                        +{site.p3Invoices.toLocaleString("fr-FR")} €
+                        <span className="text-xs text-text-secondary ml-1">({site.p3InvoiceCount})</span>
+                      </td>
+                      <td className="py-3 px-4 text-right text-red-600">
+                        -{site.p3Quotes.toLocaleString("fr-FR")} €
+                        <span className="text-xs text-text-secondary ml-1">({site.p3QuoteCount})</span>
+                      </td>
+                      <td className={`py-3 px-4 text-right font-bold ${isP3Negative ? "text-red-600" : "text-green-600"}`}>
+                        {site.p3Balance >= 0 ? "+" : ""}{site.p3Balance.toLocaleString("fr-FR")} €
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-50 font-bold">
+                  <td className="py-3 px-4 text-primary-dark">Total ({sites.length} sites)</td>
+                  <td className="py-3 px-4 text-right text-green-600">+{totals.p3Invoices.toLocaleString("fr-FR")} €</td>
+                  <td className="py-3 px-4 text-right text-red-600">-{totals.p3Quotes.toLocaleString("fr-FR")} €</td>
+                  <td className={`py-3 px-4 text-right ${totals.p3Balance >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {totals.p3Balance >= 0 ? "+" : ""}{totals.p3Balance.toLocaleString("fr-FR")} €
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </ChartCard>
+
+      {/* Recommendation */}
+      <div className="p-4 bg-blue-50 rounded-xl">
+        <p className="text-sm text-blue-700">
+          <strong>Pour le prochain contrat :</strong> Les sites en déficit P3 nécessitent soit une augmentation
+          du montant P3 annuel, soit une réduction des interventions. Les sites avec excédent peuvent voir
+          leur P3 réduit si le matériel est en bon état.
+        </p>
+        {p3OverspentSites.length > 0 && (
+          <p className="text-sm text-red-700 mt-2">
+            <strong>Déficit total à combler :</strong> {Math.abs(p3OverspentSites.reduce((sum, s) => sum + s.p3Balance, 0)).toLocaleString("fr-FR")} €
+            sur {p3OverspentSites.length} site{p3OverspentSites.length > 1 ? "s" : ""}
+          </p>
+        )}
+        {p3PositiveSites.length > 0 && (
+          <p className="text-sm text-green-700 mt-2">
+            <strong>Excédent disponible :</strong> {p3PositiveSites.reduce((sum, s) => sum + s.p3Balance, 0).toLocaleString("fr-FR")} €
+            sur {p3PositiveSites.length} site{p3PositiveSites.length > 1 ? "s" : ""}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
 // Modal components
 function DeleteConfirmModal({ onClose, onConfirm, deleting }: { onClose: () => void; onConfirm: () => void; deleting: boolean }) {
   return (
@@ -1505,7 +1717,8 @@ function ImportModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-primary-dark mb-1">
-                  Site {matchedSiteId && <span className="text-green-600 text-xs">(détecté)</span>}
+                  Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
+                  {matchedSiteId && <span className="text-green-600 text-xs ml-1">(détecté)</span>}
                 </label>
                 <select
                   value={importFormData.siteId}
@@ -1513,13 +1726,14 @@ function ImportModal({
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   disabled={loadingContractSites}
                 >
-                  <option value="">{loadingContractSites ? "Chargement..." : "Sélectionner un site"}</option>
+                  <option value="">{loadingContractSites ? "Chargement..." : "Tous les sites"}</option>
                   {contractSites.map((site) => (
                     <option key={site.id} value={site.id}>
                       {site.name} {site.city && `(${site.city})`}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-text-secondary mt-1">Laisser vide si la facture concerne tous les sites</p>
               </div>
             </div>
           )}
@@ -1627,20 +1841,23 @@ function InvoiceModal({
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">Site</label>
+            <label className="block text-sm font-medium text-primary-dark mb-1">
+              Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
+            </label>
             <select
               value={formData.siteId}
               onChange={(e) => setFormData({ ...formData, siteId: e.target.value } as typeof formData)}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               disabled={loadingContractSites}
             >
-              <option value="">{loadingContractSites ? "Chargement..." : "Sélectionner un site"}</option>
+              <option value="">{loadingContractSites ? "Chargement..." : "Tous les sites"}</option>
               {contractSites.map((site) => (
                 <option key={site.id} value={site.id}>
                   {site.name} {site.city && `(${site.city})`}
                 </option>
               ))}
             </select>
+            <p className="text-xs text-text-secondary mt-1">Laisser vide si la facture concerne tous les sites</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">Description</label>

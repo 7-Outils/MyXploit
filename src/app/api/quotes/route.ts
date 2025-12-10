@@ -3,12 +3,17 @@ import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
 // GET /api/quotes - List all quotes
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const { searchParams } = new URL(request.url);
+    const contractId = searchParams.get("contractId");
 
     const quotes = await prisma.quote.findMany({
-      where: { organizationId: user.organizationId },
+      where: {
+        organizationId: user.organizationId,
+        ...(contractId && { contractId }),
+      },
       include: {
         site: { select: { id: true, name: true, city: true } },
         contract: { select: { id: true, reference: true, provider: true } },
