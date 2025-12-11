@@ -41,6 +41,8 @@ interface Contract {
   title: string;
   provider: string;
   status: string;
+  startDate: string;
+  endDate: string;
   _count?: {
     contractSites: number;
   };
@@ -285,6 +287,45 @@ function EnergyPageContent() {
     setActiveTab(tab);
     router.push(`/energy?tab=${tab}`, { scroll: false });
   };
+
+  // Calculate available seasons based on contract start date
+  const getAvailableYears = () => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth(); // 0-11
+
+    // Current heating season: if we're past July, it's the next year's season
+    const currentSeason = currentMonth >= 6 ? currentYear + 1 : currentYear;
+
+    if (!selectedContract?.startDate) {
+      // Default: just current season
+      return [currentSeason];
+    }
+
+    const contractStart = new Date(selectedContract.startDate);
+    const contractStartYear = contractStart.getFullYear();
+    const contractStartMonth = contractStart.getMonth();
+
+    // First heating season: if contract starts before July, it's that year's season
+    // If contract starts July or later, it's next year's season
+    const firstSeason = contractStartMonth >= 6 ? contractStartYear + 1 : contractStartYear;
+
+    // Generate years from first season to current season
+    const years: number[] = [];
+    for (let year = currentSeason; year >= firstSeason; year--) {
+      years.push(year);
+    }
+
+    return years.length > 0 ? years : [currentSeason];
+  };
+
+  const availableYears = getAvailableYears();
+
+  // Reset selected year when contract changes if current selection is not valid
+  useEffect(() => {
+    if (availableYears.length > 0 && !availableYears.includes(selectedYear)) {
+      setSelectedYear(availableYears[0]); // Select most recent valid season
+    }
+  }, [selectedContract, availableYears, selectedYear]);
 
   // Fetch contracts on mount
   useEffect(() => {
@@ -692,7 +733,7 @@ function EnergyPageContent() {
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
             className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
-            {[2025, 2024, 2023, 2022].map((year) => (
+            {availableYears.map((year) => (
               <option key={year} value={year}>
                 Saison {year - 1}/{year}
               </option>
