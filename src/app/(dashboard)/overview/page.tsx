@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Building2,
   Receipt,
@@ -19,11 +20,26 @@ import {
   CheckCircle,
   Bell,
   ChevronRight,
+  MapPin,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
+import { DonutChart, CHART_COLORS } from "@/components/dashboard/donut-chart";
 import { useUserProfile, PROFILE_CONFIG } from "@/contexts/UserProfileContext";
+
+// Dynamic import for map to avoid SSR issues
+const SiteMap = dynamic(
+  () => import("@/components/maps/site-map").then((mod) => mod.SiteMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[350px] bg-gray-50 rounded-xl flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    ),
+  }
+);
 
 interface ContractSite {
   id: string;
@@ -32,6 +48,33 @@ interface ContractSite {
     name: string;
   };
 }
+
+type SiteType = "LYCEE" | "COLLEGE" | "ECOLE" | "MAIRIE" | "HOPITAL" | "GYMNASE" | "PISCINE" | "MEDIATHEQUE" | "AUTRE";
+type EnergyType = "GAZ" | "ELECTRICITE" | "FIOUL" | "BOIS" | "RESEAU_CHALEUR" | "AUTRE";
+
+interface Site {
+  id: string;
+  name: string;
+  type: SiteType;
+  address: string;
+  city: string;
+  postalCode: string;
+  latitude: number | null;
+  longitude: number | null;
+  energyType: EnergyType;
+  contractSites: Array<{
+    contract: { reference: string };
+  }>;
+}
+
+const siteTypeLabels: Record<SiteType, string> = {
+  LYCEE: "Lycée", COLLEGE: "Collège", ECOLE: "École", MAIRIE: "Mairie",
+  HOPITAL: "Hôpital", GYMNASE: "Gymnase", PISCINE: "Piscine", MEDIATHEQUE: "Médiathèque", AUTRE: "Autre",
+};
+
+const energyTypeLabels: Record<EnergyType, string> = {
+  GAZ: "Gaz", ELECTRICITE: "Électricité", FIOUL: "Fioul", BOIS: "Bois", RESEAU_CHALEUR: "Réseau de chaleur", AUTRE: "Autre",
+};
 
 interface Contract {
   id: string;
@@ -149,13 +192,14 @@ export default function OverviewPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
+  const [allSites, setAllSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes, expiringRes] =
+        const [contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes, expiringRes, sitesRes] =
           await Promise.all([
             fetch("/api/contracts"),
             fetch("/api/invoices"),
@@ -164,9 +208,10 @@ export default function OverviewPage() {
             fetch("/api/equipments"),
             fetch("/api/quotes"),
             fetch("/api/contracts/expiring?months=6"),
+            fetch("/api/sites"),
           ]);
 
-        const [contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData, expiringData] =
+        const [contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData, expiringData, sitesData] =
           await Promise.all([
             contractsRes.json(),
             invoicesRes.json(),
@@ -175,6 +220,7 @@ export default function OverviewPage() {
             equipmentsRes.json(),
             quotesRes.json(),
             expiringRes.json(),
+            sitesRes.json(),
           ]);
 
         setContracts(Array.isArray(contractsData) ? contractsData : []);
@@ -184,6 +230,7 @@ export default function OverviewPage() {
         setEquipments(Array.isArray(equipmentsData) ? equipmentsData : []);
         setQuotes(Array.isArray(quotesData) ? quotesData : []);
         setExpiringContracts(expiringData?.contracts || []);
+        setAllSites(Array.isArray(sitesData) ? sitesData : []);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -223,6 +270,35 @@ export default function OverviewPage() {
   // Quotes stats
   const pendingQuotes = quotes.filter((q) => q.status === "ENVOYE" || q.status === "BROUILLON");
   const acceptedQuotes = quotes.filter((q) => q.status === "ACCEPTE" || q.status === "COMMANDE");
+
+  // Sites stats for map and charts
+  const sitesWithCoords = allSites.filter((s) => s.latitude && s.longitude);
+
+  const siteChartData = useMemo(() => {
+    // Sites by type
+    const typeCount: Record<string, number> = {};
+    for (const site of allSites) {
+      typeCount[site.type] = (typeCount[site.type] || 0) + 1;
+    }
+    const byType = Object.entries(typeCount).map(([type, count]) => ({
+      label: siteTypeLabels[type as SiteType] || type,
+      value: count,
+      color: CHART_COLORS.siteTypes[type as keyof typeof CHART_COLORS.siteTypes] || "#6b7280",
+    }));
+
+    // Sites by energy
+    const energyCount: Record<string, number> = {};
+    for (const site of allSites) {
+      energyCount[site.energyType] = (energyCount[site.energyType] || 0) + 1;
+    }
+    const byEnergy = Object.entries(energyCount).map(([energy, count]) => ({
+      label: energyTypeLabels[energy as EnergyType] || energy,
+      value: count,
+      color: CHART_COLORS.energyTypes[energy as keyof typeof CHART_COLORS.energyTypes] || "#6b7280",
+    }));
+
+    return { byType, byEnergy };
+  }, [allSites]);
 
   // Activités récentes (basées sur les données réelles)
   const recentActivities: Array<{
@@ -594,6 +670,60 @@ export default function OverviewPage() {
             </Link>
           )}
         </ChartCard>
+      )}
+
+      {/* Patrimoine - Map & Analytics */}
+      {allSites.length > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-primary-dark flex items-center gap-2">
+              <MapPin size={20} className="text-accent" />
+              Patrimoine ({allSites.length} sites)
+            </h2>
+            <span className="text-sm text-text-secondary">
+              {sitesWithCoords.length} géolocalisés
+            </span>
+          </div>
+
+          <div className="grid lg:grid-cols-3 gap-6">
+            {/* Map */}
+            <ChartCard title="Carte des sites" className="lg:col-span-2">
+              {sitesWithCoords.length === 0 ? (
+                <div className="h-[350px] bg-gray-50 rounded-xl flex flex-col items-center justify-center">
+                  <MapPin size={32} className="text-gray-300 mb-2" />
+                  <p className="text-sm text-text-secondary">Aucun site géolocalisé</p>
+                  <p className="text-xs text-gray-400">Les adresses doivent être géocodées</p>
+                </div>
+              ) : (
+                <SiteMap
+                  sites={sitesWithCoords.map((s) => ({
+                    id: s.id,
+                    name: s.name,
+                    type: s.type,
+                    address: s.address,
+                    city: s.city,
+                    postalCode: s.postalCode,
+                    latitude: s.latitude,
+                    longitude: s.longitude,
+                    energyType: s.energyType,
+                    contractName: s.contractSites[0]?.contract?.reference || "Sans contrat",
+                  }))}
+                  height="350px"
+                />
+              )}
+            </ChartCard>
+
+            {/* Analytics */}
+            <div className="space-y-6">
+              <ChartCard title="Par type de bâtiment">
+                <DonutChart data={siteChartData.byType} size={140} strokeWidth={20} centerValue={allSites.length} centerLabel="sites" />
+              </ChartCard>
+              <ChartCard title="Par énergie">
+                <DonutChart data={siteChartData.byEnergy} size={140} strokeWidth={20} centerValue={allSites.length} centerLabel="sites" />
+              </ChartCard>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Activity & Quick Actions */}
