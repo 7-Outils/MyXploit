@@ -19,6 +19,9 @@ import {
   CheckCircle,
   Trash2,
   Calculator,
+  Upload,
+  FileSpreadsheet,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -375,6 +378,28 @@ export default function ContractDetailPage() {
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [loadingFinancials, setLoadingFinancials] = useState(false);
 
+  // Import sites modal
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
+  const [previewSites, setPreviewSites] = useState<Array<{
+    name: string;
+    type: string;
+    address: string;
+    city: string;
+    postalCode: string;
+    surface: string;
+    energyType: string;
+  }>>([]);
+  const [importResult, setImportResult] = useState<{
+    success: boolean;
+    imported: number;
+    linkedToContract: number;
+    sites: string[];
+    errors: string[];
+  } | null>(null);
+
   const fetchFinancials = async () => {
     setLoadingFinancials(true);
     try {
@@ -418,6 +443,80 @@ export default function ContractDetailPage() {
       fetchFinancials();
     }
   }, [activeTab]);
+
+  // Import sites functions
+  const openImportModal = () => {
+    setImportFile(null);
+    setImportResult(null);
+    setPreviewSites([]);
+    setImportStep("upload");
+    setShowImportModal(true);
+  };
+
+  const handleImportPreview = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      formData.append("contractId", contractId as string);
+      formData.append("preview", "true");
+
+      const response = await fetch("/api/sites/import", { method: "POST", body: formData });
+      const result = await response.json();
+
+      if (!response.ok) {
+        setImportResult({
+          success: false, imported: 0, linkedToContract: 0, sites: [],
+          errors: [result.error || "Erreur lors de l'analyse du fichier"],
+        });
+        setImportStep("result");
+      } else {
+        setPreviewSites(result.sites || []);
+        setImportStep("preview");
+      }
+    } catch {
+      setImportResult({
+        success: false, imported: 0, linkedToContract: 0, sites: [],
+        errors: ["Erreur lors de l'analyse du fichier"],
+      });
+      setImportStep("result");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      formData.append("contractId", contractId as string);
+
+      const response = await fetch("/api/sites/import", { method: "POST", body: formData });
+      const result = await response.json();
+
+      if (!response.ok) {
+        setImportResult({
+          success: false, imported: 0, linkedToContract: 0, sites: [],
+          errors: [result.error || "Erreur lors de l'import"],
+        });
+      } else {
+        setImportResult(result);
+        fetchContract();
+      }
+      setImportStep("result");
+    } catch {
+      setImportResult({
+        success: false, imported: 0, linkedToContract: 0, sites: [],
+        errors: ["Erreur lors de l'import"],
+      });
+      setImportStep("result");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleDeleteAvenant = async (avenantId: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cet avenant ? Cette action est irréversible et annulera toutes les modifications apportées par cet avenant.")) {
@@ -1044,10 +1143,16 @@ export default function ContractDetailPage() {
       <ChartCard
         title={`Sites du contrat (${contract.contractSites.length})`}
         action={
-          <Button variant="outline" size="sm" onClick={() => setShowSiteModal(true)}>
-            <Plus size={16} className="mr-1" />
-            Ajouter
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={openImportModal}>
+              <Upload size={16} className="mr-1" />
+              Importer
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowSiteModal(true)}>
+              <Plus size={16} className="mr-1" />
+              Ajouter
+            </Button>
+          </div>
         }
       >
         {contract.contractSites.length === 0 ? (
@@ -1056,10 +1161,16 @@ export default function ContractDetailPage() {
             <p className="text-text-secondary mb-4">
               Aucun site rattaché à ce contrat
             </p>
-            <Button onClick={() => setShowSiteModal(true)}>
-              <Plus size={18} className="mr-2" />
-              Créer un site
-            </Button>
+            <div className="flex gap-3 justify-center">
+              <Button variant="outline" onClick={openImportModal}>
+                <Upload size={18} className="mr-2" />
+                Importer des sites
+              </Button>
+              <Button onClick={() => setShowSiteModal(true)}>
+                <Plus size={18} className="mr-2" />
+                Créer un site
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -2658,6 +2769,114 @@ export default function ContractDetailPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Sites Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto ${importStep === "preview" ? "max-w-4xl" : "max-w-lg"}`}>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-primary-dark">Importer des sites</h2>
+              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {importStep === "upload" && (
+                <div className="space-y-4">
+                  <p className="text-sm text-text-secondary">
+                    Importez un fichier Excel (.xlsx) contenant vos sites. Le fichier doit contenir les colonnes : Nom, Type, Adresse, Ville, Code postal, Surface, Énergie.
+                  </p>
+                  <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${importFile ? "border-accent bg-accent/5" : "border-gray-200 hover:border-gray-300"}`}>
+                    {importFile ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <FileSpreadsheet size={24} className="text-accent" />
+                        <div className="text-left">
+                          <p className="font-medium text-primary-dark">{importFile.name}</p>
+                          <p className="text-sm text-text-secondary">{(importFile.size / 1024).toFixed(1)} Ko</p>
+                        </div>
+                        <button onClick={() => setImportFile(null)} className="p-1 hover:bg-gray-100 rounded">
+                          <X size={16} className="text-gray-500" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer">
+                        <Upload size={32} className="mx-auto text-gray-400 mb-2" />
+                        <p className="text-primary-dark font-medium">Cliquez pour sélectionner un fichier</p>
+                        <p className="text-sm text-text-secondary">ou glissez-déposez ici</p>
+                        <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) setImportFile(file); }} />
+                      </label>
+                    )}
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setShowImportModal(false)}>Annuler</Button>
+                    <Button className="flex-1" disabled={!importFile || importing} onClick={handleImportPreview}>
+                      {importing ? (<><Loader2 size={18} className="mr-2 animate-spin" />Analyse...</>) : "Suivant →"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {importStep === "preview" && (
+                <div className="space-y-4">
+                  <p className="text-sm text-text-secondary">
+                    <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> à importer pour le contrat <strong>{contract?.reference}</strong>.
+                  </p>
+                  <div className="max-h-[400px] overflow-y-auto border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium">Nom</th>
+                          <th className="text-left px-3 py-2 font-medium">Type</th>
+                          <th className="text-left px-3 py-2 font-medium">Ville</th>
+                          <th className="text-left px-3 py-2 font-medium">Énergie</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewSites.map((site, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="px-3 py-2">{site.name}</td>
+                            <td className="px-3 py-2">{site.type}</td>
+                            <td className="px-3 py-2">{site.city}</td>
+                            <td className="px-3 py-2">{site.energyType}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button variant="outline" onClick={() => setImportStep("upload")}>← Retour</Button>
+                    <Button className="flex-1" disabled={previewSites.length === 0 || importing} onClick={handleImport}>
+                      {importing ? (<><Loader2 size={18} className="mr-2 animate-spin" />Import...</>) : (<><CheckCircle size={18} className="mr-2" />Importer ({previewSites.length})</>)}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {importStep === "result" && importResult && (
+                <div className="text-center py-4">
+                  {importResult.success ? (
+                    <>
+                      <CheckCircle size={48} className="mx-auto text-green-500 mb-4" />
+                      <h3 className="text-lg font-semibold text-primary-dark mb-2">Import réussi !</h3>
+                      <p className="text-text-secondary mb-4">{importResult.imported} site{importResult.imported > 1 ? "s" : ""} importé{importResult.imported > 1 ? "s" : ""}</p>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
+                      <h3 className="text-lg font-semibold text-red-600 mb-2">Erreur</h3>
+                      <div className="text-sm text-red-600 mb-4">
+                        {importResult.errors?.map((err, i) => (<p key={i}>{err}</p>))}
+                      </div>
+                    </>
+                  )}
+                  <Button onClick={() => setShowImportModal(false)} className="w-full">Fermer</Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
