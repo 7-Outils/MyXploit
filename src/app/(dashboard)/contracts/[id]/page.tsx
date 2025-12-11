@@ -227,6 +227,41 @@ const energyTypes = [
   { value: "AUTRE", label: "Autre" },
 ];
 
+// Labels for import table
+const siteTypeLabels: Record<string, string> = {
+  LYCEE: "Lycée",
+  COLLEGE: "Collège",
+  ECOLE: "École",
+  MAIRIE: "Mairie",
+  HOPITAL: "Hôpital",
+  GYMNASE: "Gymnase",
+  PISCINE: "Piscine",
+  MEDIATHEQUE: "Médiathèque",
+  AUTRE: "Autre",
+};
+
+const energyTypeLabels: Record<string, string> = {
+  GAZ: "Gaz",
+  ELECTRICITE: "Électricité",
+  FIOUL: "Fioul",
+  BOIS: "Bois",
+  RESEAU_CHALEUR: "Réseau de chaleur",
+  AUTRE: "Autre",
+};
+
+const contractTypeLabels: Record<string, string> = {
+  MTI: "MTI",
+  MCI: "MCI",
+  PFI: "PFI",
+  CPI: "CPI",
+  MT: "MT",
+  CP: "CP",
+  PF: "PF",
+  MC: "MC",
+  MF: "MF",
+  AUTRE: "Autre",
+};
+
 // Labels pour les types de modifications dans un avenant
 const avenantItemTypeLabels: Record<string, string> = {
   AJOUT_SITE: "Ajout de site",
@@ -384,13 +419,24 @@ export default function ContractDetailPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importStep, setImportStep] = useState<"upload" | "preview" | "result">("upload");
   const [previewSites, setPreviewSites] = useState<Array<{
+    _index: number;
     name: string;
-    type: string;
-    address: string;
-    city: string;
-    postalCode: string;
-    surface: string;
-    energyType: string;
+    type?: string;
+    _type: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+    surface?: number;
+    energyType?: string;
+    _energyType: string;
+    contractType?: string;
+    _contractType: string;
+    hasP1?: boolean;
+    hasP2?: boolean;
+    hasP3?: boolean;
+    hasP4?: boolean;
+    amountP2?: number;
+    amountP3?: number;
   }>>([]);
   const [importResult, setImportResult] = useState<{
     success: boolean;
@@ -453,6 +499,14 @@ export default function ContractDetailPage() {
     setShowImportModal(true);
   };
 
+  const updatePreviewSite = (index: number, field: string, value: unknown) => {
+    setPreviewSites((prev) => prev.map((site, i) => (i === index ? { ...site, [field]: value } : site)));
+  };
+
+  const removePreviewSite = (index: number) => {
+    setPreviewSites((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleImportPreview = async () => {
     if (!importFile) return;
     setImporting(true);
@@ -487,12 +541,13 @@ export default function ContractDetailPage() {
   };
 
   const handleImport = async () => {
-    if (!importFile) return;
+    if (previewSites.length === 0) return;
     setImporting(true);
     try {
       const formData = new FormData();
-      formData.append("file", importFile);
+      formData.append("file", importFile!);
       formData.append("contractId", contractId as string);
+      formData.append("sitesData", JSON.stringify(previewSites));
 
       const response = await fetch("/api/sites/import", { method: "POST", body: formData });
       const result = await response.json();
@@ -2823,31 +2878,59 @@ export default function ContractDetailPage() {
               {importStep === "preview" && (
                 <div className="space-y-4">
                   <p className="text-sm text-text-secondary">
-                    <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> à importer pour le contrat <strong>{contract?.reference}</strong>.
+                    <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> à importer pour le contrat <strong>{contract?.reference}</strong>. Vous pouvez modifier les données avant l&apos;import.
                   </p>
-                  <div className="max-h-[400px] overflow-y-auto border rounded-lg">
+                  <div className="overflow-x-auto -mx-6">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50 sticky top-0">
+                      <thead className="bg-gray-50 border-y border-gray-100">
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium">Nom</th>
-                          <th className="text-left px-3 py-2 font-medium">Type</th>
-                          <th className="text-left px-3 py-2 font-medium">Ville</th>
-                          <th className="text-left px-3 py-2 font-medium">Énergie</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Nom</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Type</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Ville</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Énergie</th>
+                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Type contrat</th>
+                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P1</th>
+                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P2</th>
+                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P3</th>
+                          <th className="px-4 py-2"></th>
                         </tr>
                       </thead>
-                      <tbody>
-                        {previewSites.map((site, i) => (
-                          <tr key={i} className="border-t">
-                            <td className="px-3 py-2">{site.name}</td>
-                            <td className="px-3 py-2">{site.type}</td>
-                            <td className="px-3 py-2">{site.city}</td>
-                            <td className="px-3 py-2">{site.energyType}</td>
+                      <tbody className="divide-y divide-gray-100">
+                        {previewSites.map((site, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-4 py-2">
+                              <input type="text" value={site.name} onChange={(e) => updatePreviewSite(index, "name", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select value={site._type} onChange={(e) => updatePreviewSite(index, "_type", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                                {Object.entries(siteTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <input type="text" value={site.city || ""} onChange={(e) => updatePreviewSite(index, "city", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select value={site._energyType} onChange={(e) => updatePreviewSite(index, "_energyType", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                                {Object.entries(energyTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                                {Object.entries(contractTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP1 || false} onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP2 || false} onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP3 || false} onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-4 py-2">
+                              <button onClick={() => removePreviewSite(index)} className="p-1 text-red-500 hover:bg-red-50 rounded" title="Supprimer"><X size={16} /></button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex gap-3 pt-4">
                     <Button variant="outline" onClick={() => setImportStep("upload")}>← Retour</Button>
                     <Button className="flex-1" disabled={previewSites.length === 0 || importing} onClick={handleImport}>
                       {importing ? (<><Loader2 size={18} className="mr-2 animate-spin" />Import...</>) : (<><CheckCircle size={18} className="mr-2" />Importer ({previewSites.length})</>)}
