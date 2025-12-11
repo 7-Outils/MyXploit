@@ -229,10 +229,20 @@ function EnergyPageContent() {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showIdexImportModal, setShowIdexImportModal] = useState(false);
   const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importingIdex, setImportingIdex] = useState(false);
   const [savingHeatingSeason, setSavingHeatingSeason] = useState(false);
+  const [idexImportResult, setIdexImportResult] = useState<{
+    imported: number;
+    updated: number;
+    skipped: number;
+    errors: { row: number; site: string; error: string }[];
+    totalErrors: number;
+    siteMatches: Record<string, { matched: boolean; siteId?: string; siteName?: string }>;
+  } | null>(null);
 
   // Heating season form
   const [heatingSeasonForm, setHeatingSeasonForm] = useState({
@@ -620,6 +630,45 @@ function EnergyPageContent() {
     });
   };
 
+  const handleIdexImport = async (file: File) => {
+    if (!selectedContract) return;
+
+    setImportingIdex(true);
+    setIdexImportResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("contractId", selectedContract.id);
+
+      const response = await fetch("/api/consumptions/import-idex", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setIdexImportResult(result);
+        if (result.imported > 0 || result.updated > 0) {
+          await fetchData();
+        }
+      } else {
+        alert(result.error || "Erreur lors de l'import IDEX");
+      }
+    } catch (error) {
+      console.error("Error importing IDEX:", error);
+      alert("Erreur lors de l'import IDEX");
+    } finally {
+      setImportingIdex(false);
+    }
+  };
+
+  const closeIdexImportModal = () => {
+    setShowIdexImportModal(false);
+    setIdexImportResult(null);
+  };
+
   // Chart data
   const chartData = analytics?.monthlyData?.map((m) => ({
     label: m.label,
@@ -781,6 +830,7 @@ function EnergyPageContent() {
           chartData={chartData}
           activeAlerts={activeAlerts}
           setShowImportModal={setShowImportModal}
+          setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
         />
       )}
@@ -791,6 +841,7 @@ function EnergyPageContent() {
           consumptions={consumptions}
           sites={sites}
           setShowImportModal={setShowImportModal}
+          setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
         />
       )}
@@ -845,6 +896,15 @@ function EnergyPageContent() {
           onClose={() => setShowHeatingSeasonModal(false)}
         />
       )}
+
+      {showIdexImportModal && (
+        <IdexImportModal
+          importing={importingIdex}
+          importResult={idexImportResult}
+          onImport={handleIdexImport}
+          onClose={closeIdexImportModal}
+        />
+      )}
     </div>
   );
 }
@@ -866,12 +926,14 @@ function SyntheseContent({
   chartData,
   activeAlerts,
   setShowImportModal,
+  setShowIdexImportModal,
   setShowCreateModal,
 }: {
   analytics: AnalyticsData | null;
   chartData: { label: string; value: number; target: number }[];
   activeAlerts: Alert[];
   setShowImportModal: (v: boolean) => void;
+  setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
 }) {
   if (!analytics) {
@@ -880,7 +942,11 @@ function SyntheseContent({
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <BarChart3 className="w-12 h-12 text-gray-300 mb-3" />
           <p className="text-text-secondary mb-4">Aucune donnée de consommation</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-center">
+            <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
+              <Flame size={18} className="mr-2" />
+              Import Exploitant
+            </Button>
             <Button variant="outline" onClick={() => setShowImportModal(true)}>
               <Upload size={18} className="mr-2" />
               Importer CSV
@@ -1091,18 +1157,24 @@ function SitesContent({
   consumptions,
   sites,
   setShowImportModal,
+  setShowIdexImportModal,
   setShowCreateModal,
 }: {
   analytics: AnalyticsData | null;
   consumptions: Consumption[];
   sites: Site[];
   setShowImportModal: (v: boolean) => void;
+  setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
 }) {
   if (!analytics || analytics.sites.length === 0) {
     return (
       <>
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 flex-wrap">
+          <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
+            <Flame size={18} className="mr-2" />
+            Import Exploitant
+          </Button>
           <Button variant="outline" onClick={() => setShowImportModal(true)}>
             <Upload size={18} className="mr-2" />
             Importer CSV
@@ -1124,7 +1196,11 @@ function SitesContent({
 
   return (
     <>
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 flex-wrap">
+        <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
+          <Flame size={18} className="mr-2" />
+          Import Exploitant
+        </Button>
         <Button variant="outline" onClick={() => setShowImportModal(true)}>
           <Upload size={18} className="mr-2" />
           Importer CSV
@@ -1861,6 +1937,213 @@ function HeatingSeasonModal({
             </Button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function IdexImportModal({
+  importing,
+  importResult,
+  onImport,
+  onClose,
+}: {
+  importing: boolean;
+  importResult: {
+    imported: number;
+    updated: number;
+    skipped: number;
+    errors: { row: number; site: string; error: string }[];
+    totalErrors: number;
+    siteMatches: Record<string, { matched: boolean; siteId?: string; siteName?: string }>;
+  } | null;
+  onImport: (file: File) => void;
+  onClose: () => void;
+}) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (selectedFile) {
+      onImport(selectedFile);
+    }
+  };
+
+  const unmatchedSites = importResult
+    ? Object.entries(importResult.siteMatches).filter(([, v]) => !v.matched)
+    : [];
+  const matchedSites = importResult
+    ? Object.entries(importResult.siteMatches).filter(([, v]) => v.matched)
+    : [];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-xl font-bold text-primary-dark">Import Exploitant</h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Importez les relevés de consommation de votre exploitant (IDEX, Engie, Dalkia...)
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Info */}
+          <div className="bg-blue-50 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Flame className="text-blue-600 mt-0.5" size={20} />
+              <div>
+                <p className="text-sm font-medium text-blue-800">Formats exploitants supportés</p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Fichiers Excel avec colonnes : Date, Site/Installation, Compteur, Conso, Unité, Fluide...
+                </p>
+                <ul className="text-xs text-blue-600 mt-2 space-y-0.5">
+                  <li>• <strong>Gaz</strong> (CPT GAZ, GRDF, Gaz naturel...) → Chauffage P1</li>
+                  <li>• <strong>ECS</strong> (Eau chaude, Sanitaire...) → Eau chaude sanitaire</li>
+                  <li>• <strong>Électricité</strong> (Enedis, kWh élec...) → Consommation électrique</li>
+                  <li>• <strong>Eau appoint</strong> (Remplissage...) → Indicateur maintenance</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Upload */}
+          {!importResult && (
+            <label className="block cursor-pointer">
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                selectedFile ? "border-accent bg-accent/5" : "border-gray-300 hover:border-accent"
+              }`}>
+                <FileSpreadsheet className={`w-12 h-12 mx-auto mb-4 ${selectedFile ? "text-accent" : "text-gray-400"}`} />
+                {selectedFile ? (
+                  <>
+                    <p className="text-lg font-medium text-primary-dark mb-1">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-sm text-text-secondary">
+                      Cliquez pour changer de fichier
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-medium text-primary-dark mb-2">
+                      Sélectionnez le fichier Excel de l&apos;exploitant
+                    </p>
+                    <p className="text-sm text-text-secondary">
+                      Formats: .xlsx, .xls (IDEX, Engie, Dalkia, etc.)
+                    </p>
+                  </>
+                )}
+              </div>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </label>
+          )}
+
+          {/* Results */}
+          {importResult && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-xl ${
+                importResult.totalErrors === 0 ? "bg-green-50" : "bg-yellow-50"
+              }`}>
+                <div className="flex items-center gap-3">
+                  {importResult.totalErrors === 0 ? (
+                    <Check className="text-green-600" size={24} />
+                  ) : (
+                    <AlertTriangle className="text-yellow-600" size={24} />
+                  )}
+                  <div>
+                    <p className="font-semibold text-primary-dark">Import terminé</p>
+                    <p className="text-sm text-text-secondary">
+                      {importResult.imported} créés, {importResult.updated} mis à jour, {importResult.skipped} ignorés
+                      {importResult.totalErrors > 0 && `, ${importResult.totalErrors} erreurs`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Site matching results */}
+              {matchedSites.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-green-700 mb-2 flex items-center gap-1">
+                    <Check size={16} />
+                    Sites reconnus ({matchedSites.length})
+                  </p>
+                  <div className="bg-green-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+                    <div className="space-y-1">
+                      {matchedSites.map(([idexName, match]) => (
+                        <div key={idexName} className="flex items-center justify-between text-xs">
+                          <span className="text-gray-600 truncate">{idexName}</span>
+                          <span className="text-green-700 font-medium ml-2">→ {match.siteName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {unmatchedSites.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-red-700 mb-2 flex items-center gap-1">
+                    <AlertTriangle size={16} />
+                    Sites non reconnus ({unmatchedSites.length})
+                  </p>
+                  <div className="bg-red-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+                    <div className="space-y-1">
+                      {unmatchedSites.map(([idexName]) => (
+                        <p key={idexName} className="text-xs text-red-700">{idexName}</p>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Vérifiez que ces sites existent dans le contrat sélectionné avec un nom similaire.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            {importResult ? (
+              <Button className="flex-1" onClick={onClose}>Fermer</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={onClose}>Annuler</Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleSubmit}
+                  disabled={importing || !selectedFile}
+                >
+                  {importing ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Import en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} className="mr-2" />
+                      Importer
+                    </>
+                  )}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
