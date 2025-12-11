@@ -347,6 +347,20 @@ export default function ContractDetailPage() {
     pdl: "",
   });
 
+  // ContractSite edit modal (prestations and amounts)
+  const [showEditContractSiteModal, setShowEditContractSiteModal] = useState(false);
+  const [editingContractSiteId, setEditingContractSiteId] = useState<string | null>(null);
+  const [updatingContractSite, setUpdatingContractSite] = useState(false);
+  const [editContractSiteFormData, setEditContractSiteFormData] = useState({
+    contractType: "MC",
+    hasP1: false,
+    hasP2: false,
+    hasP3: false,
+    hasP4: false,
+    amountP2: "",
+    amountP3: "",
+  });
+
   // Avenant creation modal
   const [showAvenantModal, setShowAvenantModal] = useState(false);
   const [creatingAvenant, setCreatingAvenant] = useState(false);
@@ -828,6 +842,60 @@ export default function ContractDetailPage() {
     }
   };
 
+  const openEditContractSiteModal = (contractSite: ContractSite) => {
+    setEditingContractSiteId(contractSite.site.id);
+    setEditContractSiteFormData({
+      contractType: contractSite.contractType,
+      hasP1: contractSite.hasP1,
+      hasP2: contractSite.hasP2,
+      hasP3: contractSite.hasP3,
+      hasP4: contractSite.hasP4,
+      amountP2: contractSite.amountP2?.toString() || "",
+      amountP3: contractSite.amountP3?.toString() || "",
+    });
+    setShowEditContractSiteModal(true);
+  };
+
+  const handleUpdateContractSite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingContractSiteId) return;
+
+    setUpdatingContractSite(true);
+    try {
+      const response = await fetch(`/api/contracts/${contractId}/sites/${editingContractSiteId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contractType: editContractSiteFormData.contractType,
+          hasP1: editContractSiteFormData.hasP1,
+          hasP2: editContractSiteFormData.hasP2,
+          hasP3: editContractSiteFormData.hasP3,
+          hasP4: editContractSiteFormData.hasP4,
+          amountP2: editContractSiteFormData.amountP2 || null,
+          amountP3: editContractSiteFormData.amountP3 || null,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchContract();
+        setShowEditContractSiteModal(false);
+        setEditingContractSiteId(null);
+        // Refresh financial data if loaded
+        if (financialData) {
+          setFinancialData(null);
+          fetchFinancials();
+        }
+      } else {
+        const error = await response.json();
+        alert(error.error || "Erreur lors de la mise à jour");
+      }
+    } catch (error) {
+      console.error("Error updating contract site:", error);
+    } finally {
+      setUpdatingContractSite(false);
+    }
+  };
+
   // Charger les sites disponibles (pas encore dans le contrat)
   const fetchAvailableSites = async () => {
     try {
@@ -1285,16 +1353,30 @@ export default function ContractDetailPage() {
                         </div>
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openEditSiteModal(site);
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Modifier les prestations"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditContractSiteModal(contractSite);
+                        }}
+                      >
+                        <Settings size={14} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Modifier le site"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditSiteModal(site);
+                        }}
+                      >
+                        <Pencil size={14} />
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Site Details & Equipments */}
@@ -2417,6 +2499,159 @@ export default function ContractDetailPage() {
                 </Button>
                 <Button type="submit" className="flex-1" disabled={updatingSite}>
                   {updatingSite ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Mise à jour...
+                    </>
+                  ) : (
+                    "Enregistrer"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit ContractSite Modal (prestations and amounts) */}
+      {showEditContractSiteModal && editingContractSiteId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-xl font-bold text-primary-dark">
+                Modifier les prestations
+              </h2>
+              <button
+                onClick={() => {
+                  setShowEditContractSiteModal(false);
+                  setEditingContractSiteId(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateContractSite} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Type de contrat
+                </label>
+                <select
+                  value={editContractSiteFormData.contractType}
+                  onChange={(e) =>
+                    setEditContractSiteFormData({ ...editContractSiteFormData, contractType: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  {contractTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">Prestations incluses</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={editContractSiteFormData.hasP1}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, hasP1: e.target.checked })
+                      }
+                      className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm">P1 - Combustible</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={editContractSiteFormData.hasP2}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, hasP2: e.target.checked })
+                      }
+                      className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm">P2 - Petit entretien</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={editContractSiteFormData.hasP3}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, hasP3: e.target.checked })
+                      }
+                      className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm">P3 - Gros entretien</span>
+                  </label>
+                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={editContractSiteFormData.hasP4}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, hasP4: e.target.checked })
+                      }
+                      className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm">P4 - Financement</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">Montants annuels</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1">
+                      Montant P2 (€/an)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editContractSiteFormData.amountP2}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, amountP2: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1">
+                      Montant P3 (€/an)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editContractSiteFormData.amountP3}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, amountP3: e.target.value })
+                      }
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowEditContractSiteModal(false);
+                    setEditingContractSiteId(null);
+                  }}
+                >
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={updatingContractSite}>
+                  {updatingContractSite ? (
                     <>
                       <Loader2 size={18} className="mr-2 animate-spin" />
                       Mise à jour...
