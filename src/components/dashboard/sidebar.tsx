@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronLeft,
   Briefcase,
+  MapPin,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,11 @@ const navigation = [
     name: "Boîte à outils",
     href: "/outils",
     icon: Briefcase,
+  },
+  {
+    name: "Cartographie",
+    href: "/sites",
+    icon: MapPin,
   },
 ];
 
