@@ -403,13 +403,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ sites: [], summary: null });
     }
 
-    // Define heating season period (July N-1 to June N)
-    const startDate = `${year - 1}-07-01`;
+    // Récupérer les saisons de chauffage pour tous les sites
+    const season = `${year - 1}-${year}`; // Ex: "2024-2025"
+    const heatingSeasons = await prisma.heatingSeason.findMany({
+      where: {
+        siteId: { in: sites.map((s) => s.id) },
+        season,
+      },
+    });
+
+    // Map des saisons par siteId
+    const heatingSeasonMap = new Map(
+      heatingSeasons.map((hs) => [hs.siteId, hs])
+    );
+
+    // Déterminer la période globale (min startDate, max endDate)
     const today = new Date();
-    const endDate =
-      today.getFullYear() === year && today.getMonth() < 6
-        ? today.toISOString().split("T")[0]
-        : `${year}-06-30`;
+    let globalStartDate = new Date(`${year - 1}-07-01`); // Fallback: 1er juillet N-1
+    let globalEndDate = today.getFullYear() === year && today.getMonth() < 6
+      ? today
+      : new Date(`${year}-06-30`); // Fallback: 30 juin N
+
+    // Ajuster avec les dates réelles des saisons de chauffage
+    heatingSeasons.forEach((hs) => {
+      if (hs.startDate < globalStartDate) {
+        globalStartDate = hs.startDate;
+      }
+      if (hs.endDate && hs.endDate < globalEndDate) {
+        // On garde la date max pour les données météo
+      } else if (!hs.endDate && today < globalEndDate) {
+        // Saison en cours, on utilise aujourd'hui
+      }
+    });
+
+    const startDate = globalStartDate.toISOString().split("T")[0];
+    const endDate = globalEndDate.toISOString().split("T")[0];
 
     // Fetch DJU for each unique station
     const stationMap = new Map<
@@ -463,7 +491,32 @@ export async function GET(request: NextRequest) {
 
       const stationInfo = stationMap.get(stationCode);
       const stationData = WEATHER_STATIONS[stationCode];
-      const djuData = stationInfo?.djuData || [];
+      const allDjuData = stationInfo?.djuData || [];
+
+      // Récupérer la saison de chauffage du site
+      const heatingSeason = heatingSeasonMap.get(site.id);
+
+      // Déterminer les dates de la période de chauffage pour ce site
+      let siteStartDate: Date;
+      let siteEndDate: Date;
+
+      if (heatingSeason) {
+        // Utiliser les dates de la saison de chauffage
+        siteStartDate = heatingSeason.startDate;
+        siteEndDate = heatingSeason.endDate || today; // Si pas d'arrêt, utiliser aujourd'hui
+      } else {
+        // Fallback: période par défaut (1er oct - 30 avril ou aujourd'hui)
+        siteStartDate = new Date(`${year - 1}-10-01`);
+        siteEndDate = today.getFullYear() === year && today.getMonth() < 4
+          ? today
+          : new Date(`${year}-04-30`);
+      }
+
+      // Filtrer les données DJU selon la période de chauffage du site
+      const djuData = allDjuData.filter((d: DJUData) => {
+        const date = new Date(d.date);
+        return date >= siteStartDate && date <= siteEndDate;
+      });
 
       // Calculate totals
       const djuTotal = djuData.reduce((sum: number, d: DJUData) => sum + d.dju, 0);
@@ -513,6 +566,10 @@ export async function GET(request: NextRequest) {
           djuTrentenaireToDate > 0
             ? Math.round(((djuTotal - djuTrentenaireToDate) / djuTrentenaireToDate) * 100)
             : 0,
+        // Dates de la saison de chauffage
+        heatingStartDate: siteStartDate.toISOString().split("T")[0],
+        heatingEndDate: siteEndDate.toISOString().split("T")[0],
+        hasHeatingSeason: !!heatingSeason,
         monthlyData: Object.entries(monthlyDju)
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([month, data]) => ({
