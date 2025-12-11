@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-// French weather stations with coordinates (for reference/fallback)
+// Stations météo françaises avec coordonnées et nom complet
 const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string }> = {
   ORLY: { lat: 48.7167, lon: 2.4, name: "Paris-Orly" },
   "PARIS-MONTSOURIS": { lat: 48.8222, lon: 2.3378, name: "Paris-Montsouris" },
   TRAPPES: { lat: 48.7744, lon: 2.0097, name: "Trappes" },
   "LYON-BRON": { lat: 45.7267, lon: 4.9433, name: "Lyon-Bron" },
-  MARSEILLE: { lat: 43.4392, lon: 5.2214, name: "Marseille" },
+  MARSEILLE: { lat: 43.4392, lon: 5.2214, name: "Marseille-Marignane" },
   LILLE: { lat: 50.5617, lon: 3.0892, name: "Lille-Lesquin" },
   BORDEAUX: { lat: 44.8306, lon: -0.6914, name: "Bordeaux-Mérignac" },
   TOULOUSE: { lat: 43.6294, lon: 1.3678, name: "Toulouse-Blagnac" },
@@ -24,6 +24,133 @@ const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string 
   ROUEN: { lat: 49.3867, lon: 1.1817, name: "Rouen-Boos" },
   MONTPELLIER: { lat: 43.5764, lon: 3.9631, name: "Montpellier-Fréjorgues" },
   BREST: { lat: 48.4478, lon: -4.4186, name: "Brest-Guipavas" },
+  LIMOGES: { lat: 45.8628, lon: 1.1794, name: "Limoges-Bellegarde" },
+  POITIERS: { lat: 46.5878, lon: 0.3067, name: "Poitiers-Biard" },
+  ORLEANS: { lat: 47.9878, lon: 1.7606, name: "Orléans-Bricy" },
+  REIMS: { lat: 49.3100, lon: 4.0650, name: "Reims-Prunay" },
+  METZ: { lat: 49.0775, lon: 6.1317, name: "Metz-Frescaty" },
+  CAEN: { lat: 49.1733, lon: -0.4500, name: "Caen-Carpiquet" },
+  "LE-MANS": { lat: 47.9486, lon: 0.1117, name: "Le Mans-Arnage" },
+  ANGERS: { lat: 47.4397, lon: -0.5614, name: "Angers-Marcé" },
+  BESANCON: { lat: 47.2547, lon: 5.9928, name: "Besançon" },
+  PAU: { lat: 43.3800, lon: -0.4186, name: "Pau-Uzein" },
+  PERPIGNAN: { lat: 42.7400, lon: 2.8700, name: "Perpignan-Rivesaltes" },
+  AJACCIO: { lat: 41.9236, lon: 8.8028, name: "Ajaccio" },
+  BASTIA: { lat: 42.5528, lon: 9.4836, name: "Bastia-Poretta" },
+};
+
+// Mapping département (2 premiers chiffres du code postal) -> station météo la plus proche
+const DEPT_TO_STATION: Record<string, string> = {
+  // Île-de-France
+  "75": "PARIS-MONTSOURIS", // Paris
+  "77": "TRAPPES",          // Seine-et-Marne
+  "78": "TRAPPES",          // Yvelines
+  "91": "ORLY",             // Essonne
+  "92": "PARIS-MONTSOURIS", // Hauts-de-Seine
+  "93": "PARIS-MONTSOURIS", // Seine-Saint-Denis
+  "94": "ORLY",             // Val-de-Marne
+  "95": "TRAPPES",          // Val-d'Oise
+  // Hauts-de-France
+  "02": "REIMS",            // Aisne
+  "59": "LILLE",            // Nord
+  "60": "TRAPPES",          // Oise
+  "62": "LILLE",            // Pas-de-Calais
+  "80": "LILLE",            // Somme
+  // Grand Est
+  "08": "REIMS",            // Ardennes
+  "10": "REIMS",            // Aube
+  "51": "REIMS",            // Marne
+  "52": "NANCY",            // Haute-Marne
+  "54": "NANCY",            // Meurthe-et-Moselle
+  "55": "NANCY",            // Meuse
+  "57": "METZ",             // Moselle
+  "67": "STRASBOURG",       // Bas-Rhin
+  "68": "STRASBOURG",       // Haut-Rhin
+  "88": "NANCY",            // Vosges
+  // Normandie
+  "14": "CAEN",             // Calvados
+  "27": "ROUEN",            // Eure
+  "50": "CAEN",             // Manche
+  "61": "CAEN",             // Orne
+  "76": "ROUEN",            // Seine-Maritime
+  // Bretagne
+  "22": "RENNES",           // Côtes-d'Armor
+  "29": "BREST",            // Finistère
+  "35": "RENNES",           // Ille-et-Vilaine
+  "56": "RENNES",           // Morbihan
+  // Pays de la Loire
+  "44": "NANTES",           // Loire-Atlantique
+  "49": "ANGERS",           // Maine-et-Loire
+  "53": "LE-MANS",          // Mayenne
+  "72": "LE-MANS",          // Sarthe
+  "85": "NANTES",           // Vendée
+  // Centre-Val de Loire
+  "18": "ORLEANS",          // Cher
+  "28": "ORLEANS",          // Eure-et-Loir
+  "36": "TOURS",            // Indre
+  "37": "TOURS",            // Indre-et-Loire
+  "41": "TOURS",            // Loir-et-Cher
+  "45": "ORLEANS",          // Loiret
+  // Bourgogne-Franche-Comté
+  "21": "DIJON",            // Côte-d'Or
+  "25": "BESANCON",         // Doubs
+  "39": "BESANCON",         // Jura
+  "58": "DIJON",            // Nièvre
+  "70": "BESANCON",         // Haute-Saône
+  "71": "DIJON",            // Saône-et-Loire
+  "89": "DIJON",            // Yonne
+  "90": "BESANCON",         // Territoire de Belfort
+  // Nouvelle-Aquitaine
+  "16": "POITIERS",         // Charente
+  "17": "BORDEAUX",         // Charente-Maritime
+  "19": "LIMOGES",          // Corrèze
+  "23": "LIMOGES",          // Creuse
+  "24": "BORDEAUX",         // Dordogne
+  "33": "BORDEAUX",         // Gironde
+  "40": "BORDEAUX",         // Landes
+  "47": "BORDEAUX",         // Lot-et-Garonne
+  "64": "PAU",              // Pyrénées-Atlantiques
+  "79": "POITIERS",         // Deux-Sèvres
+  "86": "POITIERS",         // Vienne
+  "87": "LIMOGES",          // Haute-Vienne
+  // Occitanie
+  "09": "TOULOUSE",         // Ariège
+  "11": "MONTPELLIER",      // Aude
+  "12": "TOULOUSE",         // Aveyron
+  "30": "MONTPELLIER",      // Gard
+  "31": "TOULOUSE",         // Haute-Garonne
+  "32": "TOULOUSE",         // Gers
+  "34": "MONTPELLIER",      // Hérault
+  "46": "TOULOUSE",         // Lot
+  "48": "MONTPELLIER",      // Lozère
+  "65": "PAU",              // Hautes-Pyrénées
+  "66": "PERPIGNAN",        // Pyrénées-Orientales
+  "81": "TOULOUSE",         // Tarn
+  "82": "TOULOUSE",         // Tarn-et-Garonne
+  // Auvergne-Rhône-Alpes
+  "01": "LYON-BRON",        // Ain
+  "03": "CLERMONT",         // Allier
+  "07": "LYON-BRON",        // Ardèche
+  "15": "CLERMONT",         // Cantal
+  "26": "GRENOBLE",         // Drôme
+  "38": "GRENOBLE",         // Isère
+  "42": "LYON-BRON",        // Loire
+  "43": "CLERMONT",         // Haute-Loire
+  "63": "CLERMONT",         // Puy-de-Dôme
+  "69": "LYON-BRON",        // Rhône
+  "73": "GRENOBLE",         // Savoie
+  "74": "GRENOBLE",         // Haute-Savoie
+  // PACA
+  "04": "NICE",             // Alpes-de-Haute-Provence
+  "05": "GRENOBLE",         // Hautes-Alpes
+  "06": "NICE",             // Alpes-Maritimes
+  "13": "MARSEILLE",        // Bouches-du-Rhône
+  "83": "MARSEILLE",        // Var
+  "84": "MARSEILLE",        // Vaucluse
+  // Corse
+  "2A": "AJACCIO",          // Corse-du-Sud
+  "2B": "BASTIA",           // Haute-Corse
+  "20": "AJACCIO",          // Corse (ancien code)
 };
 
 // DJU trentenaires par station (moyennes 1991-2020, base 18°C)
@@ -48,7 +175,38 @@ const DJU_TRENTENAIRES: Record<string, number> = {
   ROUEN: 2500,
   MONTPELLIER: 1450,
   BREST: 2050,
+  LIMOGES: 2300,
+  POITIERS: 2200,
+  ORLEANS: 2350,
+  REIMS: 2650,
+  METZ: 2700,
+  CAEN: 2350,
+  "LE-MANS": 2250,
+  ANGERS: 2150,
+  BESANCON: 2650,
+  PAU: 1800,
+  PERPIGNAN: 1350,
+  AJACCIO: 1200,
+  BASTIA: 1350,
 };
+
+// Déterminer la station météo à partir du code postal
+function getStationFromPostalCode(postalCode: string | null): string {
+  if (!postalCode) return "PARIS-MONTSOURIS";
+
+  // Gérer la Corse (codes 20xxx, 2Axxx, 2Bxxx)
+  if (postalCode.startsWith("20")) {
+    const num = parseInt(postalCode.substring(0, 3));
+    if (num >= 200 && num <= 201) return "AJACCIO"; // Corse-du-Sud
+    if (num >= 202 && num <= 206) return "BASTIA"; // Haute-Corse
+    return "AJACCIO";
+  }
+
+  // Extraire le département (2 premiers chiffres)
+  const dept = postalCode.substring(0, 2);
+
+  return DEPT_TO_STATION[dept] || "PARIS-MONTSOURIS";
+}
 
 // DJU trentenaires mensuels moyens (proportion du total annuel)
 const DJU_MONTHLY_RATIO: Record<string, number> = {
@@ -145,8 +303,7 @@ export async function GET(request: NextRequest) {
           id: true,
           name: true,
           city: true,
-          latitude: true,
-          longitude: true,
+          postalCode: true,
           stationMeteo: true,
           djuContractuel: true,
         },
@@ -161,8 +318,7 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               city: true,
-              latitude: true,
-              longitude: true,
+              postalCode: true,
               stationMeteo: true,
               djuContractuel: true,
             },
@@ -184,80 +340,66 @@ export async function GET(request: NextRequest) {
         ? today.toISOString().split("T")[0]
         : `${year}-06-30`;
 
-    // Fetch DJU for each unique location
-    const locationMap = new Map<
+    // Fetch DJU for each unique station
+    const stationMap = new Map<
       string,
-      { lat: number; lon: number; station: string | null; djuData: DJUData[] | null }
+      { lat: number; lon: number; stationName: string; djuData: DJUData[] | null }
     >();
 
     for (const site of sites) {
-      let lat = site.latitude;
-      let lon = site.longitude;
-      let station = site.stationMeteo;
+      // Priorité: 1) stationMeteo explicite du site, 2) code postal -> station
+      let stationCode = site.stationMeteo;
 
-      // If no coordinates, try to use station
-      if (!lat || !lon) {
-        if (station && WEATHER_STATIONS[station]) {
-          lat = WEATHER_STATIONS[station].lat;
-          lon = WEATHER_STATIONS[station].lon;
-        } else {
-          // Default to Paris if nothing available
-          lat = 48.8566;
-          lon = 2.3522;
-          station = "PARIS-MONTSOURIS";
-        }
+      if (!stationCode || !WEATHER_STATIONS[stationCode]) {
+        // Déterminer la station à partir du code postal
+        stationCode = getStationFromPostalCode(site.postalCode);
       }
 
-      const locationKey = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-
-      if (!locationMap.has(locationKey)) {
-        locationMap.set(locationKey, { lat, lon, station, djuData: null });
+      const stationData = WEATHER_STATIONS[stationCode];
+      if (stationData && !stationMap.has(stationCode)) {
+        stationMap.set(stationCode, {
+          lat: stationData.lat,
+          lon: stationData.lon,
+          stationName: stationData.name,
+          djuData: null,
+        });
       }
     }
 
-    // Fetch weather data for each unique location
-    for (const [key, location] of locationMap) {
+    // Fetch weather data for each unique station
+    for (const [stationCode, stationInfo] of stationMap) {
       try {
         const djuData = await fetchWeatherData(
-          location.lat,
-          location.lon,
+          stationInfo.lat,
+          stationInfo.lon,
           startDate,
           endDate
         );
-        locationMap.set(key, { ...location, djuData });
+        stationMap.set(stationCode, { ...stationInfo, djuData });
       } catch (error) {
-        console.error(`Error fetching DJU for ${key}:`, error);
-        locationMap.set(key, { ...location, djuData: [] });
+        console.error(`Error fetching DJU for ${stationCode}:`, error);
+        stationMap.set(stationCode, { ...stationInfo, djuData: [] });
       }
     }
 
     // Calculate results for each site
     const siteResults = sites.map((site) => {
-      let lat = site.latitude;
-      let lon = site.longitude;
-      let station = site.stationMeteo;
-
-      if (!lat || !lon) {
-        if (station && WEATHER_STATIONS[station]) {
-          lat = WEATHER_STATIONS[station].lat;
-          lon = WEATHER_STATIONS[station].lon;
-        } else {
-          lat = 48.8566;
-          lon = 2.3522;
-          station = "PARIS-MONTSOURIS";
-        }
+      // Déterminer la station: priorité à stationMeteo explicite, sinon code postal
+      let stationCode = site.stationMeteo;
+      if (!stationCode || !WEATHER_STATIONS[stationCode]) {
+        stationCode = getStationFromPostalCode(site.postalCode);
       }
 
-      const locationKey = `${lat!.toFixed(2)},${lon!.toFixed(2)}`;
-      const locationData = locationMap.get(locationKey);
-      const djuData = locationData?.djuData || [];
+      const stationInfo = stationMap.get(stationCode);
+      const stationData = WEATHER_STATIONS[stationCode];
+      const djuData = stationInfo?.djuData || [];
 
       // Calculate totals
-      const djuTotal = djuData.reduce((sum, d) => sum + d.dju, 0);
+      const djuTotal = djuData.reduce((sum: number, d: DJUData) => sum + d.dju, 0);
 
       // Calculate monthly breakdown
       const monthlyDju: Record<string, { dju: number; days: number; avgTemp: number }> = {};
-      djuData.forEach((d) => {
+      djuData.forEach((d: DJUData) => {
         const month = d.date.substring(0, 7); // YYYY-MM
         if (!monthlyDju[month]) {
           monthlyDju[month] = { dju: 0, days: 0, avgTemp: 0 };
@@ -272,10 +414,8 @@ export async function GET(request: NextRequest) {
         monthlyDju[month].avgTemp = monthlyDju[month].avgTemp / monthlyDju[month].days;
       });
 
-      // Get DJU trentenaire
-      const djuTrentenaire = station
-        ? DJU_TRENTENAIRES[station] || 2400
-        : site.djuContractuel || 2400;
+      // Get DJU trentenaire from station or site config
+      const djuTrentenaire = DJU_TRENTENAIRES[stationCode] || site.djuContractuel || 2400;
 
       // Calculate expected DJU to date based on trentenaire
       const monthsElapsed = Object.keys(monthlyDju);
@@ -289,9 +429,10 @@ export async function GET(request: NextRequest) {
         siteId: site.id,
         siteName: site.name,
         city: site.city,
-        station: station || "Paris (défaut)",
-        latitude: lat,
-        longitude: lon,
+        postalCode: site.postalCode,
+        // Nom complet de la station pour affichage
+        station: stationData?.name || stationCode,
+        stationCode: stationCode,
         djuContractuel: site.djuContractuel,
         djuTrentenaire,
         djuReel: Math.round(djuTotal),
@@ -309,7 +450,7 @@ export async function GET(request: NextRequest) {
             days: data.days,
             avgTemp: Math.round(data.avgTemp * 10) / 10,
           })),
-        dailyData: djuData.slice(-30).map((d) => ({
+        dailyData: djuData.slice(-30).map((d: DJUData) => ({
           date: d.date,
           dju: Math.round(d.dju * 10) / 10,
           tMoy: Math.round(d.tMoy * 10) / 10,

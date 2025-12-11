@@ -123,7 +123,9 @@ interface DJUData {
     siteId: string;
     siteName: string;
     city: string;
+    postalCode: string;
     station: string;
+    stationCode: string;
     djuTrentenaire: number;
     djuReel: number;
     djuTrentenaireToDate: number;
@@ -708,10 +710,10 @@ export default function EnergyPage() {
               </div>
             )}
 
-            {/* DJU by Site */}
-            {djuData.sites.length > 1 && (
+            {/* DJU by Site - Toujours affiché pour voir la station météo */}
+            {djuData.sites.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-primary-dark mb-3">DJU par site</h4>
+                <h4 className="text-sm font-medium text-primary-dark mb-3">DJU par site (station météo)</h4>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50">
@@ -728,9 +730,12 @@ export default function EnergyPage() {
                         <tr key={site.siteId} className="hover:bg-gray-50">
                           <td className="px-3 py-2">
                             <p className="font-medium text-primary-dark">{site.siteName}</p>
-                            <p className="text-xs text-gray-500">{site.city}</p>
+                            <p className="text-xs text-gray-500">{site.postalCode} {site.city}</p>
                           </td>
-                          <td className="px-3 py-2 text-gray-600">{site.station}</td>
+                          <td className="px-3 py-2">
+                            <p className="text-gray-700 font-medium">{site.station}</p>
+                            <p className="text-xs text-gray-400">DJU trent. {site.djuTrentenaire}</p>
+                          </td>
                           <td className="px-3 py-2 text-right font-medium">{site.djuReel}</td>
                           <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
                           <td className={`px-3 py-2 text-right font-medium ${site.ecartTrentenaire > 0 ? "text-blue-600" : "text-orange-600"}`}>
