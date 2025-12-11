@@ -2884,45 +2884,61 @@ export default function ContractDetailPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 border-y border-gray-100">
                         <tr>
-                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Nom</th>
-                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Type</th>
-                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Ville</th>
-                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Énergie</th>
-                          <th className="text-left px-4 py-2 font-medium text-text-secondary">Type contrat</th>
-                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P1</th>
-                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P2</th>
-                          <th className="text-center px-4 py-2 font-medium text-text-secondary">P3</th>
-                          <th className="px-4 py-2"></th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Nom</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Adresse</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">CP</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Ville</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Énergie</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Surface</th>
+                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P1</th>
+                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P2</th>
+                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P3</th>
+                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P4</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Type contrat</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Montant P2</th>
+                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Montant P3</th>
+                          <th className="px-2 py-2"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {previewSites.map((site, index) => (
                           <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-4 py-2">
-                              <input type="text" value={site.name} onChange={(e) => updatePreviewSite(index, "name", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+                            <td className="px-3 py-2">
+                              <input type="text" value={site.name} onChange={(e) => updatePreviewSite(index, "name", e.target.value)} className="w-full min-w-[120px] px-2 py-1 border border-gray-200 rounded text-sm" />
                             </td>
-                            <td className="px-4 py-2">
-                              <select value={site._type} onChange={(e) => updatePreviewSite(index, "_type", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
-                                {Object.entries(siteTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
-                              </select>
+                            <td className="px-3 py-2">
+                              <input type="text" value={site.address || ""} onChange={(e) => updatePreviewSite(index, "address", e.target.value)} className="w-full min-w-[150px] px-2 py-1 border border-gray-200 rounded text-sm" />
                             </td>
-                            <td className="px-4 py-2">
-                              <input type="text" value={site.city || ""} onChange={(e) => updatePreviewSite(index, "city", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm" />
+                            <td className="px-3 py-2">
+                              <input type="text" value={site.postalCode || ""} onChange={(e) => updatePreviewSite(index, "postalCode", e.target.value)} className="w-[70px] px-2 py-1 border border-gray-200 rounded text-sm" />
                             </td>
-                            <td className="px-4 py-2">
-                              <select value={site._energyType} onChange={(e) => updatePreviewSite(index, "_energyType", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                            <td className="px-3 py-2">
+                              <input type="text" value={site.city || ""} onChange={(e) => updatePreviewSite(index, "city", e.target.value)} className="w-full min-w-[100px] px-2 py-1 border border-gray-200 rounded text-sm" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <select value={site._energyType} onChange={(e) => updatePreviewSite(index, "_energyType", e.target.value)} className="w-full min-w-[90px] px-2 py-1 border border-gray-200 rounded text-sm">
                                 {Object.entries(energyTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
                               </select>
                             </td>
-                            <td className="px-4 py-2">
-                              <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full px-2 py-1 border border-gray-200 rounded text-sm">
+                            <td className="px-3 py-2">
+                              <input type="number" value={site.surface || ""} onChange={(e) => updatePreviewSite(index, "surface", e.target.value ? Number(e.target.value) : undefined)} className="w-[80px] px-2 py-1 border border-gray-200 rounded text-sm" placeholder="m²" />
+                            </td>
+                            <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP1 || false} onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP2 || false} onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP3 || false} onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP4 || false} onChange={(e) => updatePreviewSite(index, "hasP4", e.target.checked)} className="w-4 h-4" /></td>
+                            <td className="px-3 py-2">
+                              <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full min-w-[70px] px-2 py-1 border border-gray-200 rounded text-sm">
                                 {Object.entries(contractTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
                               </select>
                             </td>
-                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP1 || false} onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)} className="w-4 h-4" /></td>
-                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP2 || false} onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)} className="w-4 h-4" /></td>
-                            <td className="px-4 py-2 text-center"><input type="checkbox" checked={site.hasP3 || false} onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)} className="w-4 h-4" /></td>
-                            <td className="px-4 py-2">
+                            <td className="px-3 py-2">
+                              <input type="number" value={site.amountP2 || ""} onChange={(e) => updatePreviewSite(index, "amountP2", e.target.value ? Number(e.target.value) : undefined)} className="w-[90px] px-2 py-1 border border-gray-200 rounded text-sm" placeholder="€" />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="number" value={site.amountP3 || ""} onChange={(e) => updatePreviewSite(index, "amountP3", e.target.value ? Number(e.target.value) : undefined)} className="w-[90px] px-2 py-1 border border-gray-200 rounded text-sm" placeholder="€" />
+                            </td>
+                            <td className="px-2 py-2">
                               <button onClick={() => removePreviewSite(index)} className="p-1 text-red-500 hover:bg-red-50 rounded" title="Supprimer"><X size={16} /></button>
                             </td>
                           </tr>
