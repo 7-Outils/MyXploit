@@ -21,6 +21,7 @@ import {
   Sun,
   CloudSnow,
   Thermometer,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -131,8 +132,23 @@ interface DJUData {
     djuTrentenaireToDate: number;
     ecartTrentenaire: number;
     ecartPercent: number;
+    heatingStartDate: string;
+    heatingEndDate: string;
+    hasHeatingSeason: boolean;
     monthlyData: { month: string; dju: number; avgTemp: number }[];
   }[];
+}
+
+interface HeatingSeason {
+  id: string;
+  siteId: string;
+  season: string;
+  startDate: string;
+  endDate: string | null;
+  startIndex: number | null;
+  endIndex: number | null;
+  notes: string | null;
+  site?: { id: string; name: string; city: string };
 }
 
 interface Consumption {
@@ -194,8 +210,21 @@ export default function EnergyPage() {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [savingHeatingSeason, setSavingHeatingSeason] = useState(false);
+
+  // Heating season form
+  const [heatingSeasonForm, setHeatingSeasonForm] = useState({
+    siteId: "",
+    siteName: "",
+    season: `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`,
+    startDate: "",
+    endDate: "",
+    notes: "",
+  });
+  const [heatingSeasons, setHeatingSeasons] = useState<HeatingSeason[]>([]);
 
   // Create form
   const [formData, setFormData] = useState({
@@ -343,6 +372,89 @@ export default function EnergyPage() {
       console.error("Error creating consumption:", error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  // Fetch heating seasons when contract changes
+  const fetchHeatingSeasons = useCallback(async () => {
+    if (!selectedContract) return;
+    try {
+      const season = `${selectedYear - 1}-${selectedYear}`;
+      const res = await fetch(`/api/heating-seasons?contractId=${selectedContract.id}&season=${season}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHeatingSeasons(data);
+      }
+    } catch (error) {
+      console.error("Error fetching heating seasons:", error);
+    }
+  }, [selectedContract, selectedYear]);
+
+  useEffect(() => {
+    if (selectedContract) {
+      fetchHeatingSeasons();
+    }
+  }, [fetchHeatingSeasons, selectedContract]);
+
+  // Open heating season modal for a site
+  const openHeatingSeasonModal = (siteId: string, siteName: string, existingStartDate?: string, existingEndDate?: string) => {
+    const season = `${selectedYear - 1}-${selectedYear}`;
+    const existingSeason = heatingSeasons.find(hs => hs.siteId === siteId);
+
+    setHeatingSeasonForm({
+      siteId,
+      siteName,
+      season,
+      startDate: existingSeason?.startDate?.split("T")[0] || existingStartDate || "",
+      endDate: existingSeason?.endDate?.split("T")[0] || existingEndDate || "",
+      notes: existingSeason?.notes || "",
+    });
+    setShowHeatingSeasonModal(true);
+  };
+
+  // Save heating season
+  const handleSaveHeatingSeason = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!heatingSeasonForm.startDate) return;
+
+    setSavingHeatingSeason(true);
+    try {
+      const existingSeason = heatingSeasons.find(hs => hs.siteId === heatingSeasonForm.siteId);
+
+      const body = {
+        siteId: heatingSeasonForm.siteId,
+        season: heatingSeasonForm.season,
+        startDate: heatingSeasonForm.startDate,
+        endDate: heatingSeasonForm.endDate || null,
+        notes: heatingSeasonForm.notes || null,
+      };
+
+      let res;
+      if (existingSeason) {
+        // Update existing
+        res = await fetch(`/api/heating-seasons/${existingSeason.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      } else {
+        // Create new
+        res = await fetch("/api/heating-seasons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      }
+
+      if (res.ok) {
+        setShowHeatingSeasonModal(false);
+        await fetchHeatingSeasons();
+        await fetchData(); // Refresh DJU data with new dates
+      }
+    } catch (error) {
+      console.error("Error saving heating season:", error);
+    } finally {
+      setSavingHeatingSeason(false);
     }
   };
 
@@ -720,6 +832,7 @@ export default function EnergyPage() {
                       <tr>
                         <th className="text-left px-3 py-2 font-medium text-text-secondary">Site</th>
                         <th className="text-left px-3 py-2 font-medium text-text-secondary">Station</th>
+                        <th className="text-left px-3 py-2 font-medium text-text-secondary">Période chauffe</th>
                         <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Réel</th>
                         <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Trent.</th>
                         <th className="text-right px-3 py-2 font-medium text-text-secondary">Écart</th>
@@ -735,6 +848,26 @@ export default function EnergyPage() {
                           <td className="px-3 py-2">
                             <p className="text-gray-700 font-medium">{site.station}</p>
                             <p className="text-xs text-gray-400">DJU trent. {site.djuTrentenaire}</p>
+                          </td>
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() => openHeatingSeasonModal(site.siteId, site.siteName, site.heatingStartDate, site.heatingEndDate)}
+                              className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
+                                site.hasHeatingSeason
+                                  ? "bg-green-50 text-green-700 hover:bg-green-100"
+                                  : "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                              }`}
+                            >
+                              <Calendar size={12} />
+                              <span>
+                                {new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                                {" → "}
+                                {new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                              </span>
+                            </button>
+                            {!site.hasHeatingSeason && (
+                              <p className="text-xs text-orange-500 mt-0.5">Par défaut</p>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-right font-medium">{site.djuReel}</td>
                           <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
@@ -1431,6 +1564,102 @@ export default function EnergyPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Heating Season Modal */}
+      {showHeatingSeasonModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-primary-dark">Période de chauffe</h2>
+                <p className="text-sm text-text-secondary mt-1">
+                  {heatingSeasonForm.siteName} - Saison {heatingSeasonForm.season}
+                </p>
+              </div>
+              <button onClick={() => setShowHeatingSeasonModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveHeatingSeason} className="p-6 space-y-4">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Calendar className="text-blue-600 mt-0.5" size={20} />
+                  <div>
+                    <p className="text-sm font-medium text-blue-800">
+                      Dates d&apos;allumage et d&apos;arrêt
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Ces dates sont transmises par l&apos;exploitant au début de chaque saison.
+                      Elles permettent de calculer les DJU réels sur la période de chauffage effective.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Date d&apos;allumage *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={heatingSeasonForm.startDate}
+                  onChange={(e) => setHeatingSeasonForm({ ...heatingSeasonForm, startDate: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Date de mise en route du chauffage
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Date d&apos;arrêt
+                </label>
+                <input
+                  type="date"
+                  value={heatingSeasonForm.endDate}
+                  onChange={(e) => setHeatingSeasonForm({ ...heatingSeasonForm, endDate: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Laissez vide si la saison est en cours
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={heatingSeasonForm.notes}
+                  onChange={(e) => setHeatingSeasonForm({ ...heatingSeasonForm, notes: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
+                  placeholder="Observations, index compteur..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowHeatingSeasonModal(false)}>
+                  Annuler
+                </Button>
+                <Button type="submit" className="flex-1" disabled={savingHeatingSeason || !heatingSeasonForm.startDate}>
+                  {savingHeatingSeason ? (
+                    <>
+                      <Loader2 size={18} className="mr-2 animate-spin" />
+                      Enregistrement...
+                    </>
+                  ) : (
+                    "Enregistrer"
+                  )}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
