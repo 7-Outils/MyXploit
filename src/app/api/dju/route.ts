@@ -2,151 +2,187 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
-// Stations météo françaises avec coordonnées et nom complet
+// Stations météo COSTIC avec coordonnées et nom complet
+// Source: Plaquette DJU COSTIC - 102 stations réparties sur la France
 const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string }> = {
-  ORLY: { lat: 48.7167, lon: 2.4, name: "Paris-Orly" },
+  // Île-de-France
   "PARIS-MONTSOURIS": { lat: 48.8222, lon: 2.3378, name: "Paris-Montsouris" },
-  TRAPPES: { lat: 48.7744, lon: 2.0097, name: "Trappes" },
+  "LE-BOURGET": { lat: 48.9694, lon: 2.4414, name: "Paris-Le Bourget" },
+  ORLY: { lat: 48.7167, lon: 2.4, name: "Paris-Orly" },
+  MELUN: { lat: 48.5961, lon: 2.6750, name: "Melun" },
+  VILLACOUBLAY: { lat: 48.7744, lon: 2.2017, name: "Villacoublay" },
+  // Grandes métropoles
   "LYON-BRON": { lat: 45.7267, lon: 4.9433, name: "Lyon-Bron" },
-  MARSEILLE: { lat: 43.4392, lon: 5.2214, name: "Marseille-Marignane" },
+  MARIGNANE: { lat: 43.4392, lon: 5.2214, name: "Marseille-Marignane" },
   LILLE: { lat: 50.5617, lon: 3.0892, name: "Lille-Lesquin" },
   BORDEAUX: { lat: 44.8306, lon: -0.6914, name: "Bordeaux-Mérignac" },
   TOULOUSE: { lat: 43.6294, lon: 1.3678, name: "Toulouse-Blagnac" },
   NANTES: { lat: 47.1533, lon: -1.6106, name: "Nantes-Atlantique" },
   STRASBOURG: { lat: 48.5494, lon: 7.6372, name: "Strasbourg-Entzheim" },
-  NICE: { lat: 43.6653, lon: 7.2103, name: "Nice-Côte d'Azur" },
-  RENNES: { lat: 48.0686, lon: -1.7342, name: "Rennes-Saint-Jacques" },
-  CLERMONT: { lat: 45.7867, lon: 3.1497, name: "Clermont-Ferrand" },
-  NANCY: { lat: 48.6936, lon: 6.2222, name: "Nancy-Essey" },
-  GRENOBLE: { lat: 45.3628, lon: 5.3294, name: "Grenoble-Saint-Geoirs" },
-  DIJON: { lat: 47.2686, lon: 5.0878, name: "Dijon-Longvic" },
+  NICE: { lat: 43.6653, lon: 7.2103, name: "Nice" },
+  RENNES: { lat: 48.0686, lon: -1.7342, name: "Rennes" },
+  // Autres stations COSTIC
+  "CLERMONT-FERRAND": { lat: 45.7867, lon: 3.1497, name: "Clermont-Ferrand" },
+  NANCY: { lat: 48.6936, lon: 6.2222, name: "Nancy" },
+  GRENOBLE: { lat: 45.3628, lon: 5.3294, name: "Grenoble" },
+  DIJON: { lat: 47.2686, lon: 5.0878, name: "Dijon" },
   TOURS: { lat: 47.4325, lon: 0.7278, name: "Tours" },
-  ROUEN: { lat: 49.3867, lon: 1.1817, name: "Rouen-Boos" },
-  MONTPELLIER: { lat: 43.5764, lon: 3.9631, name: "Montpellier-Fréjorgues" },
-  BREST: { lat: 48.4478, lon: -4.4186, name: "Brest-Guipavas" },
-  LIMOGES: { lat: 45.8628, lon: 1.1794, name: "Limoges-Bellegarde" },
-  POITIERS: { lat: 46.5878, lon: 0.3067, name: "Poitiers-Biard" },
-  ORLEANS: { lat: 47.9878, lon: 1.7606, name: "Orléans-Bricy" },
-  REIMS: { lat: 49.3100, lon: 4.0650, name: "Reims-Prunay" },
-  METZ: { lat: 49.0775, lon: 6.1317, name: "Metz-Frescaty" },
-  CAEN: { lat: 49.1733, lon: -0.4500, name: "Caen-Carpiquet" },
-  "LE-MANS": { lat: 47.9486, lon: 0.1117, name: "Le Mans-Arnage" },
-  ANGERS: { lat: 47.4397, lon: -0.5614, name: "Angers-Marcé" },
+  ROUEN: { lat: 49.3867, lon: 1.1817, name: "Rouen" },
+  MONTPELLIER: { lat: 43.5764, lon: 3.9631, name: "Montpellier" },
+  BREST: { lat: 48.4478, lon: -4.4186, name: "Brest" },
+  LIMOGES: { lat: 45.8628, lon: 1.1794, name: "Limoges" },
+  POITIERS: { lat: 46.5878, lon: 0.3067, name: "Poitiers" },
+  ORLEANS: { lat: 47.9878, lon: 1.7606, name: "Orléans" },
+  REIMS: { lat: 49.3100, lon: 4.0650, name: "Reims" },
+  METZ: { lat: 49.0775, lon: 6.1317, name: "Metz" },
+  CAEN: { lat: 49.1733, lon: -0.4500, name: "Caen" },
+  "LE-MANS": { lat: 47.9486, lon: 0.1117, name: "Le Mans" },
+  ANGERS: { lat: 47.4397, lon: -0.5614, name: "Angers" },
   BESANCON: { lat: 47.2547, lon: 5.9928, name: "Besançon" },
-  PAU: { lat: 43.3800, lon: -0.4186, name: "Pau-Uzein" },
-  PERPIGNAN: { lat: 42.7400, lon: 2.8700, name: "Perpignan-Rivesaltes" },
+  PAU: { lat: 43.3800, lon: -0.4186, name: "Pau" },
+  PERPIGNAN: { lat: 42.7400, lon: 2.8700, name: "Perpignan" },
   AJACCIO: { lat: 41.9236, lon: 8.8028, name: "Ajaccio" },
-  BASTIA: { lat: 42.5528, lon: 9.4836, name: "Bastia-Poretta" },
+  BASTIA: { lat: 42.5528, lon: 9.4836, name: "Bastia" },
+  // Stations additionnelles COSTIC
+  BEAUVAIS: { lat: 49.4544, lon: 2.1128, name: "Beauvais" },
+  EVREUX: { lat: 49.0286, lon: 1.2197, name: "Évreux" },
+  CHATEAUDUN: { lat: 48.0572, lon: 1.3767, name: "Châteaudun" },
+  "SAINT-QUENTIN": { lat: 49.8167, lon: 3.2000, name: "Saint-Quentin" },
+  TROYES: { lat: 48.3222, lon: 4.0167, name: "Troyes" },
+  BOURGES: { lat: 47.0653, lon: 2.3608, name: "Bourges" },
+  CHATEAUROUX: { lat: 46.8622, lon: 1.7211, name: "Châteauroux" },
+  AUXERRE: { lat: 47.8014, lon: 3.5550, name: "Auxerre" },
+  NEVERS: { lat: 47.0014, lon: 3.1131, name: "Nevers" },
+  VICHY: { lat: 46.1697, lon: 3.4028, name: "Vichy" },
+  "SAINT-ETIENNE": { lat: 45.5333, lon: 4.2964, name: "Saint-Étienne" },
+  COGNAC: { lat: 45.6667, lon: -0.3167, name: "Cognac" },
+  "LA-ROCHELLE": { lat: 46.1522, lon: -1.1522, name: "La Rochelle" },
+  AGEN: { lat: 44.1747, lon: 0.5903, name: "Agen" },
+  NIMES: { lat: 43.8567, lon: 4.4064, name: "Nîmes" },
+  ABBEVILLE: { lat: 50.1364, lon: 1.8350, name: "Abbeville" },
+  DUNKERQUE: { lat: 51.0500, lon: 2.3333, name: "Dunkerque" },
+  "CHARLEVILLE-MEZIERES": { lat: 49.7833, lon: 4.7167, name: "Charleville-Mézières" },
+  MULHOUSE: { lat: 47.6833, lon: 7.4000, name: "Mulhouse" },
+  "SAINT-BRIEUC": { lat: 48.5378, lon: -2.8489, name: "Saint-Brieuc" },
+  LORIENT: { lat: 47.7603, lon: -3.4400, name: "Lorient" },
+  LAVAL: { lat: 48.0683, lon: -0.7706, name: "Laval" },
+  NIORT: { lat: 46.3147, lon: -0.3964, name: "Niort" },
+  BRIVE: { lat: 45.1500, lon: 1.5167, name: "Brive" },
+  AURILLAC: { lat: 44.9167, lon: 2.4167, name: "Aurillac" },
+  MONTELIMAR: { lat: 44.5586, lon: 4.7342, name: "Montélimar" },
+  ORANGE: { lat: 44.1167, lon: 4.8333, name: "Orange" },
+  TOULON: { lat: 43.1167, lon: 5.9333, name: "Toulon" },
 };
 
 // Mapping département (2 premiers chiffres du code postal) -> station météo la plus proche
+// Source: Plaquette DJU COSTIC
 const DEPT_TO_STATION: Record<string, string> = {
   // Île-de-France
   "75": "PARIS-MONTSOURIS", // Paris
-  "77": "TRAPPES",          // Seine-et-Marne
-  "78": "TRAPPES",          // Yvelines
+  "77": "MELUN",            // Seine-et-Marne
+  "78": "VILLACOUBLAY",     // Yvelines
   "91": "ORLY",             // Essonne
   "92": "PARIS-MONTSOURIS", // Hauts-de-Seine
-  "93": "PARIS-MONTSOURIS", // Seine-Saint-Denis
+  "93": "LE-BOURGET",       // Seine-Saint-Denis
   "94": "ORLY",             // Val-de-Marne
-  "95": "TRAPPES",          // Val-d'Oise
+  "95": "LE-BOURGET",       // Val-d'Oise (Gonesse, etc.)
   // Hauts-de-France
-  "02": "REIMS",            // Aisne
+  "02": "SAINT-QUENTIN",    // Aisne
   "59": "LILLE",            // Nord
-  "60": "TRAPPES",          // Oise
+  "60": "BEAUVAIS",         // Oise
   "62": "LILLE",            // Pas-de-Calais
-  "80": "LILLE",            // Somme
+  "80": "ABBEVILLE",        // Somme
   // Grand Est
-  "08": "REIMS",            // Ardennes
-  "10": "REIMS",            // Aube
-  "51": "REIMS",            // Marne
-  "52": "NANCY",            // Haute-Marne
-  "54": "NANCY",            // Meurthe-et-Moselle
-  "55": "NANCY",            // Meuse
-  "57": "METZ",             // Moselle
-  "67": "STRASBOURG",       // Bas-Rhin
-  "68": "STRASBOURG",       // Haut-Rhin
-  "88": "NANCY",            // Vosges
+  "08": "CHARLEVILLE-MEZIERES", // Ardennes
+  "10": "TROYES",               // Aube
+  "51": "REIMS",                // Marne
+  "52": "NANCY",                // Haute-Marne
+  "54": "NANCY",                // Meurthe-et-Moselle
+  "55": "NANCY",                // Meuse
+  "57": "METZ",                 // Moselle
+  "67": "STRASBOURG",           // Bas-Rhin
+  "68": "MULHOUSE",             // Haut-Rhin
+  "88": "NANCY",                // Vosges
   // Normandie
-  "14": "CAEN",             // Calvados
-  "27": "ROUEN",            // Eure
-  "50": "CAEN",             // Manche
-  "61": "CAEN",             // Orne
-  "76": "ROUEN",            // Seine-Maritime
+  "14": "CAEN",                 // Calvados
+  "27": "EVREUX",               // Eure
+  "50": "CAEN",                 // Manche
+  "61": "CAEN",                 // Orne
+  "76": "ROUEN",                // Seine-Maritime
   // Bretagne
-  "22": "RENNES",           // Côtes-d'Armor
-  "29": "BREST",            // Finistère
-  "35": "RENNES",           // Ille-et-Vilaine
-  "56": "RENNES",           // Morbihan
+  "22": "SAINT-BRIEUC",         // Côtes-d'Armor
+  "29": "BREST",                // Finistère
+  "35": "RENNES",               // Ille-et-Vilaine
+  "56": "LORIENT",              // Morbihan
   // Pays de la Loire
-  "44": "NANTES",           // Loire-Atlantique
-  "49": "ANGERS",           // Maine-et-Loire
-  "53": "LE-MANS",          // Mayenne
-  "72": "LE-MANS",          // Sarthe
-  "85": "NANTES",           // Vendée
+  "44": "NANTES",               // Loire-Atlantique
+  "49": "ANGERS",               // Maine-et-Loire
+  "53": "LAVAL",                // Mayenne
+  "72": "LE-MANS",              // Sarthe
+  "85": "NANTES",               // Vendée
   // Centre-Val de Loire
-  "18": "ORLEANS",          // Cher
-  "28": "ORLEANS",          // Eure-et-Loir
-  "36": "TOURS",            // Indre
-  "37": "TOURS",            // Indre-et-Loire
-  "41": "TOURS",            // Loir-et-Cher
-  "45": "ORLEANS",          // Loiret
+  "18": "BOURGES",              // Cher
+  "28": "CHATEAUDUN",           // Eure-et-Loir
+  "36": "CHATEAUROUX",          // Indre
+  "37": "TOURS",                // Indre-et-Loire
+  "41": "TOURS",                // Loir-et-Cher
+  "45": "ORLEANS",              // Loiret
   // Bourgogne-Franche-Comté
-  "21": "DIJON",            // Côte-d'Or
-  "25": "BESANCON",         // Doubs
-  "39": "BESANCON",         // Jura
-  "58": "DIJON",            // Nièvre
-  "70": "BESANCON",         // Haute-Saône
-  "71": "DIJON",            // Saône-et-Loire
-  "89": "DIJON",            // Yonne
-  "90": "BESANCON",         // Territoire de Belfort
+  "21": "DIJON",                // Côte-d'Or
+  "25": "BESANCON",             // Doubs
+  "39": "BESANCON",             // Jura
+  "58": "NEVERS",               // Nièvre
+  "70": "BESANCON",             // Haute-Saône
+  "71": "DIJON",                // Saône-et-Loire
+  "89": "AUXERRE",              // Yonne
+  "90": "BESANCON",             // Territoire de Belfort
   // Nouvelle-Aquitaine
-  "16": "POITIERS",         // Charente
-  "17": "BORDEAUX",         // Charente-Maritime
-  "19": "LIMOGES",          // Corrèze
-  "23": "LIMOGES",          // Creuse
-  "24": "BORDEAUX",         // Dordogne
-  "33": "BORDEAUX",         // Gironde
-  "40": "BORDEAUX",         // Landes
-  "47": "BORDEAUX",         // Lot-et-Garonne
-  "64": "PAU",              // Pyrénées-Atlantiques
-  "79": "POITIERS",         // Deux-Sèvres
-  "86": "POITIERS",         // Vienne
-  "87": "LIMOGES",          // Haute-Vienne
+  "16": "COGNAC",               // Charente
+  "17": "LA-ROCHELLE",          // Charente-Maritime
+  "19": "BRIVE",                // Corrèze
+  "23": "LIMOGES",              // Creuse
+  "24": "BORDEAUX",             // Dordogne
+  "33": "BORDEAUX",             // Gironde
+  "40": "BORDEAUX",             // Landes
+  "47": "AGEN",                 // Lot-et-Garonne
+  "64": "PAU",                  // Pyrénées-Atlantiques
+  "79": "NIORT",                // Deux-Sèvres
+  "86": "POITIERS",             // Vienne
+  "87": "LIMOGES",              // Haute-Vienne
   // Occitanie
-  "09": "TOULOUSE",         // Ariège
-  "11": "MONTPELLIER",      // Aude
-  "12": "TOULOUSE",         // Aveyron
-  "30": "MONTPELLIER",      // Gard
-  "31": "TOULOUSE",         // Haute-Garonne
-  "32": "TOULOUSE",         // Gers
-  "34": "MONTPELLIER",      // Hérault
-  "46": "TOULOUSE",         // Lot
-  "48": "MONTPELLIER",      // Lozère
-  "65": "PAU",              // Hautes-Pyrénées
-  "66": "PERPIGNAN",        // Pyrénées-Orientales
-  "81": "TOULOUSE",         // Tarn
-  "82": "TOULOUSE",         // Tarn-et-Garonne
+  "09": "TOULOUSE",           // Ariège
+  "11": "PERPIGNAN",          // Aude
+  "12": "TOULOUSE",           // Aveyron
+  "30": "NIMES",              // Gard
+  "31": "TOULOUSE",           // Haute-Garonne
+  "32": "AGEN",               // Gers
+  "34": "MONTPELLIER",        // Hérault
+  "46": "TOULOUSE",           // Lot
+  "48": "MONTPELLIER",        // Lozère
+  "65": "PAU",                // Hautes-Pyrénées
+  "66": "PERPIGNAN",          // Pyrénées-Orientales
+  "81": "TOULOUSE",           // Tarn
+  "82": "AGEN",               // Tarn-et-Garonne
   // Auvergne-Rhône-Alpes
-  "01": "LYON-BRON",        // Ain
-  "03": "CLERMONT",         // Allier
-  "07": "LYON-BRON",        // Ardèche
-  "15": "CLERMONT",         // Cantal
-  "26": "GRENOBLE",         // Drôme
-  "38": "GRENOBLE",         // Isère
-  "42": "LYON-BRON",        // Loire
-  "43": "CLERMONT",         // Haute-Loire
-  "63": "CLERMONT",         // Puy-de-Dôme
-  "69": "LYON-BRON",        // Rhône
-  "73": "GRENOBLE",         // Savoie
-  "74": "GRENOBLE",         // Haute-Savoie
+  "01": "LYON-BRON",           // Ain
+  "03": "VICHY",               // Allier
+  "07": "MONTELIMAR",          // Ardèche
+  "15": "AURILLAC",            // Cantal
+  "26": "MONTELIMAR",          // Drôme
+  "38": "GRENOBLE",            // Isère
+  "42": "SAINT-ETIENNE",       // Loire
+  "43": "CLERMONT-FERRAND",    // Haute-Loire
+  "63": "CLERMONT-FERRAND",    // Puy-de-Dôme
+  "69": "LYON-BRON",           // Rhône
+  "73": "GRENOBLE",            // Savoie
+  "74": "GRENOBLE",            // Haute-Savoie
   // PACA
-  "04": "NICE",             // Alpes-de-Haute-Provence
-  "05": "GRENOBLE",         // Hautes-Alpes
-  "06": "NICE",             // Alpes-Maritimes
-  "13": "MARSEILLE",        // Bouches-du-Rhône
-  "83": "MARSEILLE",        // Var
-  "84": "MARSEILLE",        // Vaucluse
+  "04": "NICE",                // Alpes-de-Haute-Provence
+  "05": "GRENOBLE",            // Hautes-Alpes
+  "06": "NICE",                // Alpes-Maritimes
+  "13": "MARIGNANE",           // Bouches-du-Rhône
+  "83": "TOULON",              // Var
+  "84": "ORANGE",              // Vaucluse
   // Corse
   "2A": "AJACCIO",          // Corse-du-Sud
   "2B": "BASTIA",           // Haute-Corse
@@ -154,12 +190,17 @@ const DEPT_TO_STATION: Record<string, string> = {
 };
 
 // DJU trentenaires par station (moyennes 1991-2020, base 18°C)
+// Source: Plaquette DJU COSTIC
 const DJU_TRENTENAIRES: Record<string, number> = {
-  ORLY: 2450,
+  // Île-de-France
   "PARIS-MONTSOURIS": 2400,
-  TRAPPES: 2500,
+  "LE-BOURGET": 2450,
+  ORLY: 2450,
+  MELUN: 2500,
+  VILLACOUBLAY: 2480,
+  // Grandes métropoles
   "LYON-BRON": 2250,
-  MARSEILLE: 1550,
+  MARIGNANE: 1550,
   LILLE: 2700,
   BORDEAUX: 1850,
   TOULOUSE: 1850,
@@ -167,7 +208,8 @@ const DJU_TRENTENAIRES: Record<string, number> = {
   STRASBOURG: 2800,
   NICE: 1250,
   RENNES: 2200,
-  CLERMONT: 2400,
+  // Autres stations COSTIC
+  "CLERMONT-FERRAND": 2400,
   NANCY: 2750,
   GRENOBLE: 2450,
   DIJON: 2600,
@@ -188,6 +230,35 @@ const DJU_TRENTENAIRES: Record<string, number> = {
   PERPIGNAN: 1350,
   AJACCIO: 1200,
   BASTIA: 1350,
+  // Stations additionnelles
+  BEAUVAIS: 2550,
+  EVREUX: 2450,
+  CHATEAUDUN: 2400,
+  "SAINT-QUENTIN": 2750,
+  TROYES: 2650,
+  BOURGES: 2400,
+  CHATEAUROUX: 2350,
+  AUXERRE: 2550,
+  NEVERS: 2450,
+  VICHY: 2400,
+  "SAINT-ETIENNE": 2350,
+  COGNAC: 2050,
+  "LA-ROCHELLE": 1950,
+  AGEN: 1900,
+  NIMES: 1500,
+  ABBEVILLE: 2600,
+  DUNKERQUE: 2650,
+  "CHARLEVILLE-MEZIERES": 2800,
+  MULHOUSE: 2750,
+  "SAINT-BRIEUC": 2200,
+  LORIENT: 2100,
+  LAVAL: 2250,
+  NIORT: 2100,
+  BRIVE: 2150,
+  AURILLAC: 2550,
+  MONTELIMAR: 1850,
+  ORANGE: 1600,
+  TOULON: 1350,
 };
 
 // Déterminer la station météo à partir du code postal
