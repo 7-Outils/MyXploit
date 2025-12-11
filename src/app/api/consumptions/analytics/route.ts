@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
 
     // Filters
     const siteId = searchParams.get("siteId");
+    const contractId = searchParams.get("contractId");
     const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
     const energyType = searchParams.get("energyType");
 
@@ -18,9 +19,23 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(year - 1, 6, 1); // July 1st of previous year
     const endDate = new Date(year, 5, 30); // June 30th of current year
 
+    // Get contract site IDs if contractId is provided
+    let contractSiteIds: string[] | null = null;
+    if (contractId) {
+      const contractSites = await prisma.contractSite.findMany({
+        where: { contractId },
+        select: { siteId: true },
+      });
+      contractSiteIds = contractSites.map((cs) => cs.siteId);
+    }
+
     // Get all sites with their NB and DJU contractuels
     const sitesWhere: Record<string, unknown> = { organizationId: user.organizationId };
-    if (siteId) sitesWhere.id = siteId;
+    if (siteId) {
+      sitesWhere.id = siteId;
+    } else if (contractSiteIds) {
+      sitesWhere.id = { in: contractSiteIds };
+    }
 
     const sites = await prisma.site.findMany({
       where: sitesWhere,
@@ -45,7 +60,11 @@ export async function GET(request: NextRequest) {
         lte: endDate,
       },
     };
-    if (siteId) consumptionsWhere.siteId = siteId;
+    if (siteId) {
+      consumptionsWhere.siteId = siteId;
+    } else if (contractSiteIds) {
+      consumptionsWhere.siteId = { in: contractSiteIds };
+    }
     if (energyType) consumptionsWhere.energyType = energyType;
 
     const consumptions = await prisma.consumption.findMany({

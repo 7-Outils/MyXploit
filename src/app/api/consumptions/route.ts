@@ -8,10 +8,19 @@ export async function GET(request: NextRequest) {
     const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get("siteId");
+    const contractId = searchParams.get("contractId");
 
     const where: Record<string, unknown> = { organizationId: user.organizationId };
+
     if (siteId) {
       where.siteId = siteId;
+    } else if (contractId) {
+      // Get all sites for this contract
+      const contractSites = await prisma.contractSite.findMany({
+        where: { contractId },
+        select: { siteId: true },
+      });
+      where.siteId = { in: contractSites.map((cs) => cs.siteId) };
     }
 
     const consumptions = await prisma.consumption.findMany({

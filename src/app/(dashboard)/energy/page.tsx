@@ -15,12 +15,25 @@ import {
   Flame,
   ThermometerSun,
   Building2,
+  FileText,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { TelereleveCard } from "@/components/energy/TelereleveCard";
+
+interface Contract {
+  id: string;
+  reference: string;
+  title: string;
+  provider: string;
+  status: string;
+  _count?: {
+    contractSites: number;
+  };
+}
 
 interface Site {
   id: string;
@@ -132,11 +145,16 @@ const SITE_TYPE_LABELS: Record<string, string> = {
 };
 
 export default function EnergyPage() {
+  // Contract selection
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [loadingContracts, setLoadingContracts] = useState(true);
+
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [consumptions, setConsumptions] = useState<Consumption[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedSite, setSelectedSite] = useState<string>("");
 
@@ -184,25 +202,49 @@ export default function EnergyPage() {
     totalErrors: number;
   } | null>(null);
 
+  // Fetch contracts on mount
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const res = await fetch("/api/contracts");
+        const data = await res.json();
+        setContracts(Array.isArray(data) ? data.filter((c: Contract) => c.status === "ACTIF") : []);
+      } catch (error) {
+        console.error("Error fetching contracts:", error);
+      } finally {
+        setLoadingContracts(false);
+      }
+    };
+    fetchContracts();
+  }, []);
+
   const fetchData = useCallback(async () => {
+    if (!selectedContract) return;
+
     try {
       setLoading(true);
+
+      // First get sites for this contract
+      const sitesRes = await fetch(`/api/contracts/${selectedContract.id}/sites`);
+      const sitesData = await sitesRes.json();
+      const contractSites = Array.isArray(sitesData) ? sitesData : [];
+      setSites(contractSites);
+
       const params = new URLSearchParams();
       params.set("year", selectedYear.toString());
+      params.set("contractId", selectedContract.id);
       if (selectedSite) params.set("siteId", selectedSite);
 
-      const [analyticsRes, consumptionsRes, alertsRes, sitesRes] = await Promise.all([
+      const [analyticsRes, consumptionsRes, alertsRes] = await Promise.all([
         fetch(`/api/consumptions/analytics?${params}`),
-        fetch("/api/consumptions"),
+        fetch(`/api/consumptions?contractId=${selectedContract.id}`),
         fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
-        fetch("/api/sites"),
       ]);
 
-      const [analyticsData, consumptionsData, alertsData, sitesData] = await Promise.all([
+      const [analyticsData, consumptionsData, alertsData] = await Promise.all([
         analyticsRes.json(),
         consumptionsRes.json(),
         alertsRes.json(),
-        sitesRes.json(),
       ]);
 
       if (!analyticsRes.ok) {
@@ -213,17 +255,18 @@ export default function EnergyPage() {
 
       setConsumptions(Array.isArray(consumptionsData) ? consumptionsData : []);
       setAlerts(Array.isArray(alertsData) ? alertsData : []);
-      setSites(sitesData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, selectedSite]);
+  }, [selectedYear, selectedSite, selectedContract]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (selectedContract) {
+      fetchData();
+    }
+  }, [fetchData, selectedContract]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,7 +431,7 @@ export default function EnergyPage() {
 
   const activeAlerts = alerts.filter((a) => !a.isRead);
 
-  if (loading) {
+  if (loadingContracts) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
@@ -401,48 +444,108 @@ export default function EnergyPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Performance énergétique</h1>
-          <p className="text-text-secondary">
-            Analysez NC vs N&apos;B et détectez les dérives
-          </p>
+          {selectedContract ? (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <button
+                  onClick={() => {
+                    setSelectedContract(null);
+                    setAnalytics(null);
+                    setConsumptions([]);
+                    setSites([]);
+                    setSelectedSite("");
+                  }}
+                  className="text-text-secondary hover:text-primary-dark"
+                >
+                  Suivi énergétique
+                </button>
+                <span className="text-text-secondary">/</span>
+                <span className="text-primary-dark font-medium">{selectedContract.reference}</span>
+              </div>
+              <h1 className="text-2xl font-bold text-primary-dark">{selectedContract.title}</h1>
+              <p className="text-text-secondary">{selectedContract.provider}</p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-primary-dark">Performance énergétique</h1>
+              <p className="text-text-secondary">
+                Sélectionnez un contrat pour analyser les consommations
+              </p>
+            </>
+          )}
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-          >
-            {[2025, 2024, 2023, 2022].map((year) => (
-              <option key={year} value={year}>
-                Saison {year - 1}/{year}
-              </option>
-            ))}
-          </select>
-          <select
-            value={selectedSite}
-            onChange={(e) => setSelectedSite(e.target.value)}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-          >
-            <option value="">Tous les sites</option>
-            {sites.map((site) => (
-              <option key={site.id} value={site.id}>
-                {site.name}
-              </option>
-            ))}
-          </select>
-          <Button variant="outline" onClick={() => setShowImportModal(true)}>
-            <Upload size={18} className="mr-2" />
-            Importer CSV
-          </Button>
-          <Button onClick={() => setShowCreateModal(true)}>
-            <Plus size={18} className="mr-2" />
-            Saisir relevé
-          </Button>
-        </div>
+        {selectedContract && (
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={selectedContract.id}
+              onChange={(e) => {
+                const contract = contracts.find((c) => c.id === e.target.value);
+                if (contract) setSelectedContract(contract);
+              }}
+              className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+            >
+              {contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.reference} - {c.title}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+            >
+              {[2025, 2024, 2023, 2022].map((year) => (
+                <option key={year} value={year}>
+                  Saison {year - 1}/{year}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedSite}
+              onChange={(e) => setSelectedSite(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+            >
+              <option value="">Tous les sites</option>
+              {sites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </select>
+            <Button variant="outline" onClick={() => setShowImportModal(true)}>
+              <Upload size={18} className="mr-2" />
+              Importer CSV
+            </Button>
+            <Button onClick={() => setShowCreateModal(true)}>
+              <Plus size={18} className="mr-2" />
+              Saisir relevé
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Performance Summary */}
-      {analytics && (
+      {/* Contract Selector (shown when no contract selected) */}
+      {!selectedContract && (
+        <ContractSelector
+          contracts={contracts}
+          onSelect={setSelectedContract}
+          icon={Flame}
+        />
+      )}
+
+      {/* Loading indicator */}
+      {selectedContract && loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        </div>
+      )}
+
+      {/* Main content - only shown when contract is selected and not loading */}
+      {selectedContract && !loading && (
+        <>
+          {/* Performance Summary */}
+          {analytics && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <StatsCard
             title="NC (Conso. réelle)"
@@ -1164,6 +1267,61 @@ export default function EnergyPage() {
           </div>
         </div>
       )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Helper component for contract selection
+function ContractSelector({
+  contracts,
+  onSelect,
+  icon: Icon,
+}: {
+  contracts: Contract[];
+  onSelect: (c: Contract) => void;
+  icon: typeof Flame;
+}) {
+  if (contracts.length === 0) {
+    return (
+      <ChartCard title="Aucun contrat actif">
+        <div className="flex flex-col items-center justify-center py-8">
+          <FileText size={48} className="text-gray-300 mb-4" />
+          <p className="text-text-secondary">Créez d&apos;abord un contrat</p>
+        </div>
+      </ChartCard>
+    );
+  }
+
+  return (
+    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {contracts.map((contract) => (
+        <button
+          key={contract.id}
+          onClick={() => onSelect(contract)}
+          className="bg-white rounded-xl border border-gray-100 p-6 text-left hover:border-accent hover:shadow-md transition-all group"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center group-hover:bg-accent/20 transition-colors">
+              <Icon size={24} className="text-accent" />
+            </div>
+            <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">Actif</span>
+          </div>
+          <h3 className="font-semibold text-primary-dark mb-1">{contract.reference}</h3>
+          <p className="text-sm text-text-secondary mb-3 line-clamp-1">{contract.title}</p>
+          <div className="flex items-center gap-4 text-xs text-text-secondary">
+            <span className="flex items-center gap-1">
+              <Users size={14} />
+              {contract.provider}
+            </span>
+            <span className="flex items-center gap-1">
+              <Building2 size={14} />
+              {contract._count?.contractSites || 0} sites
+            </span>
+          </div>
+        </button>
+      ))}
     </div>
   );
 }
