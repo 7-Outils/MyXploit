@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { SiteType, EnergyType, NbUnit, ContractType } from "@/generated/prisma/enums";
-import { geocodeAddress } from "@/lib/geocoding";
 
 interface ImportedSite {
   name: string;
@@ -397,21 +396,6 @@ export async function POST(request: NextRequest) {
       const energyType = siteData._energyType || parseEnergyType(siteData.energyType);
       const contractType = siteData._contractType || parseContractType(siteData.contractType);
 
-      // Geocode address
-      let latitude: number | null = null;
-      let longitude: number | null = null;
-      if (siteData.address && siteData.city) {
-        const geoResult = await geocodeAddress(
-          siteData.address,
-          siteData.city,
-          siteData.postalCode || ""
-        );
-        if (geoResult) {
-          latitude = geoResult.latitude;
-          longitude = geoResult.longitude;
-        }
-      }
-
       const site = await prisma.site.create({
         data: {
           name: siteData.name,
@@ -427,8 +411,8 @@ export async function POST(request: NextRequest) {
           pce: siteData.pce,
           pdl: siteData.pdl,
           rae: siteData.rae,
-          latitude,
-          longitude,
+          latitude: null,
+          longitude: null,
           organizationId: user.organizationId,
           createdById: user.id,
         },
