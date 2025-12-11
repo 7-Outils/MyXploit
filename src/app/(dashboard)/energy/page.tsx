@@ -17,6 +17,10 @@ import {
   Building2,
   FileText,
   Users,
+  Snowflake,
+  Sun,
+  CloudSnow,
+  Thermometer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -103,6 +107,32 @@ interface Alert {
   isRead: boolean;
 }
 
+interface DJUData {
+  year: number;
+  period: { start: string; end: string };
+  summary: {
+    djuReelMoyen: number;
+    djuTrentenaireMoyen: number;
+    djuTrentenaireToDate: number;
+    ecart: number;
+    ecartPercent: number;
+    interpretation: string;
+  };
+  monthlyData: { month: string; label: string; dju: number }[];
+  sites: {
+    siteId: string;
+    siteName: string;
+    city: string;
+    station: string;
+    djuTrentenaire: number;
+    djuReel: number;
+    djuTrentenaireToDate: number;
+    ecartTrentenaire: number;
+    ecartPercent: number;
+    monthlyData: { month: string; dju: number; avgTemp: number }[];
+  }[];
+}
+
 interface Consumption {
   id: string;
   energyType: string;
@@ -151,6 +181,7 @@ export default function EnergyPage() {
   const [loadingContracts, setLoadingContracts] = useState(true);
 
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [djuData, setDjuData] = useState<DJUData | null>(null);
   const [consumptions, setConsumptions] = useState<Consumption[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
@@ -235,22 +266,28 @@ export default function EnergyPage() {
       params.set("contractId", selectedContract.id);
       if (selectedSite) params.set("siteId", selectedSite);
 
-      const [analyticsRes, consumptionsRes, alertsRes] = await Promise.all([
+      const [analyticsRes, consumptionsRes, alertsRes, djuRes] = await Promise.all([
         fetch(`/api/consumptions/analytics?${params}`),
         fetch(`/api/consumptions?contractId=${selectedContract.id}`),
         fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
+        fetch(`/api/dju?contractId=${selectedContract.id}&year=${selectedYear}`),
       ]);
 
-      const [analyticsData, consumptionsData, alertsData] = await Promise.all([
+      const [analyticsData, consumptionsData, alertsData, djuDataRes] = await Promise.all([
         analyticsRes.json(),
         consumptionsRes.json(),
         alertsRes.json(),
+        djuRes.json(),
       ]);
 
       if (!analyticsRes.ok) {
         console.error("Analytics error:", analyticsData);
       } else {
         setAnalytics(analyticsData);
+      }
+
+      if (djuRes.ok) {
+        setDjuData(djuDataRes);
       }
 
       setConsumptions(Array.isArray(consumptionsData) ? consumptionsData : []);
@@ -451,6 +488,7 @@ export default function EnergyPage() {
                   onClick={() => {
                     setSelectedContract(null);
                     setAnalytics(null);
+                    setDjuData(null);
                     setConsumptions([]);
                     setSites([]);
                     setSelectedSite("");
@@ -584,6 +622,130 @@ export default function EnergyPage() {
             iconColor="text-red-600"
           />
         </div>
+      )}
+
+      {/* DJU Section - Toujours affiché même sans consommations */}
+      {djuData && (
+        <ChartCard
+          title="Degrés Jours Unifiés (DJU)"
+          subtitle={`Saison ${selectedYear - 1}/${selectedYear} - Base 18°C`}
+        >
+          <div className="space-y-6">
+            {/* DJU Summary Stats */}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-blue-50 rounded-xl p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Snowflake size={20} className="text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700">DJU Réels</span>
+                </div>
+                <p className="text-3xl font-bold text-blue-900">{djuData.summary.djuReelMoyen}</p>
+                <p className="text-xs text-blue-600 mt-1">Cumul saison en cours</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Thermometer size={20} className="text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">DJU Trentenaire</span>
+                </div>
+                <p className="text-3xl font-bold text-gray-900">{djuData.summary.djuTrentenaireToDate}</p>
+                <p className="text-xs text-gray-600 mt-1">Attendu à ce jour (moy. 30 ans)</p>
+              </div>
+              <div className={`rounded-xl p-4 text-center ${djuData.summary.ecart > 0 ? "bg-cyan-50" : "bg-orange-50"}`}>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  {djuData.summary.ecart > 0 ? (
+                    <CloudSnow size={20} className="text-cyan-600" />
+                  ) : (
+                    <Sun size={20} className="text-orange-600" />
+                  )}
+                  <span className={`text-sm font-medium ${djuData.summary.ecart > 0 ? "text-cyan-700" : "text-orange-700"}`}>
+                    Écart
+                  </span>
+                </div>
+                <p className={`text-3xl font-bold ${djuData.summary.ecart > 0 ? "text-cyan-900" : "text-orange-900"}`}>
+                  {djuData.summary.ecart > 0 ? "+" : ""}{djuData.summary.ecart}
+                </p>
+                <p className={`text-xs mt-1 ${djuData.summary.ecart > 0 ? "text-cyan-600" : "text-orange-600"}`}>
+                  {djuData.summary.ecartPercent > 0 ? "+" : ""}{djuData.summary.ecartPercent}% vs trentenaire
+                </p>
+              </div>
+              <div className={`rounded-xl p-4 text-center ${djuData.summary.ecart > 0 ? "bg-cyan-100" : "bg-orange-100"}`}>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <ThermometerSun size={20} className={djuData.summary.ecart > 0 ? "text-cyan-700" : "text-orange-700"} />
+                  <span className={`text-sm font-medium ${djuData.summary.ecart > 0 ? "text-cyan-800" : "text-orange-800"}`}>
+                    Interprétation
+                  </span>
+                </div>
+                <p className={`text-sm font-semibold ${djuData.summary.ecart > 0 ? "text-cyan-900" : "text-orange-900"}`}>
+                  {djuData.summary.interpretation}
+                </p>
+                <p className={`text-xs mt-2 ${djuData.summary.ecart > 0 ? "text-cyan-700" : "text-orange-700"}`}>
+                  {djuData.summary.ecart > 0
+                    ? "Besoins de chauffage supérieurs"
+                    : "Besoins de chauffage inférieurs"}
+                </p>
+              </div>
+            </div>
+
+            {/* DJU Monthly Chart */}
+            {djuData.monthlyData.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-primary-dark mb-3">DJU mensuels</h4>
+                <div className="flex items-end gap-2 h-32">
+                  {djuData.monthlyData.map((m) => {
+                    const maxDju = Math.max(...djuData.monthlyData.map((d) => d.dju));
+                    const height = maxDju > 0 ? (m.dju / maxDju) * 100 : 0;
+                    return (
+                      <div key={m.month} className="flex-1 flex flex-col items-center">
+                        <span className="text-xs font-medium text-primary-dark mb-1">{m.dju}</span>
+                        <div
+                          className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t"
+                          style={{ height: `${height}%`, minHeight: m.dju > 0 ? "4px" : "0" }}
+                        />
+                        <span className="text-xs text-text-secondary mt-1">{m.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* DJU by Site */}
+            {djuData.sites.length > 1 && (
+              <div>
+                <h4 className="text-sm font-medium text-primary-dark mb-3">DJU par site</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium text-text-secondary">Site</th>
+                        <th className="text-left px-3 py-2 font-medium text-text-secondary">Station</th>
+                        <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Réel</th>
+                        <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Trent.</th>
+                        <th className="text-right px-3 py-2 font-medium text-text-secondary">Écart</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {djuData.sites.map((site) => (
+                        <tr key={site.siteId} className="hover:bg-gray-50">
+                          <td className="px-3 py-2">
+                            <p className="font-medium text-primary-dark">{site.siteName}</p>
+                            <p className="text-xs text-gray-500">{site.city}</p>
+                          </td>
+                          <td className="px-3 py-2 text-gray-600">{site.station}</td>
+                          <td className="px-3 py-2 text-right font-medium">{site.djuReel}</td>
+                          <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
+                          <td className={`px-3 py-2 text-right font-medium ${site.ecartTrentenaire > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                            {site.ecartTrentenaire > 0 ? "+" : ""}{site.ecartTrentenaire}
+                            <span className="text-xs ml-1">({site.ecartPercent > 0 ? "+" : ""}{site.ecartPercent}%)</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        </ChartCard>
       )}
 
       {/* Télérelève */}
