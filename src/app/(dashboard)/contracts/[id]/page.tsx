@@ -64,6 +64,7 @@ interface ContractSite {
   amountP1: number | null;
   amountP2: number | null;
   amountP3: number | null;
+  coefficientPCS: number | null;
   integrationDate: string | null;
   exitDate: string | null;
   site: Site;
@@ -359,6 +360,7 @@ export default function ContractDetailPage() {
     hasP4: false,
     amountP2: "",
     amountP3: "",
+    coefficientPCS: "",
   });
 
   // Avenant creation modal
@@ -852,6 +854,7 @@ export default function ContractDetailPage() {
       hasP4: contractSite.hasP4,
       amountP2: contractSite.amountP2?.toString() || "",
       amountP3: contractSite.amountP3?.toString() || "",
+      coefficientPCS: contractSite.coefficientPCS?.toString() || "10.5",
     });
     setShowEditContractSiteModal(true);
   };
@@ -873,6 +876,7 @@ export default function ContractDetailPage() {
           hasP4: editContractSiteFormData.hasP4,
           amountP2: editContractSiteFormData.amountP2 || null,
           amountP3: editContractSiteFormData.amountP3 || null,
+          coefficientPCS: editContractSiteFormData.coefficientPCS || null,
         }),
       });
 
@@ -2635,6 +2639,55 @@ export default function ContractDetailPage() {
                       placeholder="0.00"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Coefficient PCS (conversion gaz) */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-primary-dark mb-3">Coefficient de conversion gaz</p>
+                <div>
+                  <label className="block text-sm text-text-secondary mb-1">
+                    Coefficient PCS (kWh/m³)
+                  </label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={editContractSiteFormData.coefficientPCS}
+                      onChange={(e) =>
+                        setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: e.target.value })
+                      }
+                      className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      placeholder="10.5"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "10.5" })}
+                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                          editContractSiteFormData.coefficientPCS === "10.5"
+                            ? "bg-accent text-white border-accent"
+                            : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        20 mbar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "14.5" })}
+                        className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                          editContractSiteFormData.coefficientPCS === "14.5"
+                            ? "bg-accent text-white border-accent"
+                            : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        300 mbar
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    20 mbar (basse pression) : ~10.5 | 300 mbar (moyenne pression) : ~14.5
+                  </p>
                 </div>
               </div>
 

@@ -69,6 +69,7 @@ export async function PUT(
         amountP1: body.amountP1 !== undefined ? (body.amountP1 ? parseFloat(body.amountP1) : null) : undefined,
         amountP2: body.amountP2 !== undefined ? (body.amountP2 ? parseFloat(body.amountP2) : null) : undefined,
         amountP3: body.amountP3 !== undefined ? (body.amountP3 ? parseFloat(body.amountP3) : null) : undefined,
+        coefficientPCS: body.coefficientPCS !== undefined ? (body.coefficientPCS ? parseFloat(body.coefficientPCS) : null) : undefined,
       },
       include: {
         site: {

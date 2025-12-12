@@ -130,16 +130,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Get sites for matching - filter by contract if provided
+    // Also get PCS coefficient for gas conversion (20 mbar: ~10.5, 300 mbar: ~14.5)
     let sitesQuery: { organizationId: string; id?: { in: string[] } } = {
       organizationId: user.organizationId,
     };
 
+    // Map siteId -> PCS coefficient (for gas m³ to kWh conversion)
+    const sitePcsCoefficients = new Map<string, number>();
+    const DEFAULT_PCS = 10.5; // Default PCS coefficient for 20 mbar (kWh/m³)
+
     if (contractId) {
       const contractSites = await prisma.contractSite.findMany({
         where: { contractId },
-        select: { siteId: true },
+        select: { siteId: true, coefficientPCS: true },
       });
       sitesQuery.id = { in: contractSites.map((cs) => cs.siteId) };
+
+      // Store PCS coefficients per site
+      contractSites.forEach((cs) => {
+        sitePcsCoefficients.set(cs.siteId, cs.coefficientPCS || DEFAULT_PCS);
+      });
     }
 
     const sites = await prisma.site.findMany({
@@ -218,14 +228,21 @@ export async function POST(request: NextRequest) {
         }
 
         // Handle consumption value
-        const quantity = exploitantRow.conso;
+        let quantity = exploitantRow.conso;
         if (quantity === 0) {
           results.skipped++;
           continue;
         }
 
-        // Convert unit
-        const unit = normalizeUnit(exploitantRow.unite);
+        // Convert unit and quantity (gas m³ → kWh using PCS coefficient)
+        const pcsCoefficient = sitePcsCoefficients.get(siteMatch.siteId) || DEFAULT_PCS;
+        const { unit, quantity: convertedQuantity } = normalizeUnitAndQuantity(
+          exploitantRow.unite,
+          quantity,
+          energyType,
+          pcsCoefficient
+        );
+        quantity = convertedQuantity;
 
         // Set period to first day of month
         const periodMonth = new Date(period.getFullYear(), period.getMonth(), 1);
@@ -463,16 +480,38 @@ function excelDateToJSDate(serial: number): Date {
   return new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
 }
 
-// Helper: Normalize unit
-function normalizeUnit(unit: string): string {
+// Helper: Normalize unit and convert quantity if needed (gas m³ → kWh)
+function normalizeUnitAndQuantity(
+  unit: string,
+  quantity: number,
+  energyType: EnergyType,
+  pcsCoefficient: number
+): { unit: string; quantity: number } {
   const unitLower = unit.toLowerCase().replace(/\s/g, "");
 
-  if (unitLower === "m3" || unitLower === "m³") return "m³";
-  if (unitLower === "kwh") return "kWh";
-  if (unitLower === "mwh") return "MWh";
-  if (unitLower === "l" || unitLower === "litres") return "L";
+  // Convert gas m³ to kWh using PCS coefficient
+  // 20 mbar: ~10.5 kWh/m³, 300 mbar: ~14.5 kWh/m³
+  if ((unitLower === "m3" || unitLower === "m³") && energyType === "GAZ") {
+    return {
+      unit: "kWh",
+      quantity: Math.round(quantity * pcsCoefficient * 100) / 100, // Round to 2 decimals
+    };
+  }
 
-  return unit;
+  // MWh to kWh
+  if (unitLower === "mwh") {
+    return {
+      unit: "kWh",
+      quantity: quantity * 1000,
+    };
+  }
+
+  // Keep m³ for water
+  if (unitLower === "m3" || unitLower === "m³") return { unit: "m³", quantity };
+  if (unitLower === "kwh") return { unit: "kWh", quantity };
+  if (unitLower === "l" || unitLower === "litres") return { unit: "L", quantity };
+
+  return { unit, quantity };
 }
 
 // Helper: Update heating season record

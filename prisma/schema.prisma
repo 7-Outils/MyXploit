@@ -534,8 +534,8 @@ model ContractSite {
   // Varie selon T° eau froide, T° ECS, rendement. Typiquement 0.10 à 0.14
   coefficientQ   Float?   @default(0.12)
   // Coefficient PCS : Pouvoir Calorifique Supérieur du gaz (kWh/m³)
-  // Fourni par GRDF, typiquement ~11.2 kWh/m³
-  coefficientPCS Float?   @default(11.2)
+  // 20 mbar (basse pression): ~10.5 kWh/m³, 300 mbar (moyenne pression): ~14.5 kWh/m³
+  coefficientPCS Float?   @default(10.5)
   // Rendement chaudière (pour calculs avancés)
   rendementChaudiere Float? @default(0.90)
 
