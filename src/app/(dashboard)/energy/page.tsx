@@ -27,6 +27,7 @@ import {
   ExternalLink,
   ArrowUpRight,
   ArrowDownRight,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -669,6 +670,34 @@ function EnergyPageContent() {
     setIdexImportResult(null);
   };
 
+  const handleDeleteConsumptions = async () => {
+    if (!selectedContract) return;
+
+    const confirmDelete = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer TOUTES les consommations du contrat "${selectedContract.title}" ?\n\nCette action est irréversible.`
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`/api/consumptions?contractId=${selectedContract.id}`, {
+        method: "DELETE",
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert(`${result.deleted} consommation(s) supprimée(s)`);
+        await fetchData();
+      } else {
+        alert(result.error || "Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error("Error deleting consumptions:", error);
+      alert("Erreur lors de la suppression des consommations");
+    }
+  };
+
   // Chart data
   const chartData = analytics?.monthlyData?.map((m) => ({
     label: m.label,
@@ -903,6 +932,8 @@ function EnergyPageContent() {
           importResult={idexImportResult}
           onImport={handleIdexImport}
           onClose={closeIdexImportModal}
+          onDeleteAll={handleDeleteConsumptions}
+          contractName={selectedContract?.title || ""}
         />
       )}
     </div>
@@ -1947,6 +1978,8 @@ function IdexImportModal({
   importResult,
   onImport,
   onClose,
+  onDeleteAll,
+  contractName,
 }: {
   importing: boolean;
   importResult: {
@@ -1959,8 +1992,17 @@ function IdexImportModal({
   } | null;
   onImport: (file: File) => void;
   onClose: () => void;
+  onDeleteAll: () => void;
+  contractName: string;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAll = async () => {
+    setDeleting(true);
+    await onDeleteAll();
+    setDeleting(false);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2016,6 +2058,39 @@ function IdexImportModal({
               </div>
             </div>
           </div>
+
+          {/* Delete existing consumptions */}
+          {!importResult && (
+            <div className="bg-red-50 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <Trash2 className="text-red-600 mt-0.5" size={20} />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-red-800">Supprimer les données existantes</p>
+                  <p className="text-xs text-red-600 mt-1">
+                    Avant de réimporter, vous pouvez supprimer toutes les consommations du contrat &quot;{contractName}&quot;
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleDeleteAll}
+                    disabled={deleting}
+                    className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {deleting ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Suppression...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={16} />
+                        Supprimer toutes les consommations
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Upload */}
           {!importResult && (

@@ -80,3 +80,55 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE /api/consumptions - Delete consumptions by contract or site
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+
+    if (user.role === "READER") {
+      return NextResponse.json(
+        { error: "Vous n'avez pas les droits pour supprimer des consommations" },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const siteId = searchParams.get("siteId");
+    const contractId = searchParams.get("contractId");
+
+    if (!siteId && !contractId) {
+      return NextResponse.json(
+        { error: "Veuillez spécifier un siteId ou contractId" },
+        { status: 400 }
+      );
+    }
+
+    const where: Record<string, unknown> = { organizationId: user.organizationId };
+
+    if (siteId) {
+      where.siteId = siteId;
+    } else if (contractId) {
+      // Get all sites for this contract
+      const contractSites = await prisma.contractSite.findMany({
+        where: { contractId },
+        select: { siteId: true },
+      });
+      where.siteId = { in: contractSites.map((cs) => cs.siteId) };
+    }
+
+    const result = await prisma.consumption.deleteMany({ where });
+
+    return NextResponse.json({
+      success: true,
+      deleted: result.count,
+      message: `${result.count} consommation(s) supprimée(s)`,
+    });
+  } catch (error) {
+    console.error("Error deleting consumptions:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la suppression des consommations" },
+      { status: 500 }
+    );
+  }
+}
