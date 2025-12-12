@@ -1519,22 +1519,27 @@ function ClimatContent({
       {/* DJU Monthly Chart */}
       {djuData.monthlyData.length > 0 && (
         <ChartCard title="DJU mensuels" subtitle={`Saison ${selectedYear - 1}/${selectedYear}`}>
-          <div className="flex items-end gap-2 h-32">
-            {djuData.monthlyData.map((m) => {
-              const maxDju = Math.max(...djuData.monthlyData.map((d) => d.dju));
-              const height = maxDju > 0 ? (m.dju / maxDju) * 100 : 0;
-              return (
-                <div key={m.month} className="flex-1 flex flex-col items-center">
-                  <span className="text-xs font-medium text-primary-dark mb-1">{m.dju}</span>
-                  <div
-                    className="w-full bg-gradient-to-t from-blue-500 to-blue-300 rounded-t"
-                    style={{ height: `${height}%`, minHeight: m.dju > 0 ? "4px" : "0" }}
-                  />
-                  <span className="text-xs text-text-secondary mt-1">{m.label}</span>
-                </div>
-              );
-            })}
-          </div>
+          {(() => {
+            const maxDju = Math.max(...djuData.monthlyData.map((d) => d.dju), 1);
+            const barAreaHeight = 120; // pixels
+            return (
+              <div className="flex items-end gap-2" style={{ height: barAreaHeight + 40 }}>
+                {djuData.monthlyData.map((m) => {
+                  const barHeight = (m.dju / maxDju) * barAreaHeight;
+                  return (
+                    <div key={m.month} className="flex-1 flex flex-col items-center justify-end" style={{ height: barAreaHeight + 40 }}>
+                      <span className="text-xs font-medium text-primary-dark mb-1">{m.dju}</span>
+                      <div
+                        className="w-full max-w-12 bg-gradient-to-t from-blue-500 to-blue-300 rounded-t"
+                        style={{ height: Math.max(barHeight, m.dju > 0 ? 4 : 0) }}
+                      />
+                      <span className="text-xs text-text-secondary mt-1">{m.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </ChartCard>
       )}
 
