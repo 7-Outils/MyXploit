@@ -693,6 +693,7 @@ model Consumption {
   unit           String      // kWh, m³, L
   cost           Float?      // Coût en €
   djuReel        Float?      // DJU Réels de la période (pour calcul N'B)
+  meterName      String?     // Nom du compteur (ex: "CPT GAZ GrDF BESSON")
   // Champs calculés (optionnel, pour cache)
   quantityEcs    Float?      // Part ECS déduite (si MIXTE)
   quantityChauffage Float?   // Part Chauffage (si MIXTE)
@@ -703,7 +704,7 @@ model Consumption {
   site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([siteId, energyType, usage, period])
+  @@unique([siteId, energyType, usage, period, meterName])
   @@map("consumptions")
 }
 

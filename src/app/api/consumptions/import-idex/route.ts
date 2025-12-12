@@ -278,14 +278,17 @@ export async function POST(request: NextRequest) {
         // Set period to first day of month
         const periodMonth = new Date(period.getFullYear(), period.getMonth(), 1);
 
-        // Upsert consumption
+        // Upsert consumption (with meterName to distinguish different meters)
+        const meterName = exploitantRow.nomCompteur || null;
+
         const existing = await prisma.consumption.findUnique({
           where: {
-            siteId_energyType_usage_period: {
+            siteId_energyType_usage_period_meterName: {
               siteId: siteMatch.siteId,
               energyType,
               usage,
               period: periodMonth,
+              meterName,
             },
           },
         });
@@ -309,6 +312,7 @@ export async function POST(request: NextRequest) {
               period: periodMonth,
               quantity,
               unit,
+              meterName,
             },
           });
           results.imported++;
