@@ -417,25 +417,45 @@ export async function GET(request: NextRequest) {
       heatingSeasons.map((hs) => [hs.siteId, hs])
     );
 
+    // Récupérer la date du dernier relevé/consommation pour chaque site
+    // (utilisé quand la saison est en cours, pas de date de fin)
+    const lastConsumptions = await prisma.consumption.groupBy({
+      by: ["siteId"],
+      where: {
+        siteId: { in: sites.map((s) => s.id) },
+        period: {
+          gte: new Date(`${year - 1}-07-01`),
+          lte: new Date(`${year}-06-30`),
+        },
+      },
+      _max: { period: true },
+    });
+    const lastConsumptionMap = new Map(
+      lastConsumptions.map((lc) => [lc.siteId, lc._max.period])
+    );
+
     // Déterminer la période globale (min startDate, max endDate)
     const today = new Date();
     let globalStartDate = new Date(`${year - 1}-07-01`); // Fallback: 1er juillet N-1
-    // For endDate: use June 30 of the year OR today, whichever is earlier
-    // Open-Meteo archive API only has historical data
-    const seasonEnd = new Date(`${year}-06-30`);
-    let globalEndDate = seasonEnd < today ? seasonEnd : today;
 
-    // Ajuster avec les dates réelles des saisons de chauffage
+    // Trouver la date max nécessaire: max entre les dates de fin de saison et les derniers relevés
+    let maxNeededDate = new Date(`${year - 1}-07-01`);
     heatingSeasons.forEach((hs) => {
       if (hs.startDate < globalStartDate) {
         globalStartDate = hs.startDate;
       }
-      if (hs.endDate && hs.endDate < globalEndDate) {
-        // On garde la date max pour les données météo
-      } else if (!hs.endDate && today < globalEndDate) {
-        // Saison en cours, on utilise aujourd'hui
+      if (hs.endDate && hs.endDate > maxNeededDate) {
+        maxNeededDate = hs.endDate;
       }
     });
+    lastConsumptions.forEach((lc) => {
+      if (lc._max.period && lc._max.period > maxNeededDate) {
+        maxNeededDate = lc._max.period;
+      }
+    });
+
+    // Cap to today for Open-Meteo archive API (only historical data available)
+    let globalEndDate = maxNeededDate > today ? today : maxNeededDate;
 
     const startDate = globalStartDate.toISOString().split("T")[0];
     const endDate = globalEndDate.toISOString().split("T")[0];
@@ -501,17 +521,32 @@ export async function GET(request: NextRequest) {
       let siteStartDate: Date;
       let siteEndDate: Date;
 
+      // Date du dernier relevé pour ce site (si saison en cours)
+      const lastConsumptionDate = lastConsumptionMap.get(site.id);
+
       if (heatingSeason) {
         // Utiliser les dates de la saison de chauffage
         siteStartDate = heatingSeason.startDate;
-        // Si pas de date de fin, utiliser aujourd'hui (saison en cours)
-        const hsEndDate = heatingSeason.endDate || today;
-        siteEndDate = hsEndDate > today ? today : hsEndDate;
+
+        if (heatingSeason.endDate) {
+          // Saison terminée: utiliser la date de fin (compteurs OFF)
+          siteEndDate = heatingSeason.endDate;
+        } else if (lastConsumptionDate) {
+          // Saison en cours: utiliser la date du dernier relevé
+          siteEndDate = lastConsumptionDate;
+        } else {
+          // Pas de relevé encore: utiliser la date de début
+          siteEndDate = heatingSeason.startDate;
+        }
       } else {
-        // Fallback: période par défaut (1er oct - 30 avril ou aujourd'hui)
+        // Fallback: période par défaut (1er oct - 30 avril)
         siteStartDate = new Date(`${year - 1}-10-01`);
-        const defaultEndDate = new Date(`${year}-04-30`);
-        siteEndDate = defaultEndDate > today ? today : defaultEndDate;
+        if (lastConsumptionDate) {
+          siteEndDate = lastConsumptionDate;
+        } else {
+          const defaultEndDate = new Date(`${year}-04-30`);
+          siteEndDate = defaultEndDate > today ? today : defaultEndDate;
+        }
       }
 
       // Filtrer les données DJU selon la période de chauffage du site
