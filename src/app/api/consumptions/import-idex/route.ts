@@ -366,6 +366,10 @@ export async function POST(request: NextRequest) {
       unmatchedSites,
       // List of available sites for manual mapping
       availableSites: sites.map(s => ({ id: s.id, name: s.name })),
+      // Debug: show loaded aliases
+      _debug: {
+        loadedAliases: siteAliases.map(a => ({ alias: a.alias, siteName: a.site.name })),
+      },
     });
   } catch (error) {
     console.error("Error importing IDEX consumptions:", error);
