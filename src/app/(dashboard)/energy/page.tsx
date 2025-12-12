@@ -663,6 +663,9 @@ function EnergyPageContent() {
       });
 
       const result = await response.json();
+      console.log("Import result:", result);
+      console.log("Unmatched sites:", result.unmatchedSites);
+      console.log("Available sites:", result.availableSites);
 
       if (response.ok) {
         setIdexImportResult(result);
@@ -2092,6 +2095,12 @@ function IdexImportModal({
     : [];
   const availableSites = importResult?.availableSites || [];
   const hasMappingsToSave = Object.values(manualMappings).some(v => v);
+
+  // Debug
+  console.log("Modal - importResult:", importResult);
+  console.log("Modal - unmatchedSites:", unmatchedSites);
+  console.log("Modal - matchedSites:", matchedSites);
+  console.log("Modal - availableSites:", availableSites);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
