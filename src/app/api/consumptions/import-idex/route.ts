@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Match site
-        const siteMatch = matchSite(exploitantRow.nomInstallation, siteMatchers, sites);
+        const siteMatch = matchSite(exploitantRow.nomInstallation, siteMatchers);
 
         // Track site matching for feedback
         if (!results.siteMatches[exploitantRow.nomInstallation]) {
@@ -453,8 +453,7 @@ function similarity(a: string, b: string): number {
 // Helper: Match site by name
 function matchSite(
   installationName: string,
-  matchers: ReturnType<typeof createSiteMatchers>,
-  sites: { id: string; name: string; city: string | null }[]
+  matchers: ReturnType<typeof createSiteMatchers>
 ): { siteId?: string; siteName?: string; confidence?: number; suggestions?: Array<{ id: string; name: string; score: number }> } {
   const normalized = normalizeSiteName(installationName);
 
@@ -477,10 +476,10 @@ function matchSite(
     }
   }
 
-  // 3. Try fuzzy matching with Levenshtein distance (handles typos like COMPLEXTE → COMPLEXE)
-  const fuzzyMatches: Array<{ id: string; name: string; score: number }> = [];
+  // 3. Build suggestions using fuzzy matching (for manual selection)
+  const suggestions: Array<{ id: string; name: string; score: number }> = [];
   for (const [siteName, { id, name }] of matchers.normalizedNames) {
-    // Compare word by word for better typo detection
+    // Compare word by word for typo detection
     const installWords = normalized.split(/\s+/).filter(w => w.length > 2);
     const siteWords = siteName.split(/\s+/).filter(w => w.length > 2);
 
@@ -493,7 +492,7 @@ function matchSite(
         const wordSim = similarity(installWord, siteWord);
         if (wordSim > bestWordScore) bestWordScore = wordSim;
       }
-      if (bestWordScore > 0.7) { // Allow ~30% difference (typos)
+      if (bestWordScore > 0.7) {
         matchedWords++;
         totalScore += bestWordScore;
       }
@@ -503,68 +502,26 @@ function matchSite(
     const matchRatio = matchedWords / Math.max(installWords.length, siteWords.length);
     const avgScore = matchedWords > 0 ? (totalScore / matchedWords) * matchRatio : 0;
 
-    if (avgScore > 0.5) {
-      fuzzyMatches.push({ id, name, score: avgScore });
+    if (avgScore > 0.4) {
+      suggestions.push({ id, name, score: avgScore });
     }
   }
 
-  // Sort by score and take best match
-  fuzzyMatches.sort((a, b) => b.score - a.score);
-  if (fuzzyMatches.length > 0 && fuzzyMatches[0].score > 0.6) {
+  // Sort suggestions by score
+  suggestions.sort((a, b) => b.score - a.score);
+
+  // Only auto-match if VERY confident (score > 0.85 = almost exact match)
+  if (suggestions.length > 0 && suggestions[0].score > 0.85) {
     return {
-      siteId: fuzzyMatches[0].id,
-      siteName: fuzzyMatches[0].name,
-      confidence: fuzzyMatches[0].score,
-      suggestions: fuzzyMatches.slice(0, 3)
+      siteId: suggestions[0].id,
+      siteName: suggestions[0].name,
+      confidence: suggestions[0].score,
+      suggestions: suggestions.slice(0, 5)
     };
   }
 
-  // 4. Try keyword matching - find site with most matching keywords
-  const words = normalized.split(/\s+/).filter((w) => w.length > 3);
-  const scores = new Map<string, { count: number; name: string }>();
-
-  for (const word of words) {
-    const matches = matchers.keywords.get(word);
-    if (matches) {
-      for (const match of matches) {
-        const current = scores.get(match.id) || { count: 0, name: match.name };
-        current.count++;
-        scores.set(match.id, current);
-      }
-    }
-  }
-
-  // Find best match (at least 2 keywords)
-  let bestMatch: { id: string; name: string; count: number } | null = null;
-  for (const [id, { count, name }] of scores) {
-    if (count >= 2 && (!bestMatch || count > bestMatch.count)) {
-      bestMatch = { id, name, count };
-    }
-  }
-
-  if (bestMatch) {
-    return { siteId: bestMatch.id, siteName: bestMatch.name, confidence: 0.7 };
-  }
-
-  // 5. Try city matching as last resort (if city is in installation name)
-  for (const site of sites) {
-    if (site.city) {
-      const normalizedCity = normalizeSiteName(site.city);
-      if (normalized.includes(normalizedCity) && normalizedCity.length > 4) {
-        // Check if site type is also in name
-        const siteNormalized = normalizeSiteName(site.name);
-        const siteTypeWords = ["ecole", "maternelle", "elementaire", "college", "lycee", "gymnase", "piscine", "mairie", "tribune", "complexe", "sportif"];
-        for (const typeWord of siteTypeWords) {
-          if (normalized.includes(typeWord) && siteNormalized.includes(typeWord)) {
-            return { siteId: site.id, siteName: site.name, confidence: 0.6 };
-          }
-        }
-      }
-    }
-  }
-
-  // No match found - return suggestions if available
-  return { suggestions: fuzzyMatches.slice(0, 5) };
+  // No confident match - return suggestions for manual selection
+  return { suggestions: suggestions.slice(0, 5) };
 }
 
 // Helper: Map meter type to energy type and usage (works for any exploitant)
