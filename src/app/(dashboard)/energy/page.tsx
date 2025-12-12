@@ -28,6 +28,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Trash2,
+  Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -1994,12 +1995,28 @@ function IdexImportModal({
     skipped: number;
     errors: { row: number; site: string; error: string }[];
     totalErrors: number;
-    siteMatches: Record<string, { matched: boolean; siteId?: string; siteName?: string }>;
+    siteMatches: Record<string, {
+      matched: boolean;
+      siteId?: string;
+      siteName?: string;
+      confidence?: number;
+      suggestions?: Array<{ id: string; name: string; score: number }>;
+      rowCount?: number;
+    }>;
+    unmatchedSites?: Array<{
+      excelName: string;
+      rowCount: number;
+      suggestions: Array<{ id: string; name: string; score: number }>;
+    }>;
+    availableSites?: Array<{ id: string; name: string }>;
   } | null;
   onImport: (file: File) => void;
   onClose: () => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [manualMappings, setManualMappings] = useState<Record<string, string>>({});
+  const [savingMappings, setSavingMappings] = useState(false);
+  const [mappingsSaved, setMappingsSaved] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2014,12 +2031,54 @@ function IdexImportModal({
     }
   };
 
-  const unmatchedSites = importResult
-    ? Object.entries(importResult.siteMatches).filter(([, v]) => !v.matched)
-    : [];
+  const handleMappingChange = (excelName: string, siteId: string) => {
+    setManualMappings(prev => ({
+      ...prev,
+      [excelName]: siteId
+    }));
+  };
+
+  const handleSaveMappings = async () => {
+    const mappingsToSave = Object.entries(manualMappings).filter(([, siteId]) => siteId);
+    if (mappingsToSave.length === 0) return;
+
+    setSavingMappings(true);
+    try {
+      const response = await fetch("/api/site-aliases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          mappingsToSave.map(([alias, siteId]) => ({
+            alias,
+            siteId,
+            source: "EXPLOITANT"
+          }))
+        ),
+      });
+
+      if (response.ok) {
+        setMappingsSaved(true);
+      }
+    } catch (error) {
+      console.error("Error saving mappings:", error);
+    } finally {
+      setSavingMappings(false);
+    }
+  };
+
+  const unmatchedSites = importResult?.unmatchedSites ||
+    (importResult ? Object.entries(importResult.siteMatches)
+      .filter(([, v]) => !v.matched)
+      .map(([excelName, v]) => ({
+        excelName,
+        rowCount: v.rowCount || 0,
+        suggestions: v.suggestions || []
+      })) : []);
   const matchedSites = importResult
     ? Object.entries(importResult.siteMatches).filter(([, v]) => v.matched)
     : [];
+  const availableSites = importResult?.availableSites || [];
+  const hasMappingsToSave = Object.values(manualMappings).some(v => v);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -2136,20 +2195,78 @@ function IdexImportModal({
 
               {unmatchedSites.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-red-700 mb-2 flex items-center gap-1">
+                  <p className="text-sm font-medium text-amber-700 mb-2 flex items-center gap-1">
                     <AlertTriangle size={16} />
-                    Sites non reconnus ({unmatchedSites.length})
+                    Sites non reconnus ({unmatchedSites.length}) - Effectuez la correspondance manuellement
                   </p>
-                  <div className="bg-red-50 rounded-lg p-3 max-h-32 overflow-y-auto">
-                    <div className="space-y-1">
-                      {unmatchedSites.map(([idexName]) => (
-                        <p key={idexName} className="text-xs text-red-700">{idexName}</p>
+                  <div className="bg-amber-50 rounded-lg p-3 max-h-64 overflow-y-auto">
+                    <div className="space-y-3">
+                      {unmatchedSites.map((site) => (
+                        <div key={site.excelName} className="border-b border-amber-200 pb-2 last:border-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-amber-900 truncate">{site.excelName}</p>
+                              <p className="text-xs text-amber-600">{site.rowCount} ligne(s) ignorée(s)</p>
+                            </div>
+                            <select
+                              className="text-xs border border-amber-300 rounded px-2 py-1 bg-white max-w-[200px]"
+                              value={manualMappings[site.excelName] || ""}
+                              onChange={(e) => handleMappingChange(site.excelName, e.target.value)}
+                            >
+                              <option value="">-- Sélectionner un site --</option>
+                              {site.suggestions.length > 0 && (
+                                <optgroup label="Suggestions">
+                                  {site.suggestions.map((s) => (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name} ({Math.round(s.score * 100)}%)
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              <optgroup label="Tous les sites">
+                                {availableSites.map((s) => (
+                                  <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                              </optgroup>
+                            </select>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Vérifiez que ces sites existent dans le contrat sélectionné avec un nom similaire.
-                  </p>
+                  {hasMappingsToSave && (
+                    <div className="mt-3 flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveMappings}
+                        disabled={savingMappings}
+                        className="text-xs"
+                      >
+                        {savingMappings ? (
+                          <>
+                            <Loader2 size={14} className="mr-1 animate-spin" />
+                            Enregistrement...
+                          </>
+                        ) : mappingsSaved ? (
+                          <>
+                            <Check size={14} className="mr-1" />
+                            Correspondances enregistrées
+                          </>
+                        ) : (
+                          <>
+                            <Save size={14} className="mr-1" />
+                            Enregistrer les correspondances
+                          </>
+                        )}
+                      </Button>
+                      {mappingsSaved && (
+                        <span className="text-xs text-green-600">
+                          Relancez l&apos;import pour importer ces sites
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

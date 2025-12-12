@@ -157,15 +157,33 @@ export async function POST(request: NextRequest) {
       select: { id: true, name: true, city: true },
     });
 
+    // Get site aliases for this organization (for fuzzy matching)
+    const siteAliases = await prisma.siteAlias.findMany({
+      where: { organizationId: user.organizationId },
+      select: { alias: true, siteId: true, site: { select: { name: true } } },
+    });
+
     // Create lookup maps for site matching
-    const siteMatchers = createSiteMatchers(sites);
+    const siteMatchers = createSiteMatchers(sites, siteAliases);
 
     const results = {
       imported: 0,
       updated: 0,
       skipped: 0,
       errors: [] as { row: number; site: string; error: string }[],
-      siteMatches: {} as Record<string, { matched: boolean; siteId?: string; siteName?: string }>,
+      siteMatches: {} as Record<string, {
+        matched: boolean;
+        siteId?: string;
+        siteName?: string;
+        confidence?: number;
+        suggestions?: Array<{ id: string; name: string; score: number }>;
+        rowCount?: number;
+      }>,
+      unmatchedSites: [] as Array<{
+        excelName: string;
+        rowCount: number;
+        suggestions: Array<{ id: string; name: string; score: number }>;
+      }>,
     };
 
     // Process data rows
@@ -195,16 +213,27 @@ export async function POST(request: NextRequest) {
         // Track site matching for feedback
         if (!results.siteMatches[exploitantRow.nomInstallation]) {
           results.siteMatches[exploitantRow.nomInstallation] = siteMatch.siteId
-            ? { matched: true, siteId: siteMatch.siteId, siteName: siteMatch.siteName }
-            : { matched: false };
+            ? {
+                matched: true,
+                siteId: siteMatch.siteId,
+                siteName: siteMatch.siteName,
+                confidence: siteMatch.confidence,
+                suggestions: siteMatch.suggestions,
+                rowCount: 1
+              }
+            : {
+                matched: false,
+                suggestions: siteMatch.suggestions,
+                rowCount: 1
+              };
+        } else {
+          // Increment row count for this site
+          results.siteMatches[exploitantRow.nomInstallation].rowCount =
+            (results.siteMatches[exploitantRow.nomInstallation].rowCount || 0) + 1;
         }
 
         if (!siteMatch.siteId) {
-          results.errors.push({
-            row: rowNum,
-            site: exploitantRow.nomInstallation,
-            error: "Site non trouvé",
-          });
+          results.skipped++;
           continue;
         }
 
@@ -314,6 +343,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Build unmatched sites list for UI
+    const unmatchedSites = Object.entries(results.siteMatches)
+      .filter(([, match]) => !match.matched)
+      .map(([excelName, match]) => ({
+        excelName,
+        rowCount: match.rowCount || 0,
+        suggestions: match.suggestions || [],
+      }))
+      .sort((a, b) => b.rowCount - a.rowCount);
+
     return NextResponse.json({
       success: true,
       imported: results.imported,
@@ -322,6 +361,9 @@ export async function POST(request: NextRequest) {
       errors: results.errors.slice(0, 20),
       totalErrors: results.errors.length,
       siteMatches: results.siteMatches,
+      unmatchedSites,
+      // List of available sites for manual mapping
+      availableSites: sites.map(s => ({ id: s.id, name: s.name })),
     });
   } catch (error) {
     console.error("Error importing IDEX consumptions:", error);
@@ -333,9 +375,19 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper: Create site matchers for fuzzy matching
-function createSiteMatchers(sites: { id: string; name: string; city: string | null }[]) {
+function createSiteMatchers(
+  sites: { id: string; name: string; city: string | null }[],
+  aliases: { alias: string; siteId: string; site: { name: string } }[]
+) {
   const normalizedNames = new Map<string, { id: string; name: string }>();
   const keywords = new Map<string, { id: string; name: string }[]>();
+  const aliasMap = new Map<string, { id: string; name: string }>();
+
+  // Build alias map first (priority over name matching)
+  for (const alias of aliases) {
+    const normalized = normalizeSiteName(alias.alias);
+    aliasMap.set(normalized, { id: alias.siteId, name: alias.site.name });
+  }
 
   for (const site of sites) {
     // Normalize full name
@@ -352,7 +404,7 @@ function createSiteMatchers(sites: { id: string; name: string; city: string | nu
     }
   }
 
-  return { normalizedNames, keywords };
+  return { normalizedNames, keywords, aliasMap };
 }
 
 // Helper: Normalize site name for matching
@@ -366,28 +418,108 @@ function normalizeSiteName(name: string): string {
     .trim();
 }
 
+// Helper: Calculate Levenshtein distance between two strings
+function levenshteinDistance(a: string, b: string): number {
+  const matrix: number[][] = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+// Helper: Calculate similarity ratio (0 to 1)
+function similarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshteinDistance(a, b) / maxLen;
+}
+
 // Helper: Match site by name
 function matchSite(
   installationName: string,
   matchers: ReturnType<typeof createSiteMatchers>,
   sites: { id: string; name: string; city: string | null }[]
-): { siteId?: string; siteName?: string } {
+): { siteId?: string; siteName?: string; confidence?: number; suggestions?: Array<{ id: string; name: string; score: number }> } {
   const normalized = normalizeSiteName(installationName);
+
+  // 0. Try alias match first (exact match from saved aliases)
+  const aliasMatch = matchers.aliasMap.get(normalized);
+  if (aliasMatch) {
+    return { siteId: aliasMatch.id, siteName: aliasMatch.name, confidence: 1 };
+  }
 
   // 1. Try exact match
   const exact = matchers.normalizedNames.get(normalized);
   if (exact) {
-    return { siteId: exact.id, siteName: exact.name };
+    return { siteId: exact.id, siteName: exact.name, confidence: 1 };
   }
 
   // 2. Try partial match - check if normalized name contains site name or vice versa
   for (const [siteName, { id, name }] of matchers.normalizedNames) {
     if (normalized.includes(siteName) || siteName.includes(normalized)) {
-      return { siteId: id, siteName: name };
+      return { siteId: id, siteName: name, confidence: 0.9 };
     }
   }
 
-  // 3. Try keyword matching - find site with most matching keywords
+  // 3. Try fuzzy matching with Levenshtein distance (handles typos like COMPLEXTE → COMPLEXE)
+  const fuzzyMatches: Array<{ id: string; name: string; score: number }> = [];
+  for (const [siteName, { id, name }] of matchers.normalizedNames) {
+    // Compare word by word for better typo detection
+    const installWords = normalized.split(/\s+/).filter(w => w.length > 2);
+    const siteWords = siteName.split(/\s+/).filter(w => w.length > 2);
+
+    let matchedWords = 0;
+    let totalScore = 0;
+
+    for (const installWord of installWords) {
+      let bestWordScore = 0;
+      for (const siteWord of siteWords) {
+        const wordSim = similarity(installWord, siteWord);
+        if (wordSim > bestWordScore) bestWordScore = wordSim;
+      }
+      if (bestWordScore > 0.7) { // Allow ~30% difference (typos)
+        matchedWords++;
+        totalScore += bestWordScore;
+      }
+    }
+
+    // Calculate overall score
+    const matchRatio = matchedWords / Math.max(installWords.length, siteWords.length);
+    const avgScore = matchedWords > 0 ? (totalScore / matchedWords) * matchRatio : 0;
+
+    if (avgScore > 0.5) {
+      fuzzyMatches.push({ id, name, score: avgScore });
+    }
+  }
+
+  // Sort by score and take best match
+  fuzzyMatches.sort((a, b) => b.score - a.score);
+  if (fuzzyMatches.length > 0 && fuzzyMatches[0].score > 0.6) {
+    return {
+      siteId: fuzzyMatches[0].id,
+      siteName: fuzzyMatches[0].name,
+      confidence: fuzzyMatches[0].score,
+      suggestions: fuzzyMatches.slice(0, 3)
+    };
+  }
+
+  // 4. Try keyword matching - find site with most matching keywords
   const words = normalized.split(/\s+/).filter((w) => w.length > 3);
   const scores = new Map<string, { count: number; name: string }>();
 
@@ -411,27 +543,28 @@ function matchSite(
   }
 
   if (bestMatch) {
-    return { siteId: bestMatch.id, siteName: bestMatch.name };
+    return { siteId: bestMatch.id, siteName: bestMatch.name, confidence: 0.7 };
   }
 
-  // 4. Try city matching as last resort (if city is in installation name)
+  // 5. Try city matching as last resort (if city is in installation name)
   for (const site of sites) {
     if (site.city) {
       const normalizedCity = normalizeSiteName(site.city);
       if (normalized.includes(normalizedCity) && normalizedCity.length > 4) {
         // Check if site type is also in name
         const siteNormalized = normalizeSiteName(site.name);
-        const siteTypeWords = ["ecole", "maternelle", "elementaire", "college", "lycee", "gymnase", "piscine", "mairie"];
+        const siteTypeWords = ["ecole", "maternelle", "elementaire", "college", "lycee", "gymnase", "piscine", "mairie", "tribune", "complexe", "sportif"];
         for (const typeWord of siteTypeWords) {
           if (normalized.includes(typeWord) && siteNormalized.includes(typeWord)) {
-            return { siteId: site.id, siteName: site.name };
+            return { siteId: site.id, siteName: site.name, confidence: 0.6 };
           }
         }
       }
     }
   }
 
-  return {};
+  // No match found - return suggestions if available
+  return { suggestions: fuzzyMatches.slice(0, 5) };
 }
 
 // Helper: Map meter type to energy type and usage (works for any exploitant)

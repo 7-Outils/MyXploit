@@ -25,6 +25,7 @@ model Organization {
   // Relations
   users           User[]
   sites           Site[]
+  siteAliases     SiteAlias[]
   contracts       Contract[]
   invoices        Invoice[]
   quotes          Quote[]
@@ -149,8 +150,30 @@ model Site {
   quotes          Quote[]
   poolBasins      PoolBasin[]     // Bassins de piscine pour ce site
   heatingSeasons  HeatingSeason[] // Saisons de chauffage (dates allumage/arrêt)
+  aliases         SiteAlias[]     // Alias pour l'import de données
 
   @@map("sites")
+}
+
+// Alias de site pour l'import de données
+// Permet de mapper les noms de sites des fichiers Excel aux sites existants
+model SiteAlias {
+  id             String   @id @default(cuid())
+  alias          String   // Le nom dans le fichier Excel (ex: "COMPLEXTE SPORTIF CHRISTINE CARON")
+  source         String?  // Source du fichier (ex: "IDEX", "ENGIE", "DALKIA")
+  siteId         String   // Le site correspondant
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([alias, source, organizationId]) // Un alias unique par source et organisation
+  @@index([organizationId])
+  @@index([alias])
+  @@map("site_aliases")
 }
 
 // ============================================
