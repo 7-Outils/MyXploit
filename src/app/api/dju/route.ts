@@ -628,31 +628,59 @@ export async function GET(request: NextRequest) {
     // Filtrer pour ne garder que les sites avec des relevés
     const sitesWithData = siteResults.filter((s) => s.hasConsumptions);
 
-    // Calculate global summary (only for sites with data)
-    const sitesCount = sitesWithData.length || 1; // Avoid division by zero
-    const totalDjuReel = sitesWithData.reduce((sum, s) => sum + s.djuReel, 0) / sitesCount;
-    const totalDjuTrentenaire =
-      sitesWithData.reduce((sum, s) => sum + s.djuTrentenaire, 0) / sitesCount;
-    const totalDjuTrentenaireToDate =
-      sitesWithData.reduce((sum, s) => sum + s.djuTrentenaireToDate, 0) / sitesCount;
+    // Calculate global DJU from weather station for the entire period
+    // Use the first station's data (all sites in same area use same station)
+    const firstStationEntry = Array.from(stationMap.entries())[0];
+    const globalStationData = firstStationEntry ? firstStationEntry[1].djuData || [] : [];
 
-    // Aggregate monthly data
-    const monthlyAggregated = new Map<string, { dju: number; count: number }>();
-    sitesWithData.forEach((site) => {
-      site.monthlyData.forEach((m) => {
-        const existing = monthlyAggregated.get(m.month) || { dju: 0, count: 0 };
-        existing.dju += m.dju;
-        existing.count += 1;
-        monthlyAggregated.set(m.month, existing);
-      });
+    // Calculate DJU for the global period (earliest start to latest consumption)
+    let globalEarliestStart = new Date(`${year}-12-31`);
+    let globalLatestEnd = new Date(`${year - 1}-01-01`);
+
+    sitesWithData.forEach((s) => {
+      const sStart = new Date(s.heatingStartDate);
+      const sEnd = new Date(s.heatingEndDate);
+      if (sStart < globalEarliestStart) globalEarliestStart = sStart;
+      if (sEnd > globalLatestEnd) globalLatestEnd = sEnd;
     });
 
-    const globalMonthlyData = Array.from(monthlyAggregated.entries())
+    // Filter station data for the global period
+    const globalPeriodDju = globalStationData.filter((d: DJUData) => {
+      const date = new Date(d.date);
+      return date >= globalEarliestStart && date <= globalLatestEnd;
+    });
+
+    const totalDjuReel = globalPeriodDju.reduce((sum: number, d: DJUData) => sum + d.dju, 0);
+
+    // Calculate DJU trentenaire for the same period
+    const globalMonths = new Set<string>();
+    globalPeriodDju.forEach((d: DJUData) => {
+      globalMonths.add(d.date.substring(5, 7)); // Extract month "MM"
+    });
+
+    const avgDjuTrentenaire = firstStationEntry
+      ? (DJU_TRENTENAIRES[firstStationEntry[0]] || 2450)
+      : 2450;
+
+    let totalDjuTrentenaireToDate = 0;
+    globalMonths.forEach((monthNum) => {
+      totalDjuTrentenaireToDate += avgDjuTrentenaire * (DJU_MONTHLY_RATIO[monthNum] || 0);
+    });
+
+    // Aggregate monthly data from station (not from sites)
+    const monthlyFromStation = new Map<string, number>();
+    globalPeriodDju.forEach((d: DJUData) => {
+      const month = d.date.substring(0, 7); // "YYYY-MM"
+      const existing = monthlyFromStation.get(month) || 0;
+      monthlyFromStation.set(month, existing + d.dju);
+    });
+
+    const globalMonthlyData = Array.from(monthlyFromStation.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, data]) => ({
+      .map(([month, dju]) => ({
         month,
         label: formatMonthLabel(month),
-        dju: Math.round(data.dju / data.count),
+        dju: Math.round(dju),
       }));
 
     return NextResponse.json({
@@ -660,7 +688,7 @@ export async function GET(request: NextRequest) {
       period: { start: startDate, end: endDate },
       summary: {
         djuReelMoyen: Math.round(totalDjuReel),
-        djuTrentenaireMoyen: Math.round(totalDjuTrentenaire),
+        djuTrentenaireMoyen: Math.round(avgDjuTrentenaire),
         djuTrentenaireToDate: Math.round(totalDjuTrentenaireToDate),
         ecart: Math.round(totalDjuReel - totalDjuTrentenaireToDate),
         ecartPercent:
