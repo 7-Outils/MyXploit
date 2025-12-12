@@ -244,7 +244,20 @@ function EnergyPageContent() {
     skipped: number;
     errors: { row: number; site: string; error: string }[];
     totalErrors: number;
-    siteMatches: Record<string, { matched: boolean; siteId?: string; siteName?: string }>;
+    siteMatches: Record<string, {
+      matched: boolean;
+      siteId?: string;
+      siteName?: string;
+      confidence?: number;
+      suggestions?: Array<{ id: string; name: string; score: number }>;
+      rowCount?: number;
+    }>;
+    unmatchedSites?: Array<{
+      excelName: string;
+      rowCount: number;
+      suggestions: Array<{ id: string; name: string; score: number }>;
+    }>;
+    availableSites?: Array<{ id: string; name: string }>;
   } | null>(null);
 
   // Heating season form
