@@ -287,24 +287,6 @@ export async function GET(request: NextRequest) {
       deltaPercent: data.nbPrime > 0 ? Math.round(((data.nc - data.nbPrime) / data.nbPrime) * 1000) / 10 : 0,
     }));
 
-    // Debug: log per-site monthly data
-    const _debug = {
-      queryPeriod: { start: startDate.toISOString(), end: endDate.toISOString() },
-      sitesWithMonthlyData: sitePerformances.map(s => ({
-        name: s.siteName,
-        nc: s.nc,
-        monthlyDataLength: s.monthlyData.length,
-        monthlyData: s.monthlyData,
-      })),
-      consumptionsFound: consumptions.length,
-      consumptionsSample: consumptions.slice(0, 5).map(c => ({
-        siteName: c.site.name,
-        period: c.period.toISOString(),
-        usage: c.usage,
-        quantity: c.quantity,
-      })),
-    };
-
     return NextResponse.json({
       year,
       period: {
@@ -325,7 +307,6 @@ export async function GET(request: NextRequest) {
       monthlyData: globalMonthlyData,
       performanceByType,
       sites: sitePerformances,
-      _debug,
     });
   } catch (error) {
     console.error("Error fetching consumption analytics:", error);
