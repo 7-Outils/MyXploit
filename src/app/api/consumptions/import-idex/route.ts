@@ -514,9 +514,67 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Auto-create meters in the metering schema
+    const metersCreated: string[] = [];
+    const uniqueMeters = new Map<string, {
+      siteId: string;
+      meterName: string;
+      energyType: EnergyType;
+      unit: string;
+    }>();
+
+    // Collect unique meters per site
+    for (const data of meterData.values()) {
+      if (data.meterName) {
+        const key = `${data.siteId}|${data.meterName}`;
+        if (!uniqueMeters.has(key)) {
+          uniqueMeters.set(key, {
+            siteId: data.siteId,
+            meterName: data.meterName,
+            energyType: data.energyType,
+            unit: data.unit,
+          });
+        }
+      }
+    }
+
+    // Create meters if they don't exist
+    for (const meter of uniqueMeters.values()) {
+      try {
+        // Check if meter already exists for this site
+        const existingMeter = await prisma.meter.findFirst({
+          where: {
+            siteId: meter.siteId,
+            name: meter.meterName,
+          },
+        });
+
+        if (!existingMeter) {
+          // Map energyType to MeterFluid
+          const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
+
+          await prisma.meter.create({
+            data: {
+              siteId: meter.siteId,
+              name: meter.meterName,
+              fluid,
+              type: "DIVISIONNAIRE", // Default, user can change to PRINCIPAL later
+              dataSource: "MANUEL",
+              unit: meter.unit,
+              isActive: true,
+            },
+          });
+          metersCreated.push(meter.meterName);
+        }
+      } catch (err) {
+        console.error("Error creating meter:", meter.meterName, err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       mode: "import",
+      metersCreated: metersCreated.length,
       imported: results.imported,
       updated: results.updated,
       skipped: results.skipped,
@@ -845,4 +903,53 @@ async function createWaterMakeupAlert(
       message: `Le site ${siteName} a un appoint d'eau de ${quantity} m³ pour ${date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}. Cela peut indiquer une fuite dans le réseau de chauffage.`,
     },
   });
+}
+
+// Helper: Map EnergyType to MeterFluid based on energy type and meter name
+function mapEnergyTypeToFluid(
+  energyType: EnergyType,
+  meterName: string
+): "GAZ" | "ELECTRICITE" | "EAU_CHAUDE" | "EAU_FROIDE" | "CHALEUR" | "FIOUL" {
+  const nameLower = meterName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Check meter name for specific indicators
+  if (nameLower.includes("ecs") || nameLower.includes("eau chaude") || nameLower.includes("sanitaire")) {
+    return "EAU_CHAUDE";
+  }
+  if (nameLower.includes("eau froide") || nameLower.includes("ef ")) {
+    return "EAU_FROIDE";
+  }
+  if (nameLower.includes("chaleur") || nameLower.includes("rcu") || nameLower.includes("reseau")) {
+    return "CHALEUR";
+  }
+  if (nameLower.includes("fioul") || nameLower.includes("fuel")) {
+    return "FIOUL";
+  }
+
+  // Map by energy type
+  switch (energyType) {
+    case "GAZ":
+      return "GAZ";
+    case "ELECTRICITE":
+      return "ELECTRICITE";
+    case "FIOUL":
+      return "FIOUL";
+    case "RESEAU_CHALEUR":
+      return "CHALEUR";
+    case "EAU":
+      // Distinguish between hot and cold water
+      if (nameLower.includes("chauff") || nameLower.includes("calori")) {
+        return "CHALEUR";
+      }
+      return "EAU_FROIDE";
+    default:
+      // Default based on common patterns
+      if (nameLower.includes("gaz") || nameLower.includes("grdf")) {
+        return "GAZ";
+      }
+      if (nameLower.includes("elec") || nameLower.includes("pdl")) {
+        return "ELECTRICITE";
+      }
+      return "GAZ"; // Default fallback
+  }
 }
