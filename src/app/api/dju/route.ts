@@ -420,9 +420,10 @@ export async function GET(request: NextRequest) {
     // Déterminer la période globale (min startDate, max endDate)
     const today = new Date();
     let globalStartDate = new Date(`${year - 1}-07-01`); // Fallback: 1er juillet N-1
-    let globalEndDate = today.getFullYear() === year && today.getMonth() < 6
-      ? today
-      : new Date(`${year}-06-30`); // Fallback: 30 juin N
+    // For endDate: use June 30 of the year OR today, whichever is earlier
+    // Open-Meteo archive API only has historical data
+    const seasonEnd = new Date(`${year}-06-30`);
+    let globalEndDate = seasonEnd < today ? seasonEnd : today;
 
     // Ajuster avec les dates réelles des saisons de chauffage
     heatingSeasons.forEach((hs) => {
@@ -503,13 +504,14 @@ export async function GET(request: NextRequest) {
       if (heatingSeason) {
         // Utiliser les dates de la saison de chauffage
         siteStartDate = heatingSeason.startDate;
-        siteEndDate = heatingSeason.endDate || today; // Si pas d'arrêt, utiliser aujourd'hui
+        // Si pas de date de fin, utiliser aujourd'hui (saison en cours)
+        const hsEndDate = heatingSeason.endDate || today;
+        siteEndDate = hsEndDate > today ? today : hsEndDate;
       } else {
         // Fallback: période par défaut (1er oct - 30 avril ou aujourd'hui)
         siteStartDate = new Date(`${year - 1}-10-01`);
-        siteEndDate = today.getFullYear() === year && today.getMonth() < 4
-          ? today
-          : new Date(`${year}-04-30`);
+        const defaultEndDate = new Date(`${year}-04-30`);
+        siteEndDate = defaultEndDate > today ? today : defaultEndDate;
       }
 
       // Filtrer les données DJU selon la période de chauffage du site
