@@ -231,6 +231,7 @@ function EnergyPageContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showIdexImportModal, setShowIdexImportModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -670,14 +671,8 @@ function EnergyPageContent() {
     setIdexImportResult(null);
   };
 
-  const handleDeleteConsumptions = async () => {
+  const handleDeleteConsumptions = async (): Promise<void> => {
     if (!selectedContract) return;
-
-    const confirmDelete = window.confirm(
-      `Êtes-vous sûr de vouloir supprimer TOUTES les consommations du contrat "${selectedContract.title}" ?\n\nCette action est irréversible.`
-    );
-
-    if (!confirmDelete) return;
 
     try {
       const response = await fetch(`/api/consumptions?contractId=${selectedContract.id}`, {
@@ -687,7 +682,6 @@ function EnergyPageContent() {
       const result = await response.json();
 
       if (response.ok) {
-        alert(`${result.deleted} consommation(s) supprimée(s)`);
         await fetchData();
       } else {
         alert(result.error || "Erreur lors de la suppression");
@@ -817,6 +811,13 @@ function EnergyPageContent() {
               </option>
             ))}
           </select>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2 text-sm"
+          >
+            <Trash2 size={16} />
+            Supprimer données
+          </button>
         </div>
       </div>
 
@@ -932,8 +933,15 @@ function EnergyPageContent() {
           importResult={idexImportResult}
           onImport={handleIdexImport}
           onClose={closeIdexImportModal}
-          onDeleteAll={handleDeleteConsumptions}
+        />
+      )}
+
+      {/* Delete Consumptions Modal */}
+      {showDeleteModal && (
+        <DeleteConsumptionsModal
           contractName={selectedContract?.title || ""}
+          onDelete={handleDeleteConsumptions}
+          onClose={() => setShowDeleteModal(false)}
         />
       )}
     </div>
@@ -1978,8 +1986,6 @@ function IdexImportModal({
   importResult,
   onImport,
   onClose,
-  onDeleteAll,
-  contractName,
 }: {
   importing: boolean;
   importResult: {
@@ -1992,17 +1998,8 @@ function IdexImportModal({
   } | null;
   onImport: (file: File) => void;
   onClose: () => void;
-  onDeleteAll: () => void;
-  contractName: string;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDeleteAll = async () => {
-    setDeleting(true);
-    await onDeleteAll();
-    setDeleting(false);
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2058,39 +2055,6 @@ function IdexImportModal({
               </div>
             </div>
           </div>
-
-          {/* Delete existing consumptions */}
-          {!importResult && (
-            <div className="bg-red-50 rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <Trash2 className="text-red-600 mt-0.5" size={20} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-red-800">Supprimer les données existantes</p>
-                  <p className="text-xs text-red-600 mt-1">
-                    Avant de réimporter, vous pouvez supprimer toutes les consommations du contrat &quot;{contractName}&quot;
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleDeleteAll}
-                    disabled={deleting}
-                    className="mt-3 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {deleting ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Suppression...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 size={16} />
-                        Supprimer toutes les consommations
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Upload */}
           {!importResult && (
@@ -2217,6 +2181,79 @@ function IdexImportModal({
                 </Button>
               </>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal de suppression des consommations
+function DeleteConsumptionsModal({
+  contractName,
+  onDelete,
+  onClose,
+}: {
+  contractName: string;
+  onDelete: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    await onDelete();
+    setDeleting(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <Trash2 className="text-red-600" size={20} />
+            </div>
+            <h2 className="text-xl font-bold text-primary-dark">Supprimer les consommations</h2>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-red-50 rounded-xl p-4">
+            <p className="text-sm text-red-800">
+              <strong>Attention :</strong> Cette action est irréversible. Toutes les consommations du contrat seront supprimées.
+            </p>
+          </div>
+
+          <p className="text-sm text-text-secondary">
+            Vous êtes sur le point de supprimer toutes les consommations du contrat <strong>&quot;{contractName}&quot;</strong>.
+          </p>
+
+          <div className="flex gap-3 pt-4">
+            <Button variant="outline" className="flex-1" onClick={onClose} disabled={deleting}>
+              Annuler
+            </Button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Suppression...
+                </>
+              ) : (
+                <>
+                  <Trash2 size={18} />
+                  Supprimer tout
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
