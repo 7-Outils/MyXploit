@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
 
     for (const aliasData of aliasesToCreate) {
       const { alias, siteId, source } = aliasData;
+      console.log("Creating alias:", { alias, siteId, source });
 
       if (!alias || !siteId) {
         errors.push({ alias, error: "Alias et siteId requis" });

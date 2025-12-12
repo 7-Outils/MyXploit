@@ -163,6 +163,8 @@ export async function POST(request: NextRequest) {
       select: { alias: true, siteId: true, site: { select: { name: true } } },
     });
 
+    console.log("Loaded site aliases:", siteAliases.length, siteAliases.map(a => ({ alias: a.alias, siteName: a.site.name })));
+
     // Create lookup maps for site matching
     const siteMatchers = createSiteMatchers(sites, siteAliases);
 
@@ -386,6 +388,7 @@ function createSiteMatchers(
   // Build alias map first (priority over name matching)
   for (const alias of aliases) {
     const normalized = normalizeSiteName(alias.alias);
+    console.log("Adding alias to map:", `"${alias.alias}" -> "${normalized}" -> ${alias.site.name}`);
     aliasMap.set(normalized, { id: alias.siteId, name: alias.site.name });
   }
 
@@ -459,6 +462,7 @@ function matchSite(
 
   // 0. Try alias match first (exact match from saved aliases)
   const aliasMatch = matchers.aliasMap.get(normalized);
+  console.log("Checking alias for:", normalized, "Found:", aliasMatch ? aliasMatch.name : "NO MATCH");
   if (aliasMatch) {
     return { siteId: aliasMatch.id, siteName: aliasMatch.name, confidence: 1 };
   }
