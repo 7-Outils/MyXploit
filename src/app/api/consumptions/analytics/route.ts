@@ -52,6 +52,24 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Fetch heating seasons for this year to get season-specific NB
+    const season = `${year - 1}-${year}`;
+    const heatingSeasons = await prisma.heatingSeason.findMany({
+      where: {
+        siteId: { in: sites.map((s) => s.id) },
+        season,
+      },
+      select: {
+        siteId: true,
+        nb: true,
+        nbUnit: true,
+        djuContractuel: true,
+      },
+    });
+    const heatingSeasonMap = new Map(
+      heatingSeasons.map((hs) => [hs.siteId, hs])
+    );
+
     // Get consumptions for the period
     const consumptionsWhere: Record<string, unknown> = {
       organizationId: user.organizationId,
@@ -167,20 +185,25 @@ export async function GET(request: NextRequest) {
     siteMap.forEach((siteData) => {
       const { site, djrTotal } = siteData;
 
-      if (site.nb && site.djuContractuel && djrTotal > 0) {
+      // Use heating season's NB if available, otherwise fallback to site's NB
+      const heatingSeason = heatingSeasonMap.get(site.id);
+      const nb = heatingSeason?.nb ?? site.nb;
+      const djuContractuel = heatingSeason?.djuContractuel ?? site.djuContractuel;
+
+      if (nb && djuContractuel && djrTotal > 0) {
         // N'B = NB × (DJR/DJC)
-        siteData.nbPrime = site.nb * (djrTotal / site.djuContractuel);
-      } else if (site.nb) {
+        siteData.nbPrime = nb * (djrTotal / djuContractuel);
+      } else if (nb) {
         // If no DJU available, use NB directly
-        siteData.nbPrime = site.nb;
+        siteData.nbPrime = nb;
       }
 
       // Calculate per month N'B
       siteData.months.forEach((monthData) => {
-        if (site.nb && site.djuContractuel && monthData.djr > 0) {
+        if (nb && djuContractuel && monthData.djr > 0) {
           // Monthly proportional NB based on DJU ratio
-          const monthlyNbBase = site.nb / 12; // Simplified: equal monthly distribution
-          monthData.nbPrime = monthlyNbBase * (monthData.djr / (site.djuContractuel / 12));
+          const monthlyNbBase = nb / 12; // Simplified: equal monthly distribution
+          monthData.nbPrime = monthlyNbBase * (monthData.djr / (djuContractuel / 12));
         }
       });
     });

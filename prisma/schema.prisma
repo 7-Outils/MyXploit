@@ -718,13 +718,17 @@ model HeatingSeason {
   season         String    // Ex: "2024-2025" (année de départ - année de fin)
   startDate      DateTime  // Date d'allumage du chauffage
   endDate        DateTime? // Date d'arrêt (null si pas encore arrêté)
+  // Engagement énergétique de la saison (peut varier avec APE)
+  nb             Float?    // NB de la saison (MWh) - si null, utilise le NB du site
+  nbUnit         NbUnit?   // Unité du NB (PCS ou Utile)
+  djuContractuel Float?    // DJU contractuels de la saison (si différent du site)
   // Index compteur au démarrage (optionnel, pour relevé initial)
   startIndex     Float?    // Index compteur gaz/énergie au démarrage
   startIndexUnit String?   // Unité de l'index (m³, kWh)
   // Index compteur à l'arrêt (optionnel)
   endIndex       Float?    // Index compteur à l'arrêt
   // Notes
-  notes          String?   // Remarques sur la mise en route/arrêt
+  notes          String?   // Remarques sur la mise en route/arrêt, APE appliquée, etc.
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
