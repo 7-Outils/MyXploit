@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const contractId = formData.get("contractId") as string | null;
+    const previewMode = formData.get("preview") === "true";
 
     if (!file) {
       return NextResponse.json(
@@ -188,19 +189,22 @@ export async function POST(request: NextRequest) {
       }>,
     };
 
-    // First pass: aggregate consumption data by site/energy/usage/period
-    // This handles multiple meters at the same site (sum them up)
-    const aggregatedData = new Map<string, {
+    // Data structure for preview: track each meter individually
+    // Key: siteId|energyType|usage|period|meterName
+    const meterData = new Map<string, {
       siteId: string;
+      siteName: string;
+      excelName: string;
       energyType: EnergyType;
       usage: EnergyUsage;
       period: Date;
+      periodStr: string;
       quantity: number;
       unit: string;
-      meterNames: string[];
+      meterName: string;
     }>();
 
-    // Process data rows - first pass to aggregate
+    // Process data rows - collect all meter data
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
       const rowNum = i + 1;
@@ -289,27 +293,27 @@ export async function POST(request: NextRequest) {
 
         // Set period to first day of month
         const periodMonth = new Date(period.getFullYear(), period.getMonth(), 1);
+        const periodStr = periodMonth.toISOString();
 
-        // Create aggregation key
-        const aggKey = `${siteMatch.siteId}|${energyType}|${usage}|${periodMonth.toISOString()}`;
+        // Create unique key per meter
+        const meterKey = `${siteMatch.siteId}|${energyType}|${usage}|${periodStr}|${exploitantRow.nomCompteur}`;
 
-        if (aggregatedData.has(aggKey)) {
-          // Add to existing aggregate (sum quantities from multiple meters)
-          const existing = aggregatedData.get(aggKey)!;
+        if (meterData.has(meterKey)) {
+          // Same meter, same period - update quantity (shouldn't happen normally)
+          const existing = meterData.get(meterKey)!;
           existing.quantity += quantity;
-          if (exploitantRow.nomCompteur && !existing.meterNames.includes(exploitantRow.nomCompteur)) {
-            existing.meterNames.push(exploitantRow.nomCompteur);
-          }
         } else {
-          // Create new aggregate entry
-          aggregatedData.set(aggKey, {
+          meterData.set(meterKey, {
             siteId: siteMatch.siteId,
+            siteName: siteMatch.siteName || exploitantRow.nomInstallation,
+            excelName: exploitantRow.nomInstallation,
             energyType,
             usage,
             period: periodMonth,
+            periodStr,
             quantity,
             unit,
-            meterNames: exploitantRow.nomCompteur ? [exploitantRow.nomCompteur] : [],
+            meterName: exploitantRow.nomCompteur,
           });
         }
 
@@ -342,7 +346,125 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Second pass: upsert aggregated data
+    // Build unmatched sites list for UI
+    const unmatchedSites = Object.entries(results.siteMatches)
+      .filter(([, match]) => !match.matched)
+      .map(([excelName, match]) => ({
+        excelName,
+        rowCount: match.rowCount || 0,
+        suggestions: match.suggestions || [],
+      }))
+      .sort((a, b) => b.rowCount - a.rowCount);
+
+    // Group meter data by site for preview
+    const previewBySite = new Map<string, {
+      siteId: string;
+      siteName: string;
+      meters: Array<{
+        meterName: string;
+        energyType: EnergyType;
+        usage: EnergyUsage;
+        periods: Array<{
+          period: string;
+          quantity: number;
+          unit: string;
+        }>;
+        totalQuantity: number;
+      }>;
+    }>();
+
+    for (const data of meterData.values()) {
+      if (!previewBySite.has(data.siteId)) {
+        previewBySite.set(data.siteId, {
+          siteId: data.siteId,
+          siteName: data.siteName,
+          meters: [],
+        });
+      }
+
+      const sitePreview = previewBySite.get(data.siteId)!;
+
+      // Find or create meter entry
+      let meterEntry = sitePreview.meters.find(
+        m => m.meterName === data.meterName && m.energyType === data.energyType && m.usage === data.usage
+      );
+
+      if (!meterEntry) {
+        meterEntry = {
+          meterName: data.meterName,
+          energyType: data.energyType,
+          usage: data.usage,
+          periods: [],
+          totalQuantity: 0,
+        };
+        sitePreview.meters.push(meterEntry);
+      }
+
+      meterEntry.periods.push({
+        period: data.periodStr,
+        quantity: data.quantity,
+        unit: data.unit,
+      });
+      meterEntry.totalQuantity += data.quantity;
+    }
+
+    // Convert to array and sort
+    const preview = Array.from(previewBySite.values()).map(site => ({
+      ...site,
+      meters: site.meters.sort((a, b) => b.totalQuantity - a.totalQuantity),
+    }));
+
+    // If preview mode, return the detailed data without importing
+    if (previewMode) {
+      return NextResponse.json({
+        success: true,
+        mode: "preview",
+        preview,
+        unmatchedSites,
+        availableSites: sites.map(s => ({ id: s.id, name: s.name })),
+        siteMatches: results.siteMatches,
+        skipped: results.skipped,
+        errors: results.errors.slice(0, 20),
+        _debug: {
+          loadedAliases: siteAliases.map(a => ({ alias: a.alias, siteName: a.site.name })),
+        },
+      });
+    }
+
+    // Import mode: aggregate by site/energy/usage/period and upsert
+    const aggregatedData = new Map<string, {
+      siteId: string;
+      energyType: EnergyType;
+      usage: EnergyUsage;
+      period: Date;
+      quantity: number;
+      unit: string;
+      meterNames: string[];
+    }>();
+
+    for (const data of meterData.values()) {
+      const aggKey = `${data.siteId}|${data.energyType}|${data.usage}|${data.periodStr}`;
+
+      if (aggregatedData.has(aggKey)) {
+        const existing = aggregatedData.get(aggKey)!;
+        existing.quantity += data.quantity;
+        if (data.meterName && !existing.meterNames.includes(data.meterName)) {
+          existing.meterNames.push(data.meterName);
+        }
+      } else {
+        aggregatedData.set(aggKey, {
+          siteId: data.siteId,
+          energyType: data.energyType,
+          usage: data.usage,
+          period: data.period,
+          quantity: data.quantity,
+          unit: data.unit,
+          meterNames: data.meterName ? [data.meterName] : [],
+        });
+      }
+    }
+
+    // Upsert aggregated data
     for (const data of aggregatedData.values()) {
       try {
         const existing = await prisma.consumption.findUnique({
@@ -356,7 +478,6 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // Store meter names as info (comma-separated if multiple)
         const meterName = data.meterNames.length > 0 ? data.meterNames.join(", ") : null;
 
         if (existing) {
@@ -393,18 +514,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Build unmatched sites list for UI
-    const unmatchedSites = Object.entries(results.siteMatches)
-      .filter(([, match]) => !match.matched)
-      .map(([excelName, match]) => ({
-        excelName,
-        rowCount: match.rowCount || 0,
-        suggestions: match.suggestions || [],
-      }))
-      .sort((a, b) => b.rowCount - a.rowCount);
-
     return NextResponse.json({
       success: true,
+      mode: "import",
       imported: results.imported,
       updated: results.updated,
       skipped: results.skipped,
