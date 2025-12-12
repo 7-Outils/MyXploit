@@ -19,6 +19,7 @@ import {
   Target,
   AlertCircle,
   Info,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -457,7 +458,15 @@ export default function SiteEnergyPage({
           <Link href={`/exploitation?siteId=${siteId}`}>
             <Button variant="outline">
               <Wrench className="h-4 w-4 mr-2" />
-              Voir équipements
+              Équipements
+              <ExternalLink className="h-3 w-3 ml-1" />
+            </Button>
+          </Link>
+
+          <Link href={`/sites/${siteId}`}>
+            <Button variant="outline">
+              <GitBranch className="h-4 w-4 mr-2" />
+              Schéma comptage
               <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
           </Link>

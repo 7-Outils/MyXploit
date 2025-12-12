@@ -22,6 +22,7 @@ import {
   Upload,
   FileSpreadsheet,
   AlertCircle,
+  GitBranch,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -1380,6 +1381,18 @@ export default function ContractDetailPage() {
                       >
                         <Pencil size={14} />
                       </Button>
+                      <Link
+                        href={`/sites/${site.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          title="Schéma de comptage"
+                        >
+                          <GitBranch size={14} />
+                        </Button>
+                      </Link>
                     </div>
                   </div>
 
