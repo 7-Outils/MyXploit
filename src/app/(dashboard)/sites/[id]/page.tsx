@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Building2,
   Plus,
@@ -23,8 +22,8 @@ import {
   FileText,
   AlertCircle,
   CheckCircle,
-  Calendar,
-  Upload,
+  List,
+  Network,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -141,6 +140,15 @@ const meterFluidIcons: Record<MeterFluid, typeof Flame> = {
   FIOUL: Droplets,
 };
 
+const meterFluidColors: Record<MeterFluid, { bg: string; border: string; text: string; icon: string }> = {
+  GAZ: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-700", icon: "text-amber-500" },
+  ELECTRICITE: { bg: "bg-yellow-50", border: "border-yellow-300", text: "text-yellow-700", icon: "text-yellow-500" },
+  EAU_CHAUDE: { bg: "bg-red-50", border: "border-red-300", text: "text-red-700", icon: "text-red-500" },
+  EAU_FROIDE: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-700", icon: "text-blue-500" },
+  CHALEUR: { bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-700", icon: "text-orange-500" },
+  FIOUL: { bg: "bg-purple-50", border: "border-purple-300", text: "text-purple-700", icon: "text-purple-500" },
+};
+
 const dataSourceLabels: Record<MeterDataSource, string> = {
   API: "Télérelevé (API)",
   MANUEL: "Relevé manuel",
@@ -166,6 +174,7 @@ export default function SiteDetailPage() {
 
   // Meter tree state
   const [expandedMeters, setExpandedMeters] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"visual" | "list">("visual");
 
   // Modal states
   const [showMeterModal, setShowMeterModal] = useState(false);
@@ -596,6 +605,146 @@ export default function SiteDetailPage() {
     });
   };
 
+  // Visual flowchart rendering
+  const renderVisualMeterCard = (meter: Meter) => {
+    const FluidIcon = meterFluidIcons[meter.fluid] || Activity;
+    const colors = meterFluidColors[meter.fluid] || meterFluidColors.GAZ;
+    const hasChildren = meter.children && meter.children.length > 0;
+
+    return (
+      <div key={meter.id} className="flex flex-col items-center">
+        {/* Meter Card */}
+        <div
+          className={`relative w-64 rounded-xl border-2 ${colors.border} ${colors.bg} p-4 shadow-sm hover:shadow-md transition-shadow`}
+        >
+          {/* Type badge */}
+          {meter.type === "PRINCIPAL" && (
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-xs font-medium px-3 py-1 rounded-full">
+              Principal
+            </div>
+          )}
+          {meter.isDeductedFromParent && (
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-medium px-3 py-1 rounded-full">
+              Déduit
+            </div>
+          )}
+
+          {/* Header with icon */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className={`w-10 h-10 rounded-lg ${colors.bg} border ${colors.border} flex items-center justify-center`}>
+              <FluidIcon size={20} className={colors.icon} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold ${colors.text} truncate`}>{meter.name}</p>
+              <p className="text-xs text-gray-500">{meterFluidLabels[meter.fluid]}</p>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex items-center justify-between text-sm mb-3 px-2 py-1.5 bg-white/60 rounded-lg">
+            <span className="text-gray-600">{meter._count?.readings || 0} relevés</span>
+            <span className="text-gray-400">|</span>
+            <span className="text-gray-600">{meter.unit}</span>
+          </div>
+
+          {/* Reference if exists */}
+          {meter.reference && (
+            <p className="text-xs font-mono text-gray-500 text-center mb-2">{meter.reference}</p>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-center gap-1 pt-2 border-t border-gray-200/50">
+            <button
+              onClick={() => openAddReadingModal(meter)}
+              className="p-1.5 text-accent hover:bg-white rounded-lg transition-colors"
+              title="Ajouter un relevé"
+            >
+              <Plus size={16} />
+            </button>
+            <button
+              onClick={() => openReadingsModal(meter)}
+              className="p-1.5 text-gray-500 hover:bg-white rounded-lg transition-colors"
+              title="Historique"
+            >
+              <Activity size={16} />
+            </button>
+            <button
+              onClick={() => openEditMeterModal(meter)}
+              className="p-1.5 text-gray-500 hover:bg-white rounded-lg transition-colors"
+              title="Modifier"
+            >
+              <Pencil size={16} />
+            </button>
+            <button
+              onClick={() => handleDeleteMeter(meter)}
+              className="p-1.5 text-red-500 hover:bg-white rounded-lg transition-colors"
+              title="Supprimer"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Children with connector lines */}
+        {hasChildren && (
+          <div className="flex flex-col items-center">
+            {/* Vertical line down */}
+            <div className="w-0.5 h-6 bg-gray-300" />
+
+            {/* Horizontal connector and children */}
+            <div className="relative">
+              {meter.children!.length > 1 && (
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 bg-gray-300"
+                  style={{
+                    width: `calc(${(meter.children!.length - 1) * 280}px)`,
+                  }}
+                />
+              )}
+              <div className="flex gap-4 pt-0">
+                {meter.children!.map((child) => (
+                  <div key={child.id} className="flex flex-col items-center">
+                    {/* Vertical line to child */}
+                    <div className="w-0.5 h-6 bg-gray-300" />
+                    {renderVisualMeterCard(child)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render visual flowchart
+  const renderVisualFlowchart = () => {
+    // Group meters by type: principal meters at top, orphan divisionnaires below
+    const principalWithChildren = meterTree.filter(m => m.type === "PRINCIPAL");
+    const orphanDivisionnaires = meterTree.filter(m => m.type === "DIVISIONNAIRE" && !m.parentId);
+
+    return (
+      <div className="space-y-8 overflow-x-auto pb-4">
+        {/* Principal meters with their children */}
+        {principalWithChildren.length > 0 && (
+          <div className="flex flex-wrap gap-8 justify-center">
+            {principalWithChildren.map(meter => renderVisualMeterCard(meter))}
+          </div>
+        )}
+
+        {/* Orphan divisionnaires */}
+        {orphanDivisionnaires.length > 0 && (
+          <div className="pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-500 text-center mb-4">Compteurs indépendants</p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {orphanDivisionnaires.map(meter => renderVisualMeterCard(meter))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -729,10 +878,37 @@ export default function SiteDetailPage() {
         title="Schéma de comptage"
         subtitle={`${meters.length} compteur${meters.length > 1 ? "s" : ""} configuré${meters.length > 1 ? "s" : ""}`}
         action={
-          <Button onClick={openCreateMeterModal}>
-            <Plus size={18} className="mr-2" />
-            Ajouter un compteur
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* View mode toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode("visual")}
+                className={`p-1.5 rounded-md transition-colors ${
+                  viewMode === "visual"
+                    ? "bg-white text-accent shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                title="Vue diagramme"
+              >
+                <Network size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded-md transition-colors ${
+                  viewMode === "list"
+                    ? "bg-white text-accent shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                title="Vue liste"
+              >
+                <List size={18} />
+              </button>
+            </div>
+            <Button onClick={openCreateMeterModal}>
+              <Plus size={18} className="mr-2" />
+              Ajouter un compteur
+            </Button>
+          </div>
         }
       >
         {meters.length === 0 ? (
@@ -750,6 +926,8 @@ export default function SiteDetailPage() {
               Ajouter un compteur
             </Button>
           </div>
+        ) : viewMode === "visual" ? (
+          renderVisualFlowchart()
         ) : (
           <div className="space-y-2">{renderMeterTree(meterTree)}</div>
         )}
