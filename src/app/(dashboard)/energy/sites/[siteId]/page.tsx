@@ -182,12 +182,25 @@ export default function SiteEnergyPage({
   const [djuData, setDjuData] = useState<DJUData | null>(null);
   const [heatingSeasons, setHeatingSeasons] = useState<HeatingSeason[]>([]);
   const [multiSeasonData, setMultiSeasonData] = useState<MultiSeasonData[]>([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [isLoading, setIsLoading] = useState(true);
 
-  // Generate year options
-  const currentYear = new Date().getFullYear();
-  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i);
+  // Heating season logic: September starts a new season
+  // If current month >= September, we're in season currentYear-nextYear (represented by nextYear)
+  // If current month < September, we're in season previousYear-currentYear (represented by currentYear)
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-indexed, September = 8
+  const currentCalendarYear = now.getFullYear();
+
+  // The "year" represents the END year of the season (e.g., 2026 for season 2025-2026)
+  const getCurrentSeasonYear = () => {
+    return currentMonth >= 8 ? currentCalendarYear + 1 : currentCalendarYear;
+  };
+
+  const [selectedYear, setSelectedYear] = useState(getCurrentSeasonYear());
+
+  // Generate year options (seasons ending in these years)
+  const currentSeasonYear = getCurrentSeasonYear();
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentSeasonYear - i);
 
   useEffect(() => {
     fetchData();
@@ -229,7 +242,7 @@ export default function SiteEnergyPage({
   const fetchMultiSeasonData = async () => {
     const seasons: MultiSeasonData[] = [];
 
-    for (let year = currentYear; year >= currentYear - 4; year--) {
+    for (let year = currentSeasonYear; year >= currentSeasonYear - 4; year--) {
       try {
         const [analyticsRes, djuRes] = await Promise.all([
           fetch(`/api/consumptions/analytics?siteId=${siteId}&year=${year}`),
