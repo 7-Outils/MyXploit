@@ -620,19 +620,25 @@ export async function GET(request: NextRequest) {
           dju: Math.round(d.dju * 10) / 10,
           tMoy: Math.round(d.tMoy * 10) / 10,
         })),
+        // Flag pour savoir si le site a des relevés
+        hasConsumptions: !!lastConsumptionDate,
       };
     });
 
-    // Calculate global summary
-    const totalDjuReel = siteResults.reduce((sum, s) => sum + s.djuReel, 0) / siteResults.length;
+    // Filtrer pour ne garder que les sites avec des relevés
+    const sitesWithData = siteResults.filter((s) => s.hasConsumptions);
+
+    // Calculate global summary (only for sites with data)
+    const sitesCount = sitesWithData.length || 1; // Avoid division by zero
+    const totalDjuReel = sitesWithData.reduce((sum, s) => sum + s.djuReel, 0) / sitesCount;
     const totalDjuTrentenaire =
-      siteResults.reduce((sum, s) => sum + s.djuTrentenaire, 0) / siteResults.length;
+      sitesWithData.reduce((sum, s) => sum + s.djuTrentenaire, 0) / sitesCount;
     const totalDjuTrentenaireToDate =
-      siteResults.reduce((sum, s) => sum + s.djuTrentenaireToDate, 0) / siteResults.length;
+      sitesWithData.reduce((sum, s) => sum + s.djuTrentenaireToDate, 0) / sitesCount;
 
     // Aggregate monthly data
     const monthlyAggregated = new Map<string, { dju: number; count: number }>();
-    siteResults.forEach((site) => {
+    sitesWithData.forEach((site) => {
       site.monthlyData.forEach((m) => {
         const existing = monthlyAggregated.get(m.month) || { dju: 0, count: 0 };
         existing.dju += m.dju;
@@ -669,7 +675,7 @@ export async function GET(request: NextRequest) {
             : "Saison plus douce que la moyenne",
       },
       monthlyData: globalMonthlyData,
-      sites: siteResults,
+      sites: sitesWithData,
     });
   } catch (error) {
     console.error("Error fetching DJU:", error);
