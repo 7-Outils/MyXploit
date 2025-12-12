@@ -704,7 +704,7 @@ model Consumption {
   site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([siteId, energyType, usage, period, meterName])
+  @@unique([siteId, energyType, usage, period])
   @@map("consumptions")
 }
 

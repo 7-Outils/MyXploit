@@ -188,7 +188,19 @@ export async function POST(request: NextRequest) {
       }>,
     };
 
-    // Process data rows
+    // First pass: aggregate consumption data by site/energy/usage/period
+    // This handles multiple meters at the same site (sum them up)
+    const aggregatedData = new Map<string, {
+      siteId: string;
+      energyType: EnergyType;
+      usage: EnergyUsage;
+      period: Date;
+      quantity: number;
+      unit: string;
+      meterNames: string[];
+    }>();
+
+    // Process data rows - first pass to aggregate
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
       const rowNum = i + 1;
@@ -278,44 +290,27 @@ export async function POST(request: NextRequest) {
         // Set period to first day of month
         const periodMonth = new Date(period.getFullYear(), period.getMonth(), 1);
 
-        // Upsert consumption (with meterName to distinguish different meters)
-        const meterName = exploitantRow.nomCompteur || null;
+        // Create aggregation key
+        const aggKey = `${siteMatch.siteId}|${energyType}|${usage}|${periodMonth.toISOString()}`;
 
-        const existing = await prisma.consumption.findUnique({
-          where: {
-            siteId_energyType_usage_period_meterName: {
-              siteId: siteMatch.siteId,
-              energyType,
-              usage,
-              period: periodMonth,
-              meterName,
-            },
-          },
-        });
-
-        if (existing) {
-          await prisma.consumption.update({
-            where: { id: existing.id },
-            data: {
-              quantity,
-              unit,
-            },
-          });
-          results.updated++;
+        if (aggregatedData.has(aggKey)) {
+          // Add to existing aggregate (sum quantities from multiple meters)
+          const existing = aggregatedData.get(aggKey)!;
+          existing.quantity += quantity;
+          if (exploitantRow.nomCompteur && !existing.meterNames.includes(exploitantRow.nomCompteur)) {
+            existing.meterNames.push(exploitantRow.nomCompteur);
+          }
         } else {
-          await prisma.consumption.create({
-            data: {
-              siteId: siteMatch.siteId,
-              organizationId: user.organizationId,
-              energyType,
-              usage,
-              period: periodMonth,
-              quantity,
-              unit,
-              meterName,
-            },
+          // Create new aggregate entry
+          aggregatedData.set(aggKey, {
+            siteId: siteMatch.siteId,
+            energyType,
+            usage,
+            period: periodMonth,
+            quantity,
+            unit,
+            meterNames: exploitantRow.nomCompteur ? [exploitantRow.nomCompteur] : [],
           });
-          results.imported++;
         }
 
         // Handle heating season (ON/OFF or similar states)
@@ -332,19 +327,68 @@ export async function POST(request: NextRequest) {
         if (isMaintenanceIndicator && quantity > 10) {
           await createWaterMakeupAlert(
             siteMatch.siteId,
-            user.organizationId,
             siteMatch.siteName || exploitantRow.nomInstallation,
+            user.organizationId,
             quantity,
             period
           );
         }
-
       } catch (error) {
-        console.error(`Error importing row ${rowNum}:`, error);
         results.errors.push({
           row: rowNum,
           site: String(row[colIndices.nomInstallation] || "?"),
           error: error instanceof Error ? error.message : "Erreur inconnue",
+        });
+      }
+    }
+
+    // Second pass: upsert aggregated data
+    for (const data of aggregatedData.values()) {
+      try {
+        const existing = await prisma.consumption.findUnique({
+          where: {
+            siteId_energyType_usage_period: {
+              siteId: data.siteId,
+              energyType: data.energyType,
+              usage: data.usage,
+              period: data.period,
+            },
+          },
+        });
+
+        // Store meter names as info (comma-separated if multiple)
+        const meterName = data.meterNames.length > 0 ? data.meterNames.join(", ") : null;
+
+        if (existing) {
+          await prisma.consumption.update({
+            where: { id: existing.id },
+            data: {
+              quantity: data.quantity,
+              unit: data.unit,
+              meterName,
+            },
+          });
+          results.updated++;
+        } else {
+          await prisma.consumption.create({
+            data: {
+              siteId: data.siteId,
+              organizationId: user.organizationId,
+              energyType: data.energyType,
+              usage: data.usage,
+              period: data.period,
+              quantity: data.quantity,
+              unit: data.unit,
+              meterName,
+            },
+          });
+          results.imported++;
+        }
+      } catch (error) {
+        results.errors.push({
+          row: 0,
+          site: data.siteId,
+          error: error instanceof Error ? error.message : "Erreur lors de l'enregistrement",
         });
       }
     }
