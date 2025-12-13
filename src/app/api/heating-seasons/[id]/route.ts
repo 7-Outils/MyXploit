@@ -74,7 +74,7 @@ export async function PUT(
       return NextResponse.json({ error: "Accès non autorisé" }, { status: 403 });
     }
 
-    const { startDate, endDate, startIndex, startIndexUnit, endIndex, notes } = body;
+    const { startDate, endDate, startIndex, startIndexUnit, endIndex, notes, nb, nbUnit, djuContractuel } = body;
 
     const heatingSeason = await prisma.heatingSeason.update({
       where: { id },
@@ -85,6 +85,9 @@ export async function PUT(
         startIndexUnit: startIndexUnit !== undefined ? startIndexUnit : undefined,
         endIndex: endIndex !== undefined ? (endIndex ? parseFloat(endIndex) : null) : undefined,
         notes: notes !== undefined ? notes : undefined,
+        nb: nb !== undefined ? (nb !== null ? parseFloat(nb) : null) : undefined,
+        nbUnit: nbUnit !== undefined ? nbUnit : undefined,
+        djuContractuel: djuContractuel !== undefined ? (djuContractuel !== null ? parseFloat(djuContractuel) : null) : undefined,
       },
       include: {
         site: {

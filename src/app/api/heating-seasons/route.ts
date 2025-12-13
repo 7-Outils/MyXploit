@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
     const body = await request.json();
 
-    const { siteId, season, startDate, endDate, startIndex, startIndexUnit, endIndex, notes } = body;
+    const { siteId, season, startDate, endDate, startIndex, startIndexUnit, endIndex, notes, nb, nbUnit, djuContractuel } = body;
 
     if (!siteId || !season || !startDate) {
       return NextResponse.json(
@@ -113,6 +113,9 @@ export async function POST(request: NextRequest) {
         startIndexUnit,
         endIndex: endIndex ? parseFloat(endIndex) : null,
         notes,
+        nb: nb !== null && nb !== undefined ? parseFloat(nb) : null,
+        nbUnit: nb ? nbUnit : null,
+        djuContractuel: djuContractuel !== null && djuContractuel !== undefined ? parseFloat(djuContractuel) : null,
       },
       include: {
         site: {

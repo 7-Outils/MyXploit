@@ -158,6 +158,9 @@ interface HeatingSeason {
   startIndex: number | null;
   endIndex: number | null;
   notes: string | null;
+  nb: number | null;
+  nbUnit: "PCS" | "UTILE" | null;
+  djuContractuel: number | null;
   site?: { id: string; name: string; city: string };
 }
 
@@ -274,6 +277,28 @@ function EnergyPageContent() {
   } | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
+  // NB Import modal
+  const [showNbImportModal, setShowNbImportModal] = useState(false);
+  const [importingNb, setImportingNb] = useState(false);
+  const [nbImportResult, setNbImportResult] = useState<{
+    mode: "preview" | "import";
+    contract?: { id: string; title: string; startDate: string; endDate: string };
+    yearColumns?: { year: number; season: string; headerLabel: string }[];
+    preview?: {
+      row: number;
+      excelSiteName: string;
+      matchedSite?: { id: string; name: string };
+      years: { year: number; season: string; nb: number | null }[];
+    }[];
+    imported?: number;
+    updated?: number;
+    skipped: number;
+    errors?: { row: number; site: string; error: string }[];
+    siteMatches?: Record<string, { matched: boolean; siteId?: string; siteName?: string }>;
+    unmatchedSites?: { excelName: string; suggestions: { id: string; name: string; score: number }[] }[];
+    availableSites?: { id: string; name: string }[];
+  } | null>(null);
+
   // Heating season form
   const [heatingSeasonForm, setHeatingSeasonForm] = useState({
     siteId: "",
@@ -282,6 +307,9 @@ function EnergyPageContent() {
     startDate: "",
     endDate: "",
     notes: "",
+    nb: "",
+    nbUnit: "PCS" as "PCS" | "UTILE",
+    djuContractuel: "",
   });
 
   // Create form
@@ -500,6 +528,9 @@ function EnergyPageContent() {
       startDate: existingSeason?.startDate?.split("T")[0] || existingStartDate || "",
       endDate: existingSeason?.endDate?.split("T")[0] || existingEndDate || "",
       notes: existingSeason?.notes || "",
+      nb: existingSeason?.nb?.toString() || "",
+      nbUnit: existingSeason?.nbUnit || "PCS",
+      djuContractuel: existingSeason?.djuContractuel?.toString() || "",
     });
     setShowHeatingSeasonModal(true);
   };
@@ -518,6 +549,9 @@ function EnergyPageContent() {
         startDate: heatingSeasonForm.startDate,
         endDate: heatingSeasonForm.endDate || null,
         notes: heatingSeasonForm.notes || null,
+        nb: heatingSeasonForm.nb ? parseFloat(heatingSeasonForm.nb) : null,
+        nbUnit: heatingSeasonForm.nb ? heatingSeasonForm.nbUnit : null,
+        djuContractuel: heatingSeasonForm.djuContractuel ? parseFloat(heatingSeasonForm.djuContractuel) : null,
       };
 
       let res;
@@ -738,6 +772,89 @@ function EnergyPageContent() {
     setPendingImportFile(null);
   };
 
+  // NB Import handlers
+  const handleNbImport = async (file: File, nbUnit: "PCS" | "UTILE") => {
+    if (!selectedContract) {
+      alert("Veuillez sélectionner un contrat");
+      return;
+    }
+
+    setImportingNb(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("contractId", selectedContract.id);
+      formData.append("nbUnit", nbUnit);
+      formData.append("preview", "true");
+
+      const response = await fetch("/api/heating-seasons/import-nb", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setNbImportResult(result);
+      } else {
+        alert(result.error || "Erreur lors de l'analyse du fichier");
+      }
+    } catch (error) {
+      console.error("Error analyzing NB file:", error);
+      alert("Erreur lors de l'analyse du fichier");
+    } finally {
+      setImportingNb(false);
+    }
+  };
+
+  const handleConfirmNbImport = async (nbUnit: "PCS" | "UTILE") => {
+    if (!selectedContract || !nbImportResult?.preview) return;
+
+    setImportingNb(true);
+    try {
+      // Get the file from the preview result
+      const formData = new FormData();
+      // We need to re-upload the file - stored in state via ref or re-upload
+      // For simplicity, we'll use a hidden ref to store the file
+      const fileInput = document.querySelector('input[data-nb-import-file]') as HTMLInputElement;
+      if (!fileInput?.files?.[0]) {
+        alert("Fichier non trouvé, veuillez le re-sélectionner");
+        return;
+      }
+
+      formData.append("file", fileInput.files[0]);
+      formData.append("contractId", selectedContract.id);
+      formData.append("nbUnit", nbUnit);
+      formData.append("preview", "false");
+
+      const response = await fetch("/api/heating-seasons/import-nb", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setNbImportResult(result);
+        if (result.imported > 0 || result.updated > 0) {
+          await fetchData();
+        }
+      } else {
+        alert(result.error || "Erreur lors de l'import");
+      }
+    } catch (error) {
+      console.error("Error importing NB:", error);
+      alert("Erreur lors de l'import");
+    } finally {
+      setImportingNb(false);
+    }
+  };
+
+  const closeNbImportModal = () => {
+    setShowNbImportModal(false);
+    setNbImportResult(null);
+  };
+
   const handleDeleteConsumptions = async (): Promise<void> => {
     if (!selectedContract) return;
 
@@ -928,7 +1045,9 @@ function EnergyPageContent() {
           activeAlerts={activeAlerts}
           setShowImportModal={setShowImportModal}
           setShowIdexImportModal={setShowIdexImportModal}
+          setShowNbImportModal={setShowNbImportModal}
           setShowCreateModal={setShowCreateModal}
+          hasContract={!!selectedContract}
         />
       )}
 
@@ -939,7 +1058,9 @@ function EnergyPageContent() {
           sites={sites}
           setShowImportModal={setShowImportModal}
           setShowIdexImportModal={setShowIdexImportModal}
+          setShowNbImportModal={setShowNbImportModal}
           setShowCreateModal={setShowCreateModal}
+          hasContract={!!selectedContract}
         />
       )}
 
@@ -1004,6 +1125,17 @@ function EnergyPageContent() {
         />
       )}
 
+      {showNbImportModal && selectedContract && (
+        <NbImportModal
+          contract={selectedContract}
+          importing={importingNb}
+          importResult={nbImportResult}
+          onImport={handleNbImport}
+          onConfirmImport={handleConfirmNbImport}
+          onClose={closeNbImportModal}
+        />
+      )}
+
       {/* Delete Consumptions Modal */}
       {showDeleteModal && (
         <DeleteConsumptionsModal
@@ -1034,14 +1166,18 @@ function SyntheseContent({
   activeAlerts,
   setShowImportModal,
   setShowIdexImportModal,
+  setShowNbImportModal,
   setShowCreateModal,
+  hasContract,
 }: {
   analytics: AnalyticsData | null;
   chartData: { label: string; value: number; target: number }[];
   activeAlerts: Alert[];
   setShowImportModal: (v: boolean) => void;
   setShowIdexImportModal: (v: boolean) => void;
+  setShowNbImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
+  hasContract: boolean;
 }) {
   if (!analytics) {
     return (
@@ -1054,6 +1190,12 @@ function SyntheseContent({
               <Flame size={18} className="mr-2" />
               Import Exploitant
             </Button>
+            {hasContract && (
+              <Button variant="outline" onClick={() => setShowNbImportModal(true)}>
+                <BarChart3 size={18} className="mr-2" />
+                Import NB (DPGF)
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowImportModal(true)}>
               <Upload size={18} className="mr-2" />
               Importer CSV
@@ -1265,14 +1407,18 @@ function SitesContent({
   sites,
   setShowImportModal,
   setShowIdexImportModal,
+  setShowNbImportModal,
   setShowCreateModal,
+  hasContract,
 }: {
   analytics: AnalyticsData | null;
   consumptions: Consumption[];
   sites: Site[];
   setShowImportModal: (v: boolean) => void;
   setShowIdexImportModal: (v: boolean) => void;
+  setShowNbImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
+  hasContract: boolean;
 }) {
   if (!analytics || analytics.sites.length === 0) {
     return (
@@ -1282,6 +1428,12 @@ function SitesContent({
             <Flame size={18} className="mr-2" />
             Import Exploitant
           </Button>
+          {hasContract && (
+            <Button variant="outline" onClick={() => setShowNbImportModal(true)}>
+              <BarChart3 size={18} className="mr-2" />
+              Import NB (DPGF)
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setShowImportModal(true)}>
             <Upload size={18} className="mr-2" />
             Importer CSV
@@ -1308,6 +1460,12 @@ function SitesContent({
           <Flame size={18} className="mr-2" />
           Import Exploitant
         </Button>
+        {hasContract && (
+          <Button variant="outline" onClick={() => setShowNbImportModal(true)}>
+            <BarChart3 size={18} className="mr-2" />
+            Import NB (DPGF)
+          </Button>
+        )}
         <Button variant="outline" onClick={() => setShowImportModal(true)}>
           <Upload size={18} className="mr-2" />
           Importer CSV
@@ -1960,7 +2118,7 @@ function HeatingSeasonModal({
   handleSave,
   onClose,
 }: {
-  form: { siteId: string; siteName: string; season: string; startDate: string; endDate: string; notes: string };
+  form: { siteId: string; siteName: string; season: string; startDate: string; endDate: string; notes: string; nb: string; nbUnit: "PCS" | "UTILE"; djuContractuel: string };
   setForm: (f: typeof form) => void;
   saving: boolean;
   handleSave: (e: React.FormEvent) => void;
@@ -1968,7 +2126,7 @@ function HeatingSeasonModal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
             <h2 className="text-xl font-bold text-primary-dark">Période de chauffe</h2>
@@ -2022,6 +2180,67 @@ function HeatingSeasonModal({
             <p className="text-xs text-gray-500 mt-1">Laissez vide si la saison est en cours</p>
           </div>
 
+          {/* Engagement énergétique (NB) */}
+          <div className="border-t border-gray-100 pt-4 mt-4">
+            <div className="bg-amber-50 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <BarChart3 className="text-amber-600 mt-0.5" size={20} />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">
+                    Engagement énergétique (NB)
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    Niveau de Base de la saison (peut varier avec l&apos;APE)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  NB (MWh)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={form.nb}
+                  onChange={(e) => setForm({ ...form, nb: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  placeholder="Ex: 150"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-primary-dark mb-1">
+                  Unité
+                </label>
+                <select
+                  value={form.nbUnit}
+                  onChange={(e) => setForm({ ...form, nbUnit: e.target.value as "PCS" | "UTILE" })}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="PCS">PCS</option>
+                  <option value="UTILE">Utile</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-primary-dark mb-1">
+                DJU Contractuels
+              </label>
+              <input
+                type="number"
+                step="1"
+                value={form.djuContractuel}
+                onChange={(e) => setForm({ ...form, djuContractuel: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                placeholder="Ex: 2450"
+              />
+              <p className="text-xs text-gray-500 mt-1">Laissez vide pour utiliser les DJU du site</p>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">Notes</label>
             <textarea
@@ -2029,7 +2248,7 @@ function HeatingSeasonModal({
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               rows={2}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 resize-none"
-              placeholder="Observations, index compteur..."
+              placeholder="Observations, APE appliquée..."
             />
           </div>
 
@@ -2508,6 +2727,321 @@ function DeleteConsumptionsModal({
                 </>
               )}
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal d'import des NB (DPGF)
+function NbImportModal({
+  contract,
+  importing,
+  importResult,
+  onImport,
+  onConfirmImport,
+  onClose,
+}: {
+  contract: Contract;
+  importing: boolean;
+  importResult: {
+    mode: "preview" | "import";
+    contract?: { id: string; title: string; startDate: string; endDate: string };
+    yearColumns?: { year: number; season: string; headerLabel: string }[];
+    preview?: {
+      row: number;
+      excelSiteName: string;
+      matchedSite?: { id: string; name: string };
+      years: { year: number; season: string; nb: number | null }[];
+    }[];
+    imported?: number;
+    updated?: number;
+    skipped: number;
+    errors?: { row: number; site: string; error: string }[];
+    unmatchedSites?: { excelName: string; suggestions: { id: string; name: string; score: number }[] }[];
+    availableSites?: { id: string; name: string }[];
+  } | null;
+  onImport: (file: File, nbUnit: "PCS" | "UTILE") => void;
+  onConfirmImport: (nbUnit: "PCS" | "UTILE") => void;
+  onClose: () => void;
+}) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [nbUnit, setNbUnit] = useState<"PCS" | "UTILE">("PCS");
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (selectedFile) {
+      onImport(selectedFile, nbUnit);
+    }
+  };
+
+  const matchedCount = importResult?.preview?.filter(p => p.matchedSite)?.length || 0;
+  const unmatchedCount = importResult?.preview?.filter(p => !p.matchedSite)?.length || 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+          <div>
+            <h2 className="text-xl font-bold text-primary-dark">Import NB (DPGF)</h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Importez les engagements énergétiques du contrat {contract.title}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Info */}
+          <div className="bg-blue-50 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <BarChart3 className="text-blue-600 mt-0.5" size={20} />
+              <div>
+                <p className="text-sm font-medium text-blue-800">Format attendu</p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Fichier Excel avec colonnes : Site | Année 1 | Année 2 | ... | Année N
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Les valeurs NB doivent être en MWh (seront stockées par saison de chauffe)
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Upload */}
+          {!importResult && (
+            <>
+              {/* NB Unit selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Unité du NB
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="nbUnit"
+                      value="PCS"
+                      checked={nbUnit === "PCS"}
+                      onChange={() => setNbUnit("PCS")}
+                      className="text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm">PCS (Pouvoir Calorifique Supérieur)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="nbUnit"
+                      value="UTILE"
+                      checked={nbUnit === "UTILE"}
+                      onChange={() => setNbUnit("UTILE")}
+                      className="text-accent focus:ring-accent"
+                    />
+                    <span className="text-sm">Utile (Énergie utile)</span>
+                  </label>
+                </div>
+              </div>
+
+              <label className="block cursor-pointer">
+                <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
+                  selectedFile ? "border-accent bg-accent/5" : "border-gray-300 hover:border-accent"
+                }`}>
+                  <FileSpreadsheet className={`w-12 h-12 mx-auto mb-4 ${selectedFile ? "text-accent" : "text-gray-400"}`} />
+                  {selectedFile ? (
+                    <>
+                      <p className="text-lg font-medium text-primary-dark mb-1">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-sm text-text-secondary">
+                        Cliquez pour changer de fichier
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-medium text-primary-dark mb-2">
+                        Sélectionnez le fichier DPGF Excel
+                      </p>
+                      <p className="text-sm text-text-secondary">
+                        Formats: .xlsx, .xls
+                      </p>
+                    </>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  className="hidden"
+                  data-nb-import-file
+                  onChange={handleFileChange}
+                />
+              </label>
+            </>
+          )}
+
+          {/* Preview Mode */}
+          {importResult?.mode === "preview" && (
+            <div className="space-y-4">
+              <div className="p-4 rounded-xl bg-blue-50">
+                <div className="flex items-center gap-3">
+                  <FileSpreadsheet className="text-blue-600" size={24} />
+                  <div>
+                    <p className="font-semibold text-primary-dark">Prévisualisation</p>
+                    <p className="text-sm text-text-secondary">
+                      {matchedCount} site(s) reconnu(s), {unmatchedCount} non reconnu(s)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Year columns detected */}
+              {importResult.yearColumns && importResult.yearColumns.length > 0 && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-700 mb-2">Années détectées :</p>
+                  <div className="flex flex-wrap gap-2">
+                    {importResult.yearColumns.map((yc) => (
+                      <span key={yc.year} className="px-3 py-1 bg-white rounded-full text-xs font-medium border">
+                        {yc.headerLabel} → {yc.season}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Preview table */}
+              {importResult.preview && importResult.preview.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Site Excel</th>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Site correspondant</th>
+                        {importResult.yearColumns?.map((yc) => (
+                          <th key={yc.year} className="px-3 py-2 text-right font-medium text-gray-600">
+                            {yc.season}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {importResult.preview.map((row) => (
+                        <tr key={row.row} className={row.matchedSite ? "" : "bg-amber-50"}>
+                          <td className="px-3 py-2 font-medium text-gray-800">{row.excelSiteName}</td>
+                          <td className="px-3 py-2">
+                            {row.matchedSite ? (
+                              <span className="text-green-700 flex items-center gap-1">
+                                <Check size={14} />
+                                {row.matchedSite.name}
+                              </span>
+                            ) : (
+                              <span className="text-amber-600 flex items-center gap-1">
+                                <AlertTriangle size={14} />
+                                Non reconnu
+                              </span>
+                            )}
+                          </td>
+                          {row.years.map((y) => (
+                            <td key={y.year} className="px-3 py-2 text-right">
+                              {y.nb !== null ? (
+                                <span className="font-medium">{y.nb.toLocaleString("fr-FR")} MWh</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Warning for unmatched sites */}
+              {unmatchedCount > 0 && (
+                <div className="p-4 rounded-xl bg-amber-50">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="text-amber-600 mt-0.5" size={20} />
+                    <div>
+                      <p className="text-sm font-medium text-amber-800">
+                        {unmatchedCount} site(s) non reconnu(s)
+                      </p>
+                      <p className="text-xs text-amber-600 mt-1">
+                        Ces sites seront ignorés lors de l&apos;import. Vous pouvez créer des alias dans la page Sites pour les reconnaître automatiquement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Import Results */}
+          {importResult?.mode === "import" && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded-xl ${
+                (importResult.errors?.length || 0) === 0 ? "bg-green-50" : "bg-yellow-50"
+              }`}>
+                <div className="flex items-center gap-3">
+                  {(importResult.errors?.length || 0) === 0 ? (
+                    <Check className="text-green-600" size={24} />
+                  ) : (
+                    <AlertTriangle className="text-yellow-600" size={24} />
+                  )}
+                  <div>
+                    <p className="font-semibold text-primary-dark">Import terminé</p>
+                    <p className="text-sm text-text-secondary">
+                      {importResult.imported || 0} créés, {importResult.updated || 0} mis à jour, {importResult.skipped} ignorés
+                      {(importResult.errors?.length || 0) > 0 && `, ${importResult.errors?.length} erreurs`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4 border-t border-gray-100">
+            {importResult?.mode === "import" ? (
+              <Button className="flex-1" onClick={onClose}>Fermer</Button>
+            ) : importResult?.mode === "preview" ? (
+              <>
+                <Button variant="outline" onClick={onClose}>Annuler</Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => onConfirmImport(nbUnit)}
+                  disabled={importing || matchedCount === 0}
+                >
+                  {importing ? (
+                    <><Loader2 size={18} className="mr-2 animate-spin" />Import en cours...</>
+                  ) : (
+                    <><Check size={18} className="mr-2" />Importer {matchedCount} site(s)</>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={onClose}>Annuler</Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleSubmit}
+                  disabled={importing || !selectedFile}
+                >
+                  {importing ? (
+                    <><Loader2 size={18} className="mr-2 animate-spin" />Analyse...</>
+                  ) : (
+                    <><FileSpreadsheet size={18} className="mr-2" />Analyser le fichier</>
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
