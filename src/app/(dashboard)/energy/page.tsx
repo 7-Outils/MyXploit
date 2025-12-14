@@ -776,7 +776,7 @@ function EnergyPageContent() {
   };
 
   // NB Import handlers
-  const handleNbImport = async (file: File, nbUnit: "PCS" | "UTILE") => {
+  const handleNbImport = async (file: File) => {
     if (!selectedContract) {
       alert("Veuillez sélectionner un contrat");
       return;
@@ -787,7 +787,6 @@ function EnergyPageContent() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("contractId", selectedContract.id);
-      formData.append("nbUnit", nbUnit);
       formData.append("preview", "true");
 
       const response = await fetch("/api/heating-seasons/import-nb", {
@@ -810,7 +809,7 @@ function EnergyPageContent() {
     }
   };
 
-  const handleConfirmNbImport = async (nbUnit: "PCS" | "UTILE") => {
+  const handleConfirmNbImport = async () => {
     if (!selectedContract || !nbImportResult?.preview) return;
 
     setImportingNb(true);
@@ -827,7 +826,6 @@ function EnergyPageContent() {
 
       formData.append("file", fileInput.files[0]);
       formData.append("contractId", selectedContract.id);
-      formData.append("nbUnit", nbUnit);
       formData.append("preview", "false");
 
       const response = await fetch("/api/heating-seasons/import-nb", {
@@ -3203,12 +3201,11 @@ function NbImportModal({
     unmatchedSites?: { excelName: string; suggestions: { id: string; name: string; score: number }[] }[];
     availableSites?: { id: string; name: string }[];
   } | null;
-  onImport: (file: File, nbUnit: "PCS" | "UTILE") => void;
-  onConfirmImport: (nbUnit: "PCS" | "UTILE") => void;
+  onImport: (file: File) => void;
+  onConfirmImport: () => void;
   onClose: () => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [nbUnit, setNbUnit] = useState<"PCS" | "UTILE">("PCS");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3219,7 +3216,7 @@ function NbImportModal({
 
   const handleSubmit = () => {
     if (selectedFile) {
-      onImport(selectedFile, nbUnit);
+      onImport(selectedFile);
     }
   };
 
@@ -3254,6 +3251,9 @@ function NbImportModal({
                 <p className="text-xs text-blue-600 mt-1">
                   Les valeurs NB doivent être en MWh (seront stockées par saison de chauffe)
                 </p>
+                <p className="text-xs text-blue-700 mt-2 font-medium">
+                  💡 L&apos;unité (PCS ou Utile) est déterminée automatiquement selon le type d&apos;énergie du site
+                </p>
               </div>
             </div>
           </div>
@@ -3261,37 +3261,6 @@ function NbImportModal({
           {/* Upload */}
           {!importResult && (
             <>
-              {/* NB Unit selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Unité du NB
-                </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="nbUnit"
-                      value="PCS"
-                      checked={nbUnit === "PCS"}
-                      onChange={() => setNbUnit("PCS")}
-                      className="text-accent focus:ring-accent"
-                    />
-                    <span className="text-sm">PCS (Pouvoir Calorifique Supérieur)</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="nbUnit"
-                      value="UTILE"
-                      checked={nbUnit === "UTILE"}
-                      onChange={() => setNbUnit("UTILE")}
-                      className="text-accent focus:ring-accent"
-                    />
-                    <span className="text-sm">Utile (Énergie utile)</span>
-                  </label>
-                </div>
-              </div>
-
               <label className="block cursor-pointer">
                 <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
                   selectedFile ? "border-accent bg-accent/5" : "border-gray-300 hover:border-accent"
@@ -3457,7 +3426,7 @@ function NbImportModal({
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
                   className="flex-1"
-                  onClick={() => onConfirmImport(nbUnit)}
+                  onClick={() => onConfirmImport()}
                   disabled={importing || matchedCount === 0}
                 >
                   {importing ? (

@@ -2,7 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import * as XLSX from "xlsx";
-import { NbUnit } from "@/generated/prisma/client";
+import { EnergyType, NbUnit } from "@/generated/prisma/client";
+
+// Determine NB unit based on energy type
+// GAZ, FIOUL, BOIS → PCS (pouvoir calorifique supérieur)
+// RESEAU_CHALEUR, ELECTRICITE → UTILE (énergie utile)
+function getNbUnitForEnergyType(energyType: EnergyType): NbUnit {
+  switch (energyType) {
+    case "GAZ":
+    case "FIOUL":
+    case "BOIS":
+      return "PCS";
+    case "RESEAU_CHALEUR":
+    case "ELECTRICITE":
+      return "UTILE";
+    default:
+      return "PCS"; // Default to PCS for AUTRE, EAU, etc.
+  }
+}
 
 // POST /api/heating-seasons/import-nb - Import NB values from DPGF Excel file
 // Format: Site | Année 1 | Année 2 | ... | Année N
@@ -20,7 +37,6 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const contractId = formData.get("contractId") as string;
-    const nbUnit = (formData.get("nbUnit") as NbUnit) || "PCS";
     const previewMode = formData.get("preview") === "true";
 
     if (!file) {
@@ -119,8 +135,11 @@ export async function POST(request: NextRequest) {
         organizationId: user.organizationId,
         id: { in: contractSiteIds },
       },
-      select: { id: true, name: true, city: true },
+      select: { id: true, name: true, city: true, energyType: true },
     });
+
+    // Create a map to quickly get site energy type
+    const siteEnergyTypeMap = new Map(sites.map((s) => [s.id, s.energyType]));
 
     // Get site aliases
     const siteAliases = await prisma.siteAlias.findMany({
@@ -214,6 +233,10 @@ export async function POST(request: NextRequest) {
         // If not preview mode and we have a match and valid NB, upsert
         if (!previewMode && siteMatch.siteId && !isNaN(nbNumber) && nbNumber > 0) {
           try {
+            // Determine unit based on site's energy type
+            const siteEnergyType = siteEnergyTypeMap.get(siteMatch.siteId);
+            const nbUnit = siteEnergyType ? getNbUnitForEnergyType(siteEnergyType) : "PCS";
+
             const existing = await prisma.heatingSeason.findUnique({
               where: { siteId_season: { siteId: siteMatch.siteId, season } },
             });
