@@ -1641,10 +1641,13 @@ function P1Content({
     const startYear = startDate.getFullYear();
     const endYear = endDate.getFullYear();
     const startMonth = startDate.getMonth();
+    const endMonth = endDate.getMonth();
 
     // First heating season: if contract starts before July, it's that year's season
     const firstSeason = startMonth >= 6 ? startYear + 1 : startYear;
-    const lastSeason = endYear + 1; // Include one more year for ongoing contracts
+    // Last heating season: if contract ends before July, last season ends that year
+    // If contract ends July or later, the season ending next year is included
+    const lastSeason = endMonth >= 6 ? endYear + 1 : endYear;
 
     const years: { year: number; season: string }[] = [];
     for (let i = 0; i < 10 && firstSeason + i <= lastSeason; i++) {
