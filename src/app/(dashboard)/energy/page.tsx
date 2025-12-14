@@ -809,7 +809,7 @@ function EnergyPageContent() {
     }
   };
 
-  const handleConfirmNbImport = async () => {
+  const handleConfirmNbImport = async (unitOverrides: Record<string, "PCS" | "UTILE">) => {
     if (!selectedContract || !nbImportResult?.preview) return;
 
     setImportingNb(true);
@@ -827,6 +827,10 @@ function EnergyPageContent() {
       formData.append("file", fileInput.files[0]);
       formData.append("contractId", selectedContract.id);
       formData.append("preview", "false");
+      // Pass unit overrides if any
+      if (Object.keys(unitOverrides).length > 0) {
+        formData.append("unitOverrides", JSON.stringify(unitOverrides));
+      }
 
       const response = await fetch("/api/heating-seasons/import-nb", {
         method: "POST",
@@ -3199,13 +3203,14 @@ function NbImportModal({
     skipped: number;
     errors?: { row: number; site: string; error: string }[];
     unmatchedSites?: { excelName: string; suggestions: { id: string; name: string; score: number }[] }[];
-    availableSites?: { id: string; name: string }[];
+    availableSites?: { id: string; name: string; energyType?: string; detectedUnit?: string }[];
   } | null;
   onImport: (file: File) => void;
-  onConfirmImport: () => void;
+  onConfirmImport: (unitOverrides: Record<string, "PCS" | "UTILE">) => void;
   onClose: () => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [unitOverrides, setUnitOverrides] = useState<Record<string, "PCS" | "UTILE">>({});
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3334,6 +3339,7 @@ function NbImportModal({
                       <tr className="bg-gray-50">
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Site Excel</th>
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Site correspondant</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-600">Unité</th>
                         {importResult.yearColumns?.map((yc) => (
                           <th key={yc.year} className="px-3 py-2 text-right font-medium text-gray-600">
                             {yc.season}
@@ -3342,33 +3348,58 @@ function NbImportModal({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {importResult.preview.map((row) => (
-                        <tr key={row.row} className={row.matchedSite ? "" : "bg-amber-50"}>
-                          <td className="px-3 py-2 font-medium text-gray-800">{row.excelSiteName}</td>
-                          <td className="px-3 py-2">
-                            {row.matchedSite ? (
-                              <span className="text-green-700 flex items-center gap-1">
-                                <Check size={14} />
-                                {row.matchedSite.name}
-                              </span>
-                            ) : (
-                              <span className="text-amber-600 flex items-center gap-1">
-                                <AlertTriangle size={14} />
-                                Non reconnu
-                              </span>
-                            )}
-                          </td>
-                          {row.years.map((y) => (
-                            <td key={y.year} className="px-3 py-2 text-right">
-                              {y.nb !== null ? (
-                                <span className="font-medium">{y.nb.toLocaleString("fr-FR")} MWh</span>
+                      {importResult.preview.map((row) => {
+                        const currentUnit = row.matchedSite
+                          ? (unitOverrides[row.matchedSite.id] || (row.matchedSite as { detectedUnit?: string }).detectedUnit || "PCS")
+                          : null;
+                        return (
+                          <tr key={row.row} className={row.matchedSite ? "" : "bg-amber-50"}>
+                            <td className="px-3 py-2 font-medium text-gray-800">{row.excelSiteName}</td>
+                            <td className="px-3 py-2">
+                              {row.matchedSite ? (
+                                <span className="text-green-700 flex items-center gap-1">
+                                  <Check size={14} />
+                                  {row.matchedSite.name}
+                                </span>
+                              ) : (
+                                <span className="text-amber-600 flex items-center gap-1">
+                                  <AlertTriangle size={14} />
+                                  Non reconnu
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-center">
+                              {row.matchedSite ? (
+                                <select
+                                  value={currentUnit || "PCS"}
+                                  onChange={(e) => {
+                                    const newValue = e.target.value as "PCS" | "UTILE";
+                                    setUnitOverrides((prev) => ({
+                                      ...prev,
+                                      [row.matchedSite!.id]: newValue,
+                                    }));
+                                  }}
+                                  className="text-xs px-2 py-1 border rounded bg-white"
+                                >
+                                  <option value="PCS">PCS</option>
+                                  <option value="UTILE">Utile</option>
+                                </select>
                               ) : (
                                 <span className="text-gray-400">-</span>
                               )}
                             </td>
-                          ))}
-                        </tr>
-                      ))}
+                            {row.years.map((y) => (
+                              <td key={y.year} className="px-3 py-2 text-right">
+                                {y.nb !== null ? (
+                                  <span className="font-medium">{y.nb.toLocaleString("fr-FR")} MWh</span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -3426,7 +3457,7 @@ function NbImportModal({
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
                   className="flex-1"
-                  onClick={() => onConfirmImport()}
+                  onClick={() => onConfirmImport(unitOverrides)}
                   disabled={importing || matchedCount === 0}
                 >
                   {importing ? (

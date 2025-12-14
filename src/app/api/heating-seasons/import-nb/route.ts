@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     const contractId = formData.get("contractId") as string;
     const previewMode = formData.get("preview") === "true";
+    // Unit overrides: JSON string { siteId: "PCS" | "UTILE" }
+    const unitOverridesStr = formData.get("unitOverrides") as string | null;
+    const unitOverrides: Record<string, NbUnit> = unitOverridesStr ? JSON.parse(unitOverridesStr) : {};
 
     if (!file) {
       return NextResponse.json(
@@ -167,7 +170,7 @@ export async function POST(request: NextRequest) {
     const previewData: Array<{
       row: number;
       excelSiteName: string;
-      matchedSite?: { id: string; name: string };
+      matchedSite?: { id: string; name: string; energyType: string; detectedUnit: NbUnit };
       years: Array<{ year: number; season: string; nb: number | null }>;
     }> = [];
 
@@ -211,10 +214,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Build preview row
+      const siteEnergyType = siteMatch.siteId ? siteEnergyTypeMap.get(siteMatch.siteId) : undefined;
       const previewRow: typeof previewData[0] = {
         row: rowNum,
         excelSiteName: siteName,
-        matchedSite: siteMatch.siteId ? { id: siteMatch.siteId, name: siteMatch.siteName! } : undefined,
+        matchedSite: siteMatch.siteId && siteEnergyType ? {
+          id: siteMatch.siteId,
+          name: siteMatch.siteName!,
+          energyType: siteEnergyType,
+          detectedUnit: getNbUnitForEnergyType(siteEnergyType),
+        } : undefined,
         years: [],
       };
 
@@ -233,9 +242,10 @@ export async function POST(request: NextRequest) {
         // If not preview mode and we have a match and valid NB, upsert
         if (!previewMode && siteMatch.siteId && !isNaN(nbNumber) && nbNumber > 0) {
           try {
-            // Determine unit based on site's energy type
+            // Determine unit: use override if provided, otherwise detect from energy type
             const siteEnergyType = siteEnergyTypeMap.get(siteMatch.siteId);
-            const nbUnit = siteEnergyType ? getNbUnitForEnergyType(siteEnergyType) : "PCS";
+            const detectedUnit = siteEnergyType ? getNbUnitForEnergyType(siteEnergyType) : "PCS";
+            const nbUnit = unitOverrides[siteMatch.siteId] || detectedUnit;
 
             const existing = await prisma.heatingSeason.findUnique({
               where: { siteId_season: { siteId: siteMatch.siteId, season } },
@@ -303,7 +313,12 @@ export async function POST(request: NextRequest) {
         preview: previewData,
         siteMatches: results.siteMatches,
         unmatchedSites,
-        availableSites: sites.map((s) => ({ id: s.id, name: s.name })),
+        availableSites: sites.map((s) => ({
+          id: s.id,
+          name: s.name,
+          energyType: s.energyType,
+          detectedUnit: getNbUnitForEnergyType(s.energyType),
+        })),
       });
     }
 
