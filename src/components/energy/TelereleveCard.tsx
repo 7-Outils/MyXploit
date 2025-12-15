@@ -314,9 +314,9 @@ export function TelereleveCard() {
               <p className="text-xs text-red-600 mb-3">{providers.enedis.lastError}</p>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-3">
               {providers?.enedis.isConnected ? (
-                <>
+                <div className="flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
@@ -339,16 +339,30 @@ export function TelereleveCard() {
                   >
                     Déconnecter
                   </Button>
-                </>
+                </div>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={handleEnedisConnect}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                >
-                  <ExternalLink size={14} className="mr-1" />
-                  Connecter avec Enedis
-                </Button>
+                <>
+                  {/* Texte ENEDIS obligatoire */}
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    En cliquant sur le bouton ci-dessous, vous serez redirigé vers le site d&apos;Enedis
+                    pour autoriser l&apos;accès à vos données de consommation électrique.
+                    Vos données seront collectées par <strong>MyXploit</strong> dans le cadre du suivi
+                    énergétique de vos bâtiments.
+                  </p>
+                  {/* Bouton ENEDIS officiel */}
+                  <button
+                    onClick={handleEnedisConnect}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-white font-medium transition-colors"
+                    style={{ backgroundColor: "#00A651" }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#008c44"}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#00A651"}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    Accéder à mes données avec Enedis
+                  </button>
+                </>
               )}
             </div>
           </div>
