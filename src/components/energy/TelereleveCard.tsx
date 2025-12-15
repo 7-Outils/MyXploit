@@ -10,7 +10,6 @@ import {
   XCircle,
   Loader2,
   X,
-  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -341,28 +340,57 @@ export function TelereleveCard() {
                   </Button>
                 </div>
               ) : (
-                <>
-                  {/* Texte ENEDIS obligatoire */}
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    En cliquant sur le bouton ci-dessous, vous serez redirigé vers le site d&apos;Enedis
-                    pour autoriser l&apos;accès à vos données de consommation électrique.
-                    Vos données seront collectées par <strong>MyXploit</strong> dans le cadre du suivi
-                    énergétique de vos bâtiments.
+                <div className="space-y-3">
+                  {/* Présentation Enedis */}
+                  <div className="text-xs text-gray-700 leading-relaxed">
+                    <p className="mb-2">
+                      <strong>Enedis</strong> gère le réseau d&apos;électricité jusqu&apos;au compteur d&apos;électricité.
+                      Pour le suivi énergétique de vos bâtiments, autorisez Enedis à nous transmettre vos données Linky.
+                    </p>
+                    <p className="text-gray-500 text-[11px]">
+                      Enedis est le gestionnaire du réseau public de distribution d&apos;électricité sur 95% du territoire français continental.
+                    </p>
+                  </div>
+
+                  {/* Texte avant le bouton d'action */}
+                  <p className="text-xs text-gray-600 leading-relaxed bg-gray-50 p-2 rounded">
+                    En cliquant sur ce bouton, vous allez accéder à votre compte personnel Enedis où vous pourrez
+                    donner votre accord pour qu&apos;Enedis nous transmette vos données.
                   </p>
-                  {/* Bouton ENEDIS officiel */}
+
+                  {/* Bouton ENEDIS officiel avec logo */}
                   <button
                     onClick={handleEnedisConnect}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-white font-medium transition-colors"
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-white font-medium transition-colors"
                     style={{ backgroundColor: "#00A651" }}
                     onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#008c44"}
                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#00A651"}
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                    </svg>
+                    <img
+                      src="/enedis-logo.png"
+                      alt="Enedis"
+                      className="h-5 w-auto"
+                    />
                     Accéder à mes données avec Enedis
                   </button>
-                </>
+
+                  {/* Lien création de compte */}
+                  <div className="text-[11px] text-gray-500 leading-relaxed">
+                    <p>
+                      Vous n&apos;avez pas de compte Enedis ?{" "}
+                      <a
+                        href="https://mon-compte-client.enedis.fr/inscription"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        Créez votre espace personnel
+                      </a>
+                      . Il vous permet de suivre et gérer vos données de consommation d&apos;électricité.
+                      Munissez-vous de votre facture d&apos;électricité pour créer votre espace.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
