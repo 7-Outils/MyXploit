@@ -358,20 +358,16 @@ export function TelereleveCard() {
                     donner votre accord pour qu&apos;Enedis nous transmette vos données.
                   </p>
 
-                  {/* Bouton ENEDIS officiel avec logo */}
+                  {/* Bouton ENEDIS officiel - Logo cliquable */}
                   <button
                     onClick={handleEnedisConnect}
-                    className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-white font-medium transition-colors"
-                    style={{ backgroundColor: "#00A651" }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#008c44"}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#00A651"}
+                    className="w-full flex items-center justify-center p-3 rounded-lg transition-all hover:opacity-80 hover:shadow-md"
                   >
                     <img
                       src="/enedis-logo.png"
-                      alt="Enedis"
-                      className="h-5 w-auto"
+                      alt="Accéder à mes données avec Enedis"
+                      className="h-12 w-auto"
                     />
-                    Accéder à mes données avec Enedis
                   </button>
 
                   {/* Lien création de compte */}
