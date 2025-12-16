@@ -41,8 +41,8 @@ export interface EnedisMeteringData {
   interval_reading: EnedisConsommation[];
 }
 
-const DEFAULT_API_URL = "https://gw.prd.api.enedis.fr";
-const DEFAULT_AUTH_URL = "https://mon-compte-client.enedis.fr";
+const DEFAULT_API_URL = "https://gw.ext.prod.api.enedis.fr";
+const DEFAULT_AUTH_URL = "https://mon-compte-particulier.enedis.fr";
 
 /**
  * Générer l'URL d'autorisation OAuth2 Enedis
