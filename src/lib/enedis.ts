@@ -42,7 +42,7 @@ export interface EnedisMeteringData {
 }
 
 const DEFAULT_API_URL = "https://gw.prd.api.enedis.fr";
-const DEFAULT_AUTH_URL = "https://mon-compte-particulier.enedis.fr";
+const DEFAULT_AUTH_URL = "https://mon-compte-client.enedis.fr";
 
 /**
  * Générer l'URL d'autorisation OAuth2 Enedis
