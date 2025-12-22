@@ -83,6 +83,16 @@ function AdministratifContent() {
     total: number;
     newSites: number;
     existingSites: number;
+    dataSheetName?: string;
+    detectedMetadata?: {
+      reference?: string;
+      title?: string;
+      provider?: string;
+      startDate?: string;
+      endDate?: string;
+      yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
+      billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
+    };
     results: Array<{
       row: number;
       siteName: string;
@@ -240,6 +250,21 @@ function AdministratifContent() {
       }
 
       setAEImportPreview(result);
+
+      // Pre-fill form with detected metadata from "Contrat" sheet
+      if (result.detectedMetadata) {
+        const meta = result.detectedMetadata;
+        setAEContractForm((prev) => ({
+          ...prev,
+          reference: meta.reference || prev.reference,
+          title: meta.title || prev.title,
+          provider: meta.provider || prev.provider,
+          startDate: meta.startDate || prev.startDate,
+          endDate: meta.endDate || prev.endDate,
+          yearType: meta.yearType || prev.yearType,
+          billingFrequency: meta.billingFrequency || prev.billingFrequency,
+        }));
+      }
     } catch (error) {
       console.error("Error parsing AE file:", error);
       setAEImportError("Erreur lors de la lecture du fichier");
@@ -627,7 +652,7 @@ function AdministratifContent() {
                       <FileSpreadsheet size={32} className="mx-auto text-gray-400 mb-2" />
                       <p className="font-medium text-primary-dark">Cliquez pour sélectionner le fichier AE (Excel)</p>
                       <p className="text-sm text-text-secondary mt-1">
-                        Format attendu : feuille &quot;P2P3&quot; avec colonnes Libellé, Contrat, NB, P2x, P3x
+                        Feuilles supportées : &quot;Contrat&quot; (métadonnées) + &quot;P2P3&quot;/&quot;Sites&quot; (données)
                       </p>
                     </>
                   )}
@@ -646,7 +671,15 @@ function AdministratifContent() {
               {aeImportPreview && (
                 <>
                   <div>
-                    <h3 className="font-medium text-primary-dark mb-3">2. Informations du contrat</h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-medium text-primary-dark">2. Informations du contrat</h3>
+                      {aeImportPreview.detectedMetadata && (
+                        <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center gap-1">
+                          <Check size={12} />
+                          Pré-rempli depuis feuille &quot;Contrat&quot;
+                        </span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-primary-dark mb-1">Référence *</label>

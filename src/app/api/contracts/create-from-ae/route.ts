@@ -78,6 +78,82 @@ interface ParsedSite {
   existingSite?: { id: string; name: string };
 }
 
+interface ContractMetadata {
+  reference?: string;
+  title?: string;
+  provider?: string;
+  startDate?: string;
+  endDate?: string;
+  yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
+  billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
+}
+
+// Parse "Contrat" sheet for metadata
+function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata | null {
+  // Look for a "Contrat" sheet (case insensitive)
+  const contratSheetName = workbook.SheetNames.find(
+    (name) => name.toLowerCase() === "contrat" || name.toLowerCase() === "info" || name.toLowerCase() === "metadata"
+  );
+
+  if (!contratSheetName) return null;
+
+  const sheet = workbook.Sheets[contratSheetName];
+  const rawData = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, { header: 1 });
+
+  const metadata: ContractMetadata = {};
+
+  // Parse key-value pairs (looking for "Champ | Valeur" format)
+  for (const row of rawData) {
+    if (!row || row.length < 2) continue;
+
+    const key = String(row[0] || "").trim().toLowerCase();
+    const value = String(row[1] || "").trim();
+
+    if (!key || !value || key === "champ") continue; // Skip header row
+
+    // Map fields
+    if (key.includes("référence") || key.includes("reference")) {
+      metadata.reference = value;
+    } else if (key === "titre" || key === "title") {
+      metadata.title = value;
+    } else if (key.includes("titulaire") || key.includes("provider") || key.includes("prestataire")) {
+      metadata.provider = value;
+    } else if (key.includes("date de début") || key.includes("date début") || key.includes("start")) {
+      // Parse date (DD/MM/YYYY or YYYY-MM-DD)
+      metadata.startDate = value;
+    } else if (key.includes("date de fin") || key.includes("date fin") || key.includes("end")) {
+      metadata.endDate = value;
+    } else if (key.includes("type année") || key.includes("type annee") || key.includes("année") || key.includes("annee")) {
+      const lowerValue = value.toLowerCase();
+      if (lowerValue.includes("civile")) {
+        metadata.yearType = "CIVIL";
+      } else if (lowerValue.includes("chauffe") || lowerValue.includes("saison")) {
+        metadata.yearType = "HEATING_SEASON";
+      } else if (lowerValue.includes("contractuel")) {
+        metadata.yearType = "CONTRACTUAL";
+      }
+    } else if (key.includes("facturation") || key.includes("billing") || key.includes("fréquence")) {
+      const lowerValue = value.toLowerCase();
+      if (lowerValue.includes("mensuel")) {
+        metadata.billingFrequency = "MENSUEL";
+      } else if (lowerValue.includes("trimestriel")) {
+        metadata.billingFrequency = "TRIMESTRIEL";
+      } else if (lowerValue.includes("semestriel")) {
+        metadata.billingFrequency = "SEMESTRIEL";
+      } else if (lowerValue.includes("annuel")) {
+        metadata.billingFrequency = "ANNUEL";
+      }
+    }
+  }
+
+  // Only return if we found at least one field
+  const hasAnyField = metadata.reference || metadata.title || metadata.provider ||
+                      metadata.startDate || metadata.endDate || metadata.yearType ||
+                      metadata.billingFrequency;
+
+  return hasAnyField ? metadata : null;
+}
+
 // POST /api/contracts/create-from-ae - Create contract from AE file
 export async function POST(request: NextRequest) {
   try {
@@ -114,10 +190,16 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
 
-    // Use "P2P3" sheet if available, otherwise first sheet
-    const sheetName = workbook.SheetNames.includes("P2P3")
-      ? "P2P3"
-      : workbook.SheetNames[0];
+    // Parse contract metadata from "Contrat" sheet if available
+    const detectedMetadata = parseContractMetadataSheet(workbook);
+
+    // Use "P2P3" or "Sites" sheet if available, otherwise first non-metadata sheet
+    const dataSheetName = workbook.SheetNames.find(
+      (name) => name.toLowerCase() === "p2p3" || name.toLowerCase() === "sites"
+    ) || workbook.SheetNames.find(
+      (name) => !["contrat", "info", "metadata"].includes(name.toLowerCase())
+    ) || workbook.SheetNames[0];
+    const sheetName = dataSheetName;
     const sheet = workbook.Sheets[sheetName];
     const rawData = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, { header: 1 });
 
@@ -293,6 +375,9 @@ export async function POST(request: NextRequest) {
         total: parsedSites.length,
         newSites: parsedSites.filter(s => !s.existingSite).length,
         existingSites: parsedSites.filter(s => s.existingSite).length,
+        // Detected metadata from "Contrat" sheet (if available)
+        detectedMetadata: detectedMetadata || undefined,
+        dataSheetName: sheetName,
         results: parsedSites.map(s => ({
           row: s.row,
           siteName: s.siteName,
