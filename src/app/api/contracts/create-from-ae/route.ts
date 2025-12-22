@@ -468,8 +468,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating contract from AE:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
     return NextResponse.json(
-      { error: "Erreur lors de la création du contrat depuis l'AE" },
+      { error: `Erreur lors de la création du contrat: ${errorMessage}` },
       { status: 500 }
     );
   }
