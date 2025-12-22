@@ -299,7 +299,10 @@ export async function POST(request: NextRequest) {
           contractType: s.contractType,
           isNew: !s.existingSite,
           existingSiteId: s.existingSite?.id,
-          nbValues: s.nb,
+          // Filter out null/0 NB values
+          nbValues: Object.fromEntries(
+            Object.entries(s.nb).filter(([, v]) => v !== null && v > 0)
+          ),
           p2Total: s.p2.total || (
             (s.p2.p21 || 0) + (s.p2.p22 || 0) + (s.p2.p23 || 0) +
             (s.p2.p24 || 0) + (s.p2.p25 || 0) + (s.p2.p26 || 0)
