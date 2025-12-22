@@ -543,8 +543,22 @@ model ContractSite {
   hasP3        Boolean      @default(false) // P3 - Gros entretien/Renouvellement
   hasP4        Boolean      @default(false) // P4 - Financement
   amountP1     Float?       // Forfait P1 de base pour ce site
-  amountP2     Float?       // Forfait P2 de base pour ce site
-  amountP3     Float?       // Forfait P3 de base pour ce site
+  amountP2     Float?       // Forfait P2 de base pour ce site (total)
+  amountP3     Float?       // Forfait P3 de base pour ce site (total)
+  // === DETAIL P2 - Petit entretien par poste (€HT annuel) ===
+  amountP21    Float?       // P21 - Chauffage
+  amountP22    Float?       // P22 - Ventilation
+  amountP23    Float?       // P23 - Climatisation
+  amountP24    Float?       // P24 - ECS
+  amountP25    Float?       // P25 - Traitement d'eau
+  amountP26    Float?       // P26 - MDE (Maîtrise de l'énergie)
+  // === DETAIL P3 - Gros entretien par poste (€HT annuel) ===
+  amountP31    Float?       // P31 - Chauffage
+  amountP32    Float?       // P32 - Ventilation
+  amountP33    Float?       // P33 - Climatisation
+  amountP34    Float?       // P34 - ECS et traitement d'eau
+  amountP35    Float?       // P35 - Prestations programmées
+  amountP36    Float?       // P36 - APE (Actions Préventives Extraordinaires)
   // Date d'intégration dans le contrat (pour les ajouts via avenant)
   integrationDate DateTime?  // Si null, c'est depuis le début du contrat
   // Date de sortie du contrat (pour les retraits via avenant)

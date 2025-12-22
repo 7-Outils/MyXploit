@@ -65,6 +65,20 @@ interface ContractSite {
   amountP1: number | null;
   amountP2: number | null;
   amountP3: number | null;
+  // P2 detailed
+  amountP21: number | null;
+  amountP22: number | null;
+  amountP23: number | null;
+  amountP24: number | null;
+  amountP25: number | null;
+  amountP26: number | null;
+  // P3 detailed
+  amountP31: number | null;
+  amountP32: number | null;
+  amountP33: number | null;
+  amountP34: number | null;
+  amountP35: number | null;
+  amountP36: number | null;
   coefficientPCS: number | null;
   integrationDate: string | null;
   exitDate: string | null;
@@ -1417,6 +1431,101 @@ export default function ContractDetailPage() {
                           <p className="text-primary-dark">{site.energyType}</p>
                         </div>
                       </div>
+
+                      {/* P2/P3 Details */}
+                      {(contractSite.hasP2 || contractSite.hasP3) && (contractSite.amountP21 || contractSite.amountP22 || contractSite.amountP23 || contractSite.amountP24 || contractSite.amountP25 || contractSite.amountP26 || contractSite.amountP31 || contractSite.amountP32 || contractSite.amountP33 || contractSite.amountP34 || contractSite.amountP35 || contractSite.amountP36) && (
+                        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+                          {/* P2 Details */}
+                          {contractSite.hasP2 && (contractSite.amountP21 || contractSite.amountP22 || contractSite.amountP23 || contractSite.amountP24 || contractSite.amountP25 || contractSite.amountP26) && (
+                            <div className="bg-blue-50 rounded-lg p-3">
+                              <p className="text-sm font-medium text-blue-800 mb-2">P2 - Petit entretien ({contractSite.amountP2?.toLocaleString('fr-FR')} € HT/an)</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {contractSite.amountP21 !== null && contractSite.amountP21 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-blue-700">Chauffage</span>
+                                    <span className="font-medium text-blue-900">{contractSite.amountP21.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP22 !== null && contractSite.amountP22 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-blue-700">Ventilation</span>
+                                    <span className="font-medium text-blue-900">{contractSite.amountP22.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP23 !== null && contractSite.amountP23 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-blue-700">Climatisation</span>
+                                    <span className="font-medium text-blue-900">{contractSite.amountP23.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP24 !== null && contractSite.amountP24 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-blue-700">ECS</span>
+                                    <span className="font-medium text-blue-900">{contractSite.amountP24.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP25 !== null && contractSite.amountP25 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-blue-700">Traitement eau</span>
+                                    <span className="font-medium text-blue-900">{contractSite.amountP25.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP26 !== null && contractSite.amountP26 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-blue-700">MDE</span>
+                                    <span className="font-medium text-blue-900">{contractSite.amountP26.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* P3 Details */}
+                          {contractSite.hasP3 && (contractSite.amountP31 || contractSite.amountP32 || contractSite.amountP33 || contractSite.amountP34 || contractSite.amountP35 || contractSite.amountP36) && (
+                            <div className="bg-green-50 rounded-lg p-3">
+                              <p className="text-sm font-medium text-green-800 mb-2">P3 - Gros entretien ({contractSite.amountP3?.toLocaleString('fr-FR')} € HT/an)</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                {contractSite.amountP31 !== null && contractSite.amountP31 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Chauffage</span>
+                                    <span className="font-medium text-green-900">{contractSite.amountP31.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP32 !== null && contractSite.amountP32 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Ventilation</span>
+                                    <span className="font-medium text-green-900">{contractSite.amountP32.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP33 !== null && contractSite.amountP33 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Climatisation</span>
+                                    <span className="font-medium text-green-900">{contractSite.amountP33.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP34 !== null && contractSite.amountP34 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">ECS/Traitement</span>
+                                    <span className="font-medium text-green-900">{contractSite.amountP34.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP35 !== null && contractSite.amountP35 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Presta. prog.</span>
+                                    <span className="font-medium text-green-900">{contractSite.amountP35.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                                {contractSite.amountP36 !== null && contractSite.amountP36 > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">APE</span>
+                                    <span className="font-medium text-green-900">{contractSite.amountP36.toLocaleString('fr-FR')} €</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

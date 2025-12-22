@@ -96,40 +96,91 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get header row - find site column and year columns
-    const headers = rawData[0].map((h) => String(h || "").trim());
+    // Find header row - scan first 15 rows to find one with "Libellé" or "NB" columns
+    // This handles AE files where headers are not on row 1
+    let headerRowIndex = 0;
+    let headers: string[] = [];
 
-    // Find site column (usually first column or labeled "Site", "Installation", etc.)
-    const siteColIndex = headers.findIndex((h) => {
+    for (let i = 0; i < Math.min(15, rawData.length); i++) {
+      const row = rawData[i];
+      if (!row) continue;
+      const rowHeaders = row.map((h) => String(h || "").trim().toLowerCase());
+
+      // Check if this row has typical header columns
+      const hasLibelle = rowHeaders.some(h => h === "libellé" || h === "libelle");
+      const hasNB = rowHeaders.some(h => h.includes("nb") && h.includes("ann"));
+      const hasSite = rowHeaders.some(h => h === "site" || h.includes("installation"));
+      const hasAnnee = rowHeaders.some(h => h.includes("année") || h.includes("annee"));
+
+      if ((hasLibelle && hasNB) || (hasSite && hasAnnee) || hasNB) {
+        headerRowIndex = i;
+        headers = row.map((h) => String(h || "").trim());
+        break;
+      }
+    }
+
+    // Fallback to first row if no header found
+    if (headers.length === 0) {
+      headers = rawData[0].map((h) => String(h || "").trim());
+    }
+
+    // Find site column - prefer "Libellé" for AE format
+    let actualSiteCol = 0;
+    const libelleColIndex = headers.findIndex((h) => {
       const lower = h.toLowerCase();
-      return lower.includes("site") || lower.includes("installation") || lower === "nom" || lower === "";
+      return lower === "libellé" || lower === "libelle";
     });
-    const actualSiteCol = siteColIndex === -1 ? 0 : siteColIndex;
 
-    // Find year columns (Année 1, Année 2, An 1, An 2, Year 1, etc.)
+    if (libelleColIndex !== -1) {
+      actualSiteCol = libelleColIndex;
+    } else {
+      // Fallback: find "Site", "Installation", "Nom"
+      const siteColIndex = headers.findIndex((h) => {
+        const lower = h.toLowerCase();
+        return lower.includes("site") || lower.includes("installation") || lower === "nom";
+      });
+      if (siteColIndex !== -1) {
+        actualSiteCol = siteColIndex;
+      }
+    }
+
+    // Find year columns - support "NB - Année X" format from AE files
     const yearColumns: { index: number; year: number }[] = [];
     headers.forEach((h, index) => {
       if (index === actualSiteCol) return;
 
       const lower = h.toLowerCase();
-      // Match patterns like "Année 1", "An 1", "Year 1", "A1", "1", "2024-2025"
-      const yearMatch = lower.match(/(?:ann[eé]e|an|year|a)?\s*(\d+)/);
-      const seasonMatch = h.match(/(\d{4})-(\d{4})/);
 
-      if (seasonMatch) {
-        // Direct season format: 2024-2025 -> use start year
-        yearColumns.push({ index, year: parseInt(seasonMatch[1]) - contract.startDate.getFullYear() + 1 });
-      } else if (yearMatch) {
+      // Match "NB - Année 1", "NB - Année 2" format (AE files)
+      const nbYearMatch = lower.match(/nb\s*[-–]\s*ann[eé]e\s*(\d+)/);
+      if (nbYearMatch) {
+        yearColumns.push({ index, year: parseInt(nbYearMatch[1]) });
+        return;
+      }
+
+      // Match patterns like "Année 1", "An 1", "Year 1", "A1"
+      const yearMatch = lower.match(/(?:ann[eé]e|an|year|a)\s*(\d+)/);
+      if (yearMatch) {
         yearColumns.push({ index, year: parseInt(yearMatch[1]) });
+        return;
+      }
+
+      // Match direct season format: 2024-2025
+      const seasonMatch = h.match(/(\d{4})-(\d{4})/);
+      if (seasonMatch) {
+        yearColumns.push({ index, year: parseInt(seasonMatch[1]) - contract.startDate.getFullYear() + 1 });
       }
     });
 
     if (yearColumns.length === 0) {
       return NextResponse.json(
-        { error: "Aucune colonne d'année trouvée (Année 1, Année 2, etc.)" },
+        { error: "Aucune colonne d'année trouvée (NB - Année 1, Année 1, etc.)" },
         { status: 400 }
       );
     }
+
+    // Sort year columns by year number
+    yearColumns.sort((a, b) => a.year - b.year);
 
     // Get sites for matching - filter by contract sites
     const contractSiteIds = contract.contractSites.map((cs) => cs.siteId);
@@ -195,13 +246,17 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    // Process data rows
-    for (let i = 1; i < rawData.length; i++) {
+    // Process data rows - start after header row
+    for (let i = headerRowIndex + 1; i < rawData.length; i++) {
       const row = rawData[i];
-      const rowNum = i + 1;
+      const rowNum = i + 1; // Excel row number (1-indexed)
 
       const siteName = String(row[actualSiteCol] || "").trim();
       if (!siteName) continue;
+
+      // Skip rows that look like sub-headers or empty site names
+      // Also skip if site name is purely numeric (site number without name)
+      if (siteName.toLowerCase().includes("total") || /^\d+$/.test(siteName)) continue;
 
       // Match site
       const siteMatch = matchSite(siteName, siteMatchers);
