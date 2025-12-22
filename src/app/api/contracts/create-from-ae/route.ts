@@ -26,7 +26,7 @@ function getContractTypeInfo(type: string): {
   hasP2: boolean;
   hasP3: boolean;
 } {
-  const normalized = type?.toUpperCase().trim();
+  const normalized = type ? type.toUpperCase().trim() : "";
   switch (normalized) {
     case "PFI": // Prestation Forfaitaire Intégrale (P2+P3)
       return { contractType: "PFI", hasP1: false, hasP2: true, hasP3: true };
@@ -155,18 +155,19 @@ export async function POST(request: NextRequest) {
     // Find column indices
     const findColIndex = (patterns: string[]): number => {
       return headers.findIndex((h) => {
+        if (!h) return false;
         const lower = h.toLowerCase();
         return patterns.some(p => lower.includes(p));
       });
     };
 
     const findExactColIndex = (pattern: RegExp): number => {
-      return headers.findIndex((h) => pattern.test(h.toLowerCase()));
+      return headers.findIndex((h) => h && pattern.test(h.toLowerCase()));
     };
 
     // Site name column (Libellé)
     let siteColIndex = headers.findIndex(h =>
-      h.toLowerCase() === "libellé" || h.toLowerCase() === "libelle"
+      h && (h.toLowerCase() === "libellé" || h.toLowerCase() === "libelle")
     );
     if (siteColIndex === -1) {
       siteColIndex = findColIndex(["site", "installation", "nom"]);
@@ -175,12 +176,13 @@ export async function POST(request: NextRequest) {
 
     // Contract type column
     const contractTypeColIndex = headers.findIndex(h =>
-      h.toLowerCase() === "contrat" || h.toLowerCase() === "type contrat"
+      h && (h.toLowerCase() === "contrat" || h.toLowerCase() === "type contrat")
     );
 
     // NB columns
     const nbColumns: { index: number; year: number }[] = [];
     headers.forEach((h, index) => {
+      if (!h) return;
       const lower = h.toLowerCase();
       const nbYearMatch = lower.match(/nb\s*[-–]\s*ann[eé]e\s*(\d+)/);
       if (nbYearMatch) {
@@ -228,6 +230,7 @@ export async function POST(request: NextRequest) {
 
     for (let i = headerRowIndex + 1; i < rawData.length; i++) {
       const row = rawData[i];
+      if (!row) continue;
       const rowNum = i + 1;
 
       const siteName = String(row[siteColIndex] || "").trim();
@@ -489,6 +492,7 @@ function createSiteMatchers(sites: { id: string; name: string }[]) {
 }
 
 function normalizeSiteName(name: string): string {
+  if (!name) return "";
   return name
     .toLowerCase()
     .normalize("NFD")
