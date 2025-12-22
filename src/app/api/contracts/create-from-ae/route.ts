@@ -321,6 +321,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the contract and all sites in a transaction
+    // Increase timeout for large files with many sites
     const result = await prisma.$transaction(async (tx) => {
       // Create contract
       const contract = await tx.contract.create({
@@ -456,6 +457,9 @@ export async function POST(request: NextRequest) {
         linkedSites: linkedSites.length,
         totalSites: parsedSites.length,
       };
+    }, {
+      timeout: 60000, // 60 seconds for large files
+      maxWait: 10000, // 10 seconds to acquire connection
     });
 
     return NextResponse.json({
