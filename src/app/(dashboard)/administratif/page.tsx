@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,6 +12,9 @@ import {
   Building2,
   ChevronRight,
   Trash2,
+  FileSpreadsheet,
+  AlertCircle,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -71,6 +74,31 @@ function AdministratifContent() {
     yearType: "HEATING_SEASON" as "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL",
     billingFrequency: "TRIMESTRIEL" as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL",
   });
+
+  // AE Import state
+  const [showAEImportModal, setShowAEImportModal] = useState(false);
+  const [selectedContractForImport, setSelectedContractForImport] = useState<Contract | null>(null);
+  const [importingAE, setImportingAE] = useState(false);
+  const [aeImportFile, setAEImportFile] = useState<File | null>(null);
+  const [aeImportPreview, setAEImportPreview] = useState<{
+    total: number;
+    valid: number;
+    errors: number;
+    warnings: number;
+    results: Array<{
+      row: number;
+      status: "ok" | "warning" | "error";
+      siteName?: string;
+      siteId?: string;
+      contractType?: string;
+      nbValues?: Record<string, number>;
+      p2Values?: Record<string, number>;
+      p3Values?: Record<string, number>;
+      message?: string;
+    }>;
+  } | null>(null);
+  const [aeImportError, setAEImportError] = useState<string | null>(null);
+  const aeFileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch contracts
   useEffect(() => {
@@ -157,6 +185,87 @@ function AdministratifContent() {
       console.error("Error deleting contract:", error);
     } finally {
       setDeletingContractId(null);
+    }
+  };
+
+  // AE Import handlers
+  const openAEImportModal = (contract: Contract) => {
+    setSelectedContractForImport(contract);
+    setShowAEImportModal(true);
+    setAEImportFile(null);
+    setAEImportPreview(null);
+    setAEImportError(null);
+  };
+
+  const handleAEFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedContractForImport) return;
+
+    setAEImportFile(file);
+    setAEImportError(null);
+    setAEImportPreview(null);
+    setImportingAE(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("contractId", selectedContractForImport.id);
+      formData.append("preview", "true");
+
+      const response = await fetch("/api/contracts/import-ae", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setAEImportError(result.error || "Erreur lors de l'analyse");
+        return;
+      }
+
+      setAEImportPreview(result);
+    } catch (error) {
+      console.error("Error parsing AE file:", error);
+      setAEImportError("Erreur lors de la lecture du fichier");
+    } finally {
+      setImportingAE(false);
+    }
+  };
+
+  const handleAEImportSubmit = async () => {
+    if (!aeImportFile || !selectedContractForImport) return;
+
+    setImportingAE(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", aeImportFile);
+      formData.append("contractId", selectedContractForImport.id);
+      formData.append("preview", "false");
+
+      const response = await fetch("/api/contracts/import-ae", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setAEImportError(result.error || "Erreur lors de l'import");
+        return;
+      }
+
+      // Success - close modal and reset
+      setShowAEImportModal(false);
+      setSelectedContractForImport(null);
+      setAEImportFile(null);
+      setAEImportPreview(null);
+      setAEImportError(null);
+    } catch (error) {
+      console.error("Error importing AE:", error);
+      setAEImportError("Erreur lors de l'import");
+    } finally {
+      setImportingAE(false);
     }
   };
 
@@ -297,6 +406,17 @@ function AdministratifContent() {
                         {hasAnyP4 && <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">P4</span>}
                       </div>
                       <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          openAEImportModal(contract);
+                        }}
+                        className="p-2 text-gray-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                        title="Importer Acte d'Engagement"
+                      >
+                        <FileSpreadsheet size={18} />
+                      </button>
+                      <button
                         onClick={(e) => handleDeleteContract(e, contract.id, contract.title)}
                         disabled={deletingContractId === contract.id}
                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
@@ -417,6 +537,204 @@ function AdministratifContent() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* AE Import Modal */}
+      {showAEImportModal && selectedContractForImport && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-bold text-primary-dark">Importer Acte d&apos;Engagement</h2>
+                <p className="text-sm text-text-secondary mt-1">
+                  {selectedContractForImport.title} - Import NB, P2/P3 et type de contrat
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAEImportModal(false);
+                  setSelectedContractForImport(null);
+                  setAEImportFile(null);
+                  setAEImportPreview(null);
+                  setAEImportError(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* File upload zone */}
+              <div
+                onClick={() => aeFileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                  importingAE ? "border-gray-200 bg-gray-50" : "border-gray-300 hover:border-accent hover:bg-accent/5"
+                }`}
+              >
+                <input
+                  ref={aeFileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleAEFileSelect}
+                  className="hidden"
+                  disabled={importingAE}
+                />
+                {importingAE ? (
+                  <>
+                    <Loader2 size={40} className="mx-auto text-accent animate-spin mb-3" />
+                    <p className="text-text-secondary">Analyse du fichier en cours...</p>
+                  </>
+                ) : aeImportFile ? (
+                  <>
+                    <FileSpreadsheet size={40} className="mx-auto text-accent mb-3" />
+                    <p className="font-medium text-primary-dark">{aeImportFile.name}</p>
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet size={40} className="mx-auto text-gray-400 mb-3" />
+                    <p className="font-medium text-primary-dark">Cliquez pour sélectionner le fichier AE (Excel)</p>
+                    <p className="text-sm text-text-secondary mt-1">
+                      Format attendu : feuille &quot;P2P3&quot; avec colonnes Libellé, Contrat, NB, P2x, P3x
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Error message */}
+              {aeImportError && (
+                <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start gap-3">
+                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
+                  <p>{aeImportError}</p>
+                </div>
+              )}
+
+              {/* Preview results */}
+              {aeImportPreview && (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="bg-gray-50 p-3 rounded-lg text-center">
+                      <p className="text-2xl font-bold text-primary-dark">{aeImportPreview.total}</p>
+                      <p className="text-xs text-text-secondary">Sites</p>
+                    </div>
+                    <div className="bg-green-50 p-3 rounded-lg text-center">
+                      <p className="text-2xl font-bold text-green-600">{aeImportPreview.valid}</p>
+                      <p className="text-xs text-green-700">Matchés</p>
+                    </div>
+                    <div className="bg-yellow-50 p-3 rounded-lg text-center">
+                      <p className="text-2xl font-bold text-yellow-600">{aeImportPreview.warnings}</p>
+                      <p className="text-xs text-yellow-700">Avertissements</p>
+                    </div>
+                    <div className="bg-red-50 p-3 rounded-lg text-center">
+                      <p className="text-2xl font-bold text-red-600">{aeImportPreview.errors}</p>
+                      <p className="text-xs text-red-700">Non trouvés</p>
+                    </div>
+                  </div>
+
+                  {/* Results table */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden max-h-80 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">#</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">Statut</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">Site</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">Contrat</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">NB</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">P2</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">P3</th>
+                          <th className="px-3 py-2 text-left font-medium text-text-secondary">Message</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {aeImportPreview.results.map((result) => (
+                          <tr
+                            key={result.row}
+                            className={
+                              result.status === "error"
+                                ? "bg-red-50"
+                                : result.status === "warning"
+                                ? "bg-yellow-50"
+                                : ""
+                            }
+                          >
+                            <td className="px-3 py-2">{result.row}</td>
+                            <td className="px-3 py-2">
+                              {result.status === "ok" && <Check size={16} className="text-green-600" />}
+                              {result.status === "warning" && <AlertCircle size={16} className="text-yellow-600" />}
+                              {result.status === "error" && <X size={16} className="text-red-600" />}
+                            </td>
+                            <td className="px-3 py-2 max-w-[200px] truncate" title={result.siteName}>
+                              {result.siteName || "-"}
+                            </td>
+                            <td className="px-3 py-2">{result.contractType || "-"}</td>
+                            <td className="px-3 py-2">
+                              {result.nbValues ? Object.keys(result.nbValues).length : 0} an(s)
+                            </td>
+                            <td className="px-3 py-2">
+                              {result.p2Values ? (
+                                <span className="text-xs">
+                                  {Object.values(result.p2Values).filter(v => v !== undefined).reduce((a, b) => (a || 0) + (b || 0), 0).toLocaleString("fr-FR")} €
+                                </span>
+                              ) : "-"}
+                            </td>
+                            <td className="px-3 py-2">
+                              {result.p3Values ? (
+                                <span className="text-xs">
+                                  {Object.values(result.p3Values).filter(v => v !== undefined).reduce((a, b) => (a || 0) + (b || 0), 0).toLocaleString("fr-FR")} €
+                                </span>
+                              ) : "-"}
+                            </td>
+                            <td className="px-3 py-2 text-xs max-w-[150px] truncate" title={result.message}>
+                              {result.message || "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Info box */}
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-blue-800 mb-2">Données qui seront importées :</h4>
+                    <ul className="text-sm text-blue-700 space-y-1">
+                      <li>• NB (Niveau de Base) par année de contrat</li>
+                      <li>• P2 détaillé : Chauffage, Ventilation, Climatisation, ECS, Traitement eau, MDE</li>
+                      <li>• P3 détaillé : Chauffage, Ventilation, Climatisation, ECS/traitement, Prestations, APE</li>
+                      <li>• Type de contrat par site (PFI, PF, MTI, etc.)</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowAEImportModal(false);
+                    setSelectedContractForImport(null);
+                    setAEImportFile(null);
+                    setAEImportPreview(null);
+                    setAEImportError(null);
+                  }}
+                >
+                  Annuler
+                </Button>
+                {aeImportPreview && aeImportPreview.valid > 0 && (
+                  <Button className="flex-1" onClick={handleAEImportSubmit} disabled={importingAE}>
+                    {importingAE ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      `Importer ${aeImportPreview.valid} site${aeImportPreview.valid > 1 ? "s" : ""}`
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
