@@ -19,35 +19,35 @@ function getNbUnitForEnergyType(energyType: EnergyType): NbUnit {
   }
 }
 
-// Map contract type string to enum and determine prestations
+// Map contract type string to enum
+// Note: P2 is ALWAYS required, P1 and P3 are optional
+// P1 is NOT available for PF/PFI contracts (no energy supply)
 function getContractTypeInfo(type: string): {
   contractType: ContractType;
-  hasP1: boolean;
-  hasP2: boolean;
-  hasP3: boolean;
+  canHaveP1: boolean; // Whether P1 is allowed for this contract type
 } {
   const normalized = type ? type.toUpperCase().trim() : "";
   switch (normalized) {
-    case "PFI": // Prestation Forfaitaire Intégrale (P2+P3)
-      return { contractType: "PFI", hasP1: false, hasP2: true, hasP3: true };
-    case "PF": // Prestation Forfaitaire (P2 only)
-      return { contractType: "PF", hasP1: false, hasP2: true, hasP3: false };
-    case "MTI": // Marché Tout Intégré (P1+P2+P3)
-      return { contractType: "MTI", hasP1: true, hasP2: true, hasP3: true };
+    case "PFI": // Prestation Forfaitaire Intégrale - NO P1 allowed
+      return { contractType: "PFI", canHaveP1: false };
+    case "PF": // Prestation Forfaitaire - NO P1 allowed
+      return { contractType: "PF", canHaveP1: false };
+    case "MTI": // Marché Tout Intégré
+      return { contractType: "MTI", canHaveP1: true };
     case "MCI": // Marché Chauffage Intégré
-      return { contractType: "MCI", hasP1: true, hasP2: true, hasP3: true };
+      return { contractType: "MCI", canHaveP1: true };
     case "CPI": // Chauffage Performance Intégré
-      return { contractType: "CPI", hasP1: true, hasP2: true, hasP3: true };
-    case "MT": // Marché Type (P1+P2)
-      return { contractType: "MT", hasP1: true, hasP2: true, hasP3: false };
-    case "CP": // Contrat Performance (P1+P2+P3)
-      return { contractType: "CP", hasP1: true, hasP2: true, hasP3: true };
-    case "MC": // Marché Combustible (P1 only)
-      return { contractType: "MC", hasP1: true, hasP2: false, hasP3: false };
+      return { contractType: "CPI", canHaveP1: true };
+    case "MT": // Marché Type
+      return { contractType: "MT", canHaveP1: true };
+    case "CP": // Contrat Performance
+      return { contractType: "CP", canHaveP1: true };
+    case "MC": // Marché Combustible
+      return { contractType: "MC", canHaveP1: true };
     case "MF": // Marché Forfait
-      return { contractType: "MF", hasP1: false, hasP2: true, hasP3: false };
+      return { contractType: "MF", canHaveP1: true };
     default:
-      return { contractType: "MC", hasP1: true, hasP2: false, hasP3: false };
+      return { contractType: "PFI", canHaveP1: false };
   }
 }
 
@@ -57,6 +57,7 @@ interface ParsedSite {
   contractType: string;
   contractTypeInfo: ReturnType<typeof getContractTypeInfo>;
   nb: { [year: number]: number | null };
+  p1?: number; // P1 - Fourniture/gestion énergie (optionnel, interdit sur PF/PFI)
   p2: {
     p21?: number;
     p22?: number;
@@ -291,6 +292,9 @@ export async function POST(request: NextRequest) {
     const p36ColIndex = findExactColIndex(/p36.*ape.*annuel/);
     const p3TotalColIndex = findExactColIndex(/p3\s*[-–]\s*total.*annuel/);
 
+    // P1 column (energy/fuel supply - optional, not allowed for PF/PFI)
+    const p1ColIndex = findColIndex(["p1 annuel", "p1 - annuel", "p1-annuel", "p1"]);
+
     // Get existing sites for matching
     const existingSites = await prisma.site.findMany({
       where: { organizationId: user.organizationId },
@@ -333,6 +337,10 @@ export async function POST(request: NextRequest) {
         nb[nbCol.year] = isNaN(num) ? null : num;
       }
 
+      // Parse P1 (only if contract type allows it)
+      const p1Value = parseNum(row, p1ColIndex);
+      const p1 = contractTypeInfo.canHaveP1 ? p1Value : undefined;
+
       // Parse P2/P3
       const p2 = {
         p21: parseNum(row, p21ColIndex),
@@ -363,6 +371,7 @@ export async function POST(request: NextRequest) {
         contractType: contractTypeStr,
         contractTypeInfo,
         nb,
+        p1,
         p2,
         p3,
         existingSite: siteMatch.siteId ? { id: siteMatch.siteId, name: siteMatch.siteName! } : undefined,
@@ -388,6 +397,7 @@ export async function POST(request: NextRequest) {
           nbValues: Object.fromEntries(
             Object.entries(s.nb).filter(([, v]) => v !== null && v > 0)
           ),
+          p1: s.p1,
           p2Total: s.p2.total || (
             (s.p2.p21 || 0) + (s.p2.p22 || 0) + (s.p2.p23 || 0) +
             (s.p2.p24 || 0) + (s.p2.p25 || 0) + (s.p2.p26 || 0)
@@ -479,15 +489,20 @@ export async function POST(request: NextRequest) {
           (parsedSite.p3.p34 || 0) + (parsedSite.p3.p35 || 0) + (parsedSite.p3.p36 || 0);
 
         // Create ContractSite
+        // P2 is always required, P1 and P3 are determined by actual values
+        const hasP1 = parsedSite.contractTypeInfo.canHaveP1 && (parsedSite.p1 ?? 0) > 0;
+        const hasP3 = p3Total > 0;
+
         await tx.contractSite.create({
           data: {
             contractId: contract.id,
             siteId,
             contractType: parsedSite.contractTypeInfo.contractType,
-            hasP1: parsedSite.contractTypeInfo.hasP1,
-            hasP2: parsedSite.contractTypeInfo.hasP2,
-            hasP3: parsedSite.contractTypeInfo.hasP3,
+            hasP1,
+            hasP2: true, // P2 is always required
+            hasP3,
             hasP4: false,
+            amountP1: hasP1 ? parsedSite.p1 : null,
             amountP2: p2Total > 0 ? p2Total : null,
             amountP3: p3Total > 0 ? p3Total : null,
             amountP21: parsedSite.p2.p21,

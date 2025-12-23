@@ -100,6 +100,7 @@ function AdministratifContent() {
       isNew: boolean;
       existingSiteId?: string;
       nbValues?: Record<string, number>;
+      p1?: number;
       p2Total?: number;
       p3Total?: number;
     }>;
@@ -790,6 +791,7 @@ function AdministratifContent() {
                             <th className="px-3 py-2 text-left font-medium text-text-secondary">Site</th>
                             <th className="px-3 py-2 text-left font-medium text-text-secondary">Type</th>
                             <th className="px-3 py-2 text-left font-medium text-text-secondary">NB</th>
+                            <th className="px-3 py-2 text-left font-medium text-text-secondary">P1</th>
                             <th className="px-3 py-2 text-left font-medium text-text-secondary">P2</th>
                             <th className="px-3 py-2 text-left font-medium text-text-secondary">P3</th>
                             <th className="px-3 py-2 text-left font-medium text-text-secondary">Statut</th>
@@ -809,6 +811,9 @@ function AdministratifContent() {
                               </td>
                               <td className="px-3 py-2 text-xs">
                                 {result.nbValues ? Object.keys(result.nbValues).length : 0} an(s)
+                              </td>
+                              <td className="px-3 py-2 text-xs">
+                                {result.p1 ? `${result.p1.toLocaleString("fr-FR")} €` : "-"}
                               </td>
                               <td className="px-3 py-2 text-xs">
                                 {result.p2Total ? `${result.p2Total.toLocaleString("fr-FR")} €` : "-"}
