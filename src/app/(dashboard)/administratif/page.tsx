@@ -809,9 +809,9 @@ function AdministratifContent() {
                                   {result.contractType}
                                 </span>
                               </td>
-                              <td className="px-3 py-2 text-xs" title={result.nbValues ? Object.entries(result.nbValues).map(([y, v]) => `A${y}: ${v}`).join(", ") : ""}>
+                              <td className="px-3 py-2 text-xs" title={result.nbValues ? Object.entries(result.nbValues).map(([y, v]) => `A${y}: ${v?.toLocaleString("fr-FR")}`).join(", ") : ""}>
                                 {result.nbValues && Object.keys(result.nbValues).length > 0
-                                  ? `${Object.values(result.nbValues)[0]?.toLocaleString("fr-FR")} MWh`
+                                  ? `${Object.values(result.nbValues).reduce((sum, v) => sum + (v || 0), 0).toLocaleString("fr-FR")} MWh`
                                   : "-"}
                               </td>
                               <td className="px-3 py-2 text-xs">

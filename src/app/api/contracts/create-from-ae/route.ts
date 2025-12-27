@@ -511,11 +511,9 @@ export async function POST(request: NextRequest) {
         detectedMetadata: detectedMetadata || undefined,
         dataSheetName: sheetName,
         results: parsedSites.map(s => {
-          // Calculate P1 total from first year or sum of components
-          const p1FirstYear = Object.values(s.p1ByYear).find(v => v !== null && v > 0);
-          const p1FromComponents = s.p1Components.pu && s.nb[1]
-            ? (s.p1Components.pu * s.nb[1]) + (s.p1Components.abonnement || 0) + (s.p1Components.locationCompteur || 0)
-            : undefined;
+          // Calculate P1 total from sum of all years
+          const p1YearValues = Object.values(s.p1ByYear).filter(v => v !== null && v > 0) as number[];
+          const p1Total = p1YearValues.length > 0 ? p1YearValues.reduce((sum, v) => sum + v, 0) : undefined;
 
           // Calculate P2 total with 10 sub-components
           const p2Total = s.p2.total || (
@@ -541,8 +539,8 @@ export async function POST(request: NextRequest) {
             nbValues: Object.fromEntries(
               Object.entries(s.nb).filter(([, v]) => v !== null && v > 0)
             ),
-            // P1 total (from AE values or calculated)
-            p1Total: p1FirstYear || p1FromComponents || undefined,
+            // P1 total (sum of all years)
+            p1Total,
             // P1 components for display
             p1Components: s.p1Components,
             p2Total,
@@ -632,9 +630,9 @@ export async function POST(request: NextRequest) {
           (parsedSite.p3.p34 || 0) + (parsedSite.p3.p35 || 0) + (parsedSite.p3.p36 || 0) +
           (parsedSite.p3.p37 || 0) + (parsedSite.p3.p38 || 0) + (parsedSite.p3.p39 || 0) + (parsedSite.p3.p310 || 0);
 
-        // Calculate P1 from first year value or from components
-        const p1FirstYear = Object.values(parsedSite.p1ByYear).find(v => v !== null && v > 0);
-        const p1Total = p1FirstYear || null;
+        // Calculate P1 from sum of all years
+        const p1YearValues = Object.values(parsedSite.p1ByYear).filter(v => v !== null && v > 0) as number[];
+        const p1Total = p1YearValues.length > 0 ? p1YearValues.reduce((sum, v) => sum + v, 0) : null;
 
         // Create ContractSite
         // P2 is always required, P3 is determined by actual values
@@ -651,7 +649,7 @@ export async function POST(request: NextRequest) {
             hasP2: true, // P2 is always required
             hasP3,
             hasP4: false,
-            amountP1: p1Total, // P1 from AE (calculated at instant T)
+            amountP1: p1Total, // P1 total (sum of all years from AE)
             amountP2: p2Total > 0 ? p2Total : null,
             amountP3: p3Total > 0 ? p3Total : null,
             // P2 sub-components (10)
