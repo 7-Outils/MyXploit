@@ -113,6 +113,32 @@ interface ContractMetadata {
   billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
 }
 
+// Convert Excel serial date to DD/MM/YYYY string
+function excelDateToString(value: string | number): string {
+  // If it's already a string in date format, return as-is
+  if (typeof value === "string") {
+    // Check if it looks like a date already (contains / or -)
+    if (value.includes("/") || value.includes("-")) {
+      return value;
+    }
+    // Try to parse as number
+    const num = parseFloat(value);
+    if (isNaN(num)) return value;
+    value = num;
+  }
+
+  // Convert Excel serial date (days since 1899-12-30)
+  // Excel incorrectly treats 1900 as a leap year, so we adjust
+  const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+  const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
 // Parse "Contrat" sheet for metadata
 function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata | null {
   // Look for a "Contrat" sheet (case insensitive)
@@ -144,10 +170,10 @@ function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata |
     } else if (key.includes("titulaire") || key.includes("provider") || key.includes("prestataire")) {
       metadata.provider = value;
     } else if (key.includes("date de début") || key.includes("date début") || key.includes("start")) {
-      // Parse date (DD/MM/YYYY or YYYY-MM-DD)
-      metadata.startDate = value;
+      // Parse date - convert Excel serial if needed
+      metadata.startDate = excelDateToString(row[1]);
     } else if (key.includes("date de fin") || key.includes("date fin") || key.includes("end")) {
-      metadata.endDate = value;
+      metadata.endDate = excelDateToString(row[1]);
     } else if (key.includes("type année") || key.includes("type annee") || key.includes("année") || key.includes("annee")) {
       const lowerValue = value.toLowerCase();
       if (lowerValue.includes("civile")) {
