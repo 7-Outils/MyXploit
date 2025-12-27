@@ -100,7 +100,7 @@ function AdministratifContent() {
       isNew: boolean;
       existingSiteId?: string;
       nbValues?: Record<string, number>;
-      p1?: number;
+      p1Total?: number;
       p2Total?: number;
       p3Total?: number;
     }>;
@@ -813,7 +813,7 @@ function AdministratifContent() {
                                 {result.nbValues ? Object.keys(result.nbValues).length : 0} an(s)
                               </td>
                               <td className="px-3 py-2 text-xs">
-                                {result.p1 ? `${result.p1.toLocaleString("fr-FR")} €` : "-"}
+                                {result.p1Total ? `${result.p1Total.toLocaleString("fr-FR")} €` : "-"}
                               </td>
                               <td className="px-3 py-2 text-xs">
                                 {result.p2Total ? `${result.p2Total.toLocaleString("fr-FR")} €` : "-"}
@@ -846,7 +846,8 @@ function AdministratifContent() {
                         <li>• {aeImportPreview.existingSites} site(s) existant(s) lié(s)</li>
                         <li>• Types de contrat par site (PFI, PF, MTI, etc.) déterminant les prestations P1/P2/P3</li>
                         <li>• NB (Niveau de Base) par année de contrat</li>
-                        <li>• Montants P2/P3 détaillés par catégorie</li>
+                        <li>• Montants P1 HT (calculés à l&apos;instant T de l&apos;AE)</li>
+                        <li>• Montants P2/P3 détaillés par catégorie (10 sous-composantes)</li>
                       </ul>
                     </div>
                   </div>

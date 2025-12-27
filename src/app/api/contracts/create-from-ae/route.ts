@@ -51,13 +51,28 @@ function getContractTypeInfo(type: string): {
   }
 }
 
+interface P1Components {
+  peg?: number;      // PEG (€/MWh)
+  tvd?: number;      // TVD (€/MWh)
+  ticgn?: number;    // TICGN (€/MWh)
+  cee?: number;      // CEE (€/MWh)
+  p0?: number;       // P0 (€/MWh)
+  pu?: number;       // Prix Unitaire total (€/MWh)
+  abonnement?: number; // Abonnement (€/an)
+  locationCompteur?: number; // Location compteur (€/an)
+}
+
 interface ParsedSite {
   row: number;
   siteName: string;
   contractType: string;
   contractTypeInfo: ReturnType<typeof getContractTypeInfo>;
   nb: { [year: number]: number | null };
-  p1?: number; // P1 - Fourniture/gestion énergie (optionnel, interdit sur PF/PFI)
+  // P1 components (for price revision)
+  p1Components: P1Components;
+  // P1 values by year (calculated in AE but imported for reference)
+  p1ByYear: { [year: number]: number | null };
+  // P2 with 10 sub-components
   p2: {
     p21?: number;
     p22?: number;
@@ -65,8 +80,13 @@ interface ParsedSite {
     p24?: number;
     p25?: number;
     p26?: number;
+    p27?: number;
+    p28?: number;
+    p29?: number;
+    p210?: number;
     total?: number;
   };
+  // P3 with 10 sub-components
   p3: {
     p31?: number;
     p32?: number;
@@ -74,6 +94,10 @@ interface ParsedSite {
     p34?: number;
     p35?: number;
     p36?: number;
+    p37?: number;
+    p38?: number;
+    p39?: number;
+    p310?: number;
     total?: number;
   };
   existingSite?: { id: string; name: string };
@@ -274,26 +298,73 @@ export async function POST(request: NextRequest) {
     });
     nbColumns.sort((a, b) => a.year - b.year);
 
-    // P2 columns
-    const p21ColIndex = findExactColIndex(/p21.*chauffage.*annuel/);
-    const p22ColIndex = findExactColIndex(/p22.*ventilation.*annuel/);
-    const p23ColIndex = findExactColIndex(/p23.*climatisation.*annuel/);
-    const p24ColIndex = findExactColIndex(/p24.*ecs.*annuel/);
-    const p25ColIndex = findExactColIndex(/p25.*traitement.*eau.*annuel/);
-    const p26ColIndex = findExactColIndex(/p26.*mde.*annuel/);
-    const p2TotalColIndex = findExactColIndex(/p2\s*[-–]\s*total.*annuel/);
+    // P1 components columns (for price revision)
+    const pegColIndex = findColIndex(["peg"]);
+    const tvdColIndex = findColIndex(["tvd"]);
+    const ticgnColIndex = findColIndex(["ticgn"]);
+    const ceeColIndex = findColIndex(["cee"]);
+    const p0ColIndex = headers.findIndex(h => h && h.toLowerCase() === "p0");
+    const puColIndex = headers.findIndex(h => h && h.toLowerCase() === "pu");
+    const abonnementColIndex = findColIndex(["abonnement"]);
+    const locationCompteurColIndex = findColIndex(["location compteur", "location"]);
 
-    // P3 columns
-    const p31ColIndex = findExactColIndex(/p31.*chauffage.*annuel/);
-    const p32ColIndex = findExactColIndex(/p32.*ventilation.*annuel/);
-    const p33ColIndex = findExactColIndex(/p33.*climatisation.*annuel/);
-    const p34ColIndex = findExactColIndex(/p34.*ecs.*traitement.*annuel/);
-    const p35ColIndex = findExactColIndex(/p35.*prestations.*annuel/);
-    const p36ColIndex = findExactColIndex(/p36.*ape.*annuel/);
-    const p3TotalColIndex = findExactColIndex(/p3\s*[-–]\s*total.*annuel/);
+    // P1 HT by year columns (P1 HT - Année 1, P1 HT - Année 2, etc.)
+    const p1Columns: { index: number; year: number }[] = [];
+    headers.forEach((h, index) => {
+      if (!h) return;
+      const lower = h.toLowerCase();
+      const p1YearMatch = lower.match(/p1\s*ht\s*[-–]\s*ann[eé]e\s*(\d+)/);
+      if (p1YearMatch) {
+        p1Columns.push({ index, year: parseInt(p1YearMatch[1]) });
+      }
+    });
+    p1Columns.sort((a, b) => a.year - b.year);
 
-    // P1 column (energy/fuel supply - optional, not allowed for PF/PFI)
-    const p1ColIndex = findColIndex(["p1 annuel", "p1 - annuel", "p1-annuel", "p1"]);
+    // P2 columns - Support both "P2 01" and "P21" formats
+    const findP2ColIndex = (num: number): number => {
+      // Try "P2 01", "P2 02" format first (user's template)
+      const paddedNum = num.toString().padStart(2, "0");
+      let idx = headers.findIndex(h => h && h.toLowerCase() === `p2 ${paddedNum}`);
+      if (idx !== -1) return idx;
+      // Fallback to old format "P21", "P22" etc.
+      return findExactColIndex(new RegExp(`p2${num}.*annuel`));
+    };
+    const p21ColIndex = findP2ColIndex(1);
+    const p22ColIndex = findP2ColIndex(2);
+    const p23ColIndex = findP2ColIndex(3);
+    const p24ColIndex = findP2ColIndex(4);
+    const p25ColIndex = findP2ColIndex(5);
+    const p26ColIndex = findP2ColIndex(6);
+    const p27ColIndex = findP2ColIndex(7);
+    const p28ColIndex = findP2ColIndex(8);
+    const p29ColIndex = findP2ColIndex(9);
+    const p210ColIndex = findP2ColIndex(10);
+    const p2TotalColIndex = headers.findIndex(h =>
+      h && (h.toLowerCase() === "p2 ht - total" || /p2\s*[-–]\s*total/.test(h.toLowerCase()))
+    );
+
+    // P3 columns - Support both "P3 01" and "P31" formats
+    const findP3ColIndex = (num: number): number => {
+      // Try "P3 01", "P3 02" format first (user's template)
+      const paddedNum = num.toString().padStart(2, "0");
+      let idx = headers.findIndex(h => h && h.toLowerCase() === `p3 ${paddedNum}`);
+      if (idx !== -1) return idx;
+      // Fallback to old format "P31", "P32" etc.
+      return findExactColIndex(new RegExp(`p3${num}.*annuel`));
+    };
+    const p31ColIndex = findP3ColIndex(1);
+    const p32ColIndex = findP3ColIndex(2);
+    const p33ColIndex = findP3ColIndex(3);
+    const p34ColIndex = findP3ColIndex(4);
+    const p35ColIndex = findP3ColIndex(5);
+    const p36ColIndex = findP3ColIndex(6);
+    const p37ColIndex = findP3ColIndex(7);
+    const p38ColIndex = findP3ColIndex(8);
+    const p39ColIndex = findP3ColIndex(9);
+    const p310ColIndex = findP3ColIndex(10);
+    const p3TotalColIndex = headers.findIndex(h =>
+      h && (h.toLowerCase() === "p3 ht - total" || /p3\s*[-–]\s*total/.test(h.toLowerCase()))
+    );
 
     // Get existing sites for matching
     const existingSites = await prisma.site.findMany({
@@ -337,11 +408,27 @@ export async function POST(request: NextRequest) {
         nb[nbCol.year] = isNaN(num) ? null : num;
       }
 
-      // Parse P1 (only if contract type allows it)
-      const p1Value = parseNum(row, p1ColIndex);
-      const p1 = contractTypeInfo.canHaveP1 ? p1Value : undefined;
+      // Parse P1 components
+      const p1Components: P1Components = {
+        peg: parseNum(row, pegColIndex),
+        tvd: parseNum(row, tvdColIndex),
+        ticgn: parseNum(row, ticgnColIndex),
+        cee: parseNum(row, ceeColIndex),
+        p0: parseNum(row, p0ColIndex),
+        pu: parseNum(row, puColIndex),
+        abonnement: parseNum(row, abonnementColIndex),
+        locationCompteur: parseNum(row, locationCompteurColIndex),
+      };
 
-      // Parse P2/P3
+      // Parse P1 by year
+      const p1ByYear: { [year: number]: number | null } = {};
+      for (const p1Col of p1Columns) {
+        const val = row[p1Col.index];
+        const num = typeof val === "number" ? val : parseFloat(String(val || "").replace(",", "."));
+        p1ByYear[p1Col.year] = isNaN(num) ? null : num;
+      }
+
+      // Parse P2 with 10 sub-components
       const p2 = {
         p21: parseNum(row, p21ColIndex),
         p22: parseNum(row, p22ColIndex),
@@ -349,9 +436,14 @@ export async function POST(request: NextRequest) {
         p24: parseNum(row, p24ColIndex),
         p25: parseNum(row, p25ColIndex),
         p26: parseNum(row, p26ColIndex),
+        p27: parseNum(row, p27ColIndex),
+        p28: parseNum(row, p28ColIndex),
+        p29: parseNum(row, p29ColIndex),
+        p210: parseNum(row, p210ColIndex),
         total: parseNum(row, p2TotalColIndex),
       };
 
+      // Parse P3 with 10 sub-components
       const p3 = {
         p31: parseNum(row, p31ColIndex),
         p32: parseNum(row, p32ColIndex),
@@ -359,6 +451,10 @@ export async function POST(request: NextRequest) {
         p34: parseNum(row, p34ColIndex),
         p35: parseNum(row, p35ColIndex),
         p36: parseNum(row, p36ColIndex),
+        p37: parseNum(row, p37ColIndex),
+        p38: parseNum(row, p38ColIndex),
+        p39: parseNum(row, p39ColIndex),
+        p310: parseNum(row, p310ColIndex),
         total: parseNum(row, p3TotalColIndex),
       };
 
@@ -371,7 +467,8 @@ export async function POST(request: NextRequest) {
         contractType: contractTypeStr,
         contractTypeInfo,
         nb,
-        p1,
+        p1Components,
+        p1ByYear,
         p2,
         p3,
         existingSite: siteMatch.siteId ? { id: siteMatch.siteId, name: siteMatch.siteName! } : undefined,
@@ -387,26 +484,45 @@ export async function POST(request: NextRequest) {
         // Detected metadata from "Contrat" sheet (if available)
         detectedMetadata: detectedMetadata || undefined,
         dataSheetName: sheetName,
-        results: parsedSites.map(s => ({
-          row: s.row,
-          siteName: s.siteName,
-          contractType: s.contractType,
-          isNew: !s.existingSite,
-          existingSiteId: s.existingSite?.id,
-          // Filter out null/0 NB values
-          nbValues: Object.fromEntries(
-            Object.entries(s.nb).filter(([, v]) => v !== null && v > 0)
-          ),
-          p1: s.p1,
-          p2Total: s.p2.total || (
+        results: parsedSites.map(s => {
+          // Calculate P1 total from first year or sum of components
+          const p1FirstYear = Object.values(s.p1ByYear).find(v => v !== null && v > 0);
+          const p1FromComponents = s.p1Components.pu && s.nb[1]
+            ? (s.p1Components.pu * s.nb[1]) + (s.p1Components.abonnement || 0) + (s.p1Components.locationCompteur || 0)
+            : undefined;
+
+          // Calculate P2 total with 10 sub-components
+          const p2Total = s.p2.total || (
             (s.p2.p21 || 0) + (s.p2.p22 || 0) + (s.p2.p23 || 0) +
-            (s.p2.p24 || 0) + (s.p2.p25 || 0) + (s.p2.p26 || 0)
-          ) || undefined,
-          p3Total: s.p3.total || (
+            (s.p2.p24 || 0) + (s.p2.p25 || 0) + (s.p2.p26 || 0) +
+            (s.p2.p27 || 0) + (s.p2.p28 || 0) + (s.p2.p29 || 0) + (s.p2.p210 || 0)
+          ) || undefined;
+
+          // Calculate P3 total with 10 sub-components
+          const p3Total = s.p3.total || (
             (s.p3.p31 || 0) + (s.p3.p32 || 0) + (s.p3.p33 || 0) +
-            (s.p3.p34 || 0) + (s.p3.p35 || 0) + (s.p3.p36 || 0)
-          ) || undefined,
-        })),
+            (s.p3.p34 || 0) + (s.p3.p35 || 0) + (s.p3.p36 || 0) +
+            (s.p3.p37 || 0) + (s.p3.p38 || 0) + (s.p3.p39 || 0) + (s.p3.p310 || 0)
+          ) || undefined;
+
+          return {
+            row: s.row,
+            siteName: s.siteName,
+            contractType: s.contractType,
+            isNew: !s.existingSite,
+            existingSiteId: s.existingSite?.id,
+            // Filter out null/0 NB values
+            nbValues: Object.fromEntries(
+              Object.entries(s.nb).filter(([, v]) => v !== null && v > 0)
+            ),
+            // P1 total (from AE values or calculated)
+            p1Total: p1FirstYear || p1FromComponents || undefined,
+            // P1 components for display
+            p1Components: s.p1Components,
+            p2Total,
+            p3Total,
+          };
+        }),
       });
     }
 
@@ -479,18 +595,25 @@ export async function POST(request: NextRequest) {
           createdSites.push(siteId);
         }
 
-        // Calculate P2/P3 totals if not provided
+        // Calculate P2/P3 totals if not provided (with 10 sub-components)
         const p2Total = parsedSite.p2.total ??
           (parsedSite.p2.p21 || 0) + (parsedSite.p2.p22 || 0) + (parsedSite.p2.p23 || 0) +
-          (parsedSite.p2.p24 || 0) + (parsedSite.p2.p25 || 0) + (parsedSite.p2.p26 || 0);
+          (parsedSite.p2.p24 || 0) + (parsedSite.p2.p25 || 0) + (parsedSite.p2.p26 || 0) +
+          (parsedSite.p2.p27 || 0) + (parsedSite.p2.p28 || 0) + (parsedSite.p2.p29 || 0) + (parsedSite.p2.p210 || 0);
 
         const p3Total = parsedSite.p3.total ??
           (parsedSite.p3.p31 || 0) + (parsedSite.p3.p32 || 0) + (parsedSite.p3.p33 || 0) +
-          (parsedSite.p3.p34 || 0) + (parsedSite.p3.p35 || 0) + (parsedSite.p3.p36 || 0);
+          (parsedSite.p3.p34 || 0) + (parsedSite.p3.p35 || 0) + (parsedSite.p3.p36 || 0) +
+          (parsedSite.p3.p37 || 0) + (parsedSite.p3.p38 || 0) + (parsedSite.p3.p39 || 0) + (parsedSite.p3.p310 || 0);
+
+        // Calculate P1 from first year value or from components
+        const p1FirstYear = Object.values(parsedSite.p1ByYear).find(v => v !== null && v > 0);
+        const p1Total = p1FirstYear || null;
 
         // Create ContractSite
-        // P2 is always required, P1 and P3 are determined by actual values
-        const hasP1 = parsedSite.contractTypeInfo.canHaveP1 && (parsedSite.p1 ?? 0) > 0;
+        // P2 is always required, P3 is determined by actual values
+        // P1 is imported from AE (calculated value at instant T)
+        const hasP1 = parsedSite.contractTypeInfo.canHaveP1 && (p1Total !== null || Object.keys(parsedSite.p1ByYear).length > 0);
         const hasP3 = p3Total > 0;
 
         await tx.contractSite.create({
@@ -502,21 +625,31 @@ export async function POST(request: NextRequest) {
             hasP2: true, // P2 is always required
             hasP3,
             hasP4: false,
-            amountP1: hasP1 ? parsedSite.p1 : null,
+            amountP1: p1Total, // P1 from AE (calculated at instant T)
             amountP2: p2Total > 0 ? p2Total : null,
             amountP3: p3Total > 0 ? p3Total : null,
+            // P2 sub-components (10)
             amountP21: parsedSite.p2.p21,
             amountP22: parsedSite.p2.p22,
             amountP23: parsedSite.p2.p23,
             amountP24: parsedSite.p2.p24,
             amountP25: parsedSite.p2.p25,
             amountP26: parsedSite.p2.p26,
+            amountP27: parsedSite.p2.p27,
+            amountP28: parsedSite.p2.p28,
+            amountP29: parsedSite.p2.p29,
+            amountP210: parsedSite.p2.p210,
+            // P3 sub-components (10)
             amountP31: parsedSite.p3.p31,
             amountP32: parsedSite.p3.p32,
             amountP33: parsedSite.p3.p33,
             amountP34: parsedSite.p3.p34,
             amountP35: parsedSite.p3.p35,
             amountP36: parsedSite.p3.p36,
+            amountP37: parsedSite.p3.p37,
+            amountP38: parsedSite.p3.p38,
+            amountP39: parsedSite.p3.p39,
+            amountP310: parsedSite.p3.p310,
           },
         });
 

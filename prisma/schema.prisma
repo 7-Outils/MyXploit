@@ -546,19 +546,27 @@ model ContractSite {
   amountP2     Float?       // Forfait P2 de base pour ce site (total)
   amountP3     Float?       // Forfait P3 de base pour ce site (total)
   // === DETAIL P2 - Petit entretien par poste (€HT annuel) ===
-  amountP21    Float?       // P21 - Chauffage
-  amountP22    Float?       // P22 - Ventilation
-  amountP23    Float?       // P23 - Climatisation
-  amountP24    Float?       // P24 - ECS
-  amountP25    Float?       // P25 - Traitement d'eau
-  amountP26    Float?       // P26 - MDE (Maîtrise de l'énergie)
+  amountP21    Float?       // P2 01 - Chauffage
+  amountP22    Float?       // P2 02 - Ventilation
+  amountP23    Float?       // P2 03 - Climatisation
+  amountP24    Float?       // P2 04 - ECS
+  amountP25    Float?       // P2 05 - Traitement d'eau
+  amountP26    Float?       // P2 06 - MDE (Maîtrise de l'énergie)
+  amountP27    Float?       // P2 07 - Sous-composante 7
+  amountP28    Float?       // P2 08 - Sous-composante 8
+  amountP29    Float?       // P2 09 - Sous-composante 9
+  amountP210   Float?       // P2 10 - Sous-composante 10
   // === DETAIL P3 - Gros entretien par poste (€HT annuel) ===
-  amountP31    Float?       // P31 - Chauffage
-  amountP32    Float?       // P32 - Ventilation
-  amountP33    Float?       // P33 - Climatisation
-  amountP34    Float?       // P34 - ECS et traitement d'eau
-  amountP35    Float?       // P35 - Prestations programmées
-  amountP36    Float?       // P36 - APE (Actions Préventives Extraordinaires)
+  amountP31    Float?       // P3 01 - Chauffage
+  amountP32    Float?       // P3 02 - Ventilation
+  amountP33    Float?       // P3 03 - Climatisation
+  amountP34    Float?       // P3 04 - ECS et traitement d'eau
+  amountP35    Float?       // P3 05 - Prestations programmées
+  amountP36    Float?       // P3 06 - APE (Actions Préventives Extraordinaires)
+  amountP37    Float?       // P3 07 - Sous-composante 7
+  amountP38    Float?       // P3 08 - Sous-composante 8
+  amountP39    Float?       // P3 09 - Sous-composante 9
+  amountP310   Float?       // P3 10 - Sous-composante 10
   // Date d'intégration dans le contrat (pour les ajouts via avenant)
   integrationDate DateTime?  // Si null, c'est depuis le début du contrat
   // Date de sortie du contrat (pour les retraits via avenant)
