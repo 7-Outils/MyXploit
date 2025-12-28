@@ -128,6 +128,8 @@ interface SiteDetails {
   pce?: string;
   pdl?: string;
   rae?: string;
+  djuContractuel?: number;
+  stationMeteo?: string;
 }
 
 // Convert Excel serial date to DD/MM/YYYY string
@@ -213,8 +215,9 @@ function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata |
       }
     } else if (key.includes("station") || key.includes("météo") || key.includes("meteo")) {
       metadata.stationMeteo = value;
-    } else if (key.includes("dju") && (key.includes("contractuel") || key.includes("contrat") || key.includes("référence") || key.includes("reference"))) {
-      // Parse DJU contractuel - can be number or string with comma
+    } else if (key.includes("dju")) {
+      // Parse DJU contractuel - accept various formats:
+      // "DJU Contractuel", "DJU de référence", "DJU Contrat", "DJU ref", just "DJU"
       const djuValue = typeof row[1] === "number" ? row[1] : parseFloat(String(row[1] || "").replace(",", ".").replace(/\s/g, ""));
       if (!isNaN(djuValue) && djuValue > 0) {
         metadata.djuContractuel = Math.round(djuValue);
@@ -299,6 +302,10 @@ function parseSitesSheet(workbook: XLSX.WorkBook): Map<string, SiteDetails> {
       colMapping.pdl = index;
     } else if (lower === "rae" || lower === "reference acheminement") {
       colMapping.rae = index;
+    } else if (lower.includes("dju")) {
+      colMapping.djuContractuel = index;
+    } else if (lower.includes("station") || lower === "meteo" || lower === "météo") {
+      colMapping.stationMeteo = index;
     }
   });
 
@@ -339,6 +346,8 @@ function parseSitesSheet(workbook: XLSX.WorkBook): Map<string, SiteDetails> {
       pce: parseStr(colMapping.pce),
       pdl: parseStr(colMapping.pdl),
       rae: parseStr(colMapping.rae),
+      djuContractuel: parseNum(colMapping.djuContractuel),
+      stationMeteo: parseStr(colMapping.stationMeteo),
     };
 
     // Store with normalized name for matching
@@ -834,6 +843,9 @@ export async function POST(request: NextRequest) {
               pce: details?.pce,
               pdl: details?.pdl,
               rae: details?.rae,
+              // Use site-specific DJU/station if in Sites sheet, otherwise contract-level
+              djuContractuel: details?.djuContractuel || detectedMetadata?.djuContractuel,
+              stationMeteo: details?.stationMeteo || detectedMetadata?.stationMeteo,
             };
           }),
         });
@@ -901,29 +913,37 @@ export async function POST(request: NextRequest) {
       const existingSitesInfo = existingSiteIds.length > 0
         ? await tx.site.findMany({
             where: { id: { in: existingSiteIds } },
-            select: { id: true, name: true, energyType: true, address: true, city: true, postalCode: true, surface: true, surfaceChauffee: true },
+            select: { id: true, name: true, energyType: true, address: true, city: true, postalCode: true, surface: true, surfaceChauffee: true, djuContractuel: true, stationMeteo: true },
           })
         : [];
       const existingSiteEnergyTypes = new Map(existingSitesInfo.map(s => [s.id, s.energyType]));
 
-      // Update existing sites with details from Sites sheet (if they have missing info)
-      if (siteDetailsMap.size > 0 && existingSitesInfo.length > 0) {
+      // Update existing sites with details from Sites sheet and contract metadata (if they have missing info)
+      if (existingSitesInfo.length > 0) {
         const siteUpdates: Promise<unknown>[] = [];
         for (const existingSite of existingSitesInfo) {
           const normalizedName = normalizeSiteName(existingSite.name);
           const details = siteDetailsMap.get(normalizedName);
-          if (!details) continue;
 
           // Only update fields that are empty/missing
           const updateData: Record<string, unknown> = {};
-          if (!existingSite.address && details.address) updateData.address = details.address;
-          if (!existingSite.city && details.city) updateData.city = details.city;
-          if (!existingSite.postalCode && details.postalCode) updateData.postalCode = details.postalCode;
-          if (!existingSite.surface && details.surface) updateData.surface = details.surface;
-          if (!existingSite.surfaceChauffee && details.surfaceChauffee) updateData.surfaceChauffee = details.surfaceChauffee;
-          if (details.pce) updateData.pce = details.pce;
-          if (details.pdl) updateData.pdl = details.pdl;
-          if (details.rae) updateData.rae = details.rae;
+          if (details) {
+            if (!existingSite.address && details.address) updateData.address = details.address;
+            if (!existingSite.city && details.city) updateData.city = details.city;
+            if (!existingSite.postalCode && details.postalCode) updateData.postalCode = details.postalCode;
+            if (!existingSite.surface && details.surface) updateData.surface = details.surface;
+            if (!existingSite.surfaceChauffee && details.surfaceChauffee) updateData.surfaceChauffee = details.surfaceChauffee;
+            if (details.pce) updateData.pce = details.pce;
+            if (details.pdl) updateData.pdl = details.pdl;
+            if (details.rae) updateData.rae = details.rae;
+          }
+          // Apply contract-level DJU and station météo if missing on site
+          if (!existingSite.djuContractuel && detectedMetadata?.djuContractuel) {
+            updateData.djuContractuel = detectedMetadata.djuContractuel;
+          }
+          if (!existingSite.stationMeteo && detectedMetadata?.stationMeteo) {
+            updateData.stationMeteo = detectedMetadata.stationMeteo;
+          }
 
           if (Object.keys(updateData).length > 0) {
             siteUpdates.push(tx.site.update({
