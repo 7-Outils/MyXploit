@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import * as XLSX from "xlsx";
-import { ContractType, EnergyType, NbUnit } from "@/generated/prisma/client";
+import { ContractType, EnergyType, NbUnit, SiteType } from "@/generated/prisma/client";
 
 // Determine NB unit based on energy type
 function getNbUnitForEnergyType(energyType: EnergyType): NbUnit {
@@ -115,6 +115,21 @@ interface ContractMetadata {
   djuContractuel?: number;
 }
 
+// Site details from "Sites" sheet
+interface SiteDetails {
+  name: string;
+  type?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  surface?: number;
+  surfaceChauffee?: number;
+  energyType?: string;
+  pce?: string;
+  pdl?: string;
+  rae?: string;
+}
+
 // Convert Excel serial date to DD/MM/YYYY string
 function excelDateToString(value: string | number): string {
   // If it's already a string in date format, return as-is
@@ -215,6 +230,161 @@ function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata |
   return hasAnyField ? metadata : null;
 }
 
+// Parse "Sites" sheet for site details (address, surface, etc.)
+function parseSitesSheet(workbook: XLSX.WorkBook): Map<string, SiteDetails> {
+  const siteDetailsMap = new Map<string, SiteDetails>();
+
+  // Look for a "Sites" sheet (case insensitive)
+  const sitesSheetName = workbook.SheetNames.find(
+    (name) => name.toLowerCase() === "sites" || name.toLowerCase() === "liste sites"
+  );
+
+  if (!sitesSheetName) return siteDetailsMap;
+
+  const sheet = workbook.Sheets[sitesSheetName];
+  const rawData = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, { header: 1 });
+
+  if (rawData.length < 2) return siteDetailsMap;
+
+  // Find header row
+  let headerRowIndex = 0;
+  let headers: string[] = [];
+
+  for (let i = 0; i < Math.min(10, rawData.length); i++) {
+    const row = rawData[i];
+    if (!row) continue;
+    const rowHeaders = row.map((h) => String(h || "").trim().toLowerCase());
+
+    // Look for typical site columns
+    const hasName = rowHeaders.some(h => h === "libellé" || h === "libelle" || h === "nom" || h === "site");
+    const hasAddress = rowHeaders.some(h => h.includes("adresse") || h === "address");
+    const hasSurface = rowHeaders.some(h => h.includes("surface"));
+
+    if (hasName && (hasAddress || hasSurface)) {
+      headerRowIndex = i;
+      headers = row.map((h) => String(h || "").trim());
+      break;
+    }
+  }
+
+  if (headers.length === 0) {
+    headers = rawData[0].map((h) => String(h || "").trim());
+  }
+
+  // Column mapping
+  const colMapping: Record<string, number> = {};
+  headers.forEach((h, index) => {
+    if (!h) return;
+    const lower = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+    if (lower === "libelle" || lower === "nom" || lower === "site" || lower === "installation") {
+      colMapping.name = index;
+    } else if (lower === "type" || lower === "type de site" || lower === "type site") {
+      colMapping.type = index;
+    } else if (lower === "adresse" || lower === "address") {
+      colMapping.address = index;
+    } else if (lower === "ville" || lower === "city" || lower === "commune") {
+      colMapping.city = index;
+    } else if (lower === "code postal" || lower === "cp" || lower === "postalcode" || lower === "postal") {
+      colMapping.postalCode = index;
+    } else if (lower === "surface chauffee" || lower === "surface chauffee (m²)" || lower === "surface chauffee m2") {
+      colMapping.surfaceChauffee = index;
+    } else if (lower === "surface" || lower === "surface (m²)" || lower === "surface m2" || lower === "surface totale") {
+      colMapping.surface = index;
+    } else if (lower === "energie" || lower === "type energie" || lower === "energytype" || lower === "type d'energie") {
+      colMapping.energyType = index;
+    } else if (lower === "pce" || lower === "point de comptage") {
+      colMapping.pce = index;
+    } else if (lower === "pdl" || lower === "point de livraison") {
+      colMapping.pdl = index;
+    } else if (lower === "rae" || lower === "reference acheminement") {
+      colMapping.rae = index;
+    }
+  });
+
+  // Must have at least name column
+  if (colMapping.name === undefined) return siteDetailsMap;
+
+  // Parse each row
+  for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+    const row = rawData[i];
+    if (!row) continue;
+
+    const name = String(row[colMapping.name] || "").trim();
+    if (!name) continue;
+
+    const parseNum = (idx: number | undefined): number | undefined => {
+      if (idx === undefined) return undefined;
+      const val = row[idx];
+      const num = typeof val === "number" ? val : parseFloat(String(val || "").replace(",", ".").replace(/\s/g, ""));
+      return isNaN(num) ? undefined : num;
+    };
+
+    const parseStr = (idx: number | undefined): string | undefined => {
+      if (idx === undefined) return undefined;
+      const val = row[idx];
+      const str = String(val || "").trim();
+      return str || undefined;
+    };
+
+    const siteDetail: SiteDetails = {
+      name,
+      type: parseStr(colMapping.type),
+      address: parseStr(colMapping.address),
+      city: parseStr(colMapping.city),
+      postalCode: parseStr(colMapping.postalCode),
+      surface: parseNum(colMapping.surface),
+      surfaceChauffee: parseNum(colMapping.surfaceChauffee),
+      energyType: parseStr(colMapping.energyType),
+      pce: parseStr(colMapping.pce),
+      pdl: parseStr(colMapping.pdl),
+      rae: parseStr(colMapping.rae),
+    };
+
+    // Store with normalized name for matching
+    const normalizedName = normalizeSiteName(name);
+    siteDetailsMap.set(normalizedName, siteDetail);
+  }
+
+  return siteDetailsMap;
+}
+
+// Parse site type string to enum
+function parseSiteType(value?: string): SiteType {
+  if (!value) return SiteType.AUTRE;
+  const upper = value.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Available types: LYCEE, COLLEGE, ECOLE, MAIRIE, HOPITAL, GYMNASE, PISCINE, MEDIATHEQUE, AUTRE
+  const mapping: Record<string, SiteType> = {
+    "LYCEE": SiteType.LYCEE,
+    "COLLEGE": SiteType.COLLEGE,
+    "ECOLE": SiteType.ECOLE,
+    "MAIRIE": SiteType.MAIRIE,
+    "PISCINE": SiteType.PISCINE,
+    "GYMNASE": SiteType.GYMNASE,
+    "MEDIATHEQUE": SiteType.MEDIATHEQUE,
+    "HOPITAL": SiteType.HOPITAL,
+  };
+
+  for (const [key, val] of Object.entries(mapping)) {
+    if (upper.includes(key)) return val;
+  }
+  return SiteType.AUTRE;
+}
+
+// Parse energy type string to enum
+function parseEnergyType(value?: string): EnergyType {
+  if (!value) return EnergyType.GAZ;
+  const upper = value.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  if (upper.includes("ELECTRICITE") || upper.includes("ELEC")) return EnergyType.ELECTRICITE;
+  if (upper.includes("RESEAU") || upper.includes("CHALEUR")) return EnergyType.RESEAU_CHALEUR;
+  if (upper.includes("FIOUL") || upper.includes("FUEL")) return EnergyType.FIOUL;
+  if (upper.includes("BOIS") || upper.includes("BIOMASSE")) return EnergyType.BOIS;
+
+  return EnergyType.GAZ;
+}
+
 // POST /api/contracts/create-from-ae - Create contract from AE file
 export async function POST(request: NextRequest) {
   try {
@@ -253,6 +423,9 @@ export async function POST(request: NextRequest) {
 
     // Parse contract metadata from "Contrat" sheet if available
     const detectedMetadata = parseContractMetadataSheet(workbook);
+
+    // Parse site details from "Sites" sheet if available
+    const siteDetailsMap = parseSitesSheet(workbook);
 
     // Use "P2P3" or "Sites" sheet if available, otherwise first non-metadata sheet
     const dataSheetName = workbook.SheetNames.find(
@@ -527,8 +700,13 @@ export async function POST(request: NextRequest) {
         existingSites: parsedSites.filter(s => s.existingSite).length,
         // Detected metadata from "Contrat" sheet (if available)
         detectedMetadata: detectedMetadata || undefined,
+        // Site details from "Sites" sheet
+        siteDetailsCount: siteDetailsMap.size,
         dataSheetName: sheetName,
         results: parsedSites.map(s => {
+          // Check if we have site details for this site
+          const normalizedName = normalizeSiteName(s.siteName);
+          const siteDetails = siteDetailsMap.get(normalizedName);
           // Calculate P1 total from sum of all years
           const p1YearValues = Object.values(s.p1ByYear).filter(v => v !== null && v > 0) as number[];
           const p1Total = p1YearValues.length > 0 ? p1YearValues.reduce((sum, v) => sum + v, 0) : undefined;
@@ -553,6 +731,10 @@ export async function POST(request: NextRequest) {
             contractType: s.contractType,
             isNew: !s.existingSite,
             existingSiteId: s.existingSite?.id,
+            // Site details from "Sites" sheet (if found)
+            hasDetails: !!siteDetails,
+            city: siteDetails?.city,
+            surface: siteDetails?.surface,
             // Filter out null/0 NB values
             nbValues: Object.fromEntries(
               Object.entries(s.nb).filter(([, v]) => v !== null && v > 0)
@@ -617,19 +799,30 @@ export async function POST(request: NextRequest) {
       };
 
       // ============ BATCH OPTIMIZATION ============
-      // Step 1: Create all new sites in batch
+      // Step 1: Create all new sites in batch (with details from Sites sheet if available)
       const newSitesToCreate = parsedSites.filter(s => !s.existingSite);
       if (newSitesToCreate.length > 0) {
         await tx.site.createMany({
-          data: newSitesToCreate.map(s => ({
-            organizationId: user.organizationId,
-            name: s.siteName,
-            type: "AUTRE" as const,
-            energyType: "GAZ" as const,
-            address: "",
-            postalCode: "",
-            city: "",
-          })),
+          data: newSitesToCreate.map(s => {
+            // Look for site details in the Sites sheet
+            const normalizedName = normalizeSiteName(s.siteName);
+            const details = siteDetailsMap.get(normalizedName);
+
+            return {
+              organizationId: user.organizationId,
+              name: s.siteName,
+              type: details?.type ? parseSiteType(details.type) : SiteType.AUTRE,
+              energyType: details?.energyType ? parseEnergyType(details.energyType) : EnergyType.GAZ,
+              address: details?.address || "",
+              postalCode: details?.postalCode || "",
+              city: details?.city || "",
+              surface: details?.surface,
+              surfaceChauffee: details?.surfaceChauffee,
+              pce: details?.pce,
+              pdl: details?.pdl,
+              rae: details?.rae,
+            };
+          }),
         });
       }
 
@@ -688,17 +881,48 @@ export async function POST(request: NextRequest) {
       // Get DJU contractuel from metadata (applies to all sites in this contract)
       const contractDjuContractuel = detectedMetadata?.djuContractuel;
 
-      // Get energy types for existing sites
+      // Get energy types for existing sites and update them with site details if available
       const existingSiteIds = parsedSites
         .filter(s => s.existingSite)
         .map(s => s.existingSite!.id);
       const existingSitesInfo = existingSiteIds.length > 0
         ? await tx.site.findMany({
             where: { id: { in: existingSiteIds } },
-            select: { id: true, energyType: true },
+            select: { id: true, name: true, energyType: true, address: true, city: true, postalCode: true, surface: true, surfaceChauffee: true },
           })
         : [];
       const existingSiteEnergyTypes = new Map(existingSitesInfo.map(s => [s.id, s.energyType]));
+
+      // Update existing sites with details from Sites sheet (if they have missing info)
+      if (siteDetailsMap.size > 0 && existingSitesInfo.length > 0) {
+        const siteUpdates: Promise<unknown>[] = [];
+        for (const existingSite of existingSitesInfo) {
+          const normalizedName = normalizeSiteName(existingSite.name);
+          const details = siteDetailsMap.get(normalizedName);
+          if (!details) continue;
+
+          // Only update fields that are empty/missing
+          const updateData: Record<string, unknown> = {};
+          if (!existingSite.address && details.address) updateData.address = details.address;
+          if (!existingSite.city && details.city) updateData.city = details.city;
+          if (!existingSite.postalCode && details.postalCode) updateData.postalCode = details.postalCode;
+          if (!existingSite.surface && details.surface) updateData.surface = details.surface;
+          if (!existingSite.surfaceChauffee && details.surfaceChauffee) updateData.surfaceChauffee = details.surfaceChauffee;
+          if (details.pce) updateData.pce = details.pce;
+          if (details.pdl) updateData.pdl = details.pdl;
+          if (details.rae) updateData.rae = details.rae;
+
+          if (Object.keys(updateData).length > 0) {
+            siteUpdates.push(tx.site.update({
+              where: { id: existingSite.id },
+              data: updateData,
+            }));
+          }
+        }
+        if (siteUpdates.length > 0) {
+          await Promise.all(siteUpdates);
+        }
+      }
 
       for (const parsedSite of parsedSites) {
         let siteId: string;
