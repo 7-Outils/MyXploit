@@ -226,24 +226,19 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     // Calculate season for each contract year
-    // Contract year 1 starts at contract.startDate
-    // If yearType is HEATING_SEASON and starts July 1, then:
-    // Year 1 = season "2022-2023" if contract starts in 2022
+    // Uses same logic as energy page display to ensure consistency
     const getSeasonForYear = (contractYear: number): string => {
       const startYear = contract.startDate.getFullYear();
-      const startMonth = contract.yearStartMonth;
+      const startMonth = contract.startDate.getMonth(); // 0-indexed (July = 6)
 
-      // Adjust based on whether contract start month is in first or second half of year
-      // Heating season convention: "2024-2025" means July 2024 to June 2025
-      if (startMonth >= 7) {
-        // July onwards: year 1 = season "startYear-startYear+1"
-        const seasonStart = startYear + (contractYear - 1);
-        return `${seasonStart}-${seasonStart + 1}`;
-      } else {
-        // Before July: year 1 = season "startYear-1-startYear"
-        const seasonStart = startYear - 1 + (contractYear - 1);
-        return `${seasonStart}-${seasonStart + 1}`;
-      }
+      // First season: if contract starts July or later (month >= 6),
+      // season starts same year (e.g., July 2025 -> season 2025-2026)
+      // Otherwise, season starts previous year (e.g., January 2025 -> season 2024-2025)
+      const firstSeasonEndYear = startMonth >= 6 ? startYear + 1 : startYear;
+
+      // Calculate season for the requested contract year
+      const seasonEndYear = firstSeasonEndYear + (contractYear - 1);
+      return `${seasonEndYear - 1}-${seasonEndYear}`;
     };
 
     // Process data rows - start after header row

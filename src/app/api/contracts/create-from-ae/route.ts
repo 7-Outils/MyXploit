@@ -590,17 +590,20 @@ export async function POST(request: NextRequest) {
       const linkedSites: string[] = [];
 
       // Helper to calculate season from contract year
+      // Uses same logic as energy page display to ensure consistency
       const getSeasonForYear = (contractYear: number): string => {
-        const startYear = new Date(startDate).getFullYear();
-        const startMonth = yearType === "HEATING_SEASON" ? 7 : 1;
+        const contractStartDate = new Date(startDate);
+        const startYear = contractStartDate.getFullYear();
+        const startMonth = contractStartDate.getMonth(); // 0-indexed (July = 6)
 
-        if (startMonth >= 7) {
-          const seasonStart = startYear + (contractYear - 1);
-          return `${seasonStart}-${seasonStart + 1}`;
-        } else {
-          const seasonStart = startYear - 1 + (contractYear - 1);
-          return `${seasonStart}-${seasonStart + 1}`;
-        }
+        // First season: if contract starts July or later (month >= 6),
+        // season starts same year (e.g., July 2025 -> season 2025-2026)
+        // Otherwise, season starts previous year (e.g., January 2025 -> season 2024-2025)
+        const firstSeasonEndYear = startMonth >= 6 ? startYear + 1 : startYear;
+
+        // Calculate season for the requested contract year
+        const seasonEndYear = firstSeasonEndYear + (contractYear - 1);
+        return `${seasonEndYear - 1}-${seasonEndYear}`;
       };
 
       for (const parsedSite of parsedSites) {
