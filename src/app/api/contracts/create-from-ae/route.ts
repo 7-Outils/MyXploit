@@ -432,10 +432,10 @@ export async function POST(request: NextRequest) {
       (name) => name.toLowerCase() === "sites" || name.toLowerCase() === "liste sites"
     );
 
-    // Use "P2P3" sheet if available, otherwise first non-metadata sheet
+    // Use "P2P3" or "DPGF" sheet if available, otherwise first non-metadata sheet
     // Don't use "Sites" as data sheet if it's used for site details
     const dataSheetName = workbook.SheetNames.find(
-      (name) => name.toLowerCase() === "p2p3"
+      (name) => name.toLowerCase() === "p2p3" || name.toLowerCase() === "dpgf"
     ) || workbook.SheetNames.find(
       (name) => {
         const lower = name.toLowerCase();
