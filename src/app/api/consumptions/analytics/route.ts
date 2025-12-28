@@ -190,19 +190,22 @@ export async function GET(request: NextRequest) {
       const nb = heatingSeason?.nb ?? site.nb;
       const djuContractuel = heatingSeason?.djuContractuel ?? site.djuContractuel;
 
-      if (nb && djuContractuel && djrTotal > 0) {
+      // NB is stored in MWh, convert to kWh (* 1000) for consistency with consumptions
+      const nbKwh = nb ? nb * 1000 : 0;
+
+      if (nbKwh && djuContractuel && djrTotal > 0) {
         // N'B = NB × (DJR/DJC)
-        siteData.nbPrime = nb * (djrTotal / djuContractuel);
-      } else if (nb) {
+        siteData.nbPrime = nbKwh * (djrTotal / djuContractuel);
+      } else if (nbKwh) {
         // If no DJU available, use NB directly
-        siteData.nbPrime = nb;
+        siteData.nbPrime = nbKwh;
       }
 
       // Calculate per month N'B
       siteData.months.forEach((monthData) => {
-        if (nb && djuContractuel && monthData.djr > 0) {
-          // Monthly proportional NB based on DJU ratio
-          const monthlyNbBase = nb / 12; // Simplified: equal monthly distribution
+        if (nbKwh && djuContractuel && monthData.djr > 0) {
+          // Monthly proportional NB based on DJU ratio (already in kWh)
+          const monthlyNbBase = nbKwh / 12; // Simplified: equal monthly distribution
           monthData.nbPrime = monthlyNbBase * (monthData.djr / (djuContractuel / 12));
         }
       });
