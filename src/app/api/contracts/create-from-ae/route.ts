@@ -111,6 +111,8 @@ interface ContractMetadata {
   endDate?: string;
   yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
+  stationMeteo?: string;
+  djuContractuel?: number;
 }
 
 // Convert Excel serial date to DD/MM/YYYY string
@@ -194,13 +196,21 @@ function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata |
       } else if (lowerValue.includes("annuel")) {
         metadata.billingFrequency = "ANNUEL";
       }
+    } else if (key.includes("station") || key.includes("météo") || key.includes("meteo")) {
+      metadata.stationMeteo = value;
+    } else if (key.includes("dju") && (key.includes("contractuel") || key.includes("contrat") || key.includes("référence") || key.includes("reference"))) {
+      // Parse DJU contractuel - can be number or string with comma
+      const djuValue = typeof row[1] === "number" ? row[1] : parseFloat(String(row[1] || "").replace(",", ".").replace(/\s/g, ""));
+      if (!isNaN(djuValue) && djuValue > 0) {
+        metadata.djuContractuel = Math.round(djuValue);
+      }
     }
   }
 
   // Only return if we found at least one field
   const hasAnyField = metadata.reference || metadata.title || metadata.provider ||
                       metadata.startDate || metadata.endDate || metadata.yearType ||
-                      metadata.billingFrequency;
+                      metadata.billingFrequency || metadata.stationMeteo || metadata.djuContractuel;
 
   return hasAnyField ? metadata : null;
 }
@@ -674,7 +684,9 @@ export async function POST(request: NextRequest) {
         amountP39?: number;
         amountP310?: number;
       }[] = [];
-      const heatingSeasonData: { siteId: string; season: string; nbValue: number; nbUnit: string }[] = [];
+      const heatingSeasonData: { siteId: string; season: string; nbValue: number; nbUnit: string; djuContractuel?: number }[] = [];
+      // Get DJU contractuel from metadata (applies to all sites in this contract)
+      const contractDjuContractuel = detectedMetadata?.djuContractuel;
 
       // Get energy types for existing sites
       const existingSiteIds = parsedSites
@@ -761,7 +773,13 @@ export async function POST(request: NextRequest) {
           const year = parseInt(yearStr);
           const season = getSeasonForYear(year);
           // Round NB value to integer (no decimals)
-          heatingSeasonData.push({ siteId, season, nbValue: Math.round(nbValue), nbUnit });
+          heatingSeasonData.push({
+            siteId,
+            season,
+            nbValue: Math.round(nbValue),
+            nbUnit,
+            djuContractuel: contractDjuContractuel,
+          });
         }
       }
 
@@ -798,14 +816,15 @@ export async function POST(request: NextRequest) {
         startDate: Date;
         nb: number;
         nbUnit: NbUnit;
+        djuContractuel?: number;
       }[] = [];
-      const seasonsToUpdate: { id: string; nb: number; nbUnit: string }[] = [];
+      const seasonsToUpdate: { id: string; nb: number; nbUnit: string; djuContractuel?: number }[] = [];
 
       for (const hs of heatingSeasonData) {
         const key = `${hs.siteId}|${hs.season}`;
         const existingId = existingSeasonMap.get(key);
         if (existingId) {
-          seasonsToUpdate.push({ id: existingId, nb: hs.nbValue, nbUnit: hs.nbUnit });
+          seasonsToUpdate.push({ id: existingId, nb: hs.nbValue, nbUnit: hs.nbUnit, djuContractuel: hs.djuContractuel });
         } else {
           seasonsToCreate.push({
             siteId: hs.siteId,
@@ -813,6 +832,7 @@ export async function POST(request: NextRequest) {
             startDate: new Date(parseInt(hs.season.split("-")[0]), 6, 1),
             nb: hs.nbValue,
             nbUnit: hs.nbUnit as NbUnit,
+            djuContractuel: hs.djuContractuel,
           });
         }
       }
@@ -828,7 +848,11 @@ export async function POST(request: NextRequest) {
           seasonsToUpdate.map(s =>
             tx.heatingSeason.update({
               where: { id: s.id },
-              data: { nb: s.nb, nbUnit: s.nbUnit as NbUnit },
+              data: {
+                nb: s.nb,
+                nbUnit: s.nbUnit as NbUnit,
+                djuContractuel: s.djuContractuel,
+              },
             })
           )
         );
