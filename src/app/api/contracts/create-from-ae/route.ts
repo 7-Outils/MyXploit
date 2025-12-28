@@ -427,11 +427,24 @@ export async function POST(request: NextRequest) {
     // Parse site details from "Sites" sheet if available
     const siteDetailsMap = parseSitesSheet(workbook);
 
-    // Use "P2P3" or "Sites" sheet if available, otherwise first non-metadata sheet
+    // Check if there's a dedicated "Sites" sheet for site details (addresses, surfaces)
+    const hasSiteDetailsSheet = workbook.SheetNames.some(
+      (name) => name.toLowerCase() === "sites" || name.toLowerCase() === "liste sites"
+    );
+
+    // Use "P2P3" sheet if available, otherwise first non-metadata sheet
+    // Don't use "Sites" as data sheet if it's used for site details
     const dataSheetName = workbook.SheetNames.find(
-      (name) => name.toLowerCase() === "p2p3" || name.toLowerCase() === "sites"
+      (name) => name.toLowerCase() === "p2p3"
     ) || workbook.SheetNames.find(
-      (name) => !["contrat", "info", "metadata"].includes(name.toLowerCase())
+      (name) => {
+        const lower = name.toLowerCase();
+        // Exclude metadata sheets
+        if (["contrat", "info", "metadata"].includes(lower)) return false;
+        // Exclude sites sheet if it's used for site details
+        if (hasSiteDetailsSheet && (lower === "sites" || lower === "liste sites")) return false;
+        return true;
+      }
     ) || workbook.SheetNames[0];
     const sheetName = dataSheetName;
     const sheet = workbook.Sheets[sheetName];
