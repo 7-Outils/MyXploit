@@ -280,7 +280,9 @@ export async function POST(request: NextRequest) {
       // Process each year column
       for (const yearCol of yearColumns) {
         const nbValue = row[yearCol.index];
-        const nbNumber = typeof nbValue === "number" ? nbValue : parseFloat(String(nbValue || "").replace(",", "."));
+        const nbNumberRaw = typeof nbValue === "number" ? nbValue : parseFloat(String(nbValue || "").replace(",", "."));
+        // Round NB value to integer (no decimals)
+        const nbNumber = isNaN(nbNumberRaw) ? NaN : Math.round(nbNumberRaw);
         const season = getSeasonForYear(yearCol.year);
 
         previewRow.years.push({

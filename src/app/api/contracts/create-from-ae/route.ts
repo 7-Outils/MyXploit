@@ -586,8 +586,8 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const createdSites: string[] = [];
-      const linkedSites: string[] = [];
+      const createdSiteIds: string[] = [];
+      const linkedSiteIds: string[] = [];
 
       // Helper to calculate season from contract year
       // Uses same logic as energy page display to ensure consistency
@@ -606,28 +606,101 @@ export async function POST(request: NextRequest) {
         return `${seasonEndYear - 1}-${seasonEndYear}`;
       };
 
+      // ============ BATCH OPTIMIZATION ============
+      // Step 1: Create all new sites in batch
+      const newSitesToCreate = parsedSites.filter(s => !s.existingSite);
+      if (newSitesToCreate.length > 0) {
+        await tx.site.createMany({
+          data: newSitesToCreate.map(s => ({
+            organizationId: user.organizationId,
+            name: s.siteName,
+            type: "AUTRE" as const,
+            energyType: "GAZ" as const,
+            address: "",
+            postalCode: "",
+            city: "",
+          })),
+        });
+      }
+
+      // Fetch created sites to get their IDs
+      const createdSites = newSitesToCreate.length > 0
+        ? await tx.site.findMany({
+            where: {
+              organizationId: user.organizationId,
+              name: { in: newSitesToCreate.map(s => s.siteName) },
+            },
+            select: { id: true, name: true, energyType: true },
+          })
+        : [];
+
+      // Build a map of site name to site info
+      const siteNameToId = new Map<string, { id: string; energyType: string }>();
+      for (const site of createdSites) {
+        siteNameToId.set(site.name, { id: site.id, energyType: site.energyType });
+        createdSiteIds.push(site.id);
+      }
+
+      // Step 2: Prepare ContractSite data and HeatingSeason data
+      const contractSiteData: {
+        contractId: string;
+        siteId: string;
+        contractType: ContractType;
+        hasP1: boolean;
+        hasP2: boolean;
+        hasP3: boolean;
+        hasP4: boolean;
+        amountP1: number | null;
+        amountP2: number | null;
+        amountP3: number | null;
+        amountP21?: number;
+        amountP22?: number;
+        amountP23?: number;
+        amountP24?: number;
+        amountP25?: number;
+        amountP26?: number;
+        amountP27?: number;
+        amountP28?: number;
+        amountP29?: number;
+        amountP210?: number;
+        amountP31?: number;
+        amountP32?: number;
+        amountP33?: number;
+        amountP34?: number;
+        amountP35?: number;
+        amountP36?: number;
+        amountP37?: number;
+        amountP38?: number;
+        amountP39?: number;
+        amountP310?: number;
+      }[] = [];
+      const heatingSeasonData: { siteId: string; season: string; nbValue: number; nbUnit: string }[] = [];
+
+      // Get energy types for existing sites
+      const existingSiteIds = parsedSites
+        .filter(s => s.existingSite)
+        .map(s => s.existingSite!.id);
+      const existingSitesInfo = existingSiteIds.length > 0
+        ? await tx.site.findMany({
+            where: { id: { in: existingSiteIds } },
+            select: { id: true, energyType: true },
+          })
+        : [];
+      const existingSiteEnergyTypes = new Map(existingSitesInfo.map(s => [s.id, s.energyType]));
+
       for (const parsedSite of parsedSites) {
         let siteId: string;
+        let energyType: string;
 
         if (parsedSite.existingSite) {
-          // Use existing site
           siteId = parsedSite.existingSite.id;
-          linkedSites.push(siteId);
+          energyType = existingSiteEnergyTypes.get(siteId) || "GAZ";
+          linkedSiteIds.push(siteId);
         } else {
-          // Create new site
-          const newSite = await tx.site.create({
-            data: {
-              organizationId: user.organizationId,
-              name: parsedSite.siteName,
-              type: "AUTRE",
-              energyType: "GAZ",
-              address: "",
-              postalCode: "",
-              city: "",
-            },
-          });
-          siteId = newSite.id;
-          createdSites.push(siteId);
+          const siteInfo = siteNameToId.get(parsedSite.siteName);
+          if (!siteInfo) continue; // Should not happen
+          siteId = siteInfo.id;
+          energyType = siteInfo.energyType;
         }
 
         // Calculate P2/P3 totals if not provided (with 10 sub-components)
@@ -645,87 +718,126 @@ export async function POST(request: NextRequest) {
         const p1YearValues = Object.values(parsedSite.p1ByYear).filter(v => v !== null && v > 0) as number[];
         const p1Total = p1YearValues.length > 0 ? p1YearValues.reduce((sum, v) => sum + v, 0) : null;
 
-        // Create ContractSite
-        // P2 is always required, P3 is determined by actual values
-        // P1 is imported from AE (calculated value at instant T)
         const hasP1 = parsedSite.contractTypeInfo.canHaveP1 && (p1Total !== null || Object.keys(parsedSite.p1ByYear).length > 0);
         const hasP3 = p3Total > 0;
 
-        await tx.contractSite.create({
-          data: {
-            contractId: contract.id,
-            siteId,
-            contractType: parsedSite.contractTypeInfo.contractType,
-            hasP1,
-            hasP2: true, // P2 is always required
-            hasP3,
-            hasP4: false,
-            amountP1: p1Total, // P1 total (sum of all years from AE)
-            amountP2: p2Total > 0 ? p2Total : null,
-            amountP3: p3Total > 0 ? p3Total : null,
-            // P2 sub-components (10)
-            amountP21: parsedSite.p2.p21,
-            amountP22: parsedSite.p2.p22,
-            amountP23: parsedSite.p2.p23,
-            amountP24: parsedSite.p2.p24,
-            amountP25: parsedSite.p2.p25,
-            amountP26: parsedSite.p2.p26,
-            amountP27: parsedSite.p2.p27,
-            amountP28: parsedSite.p2.p28,
-            amountP29: parsedSite.p2.p29,
-            amountP210: parsedSite.p2.p210,
-            // P3 sub-components (10)
-            amountP31: parsedSite.p3.p31,
-            amountP32: parsedSite.p3.p32,
-            amountP33: parsedSite.p3.p33,
-            amountP34: parsedSite.p3.p34,
-            amountP35: parsedSite.p3.p35,
-            amountP36: parsedSite.p3.p36,
-            amountP37: parsedSite.p3.p37,
-            amountP38: parsedSite.p3.p38,
-            amountP39: parsedSite.p3.p39,
-            amountP310: parsedSite.p3.p310,
-          },
+        contractSiteData.push({
+          contractId: contract.id,
+          siteId,
+          contractType: parsedSite.contractTypeInfo.contractType,
+          hasP1,
+          hasP2: true,
+          hasP3,
+          hasP4: false,
+          amountP1: p1Total,
+          amountP2: p2Total > 0 ? p2Total : null,
+          amountP3: p3Total > 0 ? p3Total : null,
+          amountP21: parsedSite.p2.p21,
+          amountP22: parsedSite.p2.p22,
+          amountP23: parsedSite.p2.p23,
+          amountP24: parsedSite.p2.p24,
+          amountP25: parsedSite.p2.p25,
+          amountP26: parsedSite.p2.p26,
+          amountP27: parsedSite.p2.p27,
+          amountP28: parsedSite.p2.p28,
+          amountP29: parsedSite.p2.p29,
+          amountP210: parsedSite.p2.p210,
+          amountP31: parsedSite.p3.p31,
+          amountP32: parsedSite.p3.p32,
+          amountP33: parsedSite.p3.p33,
+          amountP34: parsedSite.p3.p34,
+          amountP35: parsedSite.p3.p35,
+          amountP36: parsedSite.p3.p36,
+          amountP37: parsedSite.p3.p37,
+          amountP38: parsedSite.p3.p38,
+          amountP39: parsedSite.p3.p39,
+          amountP310: parsedSite.p3.p310,
         });
 
-        // Create HeatingSeason entries for NB values
-        const site = await tx.site.findUnique({ where: { id: siteId }, select: { energyType: true } });
-        const nbUnit = site ? getNbUnitForEnergyType(site.energyType) : "PCS";
-
+        // Prepare HeatingSeason data
+        const nbUnit = getNbUnitForEnergyType(energyType as EnergyType);
         for (const [yearStr, nbValue] of Object.entries(parsedSite.nb)) {
-          const year = parseInt(yearStr);
           if (nbValue === null || nbValue <= 0) continue;
-
+          const year = parseInt(yearStr);
           const season = getSeasonForYear(year);
-
-          // Check if season already exists
-          const existing = await tx.heatingSeason.findUnique({
-            where: { siteId_season: { siteId, season } },
-          });
-
-          if (existing) {
-            await tx.heatingSeason.update({
-              where: { id: existing.id },
-              data: { nb: nbValue, nbUnit },
-            });
-          } else {
-            await tx.heatingSeason.create({
-              data: {
-                siteId,
-                season,
-                startDate: new Date(parseInt(season.split("-")[0]), 6, 1),
-                nb: nbValue,
-                nbUnit,
-              },
-            });
-          }
+          // Round NB value to integer (no decimals)
+          heatingSeasonData.push({ siteId, season, nbValue: Math.round(nbValue), nbUnit });
         }
+      }
+
+      // Step 3: Create all ContractSites in batch
+      if (contractSiteData.length > 0) {
+        await tx.contractSite.createMany({ data: contractSiteData });
+      }
+
+      // Step 4: Handle HeatingSeasons - get existing ones first
+      const uniqueSiteSeasons = [...new Set(heatingSeasonData.map(h => `${h.siteId}|${h.season}`))];
+      const siteSeasonPairs = uniqueSiteSeasons.map(s => {
+        const [siteId, season] = s.split("|");
+        return { siteId, season };
+      });
+
+      // Fetch all existing heating seasons in one query
+      const existingSeasons = await tx.heatingSeason.findMany({
+        where: {
+          OR: siteSeasonPairs.map(({ siteId, season }) => ({
+            siteId,
+            season,
+          })),
+        },
+        select: { id: true, siteId: true, season: true },
+      });
+      const existingSeasonMap = new Map(
+        existingSeasons.map(s => [`${s.siteId}|${s.season}`, s.id])
+      );
+
+      // Separate into creates and updates
+      const seasonsToCreate: {
+        siteId: string;
+        season: string;
+        startDate: Date;
+        nb: number;
+        nbUnit: NbUnit;
+      }[] = [];
+      const seasonsToUpdate: { id: string; nb: number; nbUnit: string }[] = [];
+
+      for (const hs of heatingSeasonData) {
+        const key = `${hs.siteId}|${hs.season}`;
+        const existingId = existingSeasonMap.get(key);
+        if (existingId) {
+          seasonsToUpdate.push({ id: existingId, nb: hs.nbValue, nbUnit: hs.nbUnit });
+        } else {
+          seasonsToCreate.push({
+            siteId: hs.siteId,
+            season: hs.season,
+            startDate: new Date(parseInt(hs.season.split("-")[0]), 6, 1),
+            nb: hs.nbValue,
+            nbUnit: hs.nbUnit as NbUnit,
+          });
+        }
+      }
+
+      // Batch create new seasons
+      if (seasonsToCreate.length > 0) {
+        await tx.heatingSeason.createMany({ data: seasonsToCreate });
+      }
+
+      // Update existing seasons (must be done individually but in parallel)
+      if (seasonsToUpdate.length > 0) {
+        await Promise.all(
+          seasonsToUpdate.map(s =>
+            tx.heatingSeason.update({
+              where: { id: s.id },
+              data: { nb: s.nb, nbUnit: s.nbUnit as NbUnit },
+            })
+          )
+        );
       }
 
       return {
         contract,
-        createdSites: createdSites.length,
-        linkedSites: linkedSites.length,
+        createdSites: createdSiteIds.length,
+        linkedSites: linkedSiteIds.length,
         totalSites: parsedSites.length,
       };
     }, {

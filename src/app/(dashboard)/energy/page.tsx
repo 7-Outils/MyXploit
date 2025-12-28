@@ -1641,18 +1641,19 @@ function P1Content({
     const startDate = new Date(contract.startDate);
     const endDate = new Date(contract.endDate);
     const startYear = startDate.getFullYear();
-    const endYear = endDate.getFullYear();
     const startMonth = startDate.getMonth();
-    const endMonth = endDate.getMonth();
 
-    // First heating season: if contract starts before July, it's that year's season
+    // Calculate contract duration in years (rounded)
+    const durationMs = endDate.getTime() - startDate.getTime();
+    const durationYears = Math.round(durationMs / (1000 * 60 * 60 * 24 * 365));
+
+    // First heating season: if contract starts before July (month < 6),
+    // season ends that year. Otherwise, season ends next year.
     const firstSeason = startMonth >= 6 ? startYear + 1 : startYear;
-    // Last heating season: if contract ends before July, last season ends that year
-    // If contract ends July or later, the season ending next year is included
-    const lastSeason = endMonth >= 6 ? endYear + 1 : endYear;
 
     const years: { year: number; season: string }[] = [];
-    for (let i = 0; i < 10 && firstSeason + i <= lastSeason; i++) {
+    // Limit to actual contract duration
+    for (let i = 0; i < durationYears && i < 10; i++) {
       const seasonYear = firstSeason + i;
       years.push({
         year: i + 1,
@@ -1688,6 +1689,11 @@ function P1Content({
     const hs = allSeasons.find((s) => s.siteId === siteId && s.season === season);
     return hs?.nb ?? null;
   };
+
+  // Filter sites that have at least one NB value
+  const sitesWithEngagement = sites.filter((site) =>
+    contractYears.some((cy) => getNbForSiteSeason(site.id, cy.season) !== null)
+  );
 
   // Calculate KPIs
   const calculateKpis = () => {
@@ -1894,7 +1900,7 @@ function P1Content({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {sites.map((site) => {
+              {sitesWithEngagement.map((site) => {
                 const year1Nb = getNbForSiteSeason(site.id, contractYears[0]?.season);
                 const lastYearWithNb = [...contractYears].reverse().find((cy) => getNbForSiteSeason(site.id, cy.season));
                 const lastNb = lastYearWithNb ? getNbForSiteSeason(site.id, lastYearWithNb.season) : null;
