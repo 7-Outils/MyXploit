@@ -815,13 +815,13 @@ function AdministratifContent() {
                                   : "-"}
                               </td>
                               <td className="px-3 py-2 text-xs">
-                                {result.p1Total ? `${result.p1Total.toLocaleString("fr-FR")} €` : "-"}
+                                {result.p1Total ? `${result.p1Total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €` : "-"}
                               </td>
                               <td className="px-3 py-2 text-xs">
-                                {result.p2Total ? `${result.p2Total.toLocaleString("fr-FR")} €` : "-"}
+                                {result.p2Total ? `${result.p2Total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €` : "-"}
                               </td>
                               <td className="px-3 py-2 text-xs">
-                                {result.p3Total ? `${result.p3Total.toLocaleString("fr-FR")} €` : "-"}
+                                {result.p3Total ? `${result.p3Total.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €` : "-"}
                               </td>
                               <td className="px-3 py-2">
                                 {result.isNew ? (

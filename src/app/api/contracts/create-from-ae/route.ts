@@ -307,10 +307,18 @@ export async function POST(request: NextRequest) {
     }
     if (siteColIndex === -1) siteColIndex = 1;
 
-    // Contract type column
-    const contractTypeColIndex = headers.findIndex(h =>
-      h && (h.toLowerCase() === "contrat" || h.toLowerCase() === "type contrat")
-    );
+    // Contract type column - support various formats
+    const contractTypeColIndex = headers.findIndex(h => {
+      if (!h) return false;
+      const lower = h.toLowerCase().trim();
+      return lower === "contrat" ||
+             lower === "type contrat" ||
+             lower === "type de contrat" ||
+             lower === "type" ||
+             lower === "formule" ||
+             lower === "formule contrat" ||
+             lower === "type formule";
+    });
 
     // NB columns
     const nbColumns: { index: number; year: number }[] = [];
@@ -718,7 +726,7 @@ export async function POST(request: NextRequest) {
         totalSites: parsedSites.length,
       };
     }, {
-      timeout: 60000, // 60 seconds for large files
+      timeout: 180000, // 3 minutes for large files with many sites
       maxWait: 10000, // 10 seconds to acquire connection
     });
 
