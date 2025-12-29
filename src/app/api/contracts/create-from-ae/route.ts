@@ -903,8 +903,15 @@ export async function POST(request: NextRequest) {
         amountP310?: number;
       }[] = [];
       const heatingSeasonData: { siteId: string; season: string; nbValue: number; nbUnit: string; djuContractuel?: number }[] = [];
-      // Get DJU contractuel from metadata (applies to all sites in this contract)
+      // Get DJU contractuel from metadata as fallback (applies to all sites in this contract)
       const contractDjuContractuel = detectedMetadata?.djuContractuel;
+      // Build a map of site names to their djuContractuel from Sites sheet
+      const siteDjuMap = new Map<string, number>();
+      for (const [normalizedName, details] of siteDetailsMap.entries()) {
+        if (details.djuContractuel) {
+          siteDjuMap.set(normalizedName, details.djuContractuel);
+        }
+      }
 
       // Get energy types for existing sites and update them with site details if available
       const existingSiteIds = parsedSites
@@ -936,12 +943,19 @@ export async function POST(request: NextRequest) {
             if (details.pce) updateData.pce = details.pce;
             if (details.pdl) updateData.pdl = details.pdl;
             if (details.rae) updateData.rae = details.rae;
+            // Apply site-specific DJU and station météo from Sites sheet
+            if (!existingSite.djuContractuel && details.djuContractuel) {
+              updateData.djuContractuel = details.djuContractuel;
+            }
+            if (!existingSite.stationMeteo && details.stationMeteo) {
+              updateData.stationMeteo = details.stationMeteo;
+            }
           }
-          // Apply contract-level DJU and station météo if missing on site
-          if (!existingSite.djuContractuel && detectedMetadata?.djuContractuel) {
+          // Fallback to contract-level DJU and station météo if still missing
+          if (!existingSite.djuContractuel && !updateData.djuContractuel && detectedMetadata?.djuContractuel) {
             updateData.djuContractuel = detectedMetadata.djuContractuel;
           }
-          if (!existingSite.stationMeteo && detectedMetadata?.stationMeteo) {
+          if (!existingSite.stationMeteo && !updateData.stationMeteo && detectedMetadata?.stationMeteo) {
             updateData.stationMeteo = detectedMetadata.stationMeteo;
           }
 
@@ -1025,6 +1039,9 @@ export async function POST(request: NextRequest) {
 
         // Prepare HeatingSeason data
         const nbUnit = getNbUnitForEnergyType(energyType as EnergyType);
+        // Get site-specific DJU contractuel, fallback to contract-level
+        const normalizedSiteName = normalizeSiteName(parsedSite.siteName);
+        const siteDjuContractuel = siteDjuMap.get(normalizedSiteName) || contractDjuContractuel;
         for (const [yearStr, nbValue] of Object.entries(parsedSite.nb)) {
           if (nbValue === null || nbValue <= 0) continue;
           const year = parseInt(yearStr);
@@ -1035,7 +1052,7 @@ export async function POST(request: NextRequest) {
             season,
             nbValue: Math.round(nbValue),
             nbUnit,
-            djuContractuel: contractDjuContractuel,
+            djuContractuel: siteDjuContractuel,
           });
         }
       }
