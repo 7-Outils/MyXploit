@@ -769,6 +769,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (sites.length === 0) {
+      console.log("[DJU Sync] No sites found for contract:", contractId);
       return NextResponse.json({
         success: false,
         updated: 0,
@@ -776,6 +777,8 @@ export async function POST(request: NextRequest) {
         errors: ["Aucun site trouvé pour ce contrat"],
       }, { status: 404 });
     }
+
+    console.log(`[DJU Sync] Found ${sites.length} sites:`, sites.map(s => ({ name: s.name, postalCode: s.postalCode, stationMeteo: s.stationMeteo })));
 
     // Get consumptions that need DJU sync
     const consumptionsWhere: Record<string, unknown> = {
@@ -800,6 +803,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (consumptions.length === 0) {
+      console.log("[DJU Sync] No consumptions found for sites");
       return NextResponse.json({
         success: true,
         updated: 0,
@@ -807,6 +811,8 @@ export async function POST(request: NextRequest) {
         errors: ["Aucune consommation trouvée pour les sites de ce contrat. Importez d'abord les consommations."],
       });
     }
+
+    console.log(`[DJU Sync] Found ${consumptions.length} consumptions to update`);
 
     // Group consumptions by site
     const consumptionsBySite = new Map<string, typeof consumptions>();
@@ -828,11 +834,15 @@ export async function POST(request: NextRequest) {
       let stationCode = site.stationMeteo;
       if (!stationCode || !WEATHER_STATIONS[stationCode]) {
         stationCode = getStationFromPostalCode(site.postalCode);
+        console.log(`[DJU Sync] ${site.name}: Using station from postal code ${site.postalCode} -> ${stationCode}`);
+      } else {
+        console.log(`[DJU Sync] ${site.name}: Using configured station ${stationCode}`);
       }
 
       const stationData = WEATHER_STATIONS[stationCode];
       if (!stationData) {
-        errors.push(`${site.name}: Station météo non trouvée`);
+        console.log(`[DJU Sync] ${site.name}: Station ${stationCode} not found in WEATHER_STATIONS`);
+        errors.push(`${site.name}: Station météo non trouvée (code postal: ${site.postalCode || 'non défini'})`);
         continue;
       }
 
@@ -850,6 +860,8 @@ export async function POST(request: NextRequest) {
       const fetchEndDate = endDate > today ? today : endDate;
 
       try {
+        console.log(`[DJU Sync] ${site.name}: Fetching weather from ${startDate.toISOString().split("T")[0]} to ${fetchEndDate.toISOString().split("T")[0]}`);
+
         // Fetch weather data
         const djuData = await fetchWeatherData(
           stationData.lat,
@@ -857,6 +869,8 @@ export async function POST(request: NextRequest) {
           startDate.toISOString().split("T")[0],
           fetchEndDate.toISOString().split("T")[0]
         );
+
+        console.log(`[DJU Sync] ${site.name}: Got ${djuData.length} days of weather data`);
 
         // Calculate monthly DJU totals
         const monthlyDju = new Map<string, number>();
@@ -866,7 +880,10 @@ export async function POST(request: NextRequest) {
           monthlyDju.set(monthKey, existing + d.dju);
         }
 
+        console.log(`[DJU Sync] ${site.name}: Monthly DJU:`, Object.fromEntries(monthlyDju));
+
         // Update each consumption with its month's DJU
+        let siteUpdatedCount = 0;
         for (const consumption of siteConsumptions) {
           const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
           const djuForMonth = monthlyDju.get(monthKey);
@@ -877,10 +894,12 @@ export async function POST(request: NextRequest) {
               data: { djuReel: Math.round(djuForMonth) },
             });
             updatedCount++;
+            siteUpdatedCount++;
           }
         }
+        console.log(`[DJU Sync] ${site.name}: Updated ${siteUpdatedCount} consumptions`);
       } catch (error) {
-        console.error(`Error fetching DJU for site ${site.name}:`, error);
+        console.error(`[DJU Sync] Error fetching DJU for site ${site.name}:`, error);
         errors.push(`${site.name}: Erreur lors de la récupération des DJU`);
       }
     }

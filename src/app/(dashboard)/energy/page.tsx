@@ -33,6 +33,7 @@ import {
   Pencil,
   Award,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -90,6 +91,15 @@ interface SitePerformance {
   deltaPercent: number;
   status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
   monthlyData: { month: string; nc: number; nbPrime: number; djr: number; ecs: number }[];
+  _debug?: {
+    heatingSeasonNb: number | null;
+    heatingSeasonDjuc: number | null;
+    siteDjuc: number | null;
+    usedDjuc: number | null;
+    djrTotal: number;
+    nbKwh: number;
+    calculationApplied: boolean;
+  };
 }
 
 interface AnalyticsData {
@@ -1525,7 +1535,19 @@ function SitesContent({
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
-                  <td className="px-6 py-4 text-right text-gray-600">{(site.nbPrime / 1000).toFixed(1)}</td>
+                  <td className="px-6 py-4 text-right text-gray-600">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>{(site.nbPrime / 1000).toFixed(1)}</span>
+                      {site._debug && !site._debug.calculationApplied && (
+                        <span className="group relative">
+                          <Info size={14} className="text-amber-500 cursor-help" />
+                          <span className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                            N&apos;B non ajusté : DJR={site._debug.djrTotal}, DJUC={site._debug.usedDjuc || 0}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className={`px-6 py-4 text-right font-medium ${site.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}`}>
                     {site.deltaPercent > 0 ? "+" : ""}{site.deltaPercent}%
                   </td>
@@ -2138,11 +2160,20 @@ function ClimatContent({
       {syncResult && (
         <div className={`p-4 rounded-lg ${syncResult.updated > 0 ? "bg-green-50 text-green-800" : syncResult.errors?.length ? "bg-red-50 text-red-800" : "bg-blue-50 text-blue-800"}`}>
           {syncResult.updated > 0 ? (
-            <p className="font-medium">✓ {syncResult.updated} consommations mises à jour avec les DJU réels</p>
+            <p className="font-medium">✓ {syncResult.updated}/{syncResult.total} consommations mises à jour avec les DJU réels</p>
           ) : syncResult.errors?.length ? (
-            <p className="font-medium">✗ {syncResult.errors.join(", ")}</p>
+            <div>
+              <p className="font-medium mb-2">✗ Erreurs lors de la synchronisation :</p>
+              <ul className="list-disc list-inside text-sm">
+                {syncResult.errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          ) : syncResult.total === 0 ? (
+            <p className="font-medium">ℹ Aucune consommation trouvée. Importez d&apos;abord les consommations.</p>
           ) : (
-            <p className="font-medium">Toutes les consommations ont déjà des DJU réels</p>
+            <p className="font-medium">ℹ Toutes les consommations ({syncResult.total}) ont déjà des DJU réels</p>
           )}
         </div>
       )}
