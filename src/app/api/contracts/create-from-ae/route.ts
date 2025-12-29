@@ -639,12 +639,12 @@ export async function POST(request: NextRequest) {
         : "PFI";
       const contractTypeInfo = getContractTypeInfo(contractTypeStr);
 
-      // Parse NB values
+      // Parse NB values (rounded to integer)
       const nb: { [year: number]: number | null } = {};
       for (const nbCol of nbColumns) {
         const val = row[nbCol.index];
         const num = typeof val === "number" ? val : parseFloat(String(val || "").replace(",", "."));
-        nb[nbCol.year] = isNaN(num) ? null : num;
+        nb[nbCol.year] = isNaN(num) ? null : Math.round(num);
       }
 
       // Parse P1 components
