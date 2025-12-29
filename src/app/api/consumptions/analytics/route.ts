@@ -242,6 +242,10 @@ export async function GET(request: NextRequest) {
             ecs: Math.round(data.ecs),
           }));
 
+        // Debug: get actual djuContractuel used in calculation
+        const heatingSeason = heatingSeasonMap.get(site.id);
+        const usedDjuContractuel = heatingSeason?.djuContractuel ?? site.djuContractuel;
+
         return {
           siteId: site.id,
           siteName: site.name,
@@ -252,6 +256,16 @@ export async function GET(request: NextRequest) {
           nbUnit: site.nbUnit,
           djuContractuel: site.djuContractuel,
           stationMeteo: site.stationMeteo,
+          // Debug info
+          _debug: {
+            heatingSeasonNb: heatingSeason?.nb,
+            heatingSeasonDjuc: heatingSeason?.djuContractuel,
+            siteDjuc: site.djuContractuel,
+            usedDjuc: usedDjuContractuel,
+            djrTotal: Math.round(djrTotal),
+            nbKwh: (heatingSeason?.nb ?? site.nb) ? (heatingSeason?.nb ?? site.nb)! * 1000 : 0,
+            calculationApplied: !!((heatingSeason?.nb ?? site.nb) && usedDjuContractuel && djrTotal > 0),
+          },
           // Calculated values
           nc: Math.round(ncTotal),
           nbPrime: Math.round(nbPrime),
