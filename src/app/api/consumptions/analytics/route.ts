@@ -231,15 +231,15 @@ export async function GET(request: NextRequest) {
           status = "OBJECTIF";
         }
 
-        // Monthly breakdown (converted to MWh)
+        // Monthly breakdown (in kWh)
         const monthlyData = Array.from(months.entries())
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([month, data]) => ({
             month,
-            nc: Math.round(data.nc / 10) / 100, // kWh -> MWh
-            nbPrime: Math.round(data.nbPrime / 10) / 100, // kWh -> MWh
+            nc: Math.round(data.nc),
+            nbPrime: Math.round(data.nbPrime),
             djr: data.djr,
-            ecs: Math.round(data.ecs / 10) / 100, // kWh -> MWh
+            ecs: Math.round(data.ecs),
           }));
 
         // Debug: get actual djuContractuel used in calculation
@@ -266,20 +266,20 @@ export async function GET(request: NextRequest) {
             nbKwh: (heatingSeason?.nb ?? site.nb) ? (heatingSeason?.nb ?? site.nb)! * 1000 : 0,
             calculationApplied: !!((heatingSeason?.nb ?? site.nb) && usedDjuContractuel && djrTotal > 0),
           },
-          // Calculated values (converted to MWh for display)
-          nc: Math.round(ncTotal / 10) / 100, // kWh -> MWh with 2 decimals
-          nbPrime: Math.round(nbPrime / 10) / 100, // kWh -> MWh with 2 decimals
+          // Calculated values (in kWh)
+          nc: Math.round(ncTotal),
+          nbPrime: Math.round(nbPrime),
           djrTotal: Math.round(djrTotal),
-          ecsTotal: Math.round(ecsTotal / 10) / 100, // kWh -> MWh with 2 decimals
-          mixteTotal: Math.round(mixteTotal / 10) / 100, // kWh -> MWh with 2 decimals
-          delta: Math.round((delta / 1000) * 100) / 100, // kWh -> MWh with 2 decimals
+          ecsTotal: Math.round(ecsTotal),
+          mixteTotal: Math.round(mixteTotal),
+          delta: Math.round(delta),
           deltaPercent: Math.round(deltaPercent * 10) / 10,
           status,
           monthlyData,
         };
       });
 
-    // Global summary (values already in MWh from sitePerformances)
+    // Global summary (values in kWh)
     const totalNc = sitePerformances.reduce((sum, s) => sum + s.nc, 0);
     const totalNbPrime = sitePerformances.reduce((sum, s) => sum + s.nbPrime, 0);
     const totalDelta = totalNc - totalNbPrime;
@@ -303,10 +303,10 @@ export async function GET(request: NextRequest) {
       .map(([month, data]) => ({
         month,
         label: formatMonthLabel(month),
-        nc: Math.round(data.nc * 100) / 100, // Already in MWh
-        nbPrime: Math.round(data.nbPrime * 100) / 100, // Already in MWh
+        nc: data.nc,
+        nbPrime: data.nbPrime,
         djr: data.djr,
-        ecs: Math.round(data.ecs * 100) / 100, // Already in MWh
+        ecs: data.ecs,
       }));
 
     // Performance by site type
@@ -321,8 +321,8 @@ export async function GET(request: NextRequest) {
 
     const performanceByType = Array.from(byType.entries()).map(([type, data]) => ({
       type,
-      nc: Math.round(data.nc * 100) / 100, // Already in MWh
-      nbPrime: Math.round(data.nbPrime * 100) / 100, // Already in MWh
+      nc: data.nc,
+      nbPrime: data.nbPrime,
       count: data.count,
       deltaPercent: data.nbPrime > 0 ? Math.round(((data.nc - data.nbPrime) / data.nbPrime) * 1000) / 10 : 0,
     }));
@@ -335,9 +335,9 @@ export async function GET(request: NextRequest) {
       },
       summary: {
         totalSites: sitePerformances.length,
-        totalNc: Math.round(totalNc * 100) / 100, // Already in MWh, keep 2 decimals
-        totalNbPrime: Math.round(totalNbPrime * 100) / 100, // Already in MWh, keep 2 decimals
-        totalDelta: Math.round(totalDelta * 100) / 100, // Already in MWh, keep 2 decimals
+        totalNc: Math.round(totalNc),
+        totalNbPrime: Math.round(totalNbPrime),
+        totalDelta: Math.round(totalDelta),
         deltaPercent: Math.round(globalDeltaPercent * 10) / 10,
         status: globalDeltaPercent < -5 ? "ECONOMIE" : globalDeltaPercent > 5 ? "DEPASSEMENT" : "OBJECTIF",
         sitesEnEconomie: sitePerformances.filter((s) => s.status === "ECONOMIE").length,
