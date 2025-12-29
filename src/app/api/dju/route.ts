@@ -719,3 +719,177 @@ function formatMonthLabel(month: string): string {
   const [, m] = month.split("-");
   return months[parseInt(m) - 1] || month;
 }
+
+// POST /api/dju - Sync DJU réels to consumption records
+export async function POST(request: NextRequest) {
+  try {
+    const user = await requireAuth();
+
+    if (user.role === "READER") {
+      return NextResponse.json(
+        { error: "Vous n'avez pas les droits pour modifier les données" },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { contractId, siteId, overwrite } = body;
+
+    if (!contractId && !siteId) {
+      return NextResponse.json(
+        { error: "contractId ou siteId requis" },
+        { status: 400 }
+      );
+    }
+
+    // Get sites
+    let sites: Array<{
+      id: string;
+      name: string;
+      postalCode: string | null;
+      stationMeteo: string | null;
+    }>;
+
+    if (siteId) {
+      const site = await prisma.site.findFirst({
+        where: { id: siteId, organizationId: user.organizationId },
+        select: { id: true, name: true, postalCode: true, stationMeteo: true },
+      });
+      sites = site ? [site] : [];
+    } else {
+      const contractSites = await prisma.contractSite.findMany({
+        where: { contractId: contractId! },
+        include: {
+          site: {
+            select: { id: true, name: true, postalCode: true, stationMeteo: true },
+          },
+        },
+      });
+      sites = contractSites.map((cs) => cs.site);
+    }
+
+    if (sites.length === 0) {
+      return NextResponse.json({ error: "Aucun site trouvé" }, { status: 404 });
+    }
+
+    // Get consumptions that need DJU sync
+    const consumptionsWhere: Record<string, unknown> = {
+      siteId: { in: sites.map((s) => s.id) },
+      organizationId: user.organizationId,
+    };
+
+    // Only update consumptions without djuReel unless overwrite is true
+    if (!overwrite) {
+      consumptionsWhere.djuReel = null;
+    }
+
+    const consumptions = await prisma.consumption.findMany({
+      where: consumptionsWhere,
+      select: {
+        id: true,
+        siteId: true,
+        period: true,
+        djuReel: true,
+      },
+      orderBy: { period: "asc" },
+    });
+
+    if (consumptions.length === 0) {
+      return NextResponse.json({
+        success: true,
+        updated: 0,
+        message: "Toutes les consommations ont déjà des DJU réels",
+      });
+    }
+
+    // Group consumptions by site
+    const consumptionsBySite = new Map<string, typeof consumptions>();
+    for (const c of consumptions) {
+      const siteConsumptions = consumptionsBySite.get(c.siteId) || [];
+      siteConsumptions.push(c);
+      consumptionsBySite.set(c.siteId, siteConsumptions);
+    }
+
+    // For each site, fetch DJU data and update consumptions
+    let updatedCount = 0;
+    const errors: string[] = [];
+
+    for (const site of sites) {
+      const siteConsumptions = consumptionsBySite.get(site.id);
+      if (!siteConsumptions || siteConsumptions.length === 0) continue;
+
+      // Determine weather station
+      let stationCode = site.stationMeteo;
+      if (!stationCode || !WEATHER_STATIONS[stationCode]) {
+        stationCode = getStationFromPostalCode(site.postalCode);
+      }
+
+      const stationData = WEATHER_STATIONS[stationCode];
+      if (!stationData) {
+        errors.push(`${site.name}: Station météo non trouvée`);
+        continue;
+      }
+
+      // Find date range needed
+      const periods = siteConsumptions.map((c) => c.period);
+      const minDate = new Date(Math.min(...periods.map((p) => p.getTime())));
+      const maxDate = new Date(Math.max(...periods.map((p) => p.getTime())));
+
+      // Extend to cover full months
+      const startDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const endDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+
+      // Cap endDate to today (Open-Meteo only has historical data)
+      const today = new Date();
+      const fetchEndDate = endDate > today ? today : endDate;
+
+      try {
+        // Fetch weather data
+        const djuData = await fetchWeatherData(
+          stationData.lat,
+          stationData.lon,
+          startDate.toISOString().split("T")[0],
+          fetchEndDate.toISOString().split("T")[0]
+        );
+
+        // Calculate monthly DJU totals
+        const monthlyDju = new Map<string, number>();
+        for (const d of djuData) {
+          const monthKey = d.date.substring(0, 7); // "YYYY-MM"
+          const existing = monthlyDju.get(monthKey) || 0;
+          monthlyDju.set(monthKey, existing + d.dju);
+        }
+
+        // Update each consumption with its month's DJU
+        for (const consumption of siteConsumptions) {
+          const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
+          const djuForMonth = monthlyDju.get(monthKey);
+
+          if (djuForMonth !== undefined) {
+            await prisma.consumption.update({
+              where: { id: consumption.id },
+              data: { djuReel: Math.round(djuForMonth) },
+            });
+            updatedCount++;
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching DJU for site ${site.name}:`, error);
+        errors.push(`${site.name}: Erreur lors de la récupération des DJU`);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      updated: updatedCount,
+      total: consumptions.length,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error) {
+    console.error("Error syncing DJU:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la synchronisation des DJU" },
+      { status: 500 }
+    );
+  }
+}

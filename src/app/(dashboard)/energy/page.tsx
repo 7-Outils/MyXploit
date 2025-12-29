@@ -32,6 +32,7 @@ import {
   Target,
   Pencil,
   Award,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -1087,6 +1088,8 @@ function EnergyPageContent() {
           selectedYear={selectedYear}
           heatingSeasons={heatingSeasons}
           openHeatingSeasonModal={openHeatingSeasonModal}
+          contractId={selectedContract?.id || null}
+          onDjuSync={fetchData}
         />
       )}
 
@@ -2052,12 +2055,45 @@ function ClimatContent({
   selectedYear,
   heatingSeasons,
   openHeatingSeasonModal,
+  contractId,
+  onDjuSync,
 }: {
   djuData: DJUData | null;
   selectedYear: number;
   heatingSeasons: HeatingSeason[];
   openHeatingSeasonModal: (siteId: string, siteName: string, startDate?: string, endDate?: string) => void;
+  contractId: string | null;
+  onDjuSync: () => void;
 }) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ updated: number; total: number; errors?: string[] } | null>(null);
+
+  const handleSyncDju = async () => {
+    if (!contractId) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/dju", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractId, overwrite: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSyncResult({ updated: data.updated, total: data.total, errors: data.errors });
+        if (data.updated > 0) {
+          onDjuSync(); // Refresh analytics data
+        }
+      } else {
+        setSyncResult({ updated: 0, total: 0, errors: [data.error] });
+      }
+    } catch {
+      setSyncResult({ updated: 0, total: 0, errors: ["Erreur de connexion"] });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (!djuData) {
     return (
       <ChartCard title="">
@@ -2071,6 +2107,43 @@ function ClimatContent({
 
   return (
     <>
+      {/* Sync DJU Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-primary-dark">Synchronisation des DJU</h3>
+          <p className="text-sm text-text-secondary">Récupère les DJU réels depuis la station météo et les applique aux consommations</p>
+        </div>
+        <button
+          onClick={handleSyncDju}
+          disabled={syncing || !contractId}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {syncing ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Synchronisation...
+            </>
+          ) : (
+            <>
+              <RefreshCw size={16} />
+              Synchroniser DJU
+            </>
+          )}
+        </button>
+      </div>
+
+      {syncResult && (
+        <div className={`p-4 rounded-lg ${syncResult.updated > 0 ? "bg-green-50 text-green-800" : syncResult.errors?.length ? "bg-red-50 text-red-800" : "bg-blue-50 text-blue-800"}`}>
+          {syncResult.updated > 0 ? (
+            <p className="font-medium">✓ {syncResult.updated} consommations mises à jour avec les DJU réels</p>
+          ) : syncResult.errors?.length ? (
+            <p className="font-medium">✗ {syncResult.errors.join(", ")}</p>
+          ) : (
+            <p className="font-medium">Toutes les consommations ont déjà des DJU réels</p>
+          )}
+        </div>
+      )}
+
       {/* DJU Summary Stats */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-blue-50 rounded-xl p-4 text-center">
