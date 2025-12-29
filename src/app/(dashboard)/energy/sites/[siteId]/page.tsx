@@ -734,43 +734,60 @@ export default function SiteEnergyPage({
             </span>
           }
         >
-          {heatingSeasons.length > 0 ? (
-            <div className="space-y-3">
-              {heatingSeasons.slice(0, 5).map((season) => (
-                <div key={season.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                  <div>
-                    <p className="font-medium">Saison {season.season}</p>
-                    <p className="text-sm text-text-secondary">
-                      {new Date(season.startDate).toLocaleDateString("fr-FR")}
-                      {" → "}
-                      {season.endDate
-                        ? new Date(season.endDate).toLocaleDateString("fr-FR")
-                        : "En cours"
-                      }
-                    </p>
+          {(() => {
+            // Filter out future seasons and seasons with placeholder dates (July 1st)
+            const today = new Date();
+            const validSeasons = heatingSeasons.filter((season) => {
+              const startDate = new Date(season.startDate);
+              // Exclude if start date is in the future
+              if (startDate > today) return false;
+              // Exclude if it's a placeholder date (July 1st) and no indexes recorded
+              const isPlaceholder = startDate.getMonth() === 6 && startDate.getDate() === 1
+                && season.startIndex === null && season.endIndex === null;
+              return !isPlaceholder;
+            });
+
+            return validSeasons.length > 0 ? (
+              <div className="space-y-3">
+                {validSeasons.slice(0, 5).map((season) => (
+                  <div key={season.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                    <div>
+                      <p className="font-medium">Saison {season.season}</p>
+                      <p className="text-sm text-text-secondary">
+                        {new Date(season.startDate).toLocaleDateString("fr-FR")}
+                        {" → "}
+                        {season.endDate
+                          ? new Date(season.endDate).toLocaleDateString("fr-FR")
+                          : "En cours"
+                        }
+                      </p>
+                    </div>
+                    <div className="text-right text-sm">
+                      {season.startIndex !== null && (
+                        <p>Index départ: {formatNumber(season.startIndex)}</p>
+                      )}
+                      {season.endIndex !== null && (
+                        <p>Index fin: {formatNumber(season.endIndex)}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right text-sm">
-                    {season.startIndex !== null && (
-                      <p>Index départ: {formatNumber(season.startIndex)}</p>
-                    )}
-                    {season.endIndex !== null && (
-                      <p>Index fin: {formatNumber(season.endIndex)}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-[200px] text-center">
-              <Calendar className="h-8 w-8 text-text-secondary mb-2" />
-              <p className="text-text-secondary">Aucune période définie</p>
-              <Link href="/energy?tab=climat">
-                <Button variant="outline" size="sm" className="mt-2">
-                  Définir les périodes
-                </Button>
-              </Link>
-            </div>
-          )}
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-[200px] text-center">
+                <Calendar className="h-8 w-8 text-text-secondary mb-2" />
+                <p className="text-text-secondary">Aucune période définie</p>
+                <p className="text-xs text-text-secondary mt-1">
+                  Les dates d&apos;allumage/arrêt du chauffage n&apos;ont pas été renseignées.
+                </p>
+                <Link href="/energy?tab=climat">
+                  <Button variant="outline" size="sm" className="mt-2">
+                    Définir les périodes
+                  </Button>
+                </Link>
+              </div>
+            );
+          })()}
         </ChartCard>
       </div>
 
