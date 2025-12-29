@@ -292,6 +292,11 @@ export default function SiteEnergyPage({
     return new Intl.NumberFormat("fr-FR").format(Math.round(n));
   };
 
+  // Convert kWh to MWh for display
+  const toMWh = (kWh: number) => {
+    return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(kWh / 1000);
+  };
+
   const siteAnalytics = analytics?.sites.find(s => s.siteId === siteId);
   const siteDju = djuData?.sites.find(s => s.siteId === siteId);
 
@@ -388,11 +393,11 @@ export default function SiteEnergyPage({
 
   const actions = generateActions();
 
-  // Prepare chart data
+  // Prepare chart data (convert to MWh for display)
   const monthlyChartData = siteAnalytics?.monthlyData.map(m => ({
     label: formatMonthLabel(m.month),
-    value: m.nc,
-    target: m.nbPrime,
+    value: m.nc / 1000, // kWh -> MWh
+    target: m.nbPrime / 1000, // kWh -> MWh
   })) || [];
 
   if (isLoading) {
@@ -490,7 +495,7 @@ export default function SiteEnergyPage({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatsCard
           title="NC (Consommation réelle)"
-          value={siteAnalytics ? `${formatNumber(siteAnalytics.nc)} MWh` : "-"}
+          value={siteAnalytics ? `${toMWh(siteAnalytics.nc)} MWh` : "-"}
           change={site.nb ? `NB: ${formatNumber(site.nb)} MWh` : undefined}
           changeType="neutral"
           icon={Zap}
@@ -498,7 +503,7 @@ export default function SiteEnergyPage({
         />
         <StatsCard
           title="N'B (Objectif ajusté)"
-          value={siteAnalytics ? `${formatNumber(siteAnalytics.nbPrime)} MWh` : "-"}
+          value={siteAnalytics ? `${toMWh(siteAnalytics.nbPrime)} MWh` : "-"}
           change="Ajusté selon DJU réels"
           changeType="neutral"
           icon={Target}
@@ -507,7 +512,7 @@ export default function SiteEnergyPage({
         <StatsCard
           title="Écart NC/N'B"
           value={siteAnalytics ? `${siteAnalytics.deltaPercent > 0 ? "+" : ""}${siteAnalytics.deltaPercent.toFixed(1)}%` : "-"}
-          change={siteAnalytics ? `${formatNumber(siteAnalytics.delta)} MWh` : undefined}
+          change={siteAnalytics ? `${toMWh(siteAnalytics.delta)} MWh` : undefined}
           changeType={siteAnalytics && siteAnalytics.deltaPercent < 0 ? "positive" : siteAnalytics && siteAnalytics.deltaPercent > 0 ? "negative" : "neutral"}
           icon={siteAnalytics && siteAnalytics.deltaPercent < 0 ? TrendingDown : TrendingUp}
           iconColor={siteAnalytics && siteAnalytics.deltaPercent < 0 ? "text-green-600" : "text-red-600"}
@@ -569,7 +574,7 @@ export default function SiteEnergyPage({
               <div className="flex flex-wrap gap-2">
                 {siteAnalytics.monthlyData.filter(m => m.djr > 0).map((m, i) => (
                   <div key={i} className="bg-indigo-100 px-2 py-1 rounded text-xs">
-                    {formatMonthLabel(m.month)}: {formatNumber(m.nc)} MWh / {formatNumber(m.djr)} DJU
+                    {formatMonthLabel(m.month)}: {toMWh(m.nc)} MWh / {formatNumber(m.djr)} DJU
                   </div>
                 ))}
               </div>
@@ -606,12 +611,12 @@ export default function SiteEnergyPage({
                     <div
                       className="w-6 bg-red-400 rounded-t"
                       style={{ height: `${Math.min((season.nc / Math.max(...multiSeasonData.map(s => s.nc))) * 100, 100)}%` }}
-                      title={`NC: ${formatNumber(season.nc)} MWh`}
+                      title={`NC: ${toMWh(season.nc)} MWh`}
                     />
                     <div
                       className="w-6 bg-blue-400 rounded-t"
                       style={{ height: `${Math.min((season.nbPrime / Math.max(...multiSeasonData.map(s => s.nbPrime))) * 100, 100)}%` }}
-                      title={`N'B: ${formatNumber(season.nbPrime)} MWh`}
+                      title={`N'B: ${toMWh(season.nbPrime)} MWh`}
                     />
                   </div>
                   <div className={`text-sm font-medium mt-1 ${
@@ -650,8 +655,8 @@ export default function SiteEnergyPage({
                   {multiSeasonData.map((season) => (
                     <tr key={season.season} className="border-b">
                       <td className="py-2">{season.season}</td>
-                      <td className="text-right py-2">{formatNumber(season.nc)}</td>
-                      <td className="text-right py-2">{formatNumber(season.nbPrime)}</td>
+                      <td className="text-right py-2">{toMWh(season.nc)}</td>
+                      <td className="text-right py-2">{toMWh(season.nbPrime)}</td>
                       <td className={`text-right py-2 font-medium ${
                         season.deltaPercent < 0 ? "text-green-600" : season.deltaPercent > 0 ? "text-red-600" : ""
                       }`}>
