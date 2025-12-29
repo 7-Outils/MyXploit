@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { EnergyType, EnergyUsage } from "@/generated/prisma/client";
+import { syncDjuForSites } from "@/lib/dju-sync";
 
 // POST /api/consumptions/import - Import consumptions from CSV
 export async function POST(request: NextRequest) {
@@ -69,6 +70,9 @@ export async function POST(request: NextRequest) {
       updated: 0,
       errors: [] as { row: number; site: string; error: string }[],
     };
+
+    // Track unique site IDs for automatic DJU sync
+    const importedSiteIds = new Set<string>();
 
     const defaultEnergyType = (options?.energyType || "GAZ") as EnergyType;
     const defaultUsage = (options?.usage || "MIXTE") as EnergyUsage;
@@ -199,6 +203,7 @@ export async function POST(request: NextRequest) {
             },
           });
           results.updated++;
+          importedSiteIds.add(siteId);
         } else {
           await prisma.consumption.create({
             data: {
@@ -214,6 +219,7 @@ export async function POST(request: NextRequest) {
             },
           });
           results.imported++;
+          importedSiteIds.add(siteId);
         }
       } catch (error) {
         console.error(`Error importing row ${rowNum}:`, error);
@@ -225,12 +231,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Automatic DJU sync for imported sites
+    let djuSyncResult = null;
+    if (importedSiteIds.size > 0) {
+      try {
+        djuSyncResult = await syncDjuForSites(
+          Array.from(importedSiteIds),
+          user.organizationId,
+          false // Don't overwrite existing DJU values
+        );
+        console.log(`[Consumption Import] DJU sync completed: ${djuSyncResult.updated}/${djuSyncResult.total} updated`);
+      } catch (error) {
+        console.error("[Consumption Import] DJU sync failed:", error);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       imported: results.imported,
       updated: results.updated,
       errors: results.errors.slice(0, 20), // Limit errors returned
       totalErrors: results.errors.length,
+      djuSync: djuSyncResult ? {
+        updated: djuSyncResult.updated,
+        total: djuSyncResult.total,
+        errors: djuSyncResult.errors.length > 0 ? djuSyncResult.errors.slice(0, 5) : undefined,
+      } : undefined,
     });
   } catch (error) {
     console.error("Error importing consumptions:", error);
