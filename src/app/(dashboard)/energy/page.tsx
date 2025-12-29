@@ -2082,13 +2082,13 @@ function ClimatContent({
         body: JSON.stringify({ contractId, overwrite: true }),
       });
       const data = await res.json();
-      if (res.ok) {
-        setSyncResult({ updated: data.updated, total: data.total, errors: data.errors });
-        if (data.updated > 0) {
-          onDjuSync(); // Refresh analytics data
-        }
-      } else {
-        setSyncResult({ updated: 0, total: 0, errors: [data.error] });
+      setSyncResult({
+        updated: data.updated || 0,
+        total: data.total || 0,
+        errors: data.errors || (data.error ? [data.error] : undefined)
+      });
+      if (data.updated > 0) {
+        onDjuSync(); // Refresh analytics data
       }
     } catch {
       setSyncResult({ updated: 0, total: 0, errors: ["Erreur de connexion"] });

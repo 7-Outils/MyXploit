@@ -769,7 +769,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (sites.length === 0) {
-      return NextResponse.json({ error: "Aucun site trouvé" }, { status: 404 });
+      return NextResponse.json({
+        success: false,
+        updated: 0,
+        total: 0,
+        errors: ["Aucun site trouvé pour ce contrat"],
+      }, { status: 404 });
     }
 
     // Get consumptions that need DJU sync
@@ -798,7 +803,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         updated: 0,
-        message: "Toutes les consommations ont déjà des DJU réels",
+        total: 0,
+        errors: ["Aucune consommation trouvée pour les sites de ce contrat. Importez d'abord les consommations."],
       });
     }
 
