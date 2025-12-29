@@ -2069,7 +2069,10 @@ function ClimatContent({
   const [syncResult, setSyncResult] = useState<{ updated: number; total: number; errors?: string[] } | null>(null);
 
   const handleSyncDju = async () => {
-    if (!contractId) return;
+    if (!contractId) {
+      setSyncResult({ updated: 0, total: 0, errors: ["Veuillez sélectionner un contrat"] });
+      return;
+    }
     setSyncing(true);
     setSyncResult(null);
     try {
@@ -3149,14 +3152,20 @@ function IdexImportModal({
               <>
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                   onClick={onConfirmImport}
                   disabled={importing}
                 >
                   {importing ? (
-                    <><Loader2 size={18} className="mr-2 animate-spin" />Import en cours...</>
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Import en cours...</span>
+                    </>
                   ) : (
-                    <><Check size={18} className="mr-2" />Confirmer l&apos;import</>
+                    <>
+                      <Check size={18} />
+                      <span>Confirmer l&apos;import</span>
+                    </>
                   )}
                 </Button>
               </>
@@ -3164,14 +3173,20 @@ function IdexImportModal({
               <>
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                   onClick={handleSubmit}
                   disabled={importing || !selectedFile}
                 >
                   {importing ? (
-                    <><Loader2 size={18} className="mr-2 animate-spin" />Analyse...</>
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Analyse...</span>
+                    </>
                   ) : (
-                    <><FileSpreadsheet size={18} className="mr-2" />Analyser le fichier</>
+                    <>
+                      <FileSpreadsheet size={18} />
+                      <span>Analyser le fichier</span>
+                    </>
                   )}
                 </Button>
               </>
@@ -3535,14 +3550,20 @@ function NbImportModal({
               <>
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                   onClick={() => onConfirmImport(unitOverrides)}
                   disabled={importing || matchedCount === 0}
                 >
                   {importing ? (
-                    <><Loader2 size={18} className="mr-2 animate-spin" />Import en cours...</>
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Import en cours...</span>
+                    </>
                   ) : (
-                    <><Check size={18} className="mr-2" />Importer {matchedCount} site(s)</>
+                    <>
+                      <Check size={18} />
+                      <span>Importer {matchedCount} site(s)</span>
+                    </>
                   )}
                 </Button>
               </>
@@ -3550,14 +3571,20 @@ function NbImportModal({
               <>
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 flex items-center justify-center gap-2"
                   onClick={handleSubmit}
                   disabled={importing || !selectedFile}
                 >
                   {importing ? (
-                    <><Loader2 size={18} className="mr-2 animate-spin" />Analyse...</>
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Analyse...</span>
+                    </>
                   ) : (
-                    <><FileSpreadsheet size={18} className="mr-2" />Analyser le fichier</>
+                    <>
+                      <FileSpreadsheet size={18} />
+                      <span>Analyser le fichier</span>
+                    </>
                   )}
                 </Button>
               </>
