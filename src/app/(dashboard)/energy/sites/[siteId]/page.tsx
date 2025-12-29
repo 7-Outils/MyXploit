@@ -688,41 +688,53 @@ export default function SiteEnergyPage({
             </span>
           }
         >
-          {siteDju && siteDju.monthlyData.length > 0 ? (
-            <div>
-              <SimpleBarChart
-                data={siteDju.monthlyData.map(m => ({
-                  label: formatMonthLabel(m.month),
-                  value: m.dju,
-                }))}
-                height={200}
-              />
-              <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-text-secondary">DJU réels:</span>
-                  <span className="ml-2 font-medium">{formatNumber(siteDju.djuReel)}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">DJU trentenaire:</span>
-                  <span className="ml-2 font-medium">{formatNumber(siteDju.djuTrentenaire)}</span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Écart:</span>
-                  <span className={`ml-2 font-medium ${siteDju.ecartPercent > 0 ? "text-blue-600" : "text-orange-600"}`}>
-                    {siteDju.ecartPercent > 0 ? "+" : ""}{siteDju.ecartPercent}%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Station:</span>
-                  <span className="ml-2 font-medium">{siteDju.station}</span>
+          {(() => {
+            // Only show DJU for months that have consumption data
+            const monthsWithConsumption = new Set(
+              siteAnalytics?.monthlyData.filter(m => m.nc > 0).map(m => m.month) || []
+            );
+            const filteredDjuData = siteDju?.monthlyData.filter(m =>
+              monthsWithConsumption.has(m.month)
+            ) || [];
+            // Recalculate DJU total for filtered months only
+            const filteredDjuTotal = filteredDjuData.reduce((sum, m) => sum + m.dju, 0);
+
+            return filteredDjuData.length > 0 ? (
+              <div>
+                <SimpleBarChart
+                  data={filteredDjuData.map(m => ({
+                    label: formatMonthLabel(m.month),
+                    value: m.dju,
+                  }))}
+                  height={200}
+                />
+                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-text-secondary">DJU réels:</span>
+                    <span className="ml-2 font-medium">{formatNumber(filteredDjuTotal)}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">DJU trentenaire:</span>
+                    <span className="ml-2 font-medium">{siteDju ? formatNumber(siteDju.djuTrentenaire) : "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">Écart:</span>
+                    <span className={`ml-2 font-medium ${siteDju && siteDju.ecartPercent > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                      {siteDju ? `${siteDju.ecartPercent > 0 ? "+" : ""}${siteDju.ecartPercent}%` : "-"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-text-secondary">Station:</span>
+                    <span className="ml-2 font-medium">{siteDju?.station || "-"}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-[250px] text-text-secondary">
-              Aucune donnée DJU disponible
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center justify-center h-[250px] text-text-secondary">
+                Aucune donnée DJU disponible
+              </div>
+            );
+          })()}
         </ChartCard>
 
         {/* Périodes de chauffage */}
