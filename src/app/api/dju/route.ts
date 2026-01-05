@@ -570,11 +570,19 @@ export async function GET(request: NextRequest) {
         siteEndDate = today;
       }
 
+      // Convert dates to YYYY-MM-DD strings for comparison (avoid timezone issues)
+      const startDateStr = siteStartDate.toISOString().split("T")[0];
+      const endDateStr = siteEndDate.toISOString().split("T")[0];
+
+      console.log(`[DJU] Site ${site.name}: ${startDateStr} → ${endDateStr}`);
+
       // Filtrer les données DJU selon la période de chauffage du site
       const djuData = allDjuData.filter((d: DJUData) => {
-        const date = new Date(d.date);
-        return date >= siteStartDate && date <= siteEndDate;
+        // d.date is already YYYY-MM-DD string from weather API
+        return d.date >= startDateStr && d.date <= endDateStr;
       });
+
+      console.log(`[DJU] Site ${site.name}: ${djuData.length} jours, total=${djuData.reduce((s, d) => s + d.dju, 0)}`);
 
       // Calculate totals
       const djuTotal = djuData.reduce((sum: number, d: DJUData) => sum + d.dju, 0);
