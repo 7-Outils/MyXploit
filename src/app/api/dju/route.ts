@@ -524,7 +524,11 @@ export async function GET(request: NextRequest) {
       // Date du dernier relevé pour ce site (si saison en cours)
       const lastConsumptionDate = lastConsumptionMap.get(site.id);
 
-      if (heatingSeason) {
+      // Check if heatingSeason has a real start date (not the default July 1st from NB import)
+      const hasRealStartDate = heatingSeason?.startDate &&
+        !(heatingSeason.startDate.getMonth() === 6 && heatingSeason.startDate.getDate() === 1);
+
+      if (heatingSeason && hasRealStartDate) {
         // Utiliser les dates de la saison de chauffage
         siteStartDate = heatingSeason.startDate;
 
@@ -540,6 +544,7 @@ export async function GET(request: NextRequest) {
         }
       } else {
         // Fallback: période par défaut (1er oct - 30 avril)
+        // Used when no HeatingSeason or when startDate is the default July 1st
         siteStartDate = new Date(`${year - 1}-10-01`);
         if (lastConsumptionDate) {
           siteEndDate = lastConsumptionDate;
