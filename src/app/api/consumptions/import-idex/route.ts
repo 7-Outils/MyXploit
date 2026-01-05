@@ -437,7 +437,10 @@ export async function POST(request: NextRequest) {
         skipped: results.skipped,
         errors: results.errors.slice(0, 20),
         _debug: {
+          totalSitesInContract: sites.length,
+          totalAliases: siteAliases.length,
           loadedAliases: siteAliases.map(a => ({ alias: a.alias, siteName: a.site.name })),
+          siteNamesInDb: sites.map(s => s.name).slice(0, 20),
         },
       });
     }
