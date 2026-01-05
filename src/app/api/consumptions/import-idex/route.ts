@@ -644,13 +644,22 @@ function createSiteMatchers(
 
 // Helper: Normalize site name for matching
 function normalizeSiteName(name: string): string {
-  return name
+  let normalized = name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents
+    .replace(/[\u0300-\u036f]/g, ""); // Remove accents
+
+  // Remove common suffixes from exploitant files
+  // e.g., "GYMNASE COGNEVAULT - GAZ - GONESSE" -> "gymnase cognevault"
+  normalized = normalized
+    .replace(/\s*-\s*(gonesse|gaz|elec|electricite|eau|site\s*\d+|rcu)(\s*-\s*|$)/gi, " ")
+    .replace(/\s*-\s*site\s*\d+\s*/gi, " ")
+    .replace(/\s*-\s*$/g, "") // Remove trailing dash
     .replace(/[-_]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+
+  return normalized;
 }
 
 // Helper: Calculate Levenshtein distance between two strings
