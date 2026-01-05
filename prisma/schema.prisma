@@ -735,11 +735,12 @@ model Consumption {
 // ============================================
 
 model HeatingSeason {
-  id             String    @id @default(cuid())
-  siteId         String
-  season         String    // Ex: "2024-2025" (année de départ - année de fin)
-  startDate      DateTime  // Date d'allumage du chauffage
-  endDate        DateTime? // Date d'arrêt (null si pas encore arrêté)
+  id              String    @id @default(cuid())
+  siteId          String
+  season          String    // Ex: "2024-2025" (année de départ - année de fin)
+  startDate       DateTime  // Date d'allumage du chauffage
+  endDate         DateTime? // Date d'arrêt (null si pas encore arrêté)
+  lastReleveDate  DateTime? // Date du dernier relevé importé (pour calcul DJU)
   // Engagement énergétique de la saison (peut varier avec APE)
   nb             Float?    // NB de la saison (MWh) - si null, utilise le NB du site
   nbUnit         NbUnit?   // Unité du NB (PCS ou Utile)

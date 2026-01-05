@@ -205,6 +205,9 @@ export async function POST(request: NextRequest) {
       meterName: string;
     }>();
 
+    // Track max relevé date per site (for updating HeatingSeason.lastReleveDate)
+    const maxReleveDateBySite = new Map<string, Date>();
+
     // Process data rows - collect all meter data
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
@@ -316,6 +319,12 @@ export async function POST(request: NextRequest) {
             unit,
             meterName: exploitantRow.nomCompteur,
           });
+        }
+
+        // Track max relevé date for this site (for DJU calculation)
+        const currentMax = maxReleveDateBySite.get(siteMatch.siteId);
+        if (!currentMax || period > currentMax) {
+          maxReleveDateBySite.set(siteMatch.siteId, period);
         }
 
         // Handle heating season (detect start/stop markers)
@@ -582,6 +591,42 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         console.error("Error creating meter:", meter.meterName, err);
+      }
+    }
+
+    // Update lastReleveDate in HeatingSeason for each site
+    for (const [siteId, maxDate] of maxReleveDateBySite) {
+      try {
+        // Determine season for this date
+        const year = maxDate.getMonth() >= 6 ? maxDate.getFullYear() : maxDate.getFullYear() - 1;
+        const season = `${year}-${year + 1}`;
+
+        // Update or create HeatingSeason with lastReleveDate
+        const existing = await prisma.heatingSeason.findUnique({
+          where: { siteId_season: { siteId, season } },
+        });
+
+        if (existing) {
+          // Only update if new date is more recent
+          if (!existing.lastReleveDate || maxDate > existing.lastReleveDate) {
+            await prisma.heatingSeason.update({
+              where: { id: existing.id },
+              data: { lastReleveDate: maxDate },
+            });
+          }
+        } else {
+          // Create a new HeatingSeason with the relevé date as start date (fallback)
+          await prisma.heatingSeason.create({
+            data: {
+              siteId,
+              season,
+              startDate: maxDate, // Use relevé date as default start if no other info
+              lastReleveDate: maxDate,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("Error updating lastReleveDate for site:", siteId, err);
       }
     }
 

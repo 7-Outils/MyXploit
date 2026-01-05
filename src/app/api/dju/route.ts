@@ -540,10 +540,12 @@ export async function GET(request: NextRequest) {
         if (heatingSeason.endDate) {
           // Saison terminée: utiliser la date de fin (compteurs OFF)
           siteEndDate = heatingSeason.endDate;
+        } else if (heatingSeason.lastReleveDate) {
+          // Saison en cours: utiliser la veille du dernier relevé
+          // Le relevé du 09/12 = consommation jusqu'au 08/12
+          siteEndDate = new Date(heatingSeason.lastReleveDate.getTime() - 24 * 60 * 60 * 1000);
         } else if (lastConsumptionDate) {
-          // Saison en cours: utiliser la FIN du mois de la dernière consommation
-          // period = 01/11 (conso de novembre) → DJU jusqu'au 30/11
-          // period = 01/12 (conso de décembre) → DJU jusqu'au 31/12
+          // Fallback: utiliser la fin du mois de la dernière consommation
           siteEndDate = new Date(lastConsumptionDate.getFullYear(), lastConsumptionDate.getMonth() + 1, 0);
         } else {
           // Pas de relevé encore: utiliser la date de début
