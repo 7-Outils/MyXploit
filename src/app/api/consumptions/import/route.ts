@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
     const results = {
       imported: 0,
       updated: 0,
+      heatingDatesUpdated: 0,
       errors: [] as { row: number; site: string; error: string }[],
     };
 
@@ -146,11 +147,60 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Check for heating start marker in status column (état du compteur)
+        const statusValue = mapping.status ? row[mapping.status]?.toString().toLowerCase().trim() : null;
+        const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe", "start"];
+        const isHeatingStart = statusValue && heatingStartMarkers.some(marker => statusValue.includes(marker));
+
+        if (isHeatingStart) {
+          // This row indicates heating start - update the HeatingSeason
+          try {
+            const heatingStartDate = period;
+            // Determine season (July to June fiscal year)
+            const year = heatingStartDate.getMonth() >= 6
+              ? heatingStartDate.getFullYear()
+              : heatingStartDate.getFullYear() - 1;
+            const season = `${year}-${year + 1}`;
+
+            // Upsert heating season with start date
+            const existingSeason = await prisma.heatingSeason.findUnique({
+              where: { siteId_season: { siteId, season } },
+            });
+
+            if (existingSeason) {
+              await prisma.heatingSeason.update({
+                where: { id: existingSeason.id },
+                data: { startDate: heatingStartDate },
+              });
+            } else {
+              await prisma.heatingSeason.create({
+                data: {
+                  siteId,
+                  season,
+                  startDate: heatingStartDate,
+                },
+              });
+            }
+            results.heatingDatesUpdated++;
+            importedSiteIds.add(siteId);
+          } catch (error) {
+            console.error(`Error updating heating season for row ${rowNum}:`, error);
+            results.errors.push({
+              row: rowNum,
+              site: siteValue,
+              error: `Erreur mise à jour date allumage: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
+            });
+          }
+          // Continue to also import the consumption if quantity is valid
+        }
+
         // Parse quantity
         const quantity = parseFloat(
           quantityValue.toString().replace(/\s/g, "").replace(",", ".")
         );
         if (isNaN(quantity)) {
+          // If this was a heating start row, skip silently (no quantity expected)
+          if (isHeatingStart) continue;
           results.errors.push({
             row: rowNum,
             site: siteValue,
@@ -250,6 +300,7 @@ export async function POST(request: NextRequest) {
       success: true,
       imported: results.imported,
       updated: results.updated,
+      heatingDatesUpdated: results.heatingDatesUpdated,
       errors: results.errors.slice(0, 20), // Limit errors returned
       totalErrors: results.errors.length,
       djuSync: djuSyncResult ? {

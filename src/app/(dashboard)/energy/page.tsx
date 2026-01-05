@@ -351,6 +351,7 @@ function EnergyPageContent() {
     usage: "",
     pce: "",
     pdl: "",
+    status: "", // État du compteur (pour détecter les dates d'allumage)
   });
   const [importOptions, setImportOptions] = useState({
     energyType: "GAZ",
@@ -360,6 +361,7 @@ function EnergyPageContent() {
   const [importResult, setImportResult] = useState<{
     imported: number;
     updated: number;
+    heatingDatesUpdated?: number;
     errors: { row: number; site: string; error: string }[];
     totalErrors: number;
   } | null>(null);
@@ -705,6 +707,7 @@ function EnergyPageContent() {
       usage: "",
       pce: "",
       pdl: "",
+      status: "",
     });
   };
 
@@ -1095,6 +1098,7 @@ function EnergyPageContent() {
       {!loading && activeTab === "climat" && (
         <ClimatContent
           djuData={djuData}
+          analytics={analytics}
           selectedYear={selectedYear}
           heatingSeasons={heatingSeasons}
           openHeatingSeasonModal={openHeatingSeasonModal}
@@ -2074,6 +2078,7 @@ function P1Content({
 
 function ClimatContent({
   djuData,
+  analytics,
   selectedYear,
   heatingSeasons,
   openHeatingSeasonModal,
@@ -2081,6 +2086,7 @@ function ClimatContent({
   onDjuSync,
 }: {
   djuData: DJUData | null;
+  analytics: AnalyticsData | null;
   selectedYear: number;
   heatingSeasons: HeatingSeason[];
   openHeatingSeasonModal: (siteId: string, siteName: string, startDate?: string, endDate?: string) => void;
@@ -2089,6 +2095,28 @@ function ClimatContent({
 }) {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ updated: number; total: number; errors?: string[] } | null>(null);
+
+  // Filter DJU data to only show months with consumption
+  const monthsWithConsumption = new Set(
+    analytics?.monthlyData.filter(m => m.nc > 0).map(m => m.month) || []
+  );
+
+  // Filter monthly DJU data
+  const filteredMonthlyData = djuData?.monthlyData.filter(m =>
+    monthsWithConsumption.has(m.month)
+  ) || [];
+
+  // Calculate filtered DJU total
+  const filteredDjuTotal = filteredMonthlyData.reduce((sum, m) => sum + m.dju, 0);
+
+  // Build consumption by site for site-level filtering
+  const consumptionBySite = new Map<string, Set<string>>();
+  analytics?.sites.forEach(site => {
+    const monthsWithData = new Set(
+      site.monthlyData.filter(m => m.nc > 0).map(m => m.month)
+    );
+    consumptionBySite.set(site.siteId, monthsWithData);
+  });
 
   const handleSyncDju = async () => {
     if (!contractId) {
@@ -2185,8 +2213,8 @@ function ClimatContent({
             <Snowflake size={20} className="text-blue-600" />
             <span className="text-sm font-medium text-blue-700">DJU Réels</span>
           </div>
-          <p className="text-3xl font-bold text-blue-900">{djuData.summary.djuReelMoyen}</p>
-          <p className="text-xs text-blue-600 mt-1">Cumul saison en cours</p>
+          <p className="text-3xl font-bold text-blue-900">{filteredDjuTotal}</p>
+          <p className="text-xs text-blue-600 mt-1">Cumul mois avec consommation</p>
         </div>
         <div className="bg-gray-50 rounded-xl p-4 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -2230,15 +2258,15 @@ function ClimatContent({
         </div>
       </div>
 
-      {/* DJU Monthly Chart */}
-      {djuData.monthlyData.length > 0 && (
+      {/* DJU Monthly Chart - filtered by months with consumption */}
+      {filteredMonthlyData.length > 0 && (
         <ChartCard title="DJU mensuels" subtitle={`Saison ${selectedYear - 1}/${selectedYear}`}>
           {(() => {
-            const maxDju = Math.max(...djuData.monthlyData.map((d) => d.dju), 1);
+            const maxDju = Math.max(...filteredMonthlyData.map((d) => d.dju), 1);
             const barAreaHeight = 120; // pixels
             return (
               <div className="flex items-end gap-2" style={{ height: barAreaHeight + 40 }}>
-                {djuData.monthlyData.map((m) => {
+                {filteredMonthlyData.map((m) => {
                   const barHeight = (m.dju / maxDju) * barAreaHeight;
                   return (
                     <div key={m.month} className="flex-1 flex flex-col items-center justify-end" style={{ height: barAreaHeight + 40 }}>
@@ -2273,44 +2301,52 @@ function ClimatContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {djuData.sites.map((site) => (
-                  <tr key={site.siteId} className="hover:bg-gray-50">
-                    <td className="px-3 py-2">
-                      <p className="font-medium text-primary-dark">{site.siteName}</p>
-                      <p className="text-xs text-gray-500">{site.postalCode} {site.city}</p>
-                    </td>
-                    <td className="px-3 py-2">
-                      <p className="text-gray-700 font-medium">{site.station}</p>
-                      <p className="text-xs text-gray-400">DJU trent. {site.djuTrentenaire}</p>
-                    </td>
-                    <td className="px-3 py-2">
-                      <button
-                        onClick={() => openHeatingSeasonModal(site.siteId, site.siteName, site.heatingStartDate, site.heatingEndDate)}
-                        className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
-                          site.hasHeatingSeason
-                            ? "bg-green-50 text-green-700 hover:bg-green-100"
-                            : "bg-orange-50 text-orange-600 hover:bg-orange-100"
-                        }`}
-                      >
-                        <Calendar size={12} />
-                        <span>
-                          {new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
-                          {" → "}
-                          {new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
-                        </span>
-                      </button>
-                      {!site.hasHeatingSeason && (
-                        <p className="text-xs text-orange-500 mt-0.5">Par défaut</p>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right font-medium">{site.djuReel}</td>
-                    <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
-                    <td className={`px-3 py-2 text-right font-medium ${site.ecartTrentenaire > 0 ? "text-blue-600" : "text-orange-600"}`}>
-                      {site.ecartTrentenaire > 0 ? "+" : ""}{site.ecartTrentenaire}
-                      <span className="text-xs ml-1">({site.ecartPercent > 0 ? "+" : ""}{site.ecartPercent}%)</span>
-                    </td>
-                  </tr>
-                ))}
+                {djuData.sites.map((site) => {
+                  // Filter DJU by months with consumption for this site
+                  const siteConsumptionMonths = consumptionBySite.get(site.siteId) || new Set();
+                  const filteredSiteDju = site.monthlyData
+                    .filter(m => siteConsumptionMonths.has(m.month))
+                    .reduce((sum, m) => sum + m.dju, 0);
+
+                  return (
+                    <tr key={site.siteId} className="hover:bg-gray-50">
+                      <td className="px-3 py-2">
+                        <p className="font-medium text-primary-dark">{site.siteName}</p>
+                        <p className="text-xs text-gray-500">{site.postalCode} {site.city}</p>
+                      </td>
+                      <td className="px-3 py-2">
+                        <p className="text-gray-700 font-medium">{site.station}</p>
+                        <p className="text-xs text-gray-400">DJU trent. {site.djuTrentenaire}</p>
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => openHeatingSeasonModal(site.siteId, site.siteName, site.heatingStartDate, site.heatingEndDate)}
+                          className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
+                            site.hasHeatingSeason
+                              ? "bg-green-50 text-green-700 hover:bg-green-100"
+                              : "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                          }`}
+                        >
+                          <Calendar size={12} />
+                          <span>
+                            {new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                            {" → "}
+                            {new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                          </span>
+                        </button>
+                        {!site.hasHeatingSeason && (
+                          <p className="text-xs text-orange-500 mt-0.5">Par défaut</p>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium">{Math.round(filteredSiteDju)}</td>
+                      <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
+                      <td className={`px-3 py-2 text-right font-medium ${site.ecartTrentenaire > 0 ? "text-blue-600" : "text-orange-600"}`}>
+                        {site.ecartTrentenaire > 0 ? "+" : ""}{site.ecartTrentenaire}
+                        <span className="text-xs ml-1">({site.ecartPercent > 0 ? "+" : ""}{site.ecartPercent}%)</span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2497,11 +2533,11 @@ function ImportModal({
 }: {
   csvData: Record<string, string>[];
   csvHeaders: string[];
-  mapping: { site: string; period: string; quantity: string; cost: string; dju: string; energyType: string; usage: string; pce: string; pdl: string };
+  mapping: { site: string; period: string; quantity: string; cost: string; dju: string; energyType: string; usage: string; pce: string; pdl: string; status: string };
   setMapping: (m: typeof mapping) => void;
   importOptions: { energyType: string; usage: string; unit: string };
   setImportOptions: (o: typeof importOptions) => void;
-  importResult: { imported: number; updated: number; errors: { row: number; site: string; error: string }[]; totalErrors: number } | null;
+  importResult: { imported: number; updated: number; heatingDatesUpdated?: number; errors: { row: number; site: string; error: string }[]; totalErrors: number } | null;
   importing: boolean;
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleImport: () => void;
@@ -2548,14 +2584,15 @@ function ImportModal({
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
-                {["site", "period", "quantity", "cost", "dju", "pce"].map((field) => (
+                {["site", "period", "quantity", "cost", "dju", "pce", "status"].map((field) => (
                   <div key={field}>
                     <label className="block text-sm font-medium text-primary-dark mb-1">
                       {field === "site" ? "Site / Bâtiment *" :
                        field === "period" ? "Période / Date *" :
                        field === "quantity" ? "Quantité *" :
                        field === "cost" ? "Coût (€)" :
-                       field === "dju" ? "DJU Réels" : "PCE"}
+                       field === "dju" ? "DJU Réels" :
+                       field === "pce" ? "PCE" : "État compteur (allumage)"}
                     </label>
                     <select
                       value={mapping[field as keyof typeof mapping]}
@@ -2625,6 +2662,7 @@ function ImportModal({
                   <p className="font-semibold text-primary-dark">Import terminé</p>
                   <p className="text-sm text-text-secondary">
                     {importResult.imported} créés, {importResult.updated} mis à jour
+                    {importResult.heatingDatesUpdated ? `, ${importResult.heatingDatesUpdated} dates d'allumage` : ""}
                     {importResult.totalErrors > 0 && `, ${importResult.totalErrors} erreurs`}
                   </p>
                 </div>
