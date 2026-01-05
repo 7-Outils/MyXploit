@@ -317,13 +317,23 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // Handle heating season (ON/OFF or similar states)
-        const etatUpper = exploitantRow.etat.toUpperCase();
-        if (etatUpper === "ON" || etatUpper === "OFF" || etatUpper === "MARCHE" || etatUpper === "ARRET") {
+        // Handle heating season (detect start/stop markers)
+        const etatLower = exploitantRow.etat.toLowerCase();
+        const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe", "start", "marche"];
+        const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe"];
+
+        const isHeatingStart = heatingStartMarkers.some(marker => etatLower.includes(marker));
+        const isHeatingStop = heatingStopMarkers.some(marker => etatLower.includes(marker));
+
+        // Also detect simple ON (but not as start marker, just as running state)
+        const isOn = etatLower === "on";
+
+        if (isHeatingStart || isHeatingStop || isOn) {
           await updateHeatingSeason(
             siteMatch.siteId,
             period,
-            etatUpper === "ON" || etatUpper === "MARCHE"
+            isHeatingStart, // true = update start date
+            isHeatingStop   // true = update end date
           );
         }
 
@@ -834,7 +844,8 @@ function normalizeUnitAndQuantity(
 async function updateHeatingSeason(
   siteId: string,
   date: Date,
-  isOn: boolean
+  isHeatingStart: boolean,
+  isHeatingStop: boolean
 ) {
   // Determine season (e.g., "2024-2025" for Oct 2024 to May 2025)
   const year = date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1;
@@ -846,15 +857,22 @@ async function updateHeatingSeason(
     });
 
     if (existing) {
-      // Update end date if heating is OFF and we don't have an end date yet
-      if (!isOn && !existing.endDate) {
+      // Update start date if this is a heating start marker
+      if (isHeatingStart) {
+        await prisma.heatingSeason.update({
+          where: { id: existing.id },
+          data: { startDate: date },
+        });
+      }
+      // Update end date if this is a heating stop marker
+      if (isHeatingStop && !existing.endDate) {
         await prisma.heatingSeason.update({
           where: { id: existing.id },
           data: { endDate: date },
         });
       }
-    } else if (isOn) {
-      // Create new heating season if ON
+    } else if (isHeatingStart) {
+      // Create new heating season if start marker detected
       await prisma.heatingSeason.create({
         data: {
           siteId,
