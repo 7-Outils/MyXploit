@@ -342,8 +342,9 @@ export async function POST(request: NextRequest) {
           await updateHeatingSeason(
             siteMatch.siteId,
             period,
-            isHeatingStart, // true = update start date
-            isHeatingStop   // true = update end date
+            isHeatingStart, // Allumage → set startDate
+            isHeatingStop,  // Arrêt → finalise endDate
+            isOn            // ON → update endDate à chaque relevé
           );
         }
 
@@ -946,7 +947,8 @@ async function updateHeatingSeason(
   siteId: string,
   date: Date,
   isHeatingStart: boolean,
-  isHeatingStop: boolean
+  isHeatingStop: boolean,
+  isHeatingOn: boolean
 ) {
   // Determine season (e.g., "2024-2025" for Oct 2024 to May 2025)
   const year = date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1;
@@ -958,15 +960,23 @@ async function updateHeatingSeason(
     });
 
     if (existing) {
-      // Update start date if this is a heating start marker
+      // Allumage: set startDate, reset endDate (nouvelle saison de chauffe)
       if (isHeatingStart) {
         await prisma.heatingSeason.update({
           where: { id: existing.id },
-          data: { startDate: date },
+          data: { startDate: date, endDate: null },
         });
       }
-      // Update end date if this is a heating stop marker
-      if (isHeatingStop && !existing.endDate) {
+      // ON: update endDate à chaque relevé (tant que le chauffage tourne)
+      else if (isHeatingOn && !existing.endDate) {
+        // Only update if no final endDate yet (not stopped)
+        await prisma.heatingSeason.update({
+          where: { id: existing.id },
+          data: { endDate: date },
+        });
+      }
+      // Arrêt: finalise endDate
+      else if (isHeatingStop) {
         await prisma.heatingSeason.update({
           where: { id: existing.id },
           data: { endDate: date },
@@ -979,6 +989,16 @@ async function updateHeatingSeason(
           siteId,
           season,
           startDate: date,
+        },
+      });
+    } else if (isHeatingOn) {
+      // Heating is ON but no season exists - create one with current date as start
+      await prisma.heatingSeason.create({
+        data: {
+          siteId,
+          season,
+          startDate: date,
+          endDate: date,
         },
       });
     }
