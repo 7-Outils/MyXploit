@@ -449,8 +449,12 @@ export async function GET(request: NextRequest) {
       }
     });
     lastConsumptions.forEach((lc) => {
-      if (lc._max.period && lc._max.period > maxNeededDate) {
-        maxNeededDate = lc._max.period;
+      if (lc._max.period) {
+        // Utiliser la VEILLE du dernier relevé (le relevé du 01/12 = conso jusqu'au 30/11)
+        const dayBeforeReading = new Date(lc._max.period.getTime() - 24 * 60 * 60 * 1000);
+        if (dayBeforeReading > maxNeededDate) {
+          maxNeededDate = dayBeforeReading;
+        }
       }
     });
 
@@ -536,8 +540,10 @@ export async function GET(request: NextRequest) {
           // Saison terminée: utiliser la date de fin (compteurs OFF)
           siteEndDate = heatingSeason.endDate;
         } else if (lastConsumptionDate) {
-          // Saison en cours: utiliser la date du dernier relevé
-          siteEndDate = lastConsumptionDate;
+          // Saison en cours: utiliser la VEILLE du dernier relevé
+          // Le relevé du 01/12 = consommation jusqu'au 30/11
+          // Le relevé du 09/12 = consommation jusqu'au 08/12
+          siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
         } else {
           // Pas de relevé encore: utiliser la date de début
           siteEndDate = heatingSeason.startDate;
@@ -547,11 +553,17 @@ export async function GET(request: NextRequest) {
         // Used when no HeatingSeason or when startDate is the default July 1st
         siteStartDate = new Date(`${year - 1}-10-01`);
         if (lastConsumptionDate) {
-          siteEndDate = lastConsumptionDate;
+          // Utiliser la VEILLE du dernier relevé
+          siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
         } else {
           const defaultEndDate = new Date(`${year}-04-30`);
           siteEndDate = defaultEndDate > today ? today : defaultEndDate;
         }
+      }
+
+      // Cap siteEndDate to today (Open-Meteo only has historical data)
+      if (siteEndDate > today) {
+        siteEndDate = today;
       }
 
       // Filtrer les données DJU selon la période de chauffage du site
