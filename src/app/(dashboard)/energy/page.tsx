@@ -2294,7 +2294,8 @@ function ClimatContent({
                 <tr>
                   <th className="text-left px-3 py-2 font-medium text-text-secondary">Site</th>
                   <th className="text-left px-3 py-2 font-medium text-text-secondary">Station</th>
-                  <th className="text-left px-3 py-2 font-medium text-text-secondary">Période chauffe</th>
+                  <th className="text-left px-3 py-2 font-medium text-text-secondary">Date allumage</th>
+                  <th className="text-left px-3 py-2 font-medium text-text-secondary">Date arrêt</th>
                   <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Réel</th>
                   <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Trent.</th>
                   <th className="text-right px-3 py-2 font-medium text-text-secondary">Écart</th>
@@ -2324,19 +2325,33 @@ function ClimatContent({
                           className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
                             site.hasHeatingSeason
                               ? "bg-green-50 text-green-700 hover:bg-green-100"
-                              : "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                           }`}
                         >
                           <Calendar size={12} />
                           <span>
-                            {new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
-                            {" → "}
-                            {new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                            {site.hasHeatingSeason
+                              ? new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+                              : "—"}
                           </span>
                         </button>
-                        {!site.hasHeatingSeason && (
-                          <p className="text-xs text-orange-500 mt-0.5">Par défaut</p>
-                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => openHeatingSeasonModal(site.siteId, site.siteName, site.heatingStartDate, site.heatingEndDate)}
+                          className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
+                            site.hasHeatingSeason && site.heatingEndDate
+                              ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
+                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          }`}
+                        >
+                          <Calendar size={12} />
+                          <span>
+                            {site.hasHeatingSeason && site.heatingEndDate
+                              ? new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+                              : "—"}
+                          </span>
+                        </button>
                       </td>
                       <td className="px-3 py-2 text-right font-medium">{Math.round(filteredSiteDju)}</td>
                       <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
