@@ -622,11 +622,13 @@ export async function GET(request: NextRequest) {
         })),
         // Flag pour savoir si le site a des relevés
         hasConsumptions: !!lastConsumptionDate,
+        // Flag pour savoir si le site a un NB (engagement)
+        hasNb: !!(heatingSeason?.nb),
       };
     });
 
-    // Filtrer pour ne garder que les sites avec des relevés
-    const sitesWithData = siteResults.filter((s) => s.hasConsumptions);
+    // Filtrer pour ne garder que les sites avec des relevés OU avec NB
+    const sitesWithData = siteResults.filter((s) => s.hasConsumptions || s.hasNb);
 
     // Calculate global DJU from weather station for the entire period
     // Use the first station's data (all sites in same area use same station)
