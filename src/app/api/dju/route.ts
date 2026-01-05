@@ -450,10 +450,11 @@ export async function GET(request: NextRequest) {
     });
     lastConsumptions.forEach((lc) => {
       if (lc._max.period) {
-        // Utiliser la VEILLE du dernier relevé (le relevé du 01/12 = conso jusqu'au 30/11)
-        const dayBeforeReading = new Date(lc._max.period.getTime() - 24 * 60 * 60 * 1000);
-        if (dayBeforeReading > maxNeededDate) {
-          maxNeededDate = dayBeforeReading;
+        // Utiliser la FIN du mois de la dernière consommation
+        // period = 01/11 (conso de novembre) → jusqu'au 30/11
+        const endOfMonth = new Date(lc._max.period.getFullYear(), lc._max.period.getMonth() + 1, 0);
+        if (endOfMonth > maxNeededDate) {
+          maxNeededDate = endOfMonth;
         }
       }
     });
@@ -540,10 +541,10 @@ export async function GET(request: NextRequest) {
           // Saison terminée: utiliser la date de fin (compteurs OFF)
           siteEndDate = heatingSeason.endDate;
         } else if (lastConsumptionDate) {
-          // Saison en cours: utiliser la VEILLE du dernier relevé
-          // Le relevé du 01/12 = consommation jusqu'au 30/11
-          // Le relevé du 09/12 = consommation jusqu'au 08/12
-          siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
+          // Saison en cours: utiliser la FIN du mois de la dernière consommation
+          // period = 01/11 (conso de novembre) → DJU jusqu'au 30/11
+          // period = 01/12 (conso de décembre) → DJU jusqu'au 31/12
+          siteEndDate = new Date(lastConsumptionDate.getFullYear(), lastConsumptionDate.getMonth() + 1, 0);
         } else {
           // Pas de relevé encore: utiliser la date de début
           siteEndDate = heatingSeason.startDate;
@@ -553,8 +554,8 @@ export async function GET(request: NextRequest) {
         // Used when no HeatingSeason or when startDate is the default July 1st
         siteStartDate = new Date(`${year - 1}-10-01`);
         if (lastConsumptionDate) {
-          // Utiliser la VEILLE du dernier relevé
-          siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
+          // Utiliser la FIN du mois de la dernière consommation
+          siteEndDate = new Date(lastConsumptionDate.getFullYear(), lastConsumptionDate.getMonth() + 1, 0);
         } else {
           const defaultEndDate = new Date(`${year}-04-30`);
           siteEndDate = defaultEndDate > today ? today : defaultEndDate;
