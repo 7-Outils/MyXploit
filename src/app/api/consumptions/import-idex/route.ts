@@ -960,27 +960,32 @@ async function updateHeatingSeason(
     });
 
     if (existing) {
-      // Allumage: set startDate, reset endDate (nouvelle saison de chauffe)
+      // Allumage: set startDate seulement si plus ancien (première mise en route)
       if (isHeatingStart) {
-        await prisma.heatingSeason.update({
-          where: { id: existing.id },
-          data: { startDate: date, endDate: null },
-        });
+        if (!existing.startDate || date < existing.startDate) {
+          await prisma.heatingSeason.update({
+            where: { id: existing.id },
+            data: { startDate: date },
+          });
+        }
       }
-      // ON: update endDate à chaque relevé (tant que le chauffage tourne)
-      else if (isHeatingOn && !existing.endDate) {
-        // Only update if no final endDate yet (not stopped)
-        await prisma.heatingSeason.update({
-          where: { id: existing.id },
-          data: { endDate: date },
-        });
+      // ON: update endDate seulement si plus récent
+      else if (isHeatingOn) {
+        if (!existing.endDate || date > existing.endDate) {
+          await prisma.heatingSeason.update({
+            where: { id: existing.id },
+            data: { endDate: date },
+          });
+        }
       }
-      // Arrêt: finalise endDate
+      // Arrêt: set endDate seulement si plus récent
       else if (isHeatingStop) {
-        await prisma.heatingSeason.update({
-          where: { id: existing.id },
-          data: { endDate: date },
-        });
+        if (!existing.endDate || date > existing.endDate) {
+          await prisma.heatingSeason.update({
+            where: { id: existing.id },
+            data: { endDate: date },
+          });
+        }
       }
     } else if (isHeatingStart) {
       // Create new heating season if start marker detected
