@@ -211,9 +211,16 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    // Build response
+    // Build response - include sites with consumption OR with NB values
     const sitePerformances = Array.from(siteMap.values())
-      .filter((s) => s.consumptions.length > 0)
+      .filter((s) => {
+        // Include if has consumption data
+        if (s.consumptions.length > 0) return true;
+        // Also include if has NB value (from HeatingSeason or site)
+        const heatingSeason = heatingSeasonMap.get(s.site.id);
+        const hasNb = (heatingSeason?.nb ?? s.site.nb) !== null && (heatingSeason?.nb ?? s.site.nb) !== undefined;
+        return hasNb;
+      })
       .map((siteData) => {
         const { site, ncTotal, nbPrime, djrTotal, ecsTotal, mixteTotal, months } = siteData;
 
