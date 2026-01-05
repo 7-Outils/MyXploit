@@ -694,7 +694,6 @@ function matchSite(
 
   // 0. Try alias match first (exact match from saved aliases)
   const aliasMatch = matchers.aliasMap.get(normalized);
-  console.log("Checking alias for:", normalized, "Found:", aliasMatch ? aliasMatch.name : "NO MATCH");
   if (aliasMatch) {
     return { siteId: aliasMatch.id, siteName: aliasMatch.name, confidence: 1 };
   }
@@ -712,7 +711,42 @@ function matchSite(
     }
   }
 
-  // 3. Build suggestions using fuzzy matching (for manual selection)
+  // 3. Try PREFIX match - for truncated names like "GYMNASE COG" -> "Gymnase Eugène Cognevault"
+  // Check if the site name STARTS WITH the import name (handling truncation)
+  for (const [siteName, { id, name }] of matchers.normalizedNames) {
+    // Remove spaces and compare as prefix
+    const normalizedNoSpace = normalized.replace(/\s+/g, "");
+    const siteNameNoSpace = siteName.replace(/\s+/g, "");
+
+    if (siteNameNoSpace.startsWith(normalizedNoSpace) && normalizedNoSpace.length >= 6) {
+      return { siteId: id, siteName: name, confidence: 0.85 };
+    }
+
+    // Also try word-by-word prefix matching
+    // "gymnase cog" should match "gymnase eugene cognevault"
+    const importWords = normalized.split(/\s+/).filter(w => w.length >= 2);
+    const siteWords = siteName.split(/\s+/).filter(w => w.length >= 2);
+
+    if (importWords.length >= 2 && siteWords.length >= 2) {
+      let allWordsMatch = true;
+      for (let i = 0; i < importWords.length; i++) {
+        const importWord = importWords[i];
+        // Find a site word that starts with this import word (or matches exactly)
+        const hasMatch = siteWords.some(sw =>
+          sw.startsWith(importWord) || importWord.startsWith(sw) || sw === importWord
+        );
+        if (!hasMatch) {
+          allWordsMatch = false;
+          break;
+        }
+      }
+      if (allWordsMatch) {
+        return { siteId: id, siteName: name, confidence: 0.8 };
+      }
+    }
+  }
+
+  // 4. Build suggestions using fuzzy matching (for manual selection)
   const suggestions: Array<{ id: string; name: string; score: number }> = [];
   for (const [siteName, { id, name }] of matchers.normalizedNames) {
     // Compare word by word for typo detection
@@ -725,20 +759,24 @@ function matchSite(
     for (const installWord of installWords) {
       let bestWordScore = 0;
       for (const siteWord of siteWords) {
+        // Check prefix match (for truncated words)
+        if (siteWord.startsWith(installWord) || installWord.startsWith(siteWord)) {
+          bestWordScore = Math.max(bestWordScore, 0.9);
+        }
         const wordSim = similarity(installWord, siteWord);
         if (wordSim > bestWordScore) bestWordScore = wordSim;
       }
-      if (bestWordScore > 0.7) {
+      if (bestWordScore > 0.6) {
         matchedWords++;
         totalScore += bestWordScore;
       }
     }
 
     // Calculate overall score
-    const matchRatio = matchedWords / Math.max(installWords.length, siteWords.length);
+    const matchRatio = matchedWords / Math.max(installWords.length, 1);
     const avgScore = matchedWords > 0 ? (totalScore / matchedWords) * matchRatio : 0;
 
-    if (avgScore > 0.4) {
+    if (avgScore > 0.35) {
       suggestions.push({ id, name, score: avgScore });
     }
   }
@@ -746,8 +784,8 @@ function matchSite(
   // Sort suggestions by score
   suggestions.sort((a, b) => b.score - a.score);
 
-  // Only auto-match if VERY confident (score > 0.85 = almost exact match)
-  if (suggestions.length > 0 && suggestions[0].score > 0.85) {
+  // Auto-match if confident (score > 0.75)
+  if (suggestions.length > 0 && suggestions[0].score > 0.75) {
     return {
       siteId: suggestions[0].id,
       siteName: suggestions[0].name,
