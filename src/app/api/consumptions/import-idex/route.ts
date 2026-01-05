@@ -168,6 +168,7 @@ export async function POST(request: NextRequest) {
 
     // Create lookup maps for site matching
     const siteMatchers = createSiteMatchers(sites, siteAliases);
+    console.log(`[IMPORT] ${sites.length} sites available for matching, ${siteAliases.length} aliases loaded`);
 
     const results = {
       imported: 0,
@@ -700,18 +701,22 @@ function matchSite(
   matchers: ReturnType<typeof createSiteMatchers>
 ): { siteId?: string; siteName?: string; confidence?: number; suggestions?: Array<{ id: string; name: string; score: number }> } {
   const normalized = normalizeSiteName(installationName);
+  console.log(`[MATCH] Input: "${installationName}" -> Normalized: "${normalized}"`);
 
   // 0. Try alias match first (exact match from saved aliases)
   const aliasMatch = matchers.aliasMap.get(normalized);
   if (aliasMatch) {
+    console.log(`[MATCH] ✓ Alias match: ${aliasMatch.name}`);
     return { siteId: aliasMatch.id, siteName: aliasMatch.name, confidence: 1 };
   }
 
   // 1. Try exact match
   const exact = matchers.normalizedNames.get(normalized);
   if (exact) {
+    console.log(`[MATCH] ✓ Exact match: ${exact.name}`);
     return { siteId: exact.id, siteName: exact.name, confidence: 1 };
   }
+  console.log(`[MATCH] Available sites:`, Array.from(matchers.normalizedNames.keys()).slice(0, 10));
 
   // 2. Try partial match - check if normalized name contains site name or vice versa
   for (const [siteName, { id, name }] of matchers.normalizedNames) {
@@ -804,6 +809,7 @@ function matchSite(
   }
 
   // No confident match - return suggestions for manual selection
+  console.log(`[MATCH] ✗ No match for "${normalized}", top suggestions:`, suggestions.slice(0, 3).map(s => `${s.name} (${s.score.toFixed(2)})`));
   return { suggestions: suggestions.slice(0, 5) };
 }
 
