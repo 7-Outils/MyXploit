@@ -127,9 +127,7 @@ export async function DELETE(request: NextRequest) {
 
     // Reset heating season dates (but keep engagement data: nb, nbUnit, djuContractuel)
     // This allows re-import to set new startDate/endDate while preserving per-season engagements
-    // Use placeholder date for startDate since it's a required field
     if (affectedSiteIds.length > 0) {
-      const placeholderDate = new Date('1900-01-01');
       const seasons = await prisma.heatingSeason.findMany({
         where: { siteId: { in: affectedSiteIds } },
         select: { id: true },
@@ -139,7 +137,7 @@ export async function DELETE(request: NextRequest) {
         await prisma.heatingSeason.update({
           where: { id: season.id },
           data: {
-            startDate: placeholderDate,
+            startDate: null,
             endDate: null,
             lastReleveDate: null,
           },

@@ -903,10 +903,14 @@ export async function POST(request: NextRequest) {
         amountP310?: number;
       }[] = [];
 
-      // NOTE: We do NOT create HeatingSeason records here anymore
-      // HeatingSeasons should ONLY be created during IDEX import when MISE_EN_MARCHE markers are detected
-      // This ensures accurate startDate/endDate from actual heating system status
-      // NB values from AE file can be imported separately using /api/heating-seasons/import-nb
+      // Prepare HeatingSeason data (NB values WITHOUT dates)
+      // Dates will be set later during IDEX import when heating markers are detected
+      const heatingSeasonData: {
+        siteId: string;
+        season: string;
+        nb: number;
+        nbUnit: NbUnit;
+      }[] = [];
 
       // Get energy types for existing sites and update them with site details if available
       const existingSiteIds = parsedSites
@@ -1032,8 +1036,20 @@ export async function POST(request: NextRequest) {
           amountP310: parsedSite.p3.p310,
         });
 
-        // NOTE: HeatingSeason data (NB, dates) is no longer created here
-        // It will be created during IDEX import with actual heating start dates
+        // Create HeatingSeason records for each year with NB values (WITHOUT dates)
+        // Dates will be set later during IDEX import when heating markers are detected
+        const nbUnit = getNbUnitForEnergyType(energyType as EnergyType);
+        for (const [yearNum, nbValue] of Object.entries(parsedSite.nb)) {
+          if (nbValue !== null && nbValue > 0) {
+            const season = getSeasonForYear(parseInt(yearNum));
+            heatingSeasonData.push({
+              siteId,
+              season,
+              nb: nbValue,
+              nbUnit,
+            });
+          }
+        }
       }
 
       // Step 3: Create all ContractSites in batch
@@ -1041,9 +1057,33 @@ export async function POST(request: NextRequest) {
         await tx.contractSite.createMany({ data: contractSiteData });
       }
 
-      // NOTE: Step 4 (HeatingSeasons creation) has been removed
-      // HeatingSeasons will be created automatically during IDEX import
-      // when MISE_EN_MARCHE markers are detected, ensuring accurate startDate/endDate
+      // Step 4: Create HeatingSeasons with NB values (but no dates)
+      // Dates will be set during IDEX import when heating markers are detected
+      if (heatingSeasonData.length > 0) {
+        // Use upsert to avoid conflicts if seasons already exist
+        for (const seasonData of heatingSeasonData) {
+          await tx.heatingSeason.upsert({
+            where: {
+              siteId_season: {
+                siteId: seasonData.siteId,
+                season: seasonData.season,
+              },
+            },
+            update: {
+              nb: seasonData.nb,
+              nbUnit: seasonData.nbUnit,
+            },
+            create: {
+              siteId: seasonData.siteId,
+              season: seasonData.season,
+              startDate: null,
+              endDate: null,
+              nb: seasonData.nb,
+              nbUnit: seasonData.nbUnit,
+            },
+          });
+        }
+      }
 
       return {
         contract,

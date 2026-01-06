@@ -998,13 +998,9 @@ async function updateHeatingSeason(
       const existingStartStr = existing.startDate?.toISOString().split("T")[0];
       const existingEndStr = existing.endDate?.toISOString().split("T")[0];
 
-      // Placeholder date used when resetting dates (1900-01-01)
-      const isPlaceholderDate = existingStartStr === '1900-01-01';
-
       // Allumage: set startDate ONLY if not already set (first heating start wins)
-      // Treat placeholder date as "not set" to allow resetting and re-importing
       if (isHeatingStart) {
-        if (!existingStartStr || isPlaceholderDate) {
+        if (!existingStartStr) {
           console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Setting startDate=${dateStr}`);
           await prisma.heatingSeason.update({
             where: { id: existing.id },
