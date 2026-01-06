@@ -106,23 +106,35 @@ export async function DELETE(request: NextRequest) {
 
     const where: Record<string, unknown> = { organizationId: user.organizationId };
 
+    // Collect siteIds for HeatingSeason deletion
+    let affectedSiteIds: string[] = [];
+
     if (siteId) {
       where.siteId = siteId;
+      affectedSiteIds = [siteId];
     } else if (contractId) {
       // Get all sites for this contract
       const contractSites = await prisma.contractSite.findMany({
         where: { contractId },
         select: { siteId: true },
       });
-      where.siteId = { in: contractSites.map((cs) => cs.siteId) };
+      affectedSiteIds = contractSites.map((cs) => cs.siteId);
+      where.siteId = { in: affectedSiteIds };
     }
 
+    // Delete consumptions
     const result = await prisma.consumption.deleteMany({ where });
+
+    // Delete heating seasons for affected sites
+    const heatingSeasonResult = await prisma.heatingSeason.deleteMany({
+      where: { siteId: { in: affectedSiteIds } },
+    });
 
     return NextResponse.json({
       success: true,
       deleted: result.count,
-      message: `${result.count} consommation(s) supprimée(s)`,
+      heatingSeasonsDeleted: heatingSeasonResult.count,
+      message: `${result.count} consommation(s) et ${heatingSeasonResult.count} période(s) de chauffage supprimée(s)`,
     });
   } catch (error) {
     console.error("Error deleting consumptions:", error);
