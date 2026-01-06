@@ -1985,12 +1985,6 @@ function ClimatContent({
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {djuData.sites.map((site) => {
-                  // Filter DJU by months with consumption for this site
-                  const siteConsumptionMonths = consumptionBySite.get(site.siteId) || new Set();
-                  const filteredSiteDju = site.monthlyData
-                    .filter(m => siteConsumptionMonths.has(m.month))
-                    .reduce((sum, m) => sum + m.dju, 0);
-
                   return (
                     <tr key={site.siteId} className="hover:bg-gray-50">
                       <td className="px-3 py-2">
@@ -2030,7 +2024,7 @@ function ClimatContent({
                           </span>
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-right font-medium">{Math.round(filteredSiteDju)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{site.djuReel}</td>
                       <td className="px-3 py-2 text-right text-gray-600">{site.djuTrentenaireToDate}</td>
                       <td className={`px-3 py-2 text-right font-medium ${site.ecartTrentenaire > 0 ? "text-blue-600" : "text-orange-600"}`}>
                         {site.ecartTrentenaire > 0 ? "+" : ""}{site.ecartTrentenaire}
