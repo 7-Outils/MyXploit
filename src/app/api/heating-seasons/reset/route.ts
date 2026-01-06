@@ -24,14 +24,17 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    // Reset dates for each season (keep engagement data)
+    // Reset dates for each season (keep engagement data: nb, nbUnit, djuContractuel)
+    // Use placeholder date for startDate since it's a required field
+    const placeholderDate = new Date('1900-01-01');
+
     for (const season of seasons) {
       await prisma.heatingSeason.update({
         where: { id: season.id },
         data: {
-          startDate: null as any,
-          endDate: null as any,
-          lastReleveDate: null as any,
+          startDate: placeholderDate,
+          endDate: null,
+          lastReleveDate: null,
         },
       });
     }

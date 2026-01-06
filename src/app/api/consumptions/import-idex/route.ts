@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     const contractId = formData.get("contractId") as string | null;
     const previewMode = formData.get("preview") === "true";
+    const importType = (formData.get("importType") as string) || "RELEVE_MENSUEL";
 
     if (!file) {
       return NextResponse.json(
@@ -318,14 +319,22 @@ export async function POST(request: NextRequest) {
             console.log(`[DEBUG FURMANECK] etatLower="${etatLower}", isStart=${isHeatingStart}, isStop=${isHeatingStop}, isOn=${isOn}`);
           }
 
-          if (isHeatingStart || isHeatingStop || isOn) {
-            await updateHeatingSeason(
-              siteMatch.siteId,
-              period,
-              isHeatingStart, // Allumage → set startDate
-              isHeatingStop,  // Arrêt → finalise endDate
-              isOn            // ON → update endDate à chaque relevé
-            );
+          // Process heating seasons based on import type
+          if (importType === "ALLUMAGE") {
+            // Only process start markers
+            if (isHeatingStart) {
+              await updateHeatingSeason(siteMatch.siteId, period, true, false, false);
+            }
+          } else if (importType === "ARRET") {
+            // Only process stop markers
+            if (isHeatingStop) {
+              await updateHeatingSeason(siteMatch.siteId, period, false, true, false);
+            }
+          } else if (importType === "RELEVE_MENSUEL") {
+            // Process ON state only (monthly updates of endDate)
+            if (isOn) {
+              await updateHeatingSeason(siteMatch.siteId, period, false, false, true);
+            }
           }
         }
 
@@ -989,9 +998,13 @@ async function updateHeatingSeason(
       const existingStartStr = existing.startDate?.toISOString().split("T")[0];
       const existingEndStr = existing.endDate?.toISOString().split("T")[0];
 
+      // Placeholder date used when resetting dates (1900-01-01)
+      const isPlaceholderDate = existingStartStr === '1900-01-01';
+
       // Allumage: set startDate ONLY if not already set (first heating start wins)
+      // Treat placeholder date as "not set" to allow resetting and re-importing
       if (isHeatingStart) {
-        if (!existingStartStr) {
+        if (!existingStartStr || isPlaceholderDate) {
           console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Setting startDate=${dateStr}`);
           await prisma.heatingSeason.update({
             where: { id: existing.id },

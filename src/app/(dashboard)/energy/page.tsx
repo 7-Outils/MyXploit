@@ -247,12 +247,10 @@ function EnergyPageContent() {
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [showIdexImportModal, setShowIdexImportModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [importingIdex, setImportingIdex] = useState(false);
   const [savingHeatingSeason, setSavingHeatingSeason] = useState(false);
   const [idexImportResult, setIdexImportResult] = useState<{
@@ -291,28 +289,6 @@ function EnergyPageContent() {
   } | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
-  // NB Import modal
-  const [showNbImportModal, setShowNbImportModal] = useState(false);
-  const [importingNb, setImportingNb] = useState(false);
-  const [nbImportResult, setNbImportResult] = useState<{
-    mode: "preview" | "import";
-    contract?: { id: string; title: string; startDate: string; endDate: string };
-    yearColumns?: { year: number; season: string; headerLabel: string }[];
-    preview?: {
-      row: number;
-      excelSiteName: string;
-      matchedSite?: { id: string; name: string };
-      years: { year: number; season: string; nb: number | null }[];
-    }[];
-    imported?: number;
-    updated?: number;
-    skipped: number;
-    errors?: { row: number; site: string; error: string }[];
-    siteMatches?: Record<string, { matched: boolean; siteId?: string; siteName?: string }>;
-    unmatchedSites?: { excelName: string; suggestions: { id: string; name: string; score: number }[] }[];
-    availableSites?: { id: string; name: string }[];
-  } | null>(null);
-
   // Heating season form
   const [heatingSeasonForm, setHeatingSeasonForm] = useState({
     siteId: "",
@@ -338,33 +314,6 @@ function EnergyPageContent() {
     djuReel: "",
   });
 
-  // Import state
-  const [csvData, setCsvData] = useState<Record<string, string>[]>([]);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [mapping, setMapping] = useState({
-    site: "",
-    period: "",
-    quantity: "",
-    cost: "",
-    dju: "",
-    energyType: "",
-    usage: "",
-    pce: "",
-    pdl: "",
-    status: "", // État du compteur (pour détecter les dates d'allumage)
-  });
-  const [importOptions, setImportOptions] = useState({
-    energyType: "GAZ",
-    usage: "CHAUFFAGE",
-    unit: "kWh",
-  });
-  const [importResult, setImportResult] = useState<{
-    imported: number;
-    updated: number;
-    heatingDatesUpdated?: number;
-    errors: { row: number; site: string; error: string }[];
-    totalErrors: number;
-  } | null>(null);
 
   // Tab change handler
   const handleTabChange = (tab: Tab) => {
@@ -597,132 +546,21 @@ function EnergyPageContent() {
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target?.result as string;
-      const lines = text.split("\n").filter((line) => line.trim());
-
-      if (lines.length < 2) {
-        alert("Le fichier CSV doit contenir au moins un en-tête et une ligne de données");
-        return;
-      }
-
-      const separator = lines[0].includes(";") ? ";" : ",";
-      const headers = lines[0].split(separator).map((h) => h.trim().replace(/^"|"$/g, ""));
-      setCsvHeaders(headers);
-
-      const data = lines.slice(1).map((line) => {
-        const values = line.split(separator).map((v) => v.trim().replace(/^"|"$/g, ""));
-        const row: Record<string, string> = {};
-        headers.forEach((h, i) => {
-          row[h] = values[i] || "";
-        });
-        return row;
-      });
-
-      setCsvData(data);
-
-      const autoMapping = { ...mapping };
-      headers.forEach((h) => {
-        const lowerH = h.toLowerCase();
-        if (lowerH.includes("site") || lowerH.includes("nom") || lowerH.includes("batiment")) {
-          autoMapping.site = h;
-        } else if (lowerH.includes("period") || lowerH.includes("mois") || lowerH.includes("date")) {
-          autoMapping.period = h;
-        } else if (lowerH.includes("quantit") || lowerH.includes("conso") || lowerH.includes("kwh") || lowerH.includes("volume")) {
-          autoMapping.quantity = h;
-        } else if (lowerH.includes("cout") || lowerH.includes("prix") || lowerH.includes("montant") || lowerH === "€") {
-          autoMapping.cost = h;
-        } else if (lowerH.includes("dju") || lowerH.includes("degr")) {
-          autoMapping.dju = h;
-        } else if (lowerH.includes("pce")) {
-          autoMapping.pce = h;
-        } else if (lowerH.includes("pdl") || lowerH.includes("prm")) {
-          autoMapping.pdl = h;
-        } else if (lowerH.includes("energie") || lowerH.includes("type")) {
-          autoMapping.energyType = h;
-        } else if (lowerH.includes("usage")) {
-          autoMapping.usage = h;
-        }
-      });
-      setMapping(autoMapping);
-    };
-    reader.readAsText(file);
-  };
-
-  const handleImport = async () => {
-    if (!mapping.site || !mapping.period || !mapping.quantity) {
-      alert("Veuillez mapper au moins: Site, Période et Quantité");
-      return;
-    }
-
-    setImporting(true);
-    setImportResult(null);
-
-    try {
-      const response = await fetch("/api/consumptions/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: csvData,
-          mapping,
-          options: importOptions,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setImportResult(result);
-        if (result.imported > 0 || result.updated > 0) {
-          await fetchData();
-        }
-      } else {
-        alert(result.error || "Erreur lors de l'import");
-      }
-    } catch (error) {
-      console.error("Error importing:", error);
-      alert("Erreur lors de l'import");
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const closeImportModal = () => {
-    setShowImportModal(false);
-    setCsvData([]);
-    setCsvHeaders([]);
-    setImportResult(null);
-    setMapping({
-      site: "",
-      period: "",
-      quantity: "",
-      cost: "",
-      dju: "",
-      energyType: "",
-      usage: "",
-      pce: "",
-      pdl: "",
-      status: "",
-    });
-  };
 
   // First step: preview the import
-  const handleIdexImport = async (file: File) => {
+  const handleIdexImport = async (file: File, importType: "ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET") => {
     if (!selectedContract) return;
 
     setImportingIdex(true);
     setIdexImportResult(null);
     setPendingImportFile(file);
+    setPendingImportType(importType); // Save for confirm step
 
     try {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("contractId", selectedContract.id);
+      formData.append("importType", importType); // Pass import type
       formData.append("preview", "true"); // Preview mode
 
       const response = await fetch("/api/consumptions/import-idex", {
@@ -747,6 +585,8 @@ function EnergyPageContent() {
   };
 
   // Second step: confirm and execute the import
+  const [pendingImportType, setPendingImportType] = useState<"ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET">("RELEVE_MENSUEL");
+
   const handleConfirmIdexImport = async () => {
     if (!selectedContract || !pendingImportFile) return;
 
@@ -756,6 +596,7 @@ function EnergyPageContent() {
       const formData = new FormData();
       formData.append("file", pendingImportFile);
       formData.append("contractId", selectedContract.id);
+      formData.append("importType", pendingImportType); // Pass import type
       // No preview flag = actual import
 
       const response = await fetch("/api/consumptions/import-idex", {
@@ -789,90 +630,6 @@ function EnergyPageContent() {
     setPendingImportFile(null);
   };
 
-  // NB Import handlers
-  const handleNbImport = async (file: File) => {
-    if (!selectedContract) {
-      alert("Veuillez sélectionner un contrat");
-      return;
-    }
-
-    setImportingNb(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("contractId", selectedContract.id);
-      formData.append("preview", "true");
-
-      const response = await fetch("/api/heating-seasons/import-nb", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setNbImportResult(result);
-      } else {
-        alert(result.error || "Erreur lors de l'analyse du fichier");
-      }
-    } catch (error) {
-      console.error("Error analyzing NB file:", error);
-      alert("Erreur lors de l'analyse du fichier");
-    } finally {
-      setImportingNb(false);
-    }
-  };
-
-  const handleConfirmNbImport = async (unitOverrides: Record<string, "PCS" | "UTILE">) => {
-    if (!selectedContract || !nbImportResult?.preview) return;
-
-    setImportingNb(true);
-    try {
-      // Get the file from the preview result
-      const formData = new FormData();
-      // We need to re-upload the file - stored in state via ref or re-upload
-      // For simplicity, we'll use a hidden ref to store the file
-      const fileInput = document.querySelector('input[data-nb-import-file]') as HTMLInputElement;
-      if (!fileInput?.files?.[0]) {
-        alert("Fichier non trouvé, veuillez le re-sélectionner");
-        return;
-      }
-
-      formData.append("file", fileInput.files[0]);
-      formData.append("contractId", selectedContract.id);
-      formData.append("preview", "false");
-      // Pass unit overrides if any
-      if (Object.keys(unitOverrides).length > 0) {
-        formData.append("unitOverrides", JSON.stringify(unitOverrides));
-      }
-
-      const response = await fetch("/api/heating-seasons/import-nb", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setNbImportResult(result);
-        if (result.imported > 0 || result.updated > 0) {
-          await fetchData();
-        }
-      } else {
-        alert(result.error || "Erreur lors de l'import");
-      }
-    } catch (error) {
-      console.error("Error importing NB:", error);
-      alert("Erreur lors de l'import");
-    } finally {
-      setImportingNb(false);
-    }
-  };
-
-  const closeNbImportModal = () => {
-    setShowNbImportModal(false);
-    setNbImportResult(null);
-  };
 
   const handleDeleteConsumptions = async (): Promise<void> => {
     if (!selectedContract) return;
@@ -1063,9 +820,7 @@ function EnergyPageContent() {
           analytics={analytics}
           chartData={chartData}
           activeAlerts={activeAlerts}
-          setShowImportModal={setShowImportModal}
           setShowIdexImportModal={setShowIdexImportModal}
-          setShowNbImportModal={setShowNbImportModal}
           setShowCreateModal={setShowCreateModal}
           hasContract={!!selectedContract}
         />
@@ -1076,9 +831,7 @@ function EnergyPageContent() {
           analytics={analytics}
           consumptions={consumptions}
           sites={sites}
-          setShowImportModal={setShowImportModal}
           setShowIdexImportModal={setShowIdexImportModal}
-          setShowNbImportModal={setShowNbImportModal}
           setShowCreateModal={setShowCreateModal}
           hasContract={!!selectedContract}
         />
@@ -1088,7 +841,6 @@ function EnergyPageContent() {
         <P1Content
           contract={selectedContract}
           selectedYear={selectedYear}
-          setShowNbImportModal={setShowNbImportModal}
           sites={sites}
           heatingSeasons={heatingSeasons}
           onNbUpdate={fetchHeatingSeasons}
@@ -1123,21 +875,6 @@ function EnergyPageContent() {
         />
       )}
 
-      {showImportModal && (
-        <ImportModal
-          csvData={csvData}
-          csvHeaders={csvHeaders}
-          mapping={mapping}
-          setMapping={setMapping}
-          importOptions={importOptions}
-          setImportOptions={setImportOptions}
-          importResult={importResult}
-          importing={importing}
-          handleFileUpload={handleFileUpload}
-          handleImport={handleImport}
-          onClose={closeImportModal}
-        />
-      )}
 
       {showHeatingSeasonModal && (
         <HeatingSeasonModal
@@ -1159,16 +896,6 @@ function EnergyPageContent() {
         />
       )}
 
-      {showNbImportModal && selectedContract && (
-        <NbImportModal
-          contract={selectedContract}
-          importing={importingNb}
-          importResult={nbImportResult}
-          onImport={handleNbImport}
-          onConfirmImport={handleConfirmNbImport}
-          onClose={closeNbImportModal}
-        />
-      )}
 
       {/* Delete Consumptions Modal */}
       {showDeleteModal && (
@@ -1198,18 +925,14 @@ function SyntheseContent({
   analytics,
   chartData,
   activeAlerts,
-  setShowImportModal,
   setShowIdexImportModal,
-  setShowNbImportModal,
   setShowCreateModal,
   hasContract,
 }: {
   analytics: AnalyticsData | null;
   chartData: { label: string; value: number; target: number }[];
   activeAlerts: Alert[];
-  setShowImportModal: (v: boolean) => void;
   setShowIdexImportModal: (v: boolean) => void;
-  setShowNbImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
   hasContract: boolean;
 }) {
@@ -1223,16 +946,6 @@ function SyntheseContent({
             <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
               <Flame size={18} className="mr-2" />
               Import Exploitant
-            </Button>
-            {hasContract && (
-              <Button variant="outline" onClick={() => setShowNbImportModal(true)}>
-                <BarChart3 size={18} className="mr-2" />
-                Import NB (DPGF)
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setShowImportModal(true)}>
-              <Upload size={18} className="mr-2" />
-              Importer CSV
             </Button>
             <Button onClick={() => setShowCreateModal(true)}>
               <Plus size={18} className="mr-2" />
@@ -1439,18 +1152,14 @@ function SitesContent({
   analytics,
   consumptions,
   sites,
-  setShowImportModal,
   setShowIdexImportModal,
-  setShowNbImportModal,
   setShowCreateModal,
   hasContract,
 }: {
   analytics: AnalyticsData | null;
   consumptions: Consumption[];
   sites: Site[];
-  setShowImportModal: (v: boolean) => void;
   setShowIdexImportModal: (v: boolean) => void;
-  setShowNbImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
   hasContract: boolean;
 }) {
@@ -1461,16 +1170,6 @@ function SitesContent({
           <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
             <Flame size={18} className="mr-2" />
             Import Exploitant
-          </Button>
-          {hasContract && (
-            <Button variant="outline" onClick={() => setShowNbImportModal(true)}>
-              <BarChart3 size={18} className="mr-2" />
-              Import NB (DPGF)
-            </Button>
-          )}
-          <Button variant="outline" onClick={() => setShowImportModal(true)}>
-            <Upload size={18} className="mr-2" />
-            Importer CSV
           </Button>
           <Button onClick={() => setShowCreateModal(true)}>
             <Plus size={18} className="mr-2" />
@@ -1493,16 +1192,6 @@ function SitesContent({
         <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
           <Flame size={18} className="mr-2" />
           Import Exploitant
-        </Button>
-        {hasContract && (
-          <Button variant="outline" onClick={() => setShowNbImportModal(true)}>
-            <BarChart3 size={18} className="mr-2" />
-            Import NB (DPGF)
-          </Button>
-        )}
-        <Button variant="outline" onClick={() => setShowImportModal(true)}>
-          <Upload size={18} className="mr-2" />
-          Importer CSV
         </Button>
         <Button onClick={() => setShowCreateModal(true)}>
           <Plus size={18} className="mr-2" />
@@ -1647,14 +1336,12 @@ function SitesContent({
 function P1Content({
   contract,
   selectedYear,
-  setShowNbImportModal,
   sites,
   heatingSeasons,
   onNbUpdate,
 }: {
   contract: Contract;
   selectedYear: number;
-  setShowNbImportModal: (v: boolean) => void;
   sites: Site[];
   heatingSeasons: HeatingSeason[];
   onNbUpdate: () => void;
@@ -1842,10 +1529,6 @@ function P1Content({
             Suivi des Niveaux de Base (NB) et de l&apos;Amélioration de la Performance Énergétique (APE)
           </p>
         </div>
-        <Button onClick={() => setShowNbImportModal(true)}>
-          <Upload size={18} className="mr-2" />
-          Importer NB (DPGF)
-        </Button>
       </div>
 
       {/* KPIs Section */}
@@ -2294,8 +1977,7 @@ function ClimatContent({
                 <tr>
                   <th className="text-left px-3 py-2 font-medium text-text-secondary">Site</th>
                   <th className="text-left px-3 py-2 font-medium text-text-secondary">Station</th>
-                  <th className="text-left px-3 py-2 font-medium text-text-secondary">Date allumage</th>
-                  <th className="text-left px-3 py-2 font-medium text-text-secondary">Date arrêt</th>
+                  <th className="text-left px-3 py-2 font-medium text-text-secondary">Période</th>
                   <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Réel</th>
                   <th className="text-right px-3 py-2 font-medium text-text-secondary">DJU Trent.</th>
                   <th className="text-right px-3 py-2 font-medium text-text-secondary">Écart</th>
@@ -2324,32 +2006,27 @@ function ClimatContent({
                           onClick={() => openHeatingSeasonModal(site.siteId, site.siteName, site.heatingStartDate, site.heatingEndDate)}
                           className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
                             site.hasHeatingSeason
-                              ? "bg-green-50 text-green-700 hover:bg-green-100"
+                              ? "bg-gradient-to-r from-green-50 to-blue-50 text-gray-700 hover:from-green-100 hover:to-blue-100 border border-green-200"
                               : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                           }`}
                         >
                           <Calendar size={12} />
                           <span>
-                            {site.hasHeatingSeason
-                              ? new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
-                              : "—"}
-                          </span>
-                        </button>
-                      </td>
-                      <td className="px-3 py-2">
-                        <button
-                          onClick={() => openHeatingSeasonModal(site.siteId, site.siteName, site.heatingStartDate, site.heatingEndDate)}
-                          className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md transition-colors ${
-                            site.hasHeatingSeason && site.heatingEndDate
-                              ? "bg-blue-50 text-blue-700 hover:bg-blue-100"
-                              : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                          }`}
-                        >
-                          <Calendar size={12} />
-                          <span>
-                            {site.hasHeatingSeason && site.heatingEndDate
-                              ? new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
-                              : "—"}
+                            {site.hasHeatingSeason ? (
+                              <>
+                                <span className="text-green-700 font-medium">
+                                  {new Date(site.heatingStartDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                                </span>
+                                <span className="mx-1 text-gray-400">→</span>
+                                <span className="text-blue-700 font-medium">
+                                  {site.heatingEndDate
+                                    ? new Date(site.heatingEndDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+                                    : "..."}
+                                </span>
+                              </>
+                            ) : (
+                              "—"
+                            )}
                           </span>
                         </button>
                       </td>
@@ -2528,193 +2205,6 @@ function CreateConsumptionModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
-  );
-}
-
-function ImportModal({
-  csvData,
-  csvHeaders,
-  mapping,
-  setMapping,
-  importOptions,
-  setImportOptions,
-  importResult,
-  importing,
-  handleFileUpload,
-  handleImport,
-  onClose,
-}: {
-  csvData: Record<string, string>[];
-  csvHeaders: string[];
-  mapping: { site: string; period: string; quantity: string; cost: string; dju: string; energyType: string; usage: string; pce: string; pdl: string; status: string };
-  setMapping: (m: typeof mapping) => void;
-  importOptions: { energyType: string; usage: string; unit: string };
-  setImportOptions: (o: typeof importOptions) => void;
-  importResult: { imported: number; updated: number; heatingDatesUpdated?: number; errors: { row: number; site: string; error: string }[]; totalErrors: number } | null;
-  importing: boolean;
-  handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleImport: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-primary-dark">Importer des relevés CSV</h2>
-            <p className="text-sm text-text-secondary mt-1">
-              Importez les exports de votre exploitant (GRDF, Engie, etc.)
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Upload */}
-          {csvData.length === 0 && (
-            <label className="block cursor-pointer">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-accent transition-colors">
-                <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-lg font-medium text-primary-dark mb-2">
-                  Glissez votre fichier CSV ici
-                </p>
-                <p className="text-sm text-text-secondary mb-4">
-                  ou cliquez pour sélectionner un fichier
-                </p>
-              </div>
-              <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
-            </label>
-          )}
-
-          {/* Mapping */}
-          {csvData.length > 0 && !importResult && (
-            <>
-              <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-3">
-                <Check size={20} />
-                <span>{csvData.length} lignes détectées dans le fichier</span>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                {["site", "period", "quantity", "cost", "dju", "pce", "status"].map((field) => (
-                  <div key={field}>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">
-                      {field === "site" ? "Site / Bâtiment *" :
-                       field === "period" ? "Période / Date *" :
-                       field === "quantity" ? "Quantité *" :
-                       field === "cost" ? "Coût (€)" :
-                       field === "dju" ? "DJU Réels" :
-                       field === "pce" ? "PCE" : "État compteur (allumage)"}
-                    </label>
-                    <select
-                      value={mapping[field as keyof typeof mapping]}
-                      onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg"
-                    >
-                      <option value="">{field === "site" || field === "period" || field === "quantity" ? "-- Sélectionner --" : "-- Non mappé --"}</option>
-                      {csvHeaders.map((h) => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Type d&apos;énergie</label>
-                  <select
-                    value={importOptions.energyType}
-                    onChange={(e) => setImportOptions({ ...importOptions, energyType: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg"
-                  >
-                    <option value="GAZ">Gaz</option>
-                    <option value="ELECTRICITE">Électricité</option>
-                    <option value="RESEAU_CHALEUR">RCU</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Usage</label>
-                  <select
-                    value={importOptions.usage}
-                    onChange={(e) => setImportOptions({ ...importOptions, usage: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg"
-                  >
-                    <option value="CHAUFFAGE">Chauffage</option>
-                    <option value="ECS">ECS</option>
-                    <option value="MIXTE">Mixte</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Unité</label>
-                  <select
-                    value={importOptions.unit}
-                    onChange={(e) => setImportOptions({ ...importOptions, unit: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg"
-                  >
-                    <option value="kWh">kWh</option>
-                    <option value="MWh">MWh</option>
-                    <option value="m³">m³</option>
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Results */}
-          {importResult && (
-            <div className={`p-4 rounded-lg ${importResult.errors.length === 0 ? "bg-green-50" : "bg-yellow-50"}`}>
-              <div className="flex items-center gap-3">
-                {importResult.errors.length === 0 ? (
-                  <Check className="text-green-600" size={24} />
-                ) : (
-                  <AlertTriangle className="text-yellow-600" size={24} />
-                )}
-                <div>
-                  <p className="font-semibold text-primary-dark">Import terminé</p>
-                  <p className="text-sm text-text-secondary">
-                    {importResult.imported} créés, {importResult.updated} mis à jour
-                    {importResult.heatingDatesUpdated ? `, ${importResult.heatingDatesUpdated} dates d'allumage` : ""}
-                    {importResult.totalErrors > 0 && `, ${importResult.totalErrors} erreurs`}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-gray-100">
-            {csvData.length === 0 ? (
-              <Button variant="outline" className="flex-1" onClick={onClose}>Annuler</Button>
-            ) : importResult ? (
-              <Button className="flex-1" onClick={onClose}>Fermer</Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={onClose}>Annuler</Button>
-                <Button
-                  className="flex-1"
-                  onClick={handleImport}
-                  disabled={importing || !mapping.site || !mapping.period || !mapping.quantity}
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 size={18} className="mr-2 animate-spin" />
-                      Import en cours...
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={18} className="mr-2" />
-                      Importer {csvData.length} lignes
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -2923,11 +2413,12 @@ function IdexImportModal({
       }>;
     }>;
   } | null;
-  onImport: (file: File) => void;
+  onImport: (file: File, importType: "ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET") => void;
   onConfirmImport: () => void;
   onClose: () => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importType, setImportType] = useState<"ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET">("RELEVE_MENSUEL");
   const [manualMappings, setManualMappings] = useState<Record<string, string>>({});
   const [savingMappings, setSavingMappings] = useState(false);
   const [mappingsSaved, setMappingsSaved] = useState(false);
@@ -2941,7 +2432,7 @@ function IdexImportModal({
 
   const handleSubmit = () => {
     if (selectedFile) {
-      onImport(selectedFile);
+      onImport(selectedFile, importType);
     }
   };
 
@@ -3016,6 +2507,66 @@ function IdexImportModal({
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Type d'import selector */}
+          {!importResult && (
+            <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-xl p-4 border border-blue-200">
+              <p className="text-sm font-semibold text-primary-dark mb-3">Type d'import</p>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setImportType("ALLUMAGE")}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    importType === "ALLUMAGE"
+                      ? "border-green-500 bg-green-50 shadow-sm"
+                      : "border-gray-200 bg-white hover:border-green-300"
+                  }`}
+                >
+                  <div className="text-center">
+                    <Flame className={`mx-auto mb-1 ${importType === "ALLUMAGE" ? "text-green-600" : "text-gray-400"}`} size={20} />
+                    <p className={`text-xs font-medium ${importType === "ALLUMAGE" ? "text-green-700" : "text-gray-600"}`}>
+                      Allumage
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Init. dates démarrage</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImportType("RELEVE_MENSUEL")}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    importType === "RELEVE_MENSUEL"
+                      ? "border-blue-500 bg-blue-50 shadow-sm"
+                      : "border-gray-200 bg-white hover:border-blue-300"
+                  }`}
+                >
+                  <div className="text-center">
+                    <BarChart3 className={`mx-auto mb-1 ${importType === "RELEVE_MENSUEL" ? "text-blue-600" : "text-gray-400"}`} size={20} />
+                    <p className={`text-xs font-medium ${importType === "RELEVE_MENSUEL" ? "text-blue-700" : "text-gray-600"}`}>
+                      Relevé mensuel
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Conso uniquement</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImportType("ARRET")}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    importType === "ARRET"
+                      ? "border-red-500 bg-red-50 shadow-sm"
+                      : "border-gray-200 bg-white hover:border-red-300"
+                  }`}
+                >
+                  <div className="text-center">
+                    <Snowflake className={`mx-auto mb-1 ${importType === "ARRET" ? "text-red-600" : "text-gray-400"}`} size={20} />
+                    <p className={`text-xs font-medium ${importType === "ARRET" ? "text-red-700" : "text-gray-600"}`}>
+                      Arrêt chauffage
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Clôture saison</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Info */}
           <div className="bg-blue-50 rounded-xl p-4">
             <div className="flex items-start gap-3">
@@ -3356,326 +2907,3 @@ function DeleteConsumptionsModal({
 }
 
 // Modal d'import des NB (DPGF)
-function NbImportModal({
-  contract,
-  importing,
-  importResult,
-  onImport,
-  onConfirmImport,
-  onClose,
-}: {
-  contract: Contract;
-  importing: boolean;
-  importResult: {
-    mode: "preview" | "import";
-    contract?: { id: string; title: string; startDate: string; endDate: string };
-    yearColumns?: { year: number; season: string; headerLabel: string }[];
-    preview?: {
-      row: number;
-      excelSiteName: string;
-      matchedSite?: { id: string; name: string };
-      years: { year: number; season: string; nb: number | null }[];
-    }[];
-    imported?: number;
-    updated?: number;
-    skipped: number;
-    errors?: { row: number; site: string; error: string }[];
-    unmatchedSites?: { excelName: string; suggestions: { id: string; name: string; score: number }[] }[];
-    availableSites?: { id: string; name: string; energyType?: string; detectedUnit?: string }[];
-  } | null;
-  onImport: (file: File) => void;
-  onConfirmImport: (unitOverrides: Record<string, "PCS" | "UTILE">) => void;
-  onClose: () => void;
-}) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [unitOverrides, setUnitOverrides] = useState<Record<string, "PCS" | "UTILE">>({});
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-    }
-  };
-
-  const handleSubmit = () => {
-    if (selectedFile) {
-      onImport(selectedFile);
-    }
-  };
-
-  const matchedCount = importResult?.preview?.filter(p => p.matchedSite)?.length || 0;
-  const unmatchedCount = importResult?.preview?.filter(p => !p.matchedSite)?.length || 0;
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-primary-dark">Import NB (DPGF)</h2>
-            <p className="text-sm text-text-secondary mt-1">
-              Importez les engagements énergétiques du contrat {contract.title}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6">
-          {/* Info */}
-          <div className="bg-blue-50 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <BarChart3 className="text-blue-600 mt-0.5" size={20} />
-              <div>
-                <p className="text-sm font-medium text-blue-800">Format attendu</p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Fichier Excel avec colonnes : Site | Année 1 | Année 2 | ... | Année N
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Les valeurs NB doivent être en MWh (seront stockées par saison de chauffe)
-                </p>
-                <p className="text-xs text-blue-700 mt-2 font-medium">
-                  💡 L&apos;unité (PCS ou Utile) est déterminée automatiquement selon le type d&apos;énergie du site
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Upload */}
-          {!importResult && (
-            <>
-              <label className="block cursor-pointer">
-                <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-                  selectedFile ? "border-accent bg-accent/5" : "border-gray-300 hover:border-accent"
-                }`}>
-                  <FileSpreadsheet className={`w-12 h-12 mx-auto mb-4 ${selectedFile ? "text-accent" : "text-gray-400"}`} />
-                  {selectedFile ? (
-                    <>
-                      <p className="text-lg font-medium text-primary-dark mb-1">
-                        {selectedFile.name}
-                      </p>
-                      <p className="text-sm text-text-secondary">
-                        Cliquez pour changer de fichier
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-lg font-medium text-primary-dark mb-2">
-                        Sélectionnez le fichier DPGF Excel
-                      </p>
-                      <p className="text-sm text-text-secondary">
-                        Formats: .xlsx, .xls
-                      </p>
-                    </>
-                  )}
-                </div>
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  className="hidden"
-                  data-nb-import-file
-                  onChange={handleFileChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Preview Mode */}
-          {importResult?.mode === "preview" && (
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-blue-50">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="text-blue-600" size={24} />
-                  <div>
-                    <p className="font-semibold text-primary-dark">Prévisualisation</p>
-                    <p className="text-sm text-text-secondary">
-                      {matchedCount} site(s) reconnu(s), {unmatchedCount} non reconnu(s)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Year columns detected */}
-              {importResult.yearColumns && importResult.yearColumns.length > 0 && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Années détectées :</p>
-                  <div className="flex flex-wrap gap-2">
-                    {importResult.yearColumns.map((yc) => (
-                      <span key={yc.year} className="px-3 py-1 bg-white rounded-full text-xs font-medium border">
-                        {yc.headerLabel} → {yc.season}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Preview table */}
-              {importResult.preview && importResult.preview.length > 0 && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">Site Excel</th>
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">Site correspondant</th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-600">Unité</th>
-                        {importResult.yearColumns?.map((yc) => (
-                          <th key={yc.year} className="px-3 py-2 text-right font-medium text-gray-600">
-                            {yc.season}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {importResult.preview.map((row) => {
-                        const currentUnit = row.matchedSite
-                          ? (unitOverrides[row.matchedSite.id] || (row.matchedSite as { detectedUnit?: string }).detectedUnit || "PCS")
-                          : null;
-                        return (
-                          <tr key={row.row} className={row.matchedSite ? "" : "bg-amber-50"}>
-                            <td className="px-3 py-2 font-medium text-gray-800">{row.excelSiteName}</td>
-                            <td className="px-3 py-2">
-                              {row.matchedSite ? (
-                                <span className="text-green-700 flex items-center gap-1">
-                                  <Check size={14} />
-                                  {row.matchedSite.name}
-                                </span>
-                              ) : (
-                                <span className="text-amber-600 flex items-center gap-1">
-                                  <AlertTriangle size={14} />
-                                  Non reconnu
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-center">
-                              {row.matchedSite ? (
-                                <select
-                                  value={currentUnit || "PCS"}
-                                  onChange={(e) => {
-                                    const newValue = e.target.value as "PCS" | "UTILE";
-                                    setUnitOverrides((prev) => ({
-                                      ...prev,
-                                      [row.matchedSite!.id]: newValue,
-                                    }));
-                                  }}
-                                  className="text-xs px-2 py-1 border rounded bg-white"
-                                >
-                                  <option value="PCS">PCS</option>
-                                  <option value="UTILE">Utile</option>
-                                </select>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
-                            </td>
-                            {row.years.map((y) => (
-                              <td key={y.year} className="px-3 py-2 text-right">
-                                {y.nb !== null ? (
-                                  <span className="font-medium">{y.nb.toLocaleString("fr-FR")} MWh</span>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Warning for unmatched sites */}
-              {unmatchedCount > 0 && (
-                <div className="p-4 rounded-xl bg-amber-50">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="text-amber-600 mt-0.5" size={20} />
-                    <div>
-                      <p className="text-sm font-medium text-amber-800">
-                        {unmatchedCount} site(s) non reconnu(s)
-                      </p>
-                      <p className="text-xs text-amber-600 mt-1">
-                        Ces sites seront ignorés lors de l&apos;import. Vous pouvez créer des alias dans la page Sites pour les reconnaître automatiquement.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Import Results */}
-          {importResult?.mode === "import" && (
-            <div className="space-y-4">
-              <div className={`p-4 rounded-xl ${
-                (importResult.errors?.length || 0) === 0 ? "bg-green-50" : "bg-yellow-50"
-              }`}>
-                <div className="flex items-center gap-3">
-                  {(importResult.errors?.length || 0) === 0 ? (
-                    <Check className="text-green-600" size={24} />
-                  ) : (
-                    <AlertTriangle className="text-yellow-600" size={24} />
-                  )}
-                  <div>
-                    <p className="font-semibold text-primary-dark">Import terminé</p>
-                    <p className="text-sm text-text-secondary">
-                      {importResult.imported || 0} créés, {importResult.updated || 0} mis à jour, {importResult.skipped} ignorés
-                      {(importResult.errors?.length || 0) > 0 && `, ${importResult.errors?.length} erreurs`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4 border-t border-gray-100">
-            {importResult?.mode === "import" ? (
-              <Button className="flex-1" onClick={onClose}>Fermer</Button>
-            ) : importResult?.mode === "preview" ? (
-              <>
-                <Button variant="outline" onClick={onClose}>Annuler</Button>
-                <Button
-                  className="flex-1 flex items-center justify-center gap-2"
-                  onClick={() => onConfirmImport(unitOverrides)}
-                  disabled={importing || matchedCount === 0}
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>Import en cours...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check size={18} />
-                      <span>Importer {matchedCount} site(s)</span>
-                    </>
-                  )}
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={onClose}>Annuler</Button>
-                <Button
-                  className="flex-1 flex items-center justify-center gap-2"
-                  onClick={handleSubmit}
-                  disabled={importing || !selectedFile}
-                >
-                  {importing ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      <span>Analyse...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet size={18} />
-                      <span>Analyser le fichier</span>
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}

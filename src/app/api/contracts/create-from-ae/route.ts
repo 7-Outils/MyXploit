@@ -902,16 +902,11 @@ export async function POST(request: NextRequest) {
         amountP39?: number;
         amountP310?: number;
       }[] = [];
-      const heatingSeasonData: { siteId: string; season: string; nbValue: number; nbUnit: string; djuContractuel?: number }[] = [];
-      // Get DJU contractuel from metadata as fallback (applies to all sites in this contract)
-      const contractDjuContractuel = detectedMetadata?.djuContractuel;
-      // Build a map of site names to their djuContractuel from Sites sheet
-      const siteDjuMap = new Map<string, number>();
-      for (const [normalizedName, details] of siteDetailsMap.entries()) {
-        if (details.djuContractuel) {
-          siteDjuMap.set(normalizedName, details.djuContractuel);
-        }
-      }
+
+      // NOTE: We do NOT create HeatingSeason records here anymore
+      // HeatingSeasons should ONLY be created during IDEX import when MISE_EN_MARCHE markers are detected
+      // This ensures accurate startDate/endDate from actual heating system status
+      // NB values from AE file can be imported separately using /api/heating-seasons/import-nb
 
       // Get energy types for existing sites and update them with site details if available
       const existingSiteIds = parsedSites
@@ -1037,24 +1032,8 @@ export async function POST(request: NextRequest) {
           amountP310: parsedSite.p3.p310,
         });
 
-        // Prepare HeatingSeason data
-        const nbUnit = getNbUnitForEnergyType(energyType as EnergyType);
-        // Get site-specific DJU contractuel, fallback to contract-level
-        const normalizedSiteName = normalizeSiteName(parsedSite.siteName);
-        const siteDjuContractuel = siteDjuMap.get(normalizedSiteName) || contractDjuContractuel;
-        for (const [yearStr, nbValue] of Object.entries(parsedSite.nb)) {
-          if (nbValue === null || nbValue <= 0) continue;
-          const year = parseInt(yearStr);
-          const season = getSeasonForYear(year);
-          // Round NB value to integer (no decimals)
-          heatingSeasonData.push({
-            siteId,
-            season,
-            nbValue: Math.round(nbValue),
-            nbUnit,
-            djuContractuel: siteDjuContractuel,
-          });
-        }
+        // NOTE: HeatingSeason data (NB, dates) is no longer created here
+        // It will be created during IDEX import with actual heating start dates
       }
 
       // Step 3: Create all ContractSites in batch
@@ -1062,75 +1041,9 @@ export async function POST(request: NextRequest) {
         await tx.contractSite.createMany({ data: contractSiteData });
       }
 
-      // Step 4: Handle HeatingSeasons - get existing ones first
-      const uniqueSiteSeasons = [...new Set(heatingSeasonData.map(h => `${h.siteId}|${h.season}`))];
-      const siteSeasonPairs = uniqueSiteSeasons.map(s => {
-        const [siteId, season] = s.split("|");
-        return { siteId, season };
-      });
-
-      // Fetch all existing heating seasons in one query
-      const existingSeasons = await tx.heatingSeason.findMany({
-        where: {
-          OR: siteSeasonPairs.map(({ siteId, season }) => ({
-            siteId,
-            season,
-          })),
-        },
-        select: { id: true, siteId: true, season: true },
-      });
-      const existingSeasonMap = new Map(
-        existingSeasons.map(s => [`${s.siteId}|${s.season}`, s.id])
-      );
-
-      // Separate into creates and updates
-      const seasonsToCreate: {
-        siteId: string;
-        season: string;
-        startDate: Date;
-        nb: number;
-        nbUnit: NbUnit;
-        djuContractuel?: number;
-      }[] = [];
-      const seasonsToUpdate: { id: string; nb: number; nbUnit: string; djuContractuel?: number }[] = [];
-
-      for (const hs of heatingSeasonData) {
-        const key = `${hs.siteId}|${hs.season}`;
-        const existingId = existingSeasonMap.get(key);
-        if (existingId) {
-          seasonsToUpdate.push({ id: existingId, nb: hs.nbValue, nbUnit: hs.nbUnit, djuContractuel: hs.djuContractuel });
-        } else {
-          seasonsToCreate.push({
-            siteId: hs.siteId,
-            season: hs.season,
-            startDate: new Date(parseInt(hs.season.split("-")[0]), 6, 1),
-            nb: hs.nbValue,
-            nbUnit: hs.nbUnit as NbUnit,
-            djuContractuel: hs.djuContractuel,
-          });
-        }
-      }
-
-      // Batch create new seasons
-      if (seasonsToCreate.length > 0) {
-        await tx.heatingSeason.createMany({ data: seasonsToCreate });
-      }
-
-      // Update existing seasons (must be done individually but in parallel)
-      if (seasonsToUpdate.length > 0) {
-        await Promise.all(
-          seasonsToUpdate.map(s =>
-            tx.heatingSeason.update({
-              where: { id: s.id },
-              data: {
-                nb: s.nb,
-                nbUnit: s.nbUnit as NbUnit,
-                djuContractuel: s.djuContractuel,
-              },
-            })
-          )
-        );
-      }
+      // NOTE: Step 4 (HeatingSeasons creation) has been removed
+      // HeatingSeasons will be created automatically during IDEX import
+      // when MISE_EN_MARCHE markers are detected, ensuring accurate startDate/endDate
 
       return {
         contract,
