@@ -102,14 +102,16 @@ export async function GET(request: NextRequest) {
       ncTotal: number; // Niveau de Consommation (réel chauffage)
       nbPrime: number; // N'B = NB × (DJR/DJC) - théorique ajusté
       djrTotal: number; // DJU Réels cumulés
-      ecsTotal: number; // Consommation ECS
+      ecsTotal: number; // Consommation ECS (water-based, in m³)
+      ecsHeatTotal: number; // Consommation ECS (heat-based, in kWh)
       mixteTotal: number; // Consommation Mixte (avant déduction ECS)
       months: Map<string, {
         nc: number;
         nbPrime: number;
         djr: number;
         djc: number;
-        ecs: number;
+        ecs: number; // Water-based ECS (m³)
+        ecsHeat: number; // Heat-based ECS (kWh)
       }>;
     }>();
 
@@ -122,6 +124,7 @@ export async function GET(request: NextRequest) {
         nbPrime: 0,
         djrTotal: 0,
         ecsTotal: 0,
+        ecsHeatTotal: 0,
         mixteTotal: 0,
         months: new Map(),
       });
@@ -136,7 +139,7 @@ export async function GET(request: NextRequest) {
 
       let monthData = siteData.months.get(monthKey);
       if (!monthData) {
-        monthData = { nc: 0, nbPrime: 0, djr: 0, djc: siteData.site.djuContractuel || 0, ecs: 0 };
+        monthData = { nc: 0, nbPrime: 0, djr: 0, djc: siteData.site.djuContractuel || 0, ecs: 0, ecsHeat: 0 };
         siteData.months.set(monthKey, monthData);
       }
 
@@ -152,8 +155,16 @@ export async function GET(request: NextRequest) {
           monthData.djr += consumption.djuReel;
         }
       } else if (consumption.usage === EnergyUsage.ECS) {
-        siteData.ecsTotal += consumption.quantity;
-        monthData.ecs += consumption.quantity;
+        // Separate water-based ECS (m³) from heat-based ECS (kWh)
+        if (consumption.energyType === "EAU") {
+          // Water flow meter - stays in m³
+          siteData.ecsTotal += consumption.quantity;
+          monthData.ecs += consumption.quantity;
+        } else {
+          // Heat/Gas/Electric - in kWh
+          siteData.ecsHeatTotal += consumption.quantity;
+          monthData.ecsHeat += consumption.quantity;
+        }
       } else if (consumption.usage === EnergyUsage.MIXTE) {
         // For MIXTE, we use the quantityChauffage if available, or estimate
         siteData.mixteTotal += consumption.quantity;
@@ -222,7 +233,7 @@ export async function GET(request: NextRequest) {
         return hasNb;
       })
       .map((siteData) => {
-        const { site, ncTotal, nbPrime, djrTotal, ecsTotal, mixteTotal, months } = siteData;
+        const { site, ncTotal, nbPrime, djrTotal, ecsTotal, ecsHeatTotal, mixteTotal, months } = siteData;
 
         // Delta = NC - N'B (positive = dépassement, negative = économie)
         const delta = ncTotal - nbPrime;
@@ -247,6 +258,7 @@ export async function GET(request: NextRequest) {
             nbPrime: Math.round(data.nbPrime),
             djr: data.djr,
             ecs: Math.round(data.ecs),
+            ecsHeat: Math.round(data.ecsHeat),
           }));
 
         // Debug: get actual djuContractuel used in calculation
@@ -277,7 +289,8 @@ export async function GET(request: NextRequest) {
           nc: Math.round(ncTotal),
           nbPrime: Math.round(nbPrime),
           djrTotal: Math.round(djrTotal),
-          ecsTotal: Math.round(ecsTotal),
+          ecsTotal: Math.round(ecsTotal), // Water-based ECS (m³)
+          ecsHeatTotal: Math.round(ecsHeatTotal), // Heat-based ECS (kWh)
           mixteTotal: Math.round(mixteTotal),
           delta: Math.round(delta),
           deltaPercent: Math.round(deltaPercent * 10) / 10,
@@ -293,14 +306,15 @@ export async function GET(request: NextRequest) {
     const globalDeltaPercent = totalNbPrime > 0 ? (totalDelta / totalNbPrime) * 100 : 0;
 
     // Monthly aggregation across all sites
-    const monthlyAggregated = new Map<string, { nc: number; nbPrime: number; djr: number; ecs: number }>();
+    const monthlyAggregated = new Map<string, { nc: number; nbPrime: number; djr: number; ecs: number; ecsHeat: number }>();
     sitePerformances.forEach((site) => {
       site.monthlyData.forEach((m) => {
-        const existing = monthlyAggregated.get(m.month) || { nc: 0, nbPrime: 0, djr: 0, ecs: 0 };
+        const existing = monthlyAggregated.get(m.month) || { nc: 0, nbPrime: 0, djr: 0, ecs: 0, ecsHeat: 0 };
         existing.nc += m.nc;
         existing.nbPrime += m.nbPrime;
         existing.djr += m.djr;
         existing.ecs += m.ecs;
+        existing.ecsHeat += m.ecsHeat;
         monthlyAggregated.set(m.month, existing);
       });
     });
@@ -314,6 +328,7 @@ export async function GET(request: NextRequest) {
         nbPrime: data.nbPrime,
         djr: data.djr,
         ecs: data.ecs,
+        ecsHeat: data.ecsHeat,
       }));
 
     // Performance by site type

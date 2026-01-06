@@ -903,19 +903,66 @@ function mapMeterType(
   const compteurLower = compteur.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const fluideLower = fluide.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-  // SPECIAL CASE: ECS meters with fluide="Eau" are WATER flow meters, not gas meters!
-  // They measure m³ of water consumed, not m³ of gas, so they should NOT be converted to kWh
-  if ((compteurLower.includes("ecs") || compteurLower.includes("eau chaude") || compteurLower.includes("sanitaire")) &&
-      (fluideLower.includes("eau") || fluideLower === "")) {
+  // PRIORITY 1: Check fluide field first to avoid misclassification
+
+  // District heating (Chaleur/RCU) - takes priority over meter name
+  if (fluideLower.includes("chaleur") || fluideLower.includes("rcu") || fluideLower.includes("reseau")) {
+    // Determine if it's for ECS or heating based on meter name
+    const isECS = compteurLower.includes("ecs") || compteurLower.includes("eau chaude") || compteurLower.includes("sanitaire");
     return {
-      energyType: "EAU",  // Water flow meter, stays in m³
-      usage: "ECS",
+      energyType: "RESEAU_CHALEUR",
+      usage: isECS ? "ECS" : "CHAUFFAGE",
       skip: false,
       isMaintenanceIndicator: false,
     };
   }
 
-  // Try to match against known patterns
+  // Gas meters
+  if (fluideLower.includes("gaz")) {
+    const isECS = compteurLower.includes("ecs") || compteurLower.includes("eau chaude") || compteurLower.includes("sanitaire");
+    return {
+      energyType: "GAZ",
+      usage: isECS ? "ECS" : "CHAUFFAGE",
+      skip: false,
+      isMaintenanceIndicator: false,
+    };
+  }
+
+  // Electricity
+  if (fluideLower.includes("elec")) {
+    return { energyType: "ELECTRICITE", usage: "MIXTE", skip: false, isMaintenanceIndicator: false };
+  }
+
+  // Water meters - ECS (hot water) or other (cold water, makeup water)
+  if (fluideLower.includes("eau") || fluideLower.includes("water")) {
+    const isECS = compteurLower.includes("ecs") || compteurLower.includes("eau chaude") || compteurLower.includes("sanitaire");
+    const isAppoint = compteurLower.includes("appoint") || compteurLower.includes("remplissage") || compteurLower.includes("makeup");
+
+    if (isECS) {
+      return {
+        energyType: "EAU",  // Water flow meter for hot water, stays in m³
+        usage: "ECS",
+        skip: false,
+        isMaintenanceIndicator: false,
+      };
+    } else if (isAppoint) {
+      return {
+        energyType: "EAU",
+        usage: "AUTRE",
+        skip: false,
+        isMaintenanceIndicator: true,
+      };
+    } else {
+      return {
+        energyType: "EAU",
+        usage: "AUTRE",
+        skip: false,
+        isMaintenanceIndicator: false,
+      };
+    }
+  }
+
+  // PRIORITY 2: If fluide field is empty or unrecognized, try pattern matching on meter name
   for (const pattern of METER_PATTERNS) {
     for (const p of pattern.patterns) {
       if (searchText.includes(p)) {
@@ -927,17 +974,6 @@ function mapMeterType(
         };
       }
     }
-  }
-
-  // Try to infer from fluide field if no pattern matched
-  if (fluideLower.includes("gaz")) {
-    return { energyType: "GAZ", usage: "CHAUFFAGE", skip: false, isMaintenanceIndicator: false };
-  }
-  if (fluideLower.includes("elec")) {
-    return { energyType: "ELECTRICITE", usage: "MIXTE", skip: false, isMaintenanceIndicator: false };
-  }
-  if (fluideLower.includes("eau") || fluideLower.includes("water")) {
-    return { energyType: "EAU", usage: "AUTRE", skip: false, isMaintenanceIndicator: false };
   }
 
   // Default to gas/heating for unknown types (most common in exploitant files)
