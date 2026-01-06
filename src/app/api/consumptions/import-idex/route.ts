@@ -328,15 +328,17 @@ export async function POST(request: NextRequest) {
         }
 
         // Handle heating season (detect start/stop markers)
-        const etatLower = exploitantRow.etat.toLowerCase();
-        const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe", "start", "marche"];
-        const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe"];
+        const etatLower = exploitantRow.etat.toLowerCase().trim();
+        // Note: "marche" alone is too broad - matches "en marche" which means ON, not start
+        // Only use specific start markers
+        const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe"];
+        const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe", "mise a l'arret", "mise à l'arrêt"];
 
         const isHeatingStart = heatingStartMarkers.some(marker => etatLower.includes(marker));
         const isHeatingStop = heatingStopMarkers.some(marker => etatLower.includes(marker));
 
-        // Also detect simple ON (but not as start marker, just as running state)
-        const isOn = etatLower === "on";
+        // Detect ON state: "on", "en marche", "marche" (running but not start)
+        const isOn = etatLower === "on" || etatLower === "marche" || etatLower === "en marche" || etatLower.includes("en_marche");
 
         if (isHeatingStart || isHeatingStop || isOn) {
           await updateHeatingSeason(
@@ -954,24 +956,33 @@ async function updateHeatingSeason(
   const year = date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1;
   const season = `${year}-${year + 1}`;
 
+  // Use YYYY-MM-DD strings for date comparison to avoid timezone issues
+  const dateStr = date.toISOString().split("T")[0];
+
   try {
     const existing = await prisma.heatingSeason.findUnique({
       where: { siteId_season: { siteId, season } },
     });
 
     if (existing) {
+      const existingStartStr = existing.startDate?.toISOString().split("T")[0];
+      const existingEndStr = existing.endDate?.toISOString().split("T")[0];
+
       // Allumage: set startDate seulement si plus ancien (première mise en route)
       if (isHeatingStart) {
-        if (!existing.startDate || date < existing.startDate) {
+        if (!existingStartStr || dateStr < existingStartStr) {
+          console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Updating startDate: ${existingStartStr} → ${dateStr}`);
           await prisma.heatingSeason.update({
             where: { id: existing.id },
             data: { startDate: date },
           });
+        } else {
+          console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Keeping earlier startDate: ${existingStartStr} (new: ${dateStr})`);
         }
       }
       // ON: update endDate seulement si plus récent
       else if (isHeatingOn) {
-        if (!existing.endDate || date > existing.endDate) {
+        if (!existingEndStr || dateStr > existingEndStr) {
           await prisma.heatingSeason.update({
             where: { id: existing.id },
             data: { endDate: date },
@@ -980,7 +991,7 @@ async function updateHeatingSeason(
       }
       // Arrêt: set endDate seulement si plus récent
       else if (isHeatingStop) {
-        if (!existing.endDate || date > existing.endDate) {
+        if (!existingEndStr || dateStr > existingEndStr) {
           await prisma.heatingSeason.update({
             where: { id: existing.id },
             data: { endDate: date },
@@ -989,6 +1000,7 @@ async function updateHeatingSeason(
       }
     } else if (isHeatingStart) {
       // Create new heating season if start marker detected
+      console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Creating new season with startDate=${dateStr}`);
       await prisma.heatingSeason.create({
         data: {
           siteId,
@@ -997,7 +1009,8 @@ async function updateHeatingSeason(
         },
       });
     } else if (isHeatingOn) {
-      // Heating is ON but no season exists - create one with current date as start
+      // Heating is ON but no season exists - create one with current date as start AND end
+      console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Creating new season (ON) with dates=${dateStr}`);
       await prisma.heatingSeason.create({
         data: {
           siteId,
