@@ -229,8 +229,21 @@ export async function POST(request: NextRequest) {
           continue; // Skip empty rows
         }
 
+        // Debug logging for FURMANECK - BEFORE site matching
+        if (exploitantRow.nomInstallation.toLowerCase().includes("furmaneck") || exploitantRow.nomInstallation.toLowerCase().includes("furman")) {
+          console.log(`[DEBUG FURMANECK] Excel name: "${exploitantRow.nomInstallation}"`);
+        }
+
         // Match site
         const siteMatch = matchSite(exploitantRow.nomInstallation, siteMatchers);
+
+        // Debug logging for FURMANECK - AFTER site matching
+        if (exploitantRow.nomInstallation.toLowerCase().includes("furmaneck") || exploitantRow.nomInstallation.toLowerCase().includes("furman")) {
+          console.log(`[DEBUG FURMANECK] Match result: siteId=${siteMatch.siteId || "NO MATCH"}, siteName=${siteMatch.siteName || "N/A"}, confidence=${siteMatch.confidence || 0}`);
+          if (!siteMatch.siteId) {
+            console.log(`[DEBUG FURMANECK] Suggestions:`, siteMatch.suggestions?.slice(0, 3).map(s => s.name));
+          }
+        }
 
         // Track site matching for feedback
         if (!results.siteMatches[exploitantRow.nomInstallation]) {
@@ -282,6 +295,11 @@ export async function POST(request: NextRequest) {
         // Only for heating meters (gas/fuel used for heating)
         const isHeatingMeter = (energyType === "GAZ" || energyType === "FIOUL" || energyType === "RESEAU_CHALEUR") && usage === "CHAUFFAGE";
 
+        // Debug logging for FURMANECK
+        if (exploitantRow.nomInstallation.toLowerCase().includes("furmaneck") || exploitantRow.nomInstallation.toLowerCase().includes("furman")) {
+          console.log(`[DEBUG FURMANECK] energyType=${energyType}, usage=${usage}, isHeatingMeter=${isHeatingMeter}, compteur=${exploitantRow.nomCompteur}, etat=${exploitantRow.etat}, conso=${exploitantRow.conso}`);
+        }
+
         if (isHeatingMeter) {
           const etatLower = exploitantRow.etat.toLowerCase().trim();
           // Note: "marche" alone is too broad - matches "en marche" which means ON, not start
@@ -294,6 +312,11 @@ export async function POST(request: NextRequest) {
 
           // Detect ON state: "on", "en marche", "marche" (running but not start)
           const isOn = etatLower === "on" || etatLower === "marche" || etatLower === "en marche" || etatLower.includes("en_marche");
+
+          // Debug logging
+          if (exploitantRow.nomInstallation.toLowerCase().includes("furmaneck") || exploitantRow.nomInstallation.toLowerCase().includes("furman")) {
+            console.log(`[DEBUG FURMANECK] etatLower="${etatLower}", isStart=${isHeatingStart}, isStop=${isHeatingStop}, isOn=${isOn}`);
+          }
 
           if (isHeatingStart || isHeatingStop || isOn) {
             await updateHeatingSeason(
