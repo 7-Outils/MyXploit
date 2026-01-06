@@ -538,17 +538,12 @@ export async function GET(request: NextRequest) {
         siteStartDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
 
         if (heatingSeason.endDate) {
-          // endDate = period du dernier relevé (1er jour du mois de consommation)
-          // period = 2024-11-01 signifie consommation de novembre → calculer jusqu'au 30/11
-          // Get last day of the month represented by endDate
-          const endMonth = heatingSeason.endDate.getMonth();
-          const endYear = heatingSeason.endDate.getFullYear();
-          siteEndDate = new Date(endYear, endMonth + 1, 0); // Last day of the month
+          // endDate = date exacte du dernier relevé (pas normalisée)
+          // Ex: si relevé le 04/11, endDate = 04/11 → calculer DJU jusqu'au 04/11
+          siteEndDate = heatingSeason.endDate;
         } else if (lastConsumptionDate) {
-          // Fallback: period = 1er du mois du relevé, calculer jusqu'à la fin du mois
-          const lastMonth = lastConsumptionDate.getMonth();
-          const lastYear = lastConsumptionDate.getFullYear();
-          siteEndDate = new Date(lastYear, lastMonth + 1, 0); // Last day of the month
+          // Fallback: utiliser la date exacte du dernier relevé
+          siteEndDate = lastConsumptionDate;
         } else {
           // Pas de relevé encore: utiliser la date de début
           siteEndDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
