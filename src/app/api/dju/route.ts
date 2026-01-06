@@ -734,6 +734,12 @@ export async function GET(request: NextRequest) {
       },
       monthlyData: globalMonthlyData,
       sites: sitesWithData,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      }
     });
   } catch (error) {
     console.error("Error fetching DJU:", error);
