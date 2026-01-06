@@ -968,16 +968,16 @@ async function updateHeatingSeason(
       const existingStartStr = existing.startDate?.toISOString().split("T")[0];
       const existingEndStr = existing.endDate?.toISOString().split("T")[0];
 
-      // Allumage: set startDate seulement si plus ancien (première mise en route)
+      // Allumage: set startDate ONLY if not already set (first heating start wins)
       if (isHeatingStart) {
-        if (!existingStartStr || dateStr < existingStartStr) {
-          console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Updating startDate: ${existingStartStr} → ${dateStr}`);
+        if (!existingStartStr) {
+          console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Setting startDate=${dateStr}`);
           await prisma.heatingSeason.update({
             where: { id: existing.id },
             data: { startDate: date },
           });
         } else {
-          console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Keeping earlier startDate: ${existingStartStr} (new: ${dateStr})`);
+          console.log(`[HEATING] Site ${siteId.substring(0, 8)} - startDate already set (${existingStartStr}), ignoring new start marker at ${dateStr}`);
         }
       }
       // ON: update endDate seulement si plus récent
@@ -999,7 +999,7 @@ async function updateHeatingSeason(
         }
       }
     } else if (isHeatingStart) {
-      // Create new heating season if start marker detected
+      // Create new heating season ONLY when explicit start marker detected
       console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Creating new season with startDate=${dateStr}`);
       await prisma.heatingSeason.create({
         data: {
@@ -1008,18 +1008,10 @@ async function updateHeatingSeason(
           startDate: date,
         },
       });
-    } else if (isHeatingOn) {
-      // Heating is ON but no season exists - create one with current date as start AND end
-      console.log(`[HEATING] Site ${siteId.substring(0, 8)} - Creating new season (ON) with dates=${dateStr}`);
-      await prisma.heatingSeason.create({
-        data: {
-          siteId,
-          season,
-          startDate: date,
-          endDate: date,
-        },
-      });
     }
+    // Note: If isHeatingOn but no season exists, we do NOT create one
+    // We only create seasons when we see an explicit heating START marker
+    // The ON state will update endDate once a season exists
   } catch (error) {
     // Ignore errors for heating season updates (not critical)
     console.error("Error updating heating season:", error);
