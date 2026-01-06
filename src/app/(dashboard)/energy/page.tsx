@@ -2071,8 +2071,8 @@ function ECSContent({
   }
 
   // Calculate total ECS consumption across all sites
+  // Note: ecsTotal is in original units (m³ for gas, kWh for electricity)
   const totalECS = analytics.sites.reduce((sum, site) => sum + site.ecsTotal, 0);
-  const totalECSMWh = totalECS / 1000; // Convert kWh to MWh
 
   // Filter sites that have ECS consumption
   const sitesWithECS = analytics.sites.filter(site => site.ecsTotal > 0);
@@ -2105,8 +2105,8 @@ function ECSContent({
             <Droplets size={20} className="text-blue-600" />
             <span className="text-sm font-medium text-blue-700">ECS Total</span>
           </div>
-          <p className="text-3xl font-bold text-blue-900">{totalECSMWh.toFixed(1)} MWh</p>
-          <p className="text-xs text-blue-600 mt-1">Saison {selectedYear - 1}/{selectedYear}</p>
+          <p className="text-3xl font-bold text-blue-900">{totalECS.toLocaleString('fr-FR')}</p>
+          <p className="text-xs text-blue-600 mt-1">m³ - Saison {selectedYear - 1}/{selectedYear}</p>
         </div>
 
         <div className="bg-cyan-50 rounded-xl p-4 text-center">
@@ -2124,9 +2124,9 @@ function ECSContent({
             <span className="text-sm font-medium text-teal-700">Moyenne mensuelle</span>
           </div>
           <p className="text-3xl font-bold text-teal-900">
-            {monthlyECSData.length > 0 ? (totalECSMWh / monthlyECSData.length).toFixed(1) : "0"}
+            {monthlyECSData.length > 0 ? Math.round(totalECS / monthlyECSData.length).toLocaleString('fr-FR') : "0"}
           </p>
-          <p className="text-xs text-teal-600 mt-1">MWh / mois</p>
+          <p className="text-xs text-teal-600 mt-1">m³ / mois</p>
         </div>
       </div>
 
@@ -2142,7 +2142,7 @@ function ECSContent({
                   const barHeight = (m.ecs / maxEcs) * barAreaHeight;
                   return (
                     <div key={m.month} className="flex-1 flex flex-col items-center justify-end" style={{ height: barAreaHeight + 40 }}>
-                      <span className="text-xs font-medium text-primary-dark mb-1">{(m.ecs / 1000).toFixed(1)}</span>
+                      <span className="text-xs font-medium text-primary-dark mb-1">{Math.round(m.ecs).toLocaleString('fr-FR')}</span>
                       <div
                         className="w-full max-w-12 bg-gradient-to-t from-blue-500 to-cyan-300 rounded-t"
                         style={{ height: Math.max(barHeight, m.ecs > 0 ? 4 : 0) }}
@@ -2166,8 +2166,7 @@ function ECSContent({
                 <tr>
                   <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">Site</th>
                   <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">Ville</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">ECS (kWh)</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">ECS (MWh)</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">ECS (m³)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">% du total</th>
                 </tr>
               </thead>
@@ -2183,9 +2182,8 @@ function ECSContent({
                           <p className="text-xs text-gray-500">{site.siteType}</p>
                         </td>
                         <td className="px-3 py-2 text-gray-700">{site.city}</td>
-                        <td className="px-3 py-2 text-right font-medium">{site.ecsTotal.toLocaleString('fr-FR')}</td>
                         <td className="px-3 py-2 text-right font-medium text-blue-600">
-                          {(site.ecsTotal / 1000).toFixed(2)}
+                          {Math.round(site.ecsTotal).toLocaleString('fr-FR')}
                         </td>
                         <td className="px-3 py-2 text-right text-gray-600">{percentOfTotal.toFixed(1)}%</td>
                       </tr>
@@ -2195,8 +2193,7 @@ function ECSContent({
               <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                 <tr>
                   <td colSpan={2} className="px-3 py-2 font-semibold text-primary-dark">Total</td>
-                  <td className="px-3 py-2 text-right font-bold text-primary-dark">{totalECS.toLocaleString('fr-FR')}</td>
-                  <td className="px-3 py-2 text-right font-bold text-blue-700">{totalECSMWh.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-bold text-blue-700">{Math.round(totalECS).toLocaleString('fr-FR')}</td>
                   <td className="px-3 py-2 text-right font-semibold">100%</td>
                 </tr>
               </tfoot>
