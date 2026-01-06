@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
+// Force dynamic rendering - disable caching for this route
+export const dynamic = 'force-dynamic';
+
 // Stations météo COSTIC avec coordonnées et nom complet
 // Source: Plaquette DJU COSTIC - 102 stations réparties sur la France
 const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string }> = {
