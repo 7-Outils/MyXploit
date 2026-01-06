@@ -441,7 +441,7 @@ export async function GET(request: NextRequest) {
     // Trouver la date max nécessaire: max entre les dates de fin de saison et les derniers relevés
     let maxNeededDate = new Date(`${year - 1}-07-01`);
     heatingSeasons.forEach((hs) => {
-      if (hs.startDate < globalStartDate) {
+      if (hs.startDate && hs.startDate < globalStartDate) {
         globalStartDate = hs.startDate;
       }
       if (hs.endDate && hs.endDate > maxNeededDate) {
@@ -535,7 +535,7 @@ export async function GET(request: NextRequest) {
 
       if (heatingSeason && hasRealStartDate) {
         // Utiliser les dates de la saison de chauffage
-        siteStartDate = heatingSeason.startDate;
+        siteStartDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
 
         if (heatingSeason.endDate) {
           // endDate = date du dernier relevé (mis à jour à chaque import)
@@ -546,7 +546,7 @@ export async function GET(request: NextRequest) {
           siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
         } else {
           // Pas de relevé encore: utiliser la date de début
-          siteEndDate = heatingSeason.startDate;
+          siteEndDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
         }
       } else {
         // Fallback: période par défaut (1er oct - 30 avril)
