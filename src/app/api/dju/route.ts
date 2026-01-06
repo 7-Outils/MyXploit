@@ -538,12 +538,17 @@ export async function GET(request: NextRequest) {
         siteStartDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
 
         if (heatingSeason.endDate) {
-          // endDate = date du dernier relevé (mis à jour à chaque import)
-          // Relevé du 01/12 = consommation jusqu'au 30/11
-          siteEndDate = new Date(heatingSeason.endDate.getTime() - 24 * 60 * 60 * 1000);
+          // endDate = period du dernier relevé (1er jour du mois de consommation)
+          // period = 2024-11-01 signifie consommation de novembre → calculer jusqu'au 30/11
+          // Get last day of the month represented by endDate
+          const endMonth = heatingSeason.endDate.getMonth();
+          const endYear = heatingSeason.endDate.getFullYear();
+          siteEndDate = new Date(endYear, endMonth + 1, 0); // Last day of the month
         } else if (lastConsumptionDate) {
-          // Fallback: period = 1er du mois du relevé, donc conso jusqu'à period - 1 jour
-          siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
+          // Fallback: period = 1er du mois du relevé, calculer jusqu'à la fin du mois
+          const lastMonth = lastConsumptionDate.getMonth();
+          const lastYear = lastConsumptionDate.getFullYear();
+          siteEndDate = new Date(lastYear, lastMonth + 1, 0); // Last day of the month
         } else {
           // Pas de relevé encore: utiliser la date de début
           siteEndDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
