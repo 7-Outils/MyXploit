@@ -529,9 +529,9 @@ export async function GET(request: NextRequest) {
       // Date du dernier relevé pour ce site (si saison en cours)
       const lastConsumptionDate = lastConsumptionMap.get(site.id);
 
-      // Check if heatingSeason has a real start date (not the default July 1st from NB import)
-      const hasRealStartDate = heatingSeason?.startDate &&
-        !(heatingSeason.startDate.getMonth() === 6 && heatingSeason.startDate.getDate() === 1);
+      // Check if heatingSeason has a real start date (not null)
+      // After the schema change, startDate is null until IDEX import sets it
+      const hasRealStartDate = !!heatingSeason?.startDate;
 
       if (heatingSeason && hasRealStartDate) {
         // Utiliser les dates de la saison de chauffage
