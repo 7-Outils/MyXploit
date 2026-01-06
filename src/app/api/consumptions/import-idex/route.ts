@@ -900,6 +900,20 @@ function mapMeterType(
   fluide: string
 ): { energyType: EnergyType; usage: EnergyUsage; skip: boolean; isMaintenanceIndicator: boolean } {
   const searchText = `${compteur} ${fluide}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const compteurLower = compteur.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const fluideLower = fluide.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // SPECIAL CASE: ECS meters with fluide="Eau" are WATER flow meters, not gas meters!
+  // They measure m³ of water consumed, not m³ of gas, so they should NOT be converted to kWh
+  if ((compteurLower.includes("ecs") || compteurLower.includes("eau chaude") || compteurLower.includes("sanitaire")) &&
+      (fluideLower.includes("eau") || fluideLower === "")) {
+    return {
+      energyType: "EAU",  // Water flow meter, stays in m³
+      usage: "ECS",
+      skip: false,
+      isMaintenanceIndicator: false,
+    };
+  }
 
   // Try to match against known patterns
   for (const pattern of METER_PATTERNS) {
@@ -916,7 +930,6 @@ function mapMeterType(
   }
 
   // Try to infer from fluide field if no pattern matched
-  const fluideLower = fluide.toLowerCase();
   if (fluideLower.includes("gaz")) {
     return { energyType: "GAZ", usage: "CHAUFFAGE", skip: false, isMaintenanceIndicator: false };
   }
