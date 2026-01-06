@@ -610,24 +610,17 @@ export async function POST(request: NextRequest) {
         });
 
         if (existing) {
-          // Only update if new date is more recent
+          // Only update lastReleveDate if new date is more recent
           if (!existing.lastReleveDate || maxDate > existing.lastReleveDate) {
             await prisma.heatingSeason.update({
               where: { id: existing.id },
               data: { lastReleveDate: maxDate },
             });
           }
-        } else {
-          // Create a new HeatingSeason with the relevé date as start date (fallback)
-          await prisma.heatingSeason.create({
-            data: {
-              siteId,
-              season,
-              startDate: maxDate, // Use relevé date as default start if no other info
-              lastReleveDate: maxDate,
-            },
-          });
         }
+        // Note: We do NOT create HeatingSeason here if it doesn't exist
+        // HeatingSeason should ONLY be created by updateHeatingSeason() when a heating START marker is found
+        // This section is only for updating lastReleveDate on existing seasons
       } catch (err) {
         console.error("Error updating lastReleveDate for site:", siteId, err);
       }
