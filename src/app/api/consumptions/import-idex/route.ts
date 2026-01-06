@@ -278,7 +278,41 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        // Handle consumption value
+        // Handle heating season BEFORE checking quantity (important for zero-consumption periods)
+        // Only for heating meters (gas/fuel used for heating)
+        const isHeatingMeter = (energyType === "GAZ" || energyType === "FIOUL" || energyType === "RESEAU_CHALEUR") && usage === "CHAUFFAGE";
+
+        if (isHeatingMeter) {
+          const etatLower = exploitantRow.etat.toLowerCase().trim();
+          // Note: "marche" alone is too broad - matches "en marche" which means ON, not start
+          // Only use specific start markers
+          const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe"];
+          const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe", "mise a l'arret", "mise à l'arrêt"];
+
+          const isHeatingStart = heatingStartMarkers.some(marker => etatLower.includes(marker));
+          const isHeatingStop = heatingStopMarkers.some(marker => etatLower.includes(marker));
+
+          // Detect ON state: "on", "en marche", "marche" (running but not start)
+          const isOn = etatLower === "on" || etatLower === "marche" || etatLower === "en marche" || etatLower.includes("en_marche");
+
+          if (isHeatingStart || isHeatingStop || isOn) {
+            await updateHeatingSeason(
+              siteMatch.siteId,
+              period,
+              isHeatingStart, // Allumage → set startDate
+              isHeatingStop,  // Arrêt → finalise endDate
+              isOn            // ON → update endDate à chaque relevé
+            );
+          }
+        }
+
+        // Track max relevé date for this site (for DJU calculation)
+        const currentMax = maxReleveDateBySite.get(siteMatch.siteId);
+        if (!currentMax || period > currentMax) {
+          maxReleveDateBySite.set(siteMatch.siteId, period);
+        }
+
+        // Handle consumption value - skip if zero but heating season was already processed above
         let quantity = exploitantRow.conso;
         if (quantity === 0) {
           results.skipped++;
@@ -319,35 +353,6 @@ export async function POST(request: NextRequest) {
             unit,
             meterName: exploitantRow.nomCompteur,
           });
-        }
-
-        // Track max relevé date for this site (for DJU calculation)
-        const currentMax = maxReleveDateBySite.get(siteMatch.siteId);
-        if (!currentMax || period > currentMax) {
-          maxReleveDateBySite.set(siteMatch.siteId, period);
-        }
-
-        // Handle heating season (detect start/stop markers)
-        const etatLower = exploitantRow.etat.toLowerCase().trim();
-        // Note: "marche" alone is too broad - matches "en marche" which means ON, not start
-        // Only use specific start markers
-        const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe"];
-        const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe", "mise a l'arret", "mise à l'arrêt"];
-
-        const isHeatingStart = heatingStartMarkers.some(marker => etatLower.includes(marker));
-        const isHeatingStop = heatingStopMarkers.some(marker => etatLower.includes(marker));
-
-        // Detect ON state: "on", "en marche", "marche" (running but not start)
-        const isOn = etatLower === "on" || etatLower === "marche" || etatLower === "en marche" || etatLower.includes("en_marche");
-
-        if (isHeatingStart || isHeatingStop || isOn) {
-          await updateHeatingSeason(
-            siteMatch.siteId,
-            period,
-            isHeatingStart, // Allumage → set startDate
-            isHeatingStop,  // Arrêt → finalise endDate
-            isOn            // ON → update endDate à chaque relevé
-          );
         }
 
         // Create alert for high water makeup (maintenance indicator)
