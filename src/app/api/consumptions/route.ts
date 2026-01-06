@@ -122,19 +122,13 @@ export async function DELETE(request: NextRequest) {
       where.siteId = { in: affectedSiteIds };
     }
 
-    // Delete consumptions
+    // Delete consumptions only (NOT heating seasons to avoid losing engagement data)
     const result = await prisma.consumption.deleteMany({ where });
-
-    // Delete heating seasons for affected sites
-    const heatingSeasonResult = await prisma.heatingSeason.deleteMany({
-      where: { siteId: { in: affectedSiteIds } },
-    });
 
     return NextResponse.json({
       success: true,
       deleted: result.count,
-      heatingSeasonsDeleted: heatingSeasonResult.count,
-      message: `${result.count} consommation(s) et ${heatingSeasonResult.count} période(s) de chauffage supprimée(s)`,
+      message: `${result.count} consommation(s) supprimée(s)`,
     });
   } catch (error) {
     console.error("Error deleting consumptions:", error);
