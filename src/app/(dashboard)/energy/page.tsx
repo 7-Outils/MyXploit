@@ -2071,7 +2071,7 @@ function ECSContent({
   }
 
   // Calculate total ECS consumption across all sites
-  // Note: ecsTotal is in original units (m³ for gas, kWh for electricity)
+  // Note: ecsTotal is water-based ECS only (m³), heat-based ECS is tracked separately
   const totalECS = analytics.sites.reduce((sum, site) => sum + site.ecsTotal, 0);
 
   // Filter sites that have ECS consumption
