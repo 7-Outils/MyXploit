@@ -450,11 +450,11 @@ export async function GET(request: NextRequest) {
     });
     lastConsumptions.forEach((lc) => {
       if (lc._max.period) {
-        // period = 1er du mois du relevé, conso jusqu'à period - 1 jour
-        // Ex: period = 01/12 → conso jusqu'au 30/11
-        const consumptionEndDate = new Date(lc._max.period.getTime() - 24 * 60 * 60 * 1000);
-        if (consumptionEndDate > maxNeededDate) {
-          maxNeededDate = consumptionEndDate;
+        // period = 1er du mois de consommation (normalisé dans import IDEX)
+        // Ex: period = 01/12 → consommation de décembre
+        // Use period directly (it already represents the consumption month)
+        if (lc._max.period > maxNeededDate) {
+          maxNeededDate = lc._max.period;
         }
       }
     });
