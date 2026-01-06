@@ -1,9 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ResetDatesPage() {
   const [loading, setLoading] = useState(false);
@@ -47,16 +44,17 @@ export default function ResetDatesPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle>Réinitialiser les dates de chauffage</CardTitle>
-          <CardDescription>
+    <div className="container mx-auto py-8 px-4 max-w-2xl">
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h1 className="text-2xl font-bold text-gray-900">Réinitialiser les dates de chauffage</h1>
+          <p className="mt-2 text-sm text-gray-600">
             Cette action réinitialise les dates d'allumage et d'arrêt de toutes les saisons de chauffage.
             Les engagements (NB, APE) seront préservés.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </p>
+        </div>
+
+        <div className="p-6 space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <p className="text-sm text-amber-800">
               <strong>Attention :</strong> Cette action va :
@@ -72,20 +70,20 @@ export default function ResetDatesPage() {
             </p>
           </div>
 
-          <Button
+          <button
             onClick={handleReset}
             disabled={loading}
-            variant="destructive"
-            size="lg"
-            className="w-full"
+            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
             {loading ? "Réinitialisation en cours..." : "Réinitialiser les dates"}
-          </Button>
+          </button>
 
           {result && (
-            <Alert variant={result.success ? "default" : "destructive"}>
-              <AlertDescription>{result.message}</AlertDescription>
-            </Alert>
+            <div className={`rounded-lg p-4 ${result.success ? "bg-blue-50 border border-blue-200" : "bg-red-50 border border-red-200"}`}>
+              <p className={`text-sm ${result.success ? "text-blue-800" : "text-red-800"}`}>
+                {result.message}
+              </p>
+            </div>
           )}
 
           {result?.success && (
@@ -97,8 +95,8 @@ export default function ResetDatesPage() {
               </p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
