@@ -2230,7 +2230,7 @@ function PrixReferenceContent() {
             <div>
               <p className="text-sm text-gray-700 mb-2">
                 <strong>PEG :</strong> Prix spot du gaz naturel, fluctue quotidiennement selon l'offre et la demande.
-                Peut être récupéré via API Selectra ou manuellement depuis les plateformes de trading.
+                Données gratuites disponibles sur JeChange.fr ou autres plateformes publiques.
               </p>
               <p className="text-sm text-gray-700 mb-2">
                 <strong>TICGN :</strong> Taxe gouvernementale fixée annuellement (19,83 €/MWh en 2026).
@@ -2249,21 +2249,26 @@ function PrixReferenceContent() {
           <div className="flex gap-3 pt-4 border-t">
             <ExternalLink size={20} className="text-accent flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-gray-900 mb-2">Sources recommandées :</p>
+              <p className="text-sm font-medium text-gray-900 mb-2">Sources gratuites recommandées :</p>
               <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
                 <li>
                   <a href="https://www.emmy.fr/public/donnees-mensuelles" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                    EMMY - Données CEE
+                    EMMY - Prix CEE mensuels (gratuit)
                   </a>
                 </li>
                 <li>
-                  <a href="https://api.selectra.com" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                    Selectra API - Prix PEG et tarifs
+                  <a href="https://www.jechange.fr/energie/gaz/guides/prix-peg" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                    JeChange.fr - Prix PEG en direct (gratuit)
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.grdf.fr/institutionnel/role-transition-energetique/tarifs-reglemente-distribution" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                    GRDF - Grilles tarifaires TVD (gratuit)
                   </a>
                 </li>
                 <li>
                   <a href="https://www.ecologie.gouv.fr" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                    Ministère - Guide fiscalité énergies
+                    Ministère - Guide fiscalité énergies (TICGN)
                   </a>
                 </li>
               </ul>
