@@ -9,7 +9,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // MyExploit Brand Colors
+        // MyXploit Brand Colors
         primary: {
           DEFAULT: "#12161F",
           dark: "#12161F",

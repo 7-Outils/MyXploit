@@ -20,7 +20,7 @@ export function CTA() {
             </h2>
             <p className="text-lg text-gray-300 mb-8 leading-relaxed">
               Rejoignez les collectivités et exploitants qui ont déjà adopté
-              MyExploit. Notre équipe vous accompagne dans la mise en place et
+              MyXploit. Notre équipe vous accompagne dans la mise en place et
               la prise en main de la plateforme.
             </p>
 

@@ -334,7 +334,7 @@ export function generateDimensioningPDF(
       { align: "center" }
     );
     doc.text(
-      "Généré par MyExploit",
+      "Généré par MyXploit",
       14,
       doc.internal.pageSize.getHeight() - 10
     );

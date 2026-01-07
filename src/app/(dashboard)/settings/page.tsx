@@ -39,7 +39,7 @@ const settingsSections = [
     id: "integrations",
     icon: Plug,
     title: "Intégrations",
-    description: "Connectez MyExploit à vos outils existants",
+    description: "Connectez MyXploit à vos outils existants",
   },
 ];
 

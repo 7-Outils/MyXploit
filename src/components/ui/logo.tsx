@@ -76,7 +76,7 @@ export function Logo({ className, size = "md", showText = true }: LogoProps) {
 
       {showText && (
         <span className={cn("font-bold text-primary-dark", text)}>
-          My<span className="text-accent">Exploit</span>
+          My<span className="text-accent">Xploit</span>
         </span>
       )}
     </div>

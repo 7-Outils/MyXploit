@@ -5,7 +5,7 @@ import { Quote } from "lucide-react";
 const testimonials = [
   {
     content:
-      "MyExploit nous a permis de réduire de 20% le temps passé sur le suivi de nos 80 sites. L'interface est intuitive et les rapports automatiques sont un vrai gain de temps.",
+      "MyXploit nous a permis de réduire de 20% le temps passé sur le suivi de nos 80 sites. L'interface est intuitive et les rapports automatiques sont un vrai gain de temps.",
     author: "Marie Dupont",
     role: "Directrice Patrimoine",
     company: "Région Nouvelle-Aquitaine",
@@ -34,7 +34,7 @@ export function Testimonials() {
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-primary-dark mb-4">
             Ils ont choisi{" "}
-            <span className="gradient-text">MyExploit</span>
+            <span className="gradient-text">MyXploit</span>
           </h2>
           <p className="text-lg text-text-secondary">
             Découvrez comment nos clients optimisent leur gestion énergétique au

@@ -1,4 +1,4 @@
-# MyExploit
+# MyXploit
 
 Plateforme SaaS de pilotage des marchés d'exploitation CVC et suivi de performance énergétique des bâtiments publics.
 
