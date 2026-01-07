@@ -2067,6 +2067,7 @@ function PrixReferenceContent() {
     TVD?: { value: number; date: string; source?: string };
   }>({});
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPrice, setNewPrice] = useState({
     type: "PEG",
@@ -2127,6 +2128,23 @@ function PrixReferenceContent() {
     }
   };
 
+  const handleSyncPrices = async () => {
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/energy-prices/sync", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        await fetchPrices();
+      }
+    } catch (error) {
+      console.error("Error syncing prices:", error);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const priceConfig = {
     PEG: {
       label: "PEG (Point d'Échange de Gaz)",
@@ -2169,10 +2187,21 @@ function PrixReferenceContent() {
           <h2 className="text-lg font-semibold text-primary-dark">Prix de référence du gaz naturel</h2>
           <p className="text-sm text-gray-600">Composantes tarifaires et taxes applicables</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="gap-2">
-          <Plus size={16} />
-          Ajouter un prix
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleSyncPrices}
+            variant="outline"
+            className="gap-2"
+            disabled={syncing}
+          >
+            <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+            {syncing ? "Synchronisation..." : "Synchroniser"}
+          </Button>
+          <Button onClick={() => setShowAddModal(true)} className="gap-2">
+            <Plus size={16} />
+            Ajouter un prix
+          </Button>
+        </div>
       </div>
 
       {/* Price cards grid */}
