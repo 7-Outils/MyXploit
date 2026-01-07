@@ -35,6 +35,7 @@ import {
   RefreshCw,
   Info,
   Droplets,
+  Euro,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -221,7 +222,7 @@ const USAGE_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 
-type Tab = "synthese" | "sites" | "p1" | "climat" | "ecs" | "telereleve";
+type Tab = "synthese" | "sites" | "p1" | "climat" | "ecs" | "prix" | "telereleve";
 
 function EnergyPageContent() {
   const router = useRouter();
@@ -791,6 +792,7 @@ function EnergyPageContent() {
             { id: "p1" as Tab, label: "P1 / Engagement", icon: Target },
             { id: "climat" as Tab, label: "Climat & DJU", icon: Thermometer },
             { id: "ecs" as Tab, label: "ECS", icon: Droplets },
+            { id: "prix" as Tab, label: "Prix de référence", icon: Euro },
             { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
           ].map((tab) => (
             <button
@@ -867,6 +869,10 @@ function EnergyPageContent() {
           selectedYear={selectedYear}
           contractId={selectedContract?.id || null}
         />
+      )}
+
+      {!loading && activeTab === "prix" && (
+        <PrixReferenceContent />
       )}
 
       {!loading && activeTab === "telereleve" && (
@@ -2047,6 +2053,311 @@ function ClimatContent({
             </table>
           </div>
         </ChartCard>
+      )}
+    </>
+  );
+}
+
+// Prix de référence Component
+function PrixReferenceContent() {
+  const [prices, setPrices] = useState<{
+    PEG?: { value: number; date: string; source?: string };
+    TICGN?: { value: number; date: string; source?: string };
+    CEE?: { value: number; date: string; source?: string };
+    TVD?: { value: number; date: string; source?: string };
+  }>({});
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newPrice, setNewPrice] = useState({
+    type: "PEG",
+    value: "",
+    date: new Date().toISOString().split("T")[0],
+    source: "",
+    notes: "",
+  });
+
+  useEffect(() => {
+    fetchPrices();
+  }, []);
+
+  const fetchPrices = async () => {
+    try {
+      const response = await fetch("/api/energy-prices");
+      const data = await response.json();
+
+      if (data.success) {
+        const latestPrices: Record<string, { value: number; date: string; source?: string }> = {};
+        Object.entries(data.latest).forEach(([type, priceData]: [string, any]) => {
+          latestPrices[type] = {
+            value: priceData.value,
+            date: new Date(priceData.date).toLocaleDateString("fr-FR"),
+            source: priceData.source,
+          };
+        });
+        setPrices(latestPrices);
+      }
+    } catch (error) {
+      console.error("Error fetching prices:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPrice = async () => {
+    try {
+      const response = await fetch("/api/energy-prices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPrice),
+      });
+
+      if (response.ok) {
+        setShowAddModal(false);
+        fetchPrices();
+        setNewPrice({
+          type: "PEG",
+          value: "",
+          date: new Date().toISOString().split("T")[0],
+          source: "",
+          notes: "",
+        });
+      }
+    } catch (error) {
+      console.error("Error adding price:", error);
+    }
+  };
+
+  const priceConfig = {
+    PEG: {
+      label: "PEG (Point d'Échange de Gaz)",
+      description: "Prix spot du gaz naturel sur le marché de gros",
+      color: "blue",
+      unit: "€/MWh",
+    },
+    TICGN: {
+      label: "TICGN (Accise sur le gaz)",
+      description: "Taxe Intérieure de Consommation sur le Gaz Naturel",
+      color: "red",
+      unit: "€/MWh",
+    },
+    CEE: {
+      label: "CEE (Certificats d'Économies d'Énergie)",
+      description: "Prix des certificats sur le marché EMMY",
+      color: "green",
+      unit: "€/MWh cumac",
+    },
+    TVD: {
+      label: "TVD (Tarif Distribution)",
+      description: "Tarif de distribution GRDF",
+      color: "purple",
+      unit: "€/MWh",
+    },
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-primary-dark">Prix de référence du gaz naturel</h2>
+          <p className="text-sm text-gray-600">Composantes tarifaires et taxes applicables</p>
+        </div>
+        <Button onClick={() => setShowAddModal(true)} className="gap-2">
+          <Plus size={16} />
+          Ajouter un prix
+        </Button>
+      </div>
+
+      {/* Price cards grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {Object.entries(priceConfig).map(([type, config]) => {
+          const price = prices[type as keyof typeof prices];
+          const colorClasses = {
+            blue: { bg: "bg-blue-50", border: "border-blue-100", iconBg: "bg-blue-100", icon: "text-blue-600", text: "text-blue-700" },
+            red: { bg: "bg-red-50", border: "border-red-100", iconBg: "bg-red-100", icon: "text-red-600", text: "text-red-700" },
+            green: { bg: "bg-green-50", border: "border-green-100", iconBg: "bg-green-100", icon: "text-green-600", text: "text-green-700" },
+            purple: { bg: "bg-purple-50", border: "border-purple-100", iconBg: "bg-purple-100", icon: "text-purple-600", text: "text-purple-700" },
+          };
+          const colors = colorClasses[config.color as keyof typeof colorClasses];
+
+          return (
+            <div
+              key={type}
+              className={`${colors.bg} rounded-xl p-4 border-2 ${colors.border}`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className={`p-2 rounded-lg ${colors.iconBg}`}>
+                  <Euro size={20} className={colors.icon} />
+                </div>
+                {price && (
+                  <span className="text-xs text-gray-500">{price.date}</span>
+                )}
+              </div>
+              <h3 className="font-semibold text-sm text-gray-900 mb-1">{config.label}</h3>
+              <p className="text-xs text-gray-600 mb-3 line-clamp-2">{config.description}</p>
+              {price ? (
+                <div>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-2xl font-bold ${colors.text}`}>
+                      {price.value.toFixed(2)}
+                    </span>
+                    <span className="text-xs text-gray-500">{config.unit}</span>
+                  </div>
+                  {price.source && (
+                    <p className="text-xs text-gray-500 mt-1">Source: {price.source}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">Aucune donnée</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Info card */}
+      <ChartCard title="À propos des prix de référence" subtitle="Sources et mises à jour">
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <Info size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>PEG :</strong> Prix spot du gaz naturel, fluctue quotidiennement selon l'offre et la demande.
+                Peut être récupéré via API Selectra ou manuellement depuis les plateformes de trading.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>TICGN :</strong> Taxe gouvernementale fixée annuellement (19,83 €/MWh en 2026).
+                Mise à jour le 1er février de chaque année.
+              </p>
+              <p className="text-sm text-gray-700 mb-2">
+                <strong>CEE :</strong> Prix des certificats d'économies d'énergie sur le registre EMMY
+                (~8,49 €/MWh en novembre 2025). Consultable sur emmy.fr.
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>TVD :</strong> Tarif de distribution GRDF, variable selon la zone géographique et le profil de consommation.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t">
+            <ExternalLink size={20} className="text-accent flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-gray-900 mb-2">Sources recommandées :</p>
+              <ul className="text-sm text-gray-700 space-y-1 list-disc list-inside">
+                <li>
+                  <a href="https://www.emmy.fr/public/donnees-mensuelles" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                    EMMY - Données CEE
+                  </a>
+                </li>
+                <li>
+                  <a href="https://api.selectra.com" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                    Selectra API - Prix PEG et tarifs
+                  </a>
+                </li>
+                <li>
+                  <a href="https://www.ecologie.gouv.fr" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                    Ministère - Guide fiscalité énergies
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </ChartCard>
+
+      {/* Add price modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Ajouter un prix de référence</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type de prix</label>
+                <select
+                  value={newPrice.type}
+                  onChange={(e) => setNewPrice({ ...newPrice, type: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="PEG">PEG - Point d'Échange de Gaz</option>
+                  <option value="TICGN">TICGN - Accise sur le gaz</option>
+                  <option value="CEE">CEE - Certificats d'Économies d'Énergie</option>
+                  <option value="TVD">TVD - Tarif de Distribution</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Valeur ({priceConfig[newPrice.type as keyof typeof priceConfig]?.unit})
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newPrice.value}
+                  onChange={(e) => setNewPrice({ ...newPrice, value: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Ex: 26.79"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date d'application</label>
+                <input
+                  type="date"
+                  value={newPrice.date}
+                  onChange={(e) => setNewPrice({ ...newPrice, date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Source (optionnel)</label>
+                <input
+                  type="text"
+                  value={newPrice.source}
+                  onChange={(e) => setNewPrice({ ...newPrice, source: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="Ex: EMMY, Selectra, manuel..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optionnel)</label>
+                <textarea
+                  value={newPrice.notes}
+                  onChange={(e) => setNewPrice({ ...newPrice, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  rows={2}
+                  placeholder="Informations additionnelles..."
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={() => setShowAddModal(false)}
+                variant="outline"
+                className="flex-1"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleAddPrice}
+                disabled={!newPrice.value || !newPrice.date}
+                className="flex-1"
+              >
+                Ajouter
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

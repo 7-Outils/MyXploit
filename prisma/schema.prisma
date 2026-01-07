@@ -1087,3 +1087,29 @@ model EnergyProvider {
   @@unique([organizationId, provider])
   @@map("energy_providers")
 }
+
+// ============================================
+// ENERGY REFERENCE PRICES
+// ============================================
+
+enum PriceType {
+  PEG      // Point d'Échange de Gaz - Prix spot du gaz naturel (€/MWh)
+  TICGN    // Taxe Intérieure Consommation Gaz Naturel (€/MWh)
+  CEE      // Certificats d'Économies d'Énergie (€/MWh cumac)
+  TVD      // Tarif de Distribution GRDF (€/MWh)
+}
+
+model EnergyPrice {
+  id        String    @id @default(cuid())
+  type      PriceType
+  value     Float     // Prix en €/MWh
+  date      DateTime  // Date d'application du prix
+  source    String?   // Source de la donnée (EMMY, GRDF, manuel, etc.)
+  notes     String?   // Notes additionnelles
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([type, date])
+  @@map("energy_prices")
+}
