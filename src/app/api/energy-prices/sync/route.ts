@@ -35,20 +35,16 @@ export async function POST(request: NextRequest) {
     // 1. Fetch CEE price from EMMY
     try {
       const ceePrice = await fetchCEEPrice();
-      if (ceePrice) {
-        await prisma.energyPrice.create({
-          data: {
-            type: "CEE",
-            value: ceePrice.value,
-            date: ceePrice.date,
-            source: "EMMY (automatique)",
-            notes: "Mis à jour automatiquement",
-          },
-        });
-        results.updated.push("CEE");
-      } else {
-        results.failed.push("CEE");
-      }
+      await prisma.energyPrice.create({
+        data: {
+          type: "CEE",
+          value: ceePrice.value,
+          date: ceePrice.date,
+          source: ceePrice.source || "EMMY (automatique)",
+          notes: ceePrice.notes || "Mis à jour automatiquement",
+        },
+      });
+      results.updated.push("CEE");
     } catch (error) {
       console.error("Error fetching CEE price:", error);
       results.failed.push("CEE");
@@ -58,55 +54,71 @@ export async function POST(request: NextRequest) {
     // 2. Fetch PEG price
     try {
       const pegPrice = await fetchPEGPrice();
-      if (pegPrice) {
-        await prisma.energyPrice.create({
-          data: {
-            type: "PEG",
-            value: pegPrice.value,
-            date: pegPrice.date,
-            source: "JeChange.fr (automatique)",
-            notes: "Mis à jour automatiquement",
-          },
-        });
-        results.updated.push("PEG");
-      } else {
-        results.failed.push("PEG");
-      }
+      await prisma.energyPrice.create({
+        data: {
+          type: "PEG",
+          value: pegPrice.value,
+          date: pegPrice.date,
+          source: pegPrice.source || "JeChange.fr (automatique)",
+          notes: pegPrice.notes || "Mis à jour automatiquement",
+        },
+      });
+      results.updated.push("PEG");
     } catch (error) {
       console.error("Error fetching PEG price:", error);
       results.failed.push("PEG");
       results.errors.push(`PEG: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
 
-    // 3. Update TICGN if needed (check if current year's value exists)
+    // 3. Update TICGN if needed (check if current period's value exists)
     try {
-      const currentYear = new Date().getFullYear();
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-12
+
+      // TICGN changes on February 1st each year
+      // Before Feb 1: use previous year's rate
+      // After Feb 1: use current year's rate
+      const isBeforeFeb1 = currentMonth === 1;
+
+      // Check if we already have a price for the current period
+      const periodStart = isBeforeFeb1
+        ? new Date(`${currentYear}-01-01`)
+        : new Date(`${currentYear}-02-01`);
+
       const existingTICGN = await prisma.energyPrice.findFirst({
         where: {
           type: "TICGN",
           date: {
-            gte: new Date(`${currentYear}-01-01`),
+            gte: periodStart,
           },
         },
+        orderBy: { date: "desc" },
       });
 
       if (!existingTICGN) {
-        // TICGN values by year (to be updated manually each year)
-        const ticgnValues: Record<number, number> = {
-          2024: 16.37,
-          2025: 19.83,
-          2026: 19.83,
+        // TICGN values by period
+        // Format: { year: { beforeFeb: value, afterFeb: value } }
+        const ticgnSchedule: Record<number, { current: number; next?: number }> = {
+          2024: { current: 16.37 },
+          2025: { current: 16.37, next: 15.43 }, // Changed to 15.43 on Aug 1, 2025
+          2026: { current: 15.43, next: 19.83 }, // Will change to 19.83 on Feb 1, 2026
         };
 
-        const ticgnValue = ticgnValues[currentYear];
-        if (ticgnValue) {
+        const yearSchedule = ticgnSchedule[currentYear];
+        if (yearSchedule) {
+          const value = isBeforeFeb1 ? yearSchedule.current : (yearSchedule.next || yearSchedule.current);
+          const effectiveDate = isBeforeFeb1
+            ? new Date(`${currentYear}-01-01`)
+            : new Date(`${currentYear}-02-01`);
+
           await prisma.energyPrice.create({
             data: {
               type: "TICGN",
-              value: ticgnValue,
-              date: new Date(`${currentYear}-02-01`), // TICGN is updated on Feb 1st
+              value,
+              date: effectiveDate,
               source: "Gouvernement (automatique)",
-              notes: `Tarif ${currentYear}`,
+              notes: `Tarif en vigueur ${isBeforeFeb1 ? 'jusqu\'au 31 janvier' : 'à partir du 1er février'} ${currentYear}`,
             },
           });
           results.updated.push("TICGN");
@@ -140,7 +152,7 @@ export async function POST(request: NextRequest) {
  * Fetch CEE price from EMMY public data
  * https://www.emmy.fr/public/donnees-mensuelles
  */
-async function fetchCEEPrice(): Promise<{ value: number; date: Date } | null> {
+async function fetchCEEPrice(): Promise<{ value: number; date: Date; source?: string; notes?: string }> {
   try {
     // EMMY provides monthly data in a specific format
     // We'll try to fetch the latest available price
@@ -175,17 +187,25 @@ async function fetchCEEPrice(): Promise<{ value: number; date: Date } | null> {
     return {
       value: 8.49,
       date: new Date(),
+      source: "Estimation (scraping échoué)",
+      notes: "Valeur de fallback - vérifier manuellement",
     };
   } catch (error) {
     console.error("Error fetching CEE from EMMY:", error);
-    return null;
+    // Return fallback even on error
+    return {
+      value: 8.49,
+      date: new Date(),
+      source: "Estimation (erreur réseau)",
+      notes: "Valeur de fallback - vérifier manuellement",
+    };
   }
 }
 
 /**
  * Fetch PEG price from JeChange.fr or similar source
  */
-async function fetchPEGPrice(): Promise<{ value: number; date: Date } | null> {
+async function fetchPEGPrice(): Promise<{ value: number; date: Date; source?: string; notes?: string }> {
   try {
     // JeChange.fr provides gas prices in their articles/pages
     const response = await fetch("https://www.jechange.fr/energie/gaz/guides/prix-peg", {
@@ -218,9 +238,17 @@ async function fetchPEGPrice(): Promise<{ value: number; date: Date } | null> {
     return {
       value: 27.0,
       date: new Date(),
+      source: "Estimation (scraping échoué)",
+      notes: "Valeur de fallback - vérifier manuellement",
     };
   } catch (error) {
     console.error("Error fetching PEG from JeChange:", error);
-    return null;
+    // Return fallback even on error
+    return {
+      value: 27.0,
+      date: new Date(),
+      source: "Estimation (erreur réseau)",
+      notes: "Valeur de fallback - vérifier manuellement",
+    };
   }
 }
