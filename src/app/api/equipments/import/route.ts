@@ -596,7 +596,11 @@ function parseDate(input: string | undefined): Date | null {
 
 interface ImportRow {
   site?: string;
+  nom_du_site?: string; // CCTP format
   type?: string;
+  "type_d'equipement"?: string; // CCTP format
+  type_d_equipement?: string; // CCTP format normalized
+  type_equipement?: string; // CCTP format alt
   domaine?: string;
   domain?: string;
   nom?: string;
@@ -605,20 +609,24 @@ interface ImportRow {
   brand?: string;
   modele?: string;
   model?: string;
+  modèle?: string; // French accent
   numero_serie?: string;
   serial_number?: string;
   annee?: string;
   year?: string;
+  année?: string; // French accent
   puissance?: string;
   power?: string;
   quantite?: string;
   quantity?: string;
+  quantité?: string; // French accent
   local?: string;
   location?: string;
   niveau?: string;
   level?: string;
   duree_vie?: string;
   lifespan?: string;
+  etat?: string; // Equipment status (CCTP format)
   // Audit fields
   date_audit?: string;
   audit_date?: string;
@@ -635,6 +643,7 @@ interface ImportRow {
   compliance?: string;
   notes?: string;
   general_notes?: string;
+  [key: string]: string | undefined; // Allow any other columns
 }
 
 // POST /api/equipments/import - Preview import
@@ -754,8 +763,8 @@ export async function POST(request: NextRequest) {
         status: "ok",
       };
 
-      // Find site
-      const siteName = row.site?.trim();
+      // Find site (support multiple column names)
+      const siteName = (row.site || row.nom_du_site)?.trim();
       if (!siteName) {
         result.status = "error";
         result.message = "Nom du site manquant";
@@ -791,8 +800,8 @@ export async function POST(request: NextRequest) {
       result.site = siteName;
       result.siteId = siteId;
 
-      // Find type
-      const typeInput = row.type?.trim();
+      // Find type (support multiple column names including CCTP format)
+      const typeInput = (row.type || row["type_d'equipement"] || row.type_d_equipement || row.type_equipement)?.trim();
       if (!typeInput) {
         result.status = "error";
         result.message = "Type d'équipement manquant";
@@ -828,13 +837,13 @@ export async function POST(request: NextRequest) {
       // Other fields
       result.name = row.nom || row.name || undefined;
       result.brand = row.marque || row.brand || undefined;
-      result.model = row.modele || row.model || undefined;
+      result.model = row.modele || row.model || row.modèle || undefined;
       result.serialNumber = row.numero_serie || row.serial_number || undefined;
       result.location = row.local || row.location || undefined;
       result.level = row.niveau || row.level || undefined;
 
       // Numeric fields
-      const yearStr = row.annee || row.year;
+      const yearStr = row.annee || row.year || row.année;
       if (yearStr) {
         const year = parseInt(yearStr);
         if (!isNaN(year) && year >= 1950 && year <= new Date().getFullYear()) {
@@ -850,7 +859,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const quantityStr = row.quantite || row.quantity;
+      const quantityStr = row.quantite || row.quantity || row.quantité;
       if (quantityStr) {
         const quantity = parseInt(quantityStr);
         if (!isNaN(quantity) && quantity > 0) {
@@ -870,7 +879,7 @@ export async function POST(request: NextRequest) {
 
       // Parse audit fields if present
       const auditDateStr = row.date_audit || row.audit_date;
-      const hasAuditData = auditDateStr || row.etat_visuel || row.visual_state ||
+      const hasAuditData = auditDateStr || row.etat_visuel || row.visual_state || row.etat ||
                           row.performance || row.securite || row.security ||
                           row.accessibilite || row.accessibility || row.conformite || row.compliance;
 
@@ -879,7 +888,7 @@ export async function POST(request: NextRequest) {
         const auditDate = parseDate(auditDateStr);
         result.auditDate = auditDate ? auditDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
         result.auditor = row.auditeur || row.auditor || undefined;
-        result.visualState = parseRating(row.etat_visuel || row.visual_state);
+        result.visualState = parseRating(row.etat_visuel || row.visual_state || row.etat);
         result.performance = parseRating(row.performance);
         result.security = parseRating(row.securite || row.security);
         result.accessibility = parseRating(row.accessibilite || row.accessibility);
