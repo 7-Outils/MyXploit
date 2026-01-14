@@ -682,6 +682,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get site aliases for this organization
+    const siteAliases = await prisma.siteAlias.findMany({
+      where: { organizationId: user.organizationId },
+      select: { alias: true, siteId: true },
+    });
+
+    // Build alias map (normalized alias -> siteId)
+    const aliasMap = new Map<string, string>();
+    for (const alias of siteAliases) {
+      aliasMap.set(normalize(alias.alias), alias.siteId);
+    }
+
     // Build site name -> id mapping
     const siteMap = new Map<string, string>();
     for (const cs of contractSites) {
@@ -691,6 +703,9 @@ export async function POST(request: NextRequest) {
       const nameWithCity = normalize(`${cs.site.name} ${cs.site.city || ""}`);
       siteMap.set(nameWithCity, cs.siteId);
     }
+
+    // Set of valid site IDs for this contract (for alias validation)
+    const contractSiteIds = new Set(contractSites.map(cs => cs.siteId));
 
     // Get existing equipment for duplicate detection
     const siteIds = contractSites.map((cs) => cs.siteId);
@@ -774,13 +789,36 @@ export async function POST(request: NextRequest) {
       let siteId: string | undefined;
       const normalizedSite = normalize(siteName);
 
-      // Exact match
-      if (siteMap.has(normalizedSite)) {
+      // 1. Try alias match first (priority)
+      if (aliasMap.has(normalizedSite)) {
+        const aliasedSiteId = aliasMap.get(normalizedSite)!;
+        // Only use alias if site is in this contract
+        if (contractSiteIds.has(aliasedSiteId)) {
+          siteId = aliasedSiteId;
+        }
+      }
+
+      // 2. Try exact match on site name
+      if (!siteId && siteMap.has(normalizedSite)) {
         siteId = siteMap.get(normalizedSite);
-      } else {
-        // Partial match
+      }
+
+      // 3. Try partial match
+      if (!siteId) {
         for (const [name, id] of siteMap.entries()) {
           if (name.includes(normalizedSite) || normalizedSite.includes(name)) {
+            siteId = id;
+            break;
+          }
+        }
+      }
+
+      // 4. Try prefix match (for truncated names)
+      if (!siteId) {
+        const normalizedNoSpace = normalizedSite.replace(/\s+/g, "");
+        for (const [name, id] of siteMap.entries()) {
+          const siteNameNoSpace = name.replace(/\s+/g, "");
+          if (siteNameNoSpace.startsWith(normalizedNoSpace) && normalizedNoSpace.length >= 6) {
             siteId = id;
             break;
           }
