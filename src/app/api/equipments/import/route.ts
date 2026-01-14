@@ -459,6 +459,37 @@ function normalize(text: string): string {
     .trim();
 }
 
+// Calculate similarity between two strings (0 to 1)
+function calculateSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (!a || !b) return 0;
+
+  // Check for containment (partial match)
+  if (a.includes(b) || b.includes(a)) {
+    const minLen = Math.min(a.length, b.length);
+    const maxLen = Math.max(a.length, b.length);
+    return 0.7 + 0.3 * (minLen / maxLen);
+  }
+
+  // Word-based similarity
+  const wordsA = a.split(/\s+/).filter(w => w.length > 2);
+  const wordsB = b.split(/\s+/).filter(w => w.length > 2);
+
+  if (wordsA.length === 0 || wordsB.length === 0) return 0;
+
+  let matchedWords = 0;
+  for (const wordA of wordsA) {
+    for (const wordB of wordsB) {
+      if (wordA === wordB || wordA.startsWith(wordB) || wordB.startsWith(wordA)) {
+        matchedWords++;
+        break;
+      }
+    }
+  }
+
+  return matchedWords / Math.max(wordsA.length, wordsB.length);
+}
+
 // Crée un index normalisé des synonymes pour recherche rapide
 const NORMALIZED_TYPE_SYNONYMS: Record<string, string> = {};
 for (const [key, value] of Object.entries(TYPE_SYNONYMS)) {
@@ -649,10 +680,12 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
     const body = await request.json();
-    const { rows, contractId, preview = true } = body as {
+    const { rows, contractId, preview = true, siteMappings = {}, saveAliases = false } = body as {
       rows: ImportRow[];
       contractId: string;
       preview?: boolean;
+      siteMappings?: Record<string, string>; // Excel site name -> siteId
+      saveAliases?: boolean; // Save mappings as aliases for future imports
     };
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -736,6 +769,20 @@ export async function POST(request: NextRequest) {
       equipmentSignatureSet.add(signature);
     }
 
+    // Build list of available sites for suggestions
+    const availableSites = contractSites.map(cs => ({
+      id: cs.siteId,
+      name: cs.site.name,
+      city: cs.site.city,
+    }));
+
+    // Track unmatched sites for mapping UI
+    const unmatchedSites = new Map<string, {
+      excelName: string;
+      rowCount: number;
+      suggestions: Array<{ id: string; name: string; city: string | null; score: number }>;
+    }>();
+
     // Process rows
     const results: Array<{
       row: number;
@@ -757,6 +804,9 @@ export async function POST(request: NextRequest) {
       lifespan?: number;
       message?: string;
       isDuplicate?: boolean;
+      // Site mapping
+      needsSiteMapping?: boolean;
+      siteSuggestions?: Array<{ id: string; name: string; city: string | null; score: number }>;
       // Audit fields
       hasAudit?: boolean;
       auditDate?: string;
@@ -789,8 +839,17 @@ export async function POST(request: NextRequest) {
       let siteId: string | undefined;
       const normalizedSite = normalize(siteName);
 
-      // 1. Try alias match first (priority)
-      if (aliasMap.has(normalizedSite)) {
+      // 0. Try user-provided site mapping first (from UI)
+      if (siteMappings[siteName] && contractSiteIds.has(siteMappings[siteName])) {
+        siteId = siteMappings[siteName];
+      }
+      // Also try with normalized name
+      if (!siteId && siteMappings[normalizedSite] && contractSiteIds.has(siteMappings[normalizedSite])) {
+        siteId = siteMappings[normalizedSite];
+      }
+
+      // 1. Try alias match (priority)
+      if (!siteId && aliasMap.has(normalizedSite)) {
         const aliasedSiteId = aliasMap.get(normalizedSite)!;
         // Only use alias if site is in this contract
         if (contractSiteIds.has(aliasedSiteId)) {
@@ -826,9 +885,29 @@ export async function POST(request: NextRequest) {
       }
 
       if (!siteId) {
+        // Calculate suggestions for this unmatched site
+        const suggestions = availableSites.map(s => {
+          const siteNorm = normalize(s.name);
+          const score = calculateSimilarity(normalizedSite, siteNorm);
+          return { ...s, score };
+        }).sort((a, b) => b.score - a.score).slice(0, 5);
+
+        // Track unmatched site for summary
+        if (!unmatchedSites.has(normalizedSite)) {
+          unmatchedSites.set(normalizedSite, {
+            excelName: siteName,
+            rowCount: 1,
+            suggestions,
+          });
+        } else {
+          unmatchedSites.get(normalizedSite)!.rowCount++;
+        }
+
         result.status = "error";
         result.message = `Site "${siteName}" non trouvé dans le contrat`;
         result.site = siteName;
+        result.needsSiteMapping = true;
+        result.siteSuggestions = suggestions;
         results.push(result);
         continue;
       }
@@ -976,7 +1055,35 @@ export async function POST(request: NextRequest) {
         errors: errorCount,
         warnings: warningCount,
         results,
+        // Site mapping data for UI
+        unmatchedSites: Array.from(unmatchedSites.values()),
+        availableSites,
       });
+    }
+
+    // Save site mappings as aliases if requested
+    if (saveAliases && Object.keys(siteMappings).length > 0) {
+      for (const [excelName, siteId] of Object.entries(siteMappings)) {
+        if (contractSiteIds.has(siteId)) {
+          // Check if alias already exists
+          const existingAlias = await prisma.siteAlias.findFirst({
+            where: {
+              organizationId: user.organizationId,
+              alias: excelName,
+            },
+          });
+
+          if (!existingAlias) {
+            await prisma.siteAlias.create({
+              data: {
+                alias: excelName,
+                siteId,
+                organizationId: user.organizationId,
+              },
+            });
+          }
+        }
+      }
     }
 
     // Import valid rows (exclude errors and duplicates)
