@@ -596,11 +596,9 @@ function parseDate(input: string | undefined): Date | null {
 
 interface ImportRow {
   site?: string;
-  nom_du_site?: string; // CCTP format
+  nom_du_site?: string; // CCTP format (normalized)
   type?: string;
-  "type_d'equipement"?: string; // CCTP format
-  type_d_equipement?: string; // CCTP format normalized
-  type_equipement?: string; // CCTP format alt
+  type_d_equipement?: string; // CCTP format (normalized from "Type d'équipement")
   domaine?: string;
   domain?: string;
   nom?: string;
@@ -801,7 +799,7 @@ export async function POST(request: NextRequest) {
       result.siteId = siteId;
 
       // Find type (support multiple column names including CCTP format)
-      const typeInput = (row.type || row["type_d'equipement"] || row.type_d_equipement || row.type_equipement)?.trim();
+      const typeInput = (row.type || row.type_d_equipement)?.trim();
       if (!typeInput) {
         result.status = "error";
         result.message = "Type d'équipement manquant";
