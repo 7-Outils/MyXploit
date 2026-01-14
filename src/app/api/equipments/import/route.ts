@@ -538,6 +538,29 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "compteur d'énergie": "COMPTEUR_ENERGIE",
   "compteur d energie": "COMPTEUR_ENERGIE",
 
+  // Typos courants comptage
+  "comtpeur ecs": "COMPTEUR_ECS",
+  "comptuer ecs": "COMPTEUR_ECS",
+  "competur ecs": "COMPTEUR_ECS",
+
+  // Gaines / Conduits
+  "gaine": "GAINE",
+  "gaines": "GAINE",
+  "gaine ventilation": "GAINE",
+  "conduit": "GAINE",
+  "conduits": "GAINE",
+
+  // Traitement eau - Bac à sel
+  "bac à sel": "BAC_SEL",
+  "bac a sel": "BAC_SEL",
+  "bac sel": "BAC_SEL",
+  "réservoir sel": "BAC_SEL",
+  "reservoir sel": "BAC_SEL",
+
+  // Typos courants chauffage
+  "radiatnt gaz": "RADIANT_GAZ",
+  "radiants gaz": "RADIANT_GAZ",
+
   // Autre
   "autre": "AUTRE",
 };
@@ -769,6 +792,10 @@ const TYPE_TO_DOMAIN: Record<string, string> = {
   // Interface / Commande
   ECRAN_TACTILE: "CFO_CFA",
   TELECOMMANDE: "CFO_CFA",
+  // Gaines / Conduits
+  GAINE: "VENTILATION",
+  // Traitement eau
+  BAC_SEL: "TRAITEMENT_EAU",
   AUTRE: "AUTRE",
 };
 
@@ -845,6 +872,10 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
   CUVE: 30, CUVE_FIOUL: 30, CUVE_GAZ: 30,
   // Interface / Commande
   ECRAN_TACTILE: 10, TELECOMMANDE: 10,
+  // Gaines / Conduits
+  GAINE: 30,
+  // Traitement eau
+  BAC_SEL: 15,
   AUTRE: 15,
 };
 
