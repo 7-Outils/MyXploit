@@ -561,6 +561,15 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "radiatnt gaz": "RADIANT_GAZ",
   "radiants gaz": "RADIANT_GAZ",
 
+  // Émission / Émetteurs
+  "émission": "EMETTEUR",
+  "emission": "EMETTEUR",
+  "émetteur": "EMETTEUR",
+  "emetteur": "EMETTEUR",
+  "émetteurs": "EMETTEUR",
+  "emetteurs": "EMETTEUR",
+  "corps de chauffe": "EMETTEUR",
+
   // Autre
   "autre": "AUTRE",
 };
@@ -796,6 +805,8 @@ const TYPE_TO_DOMAIN: Record<string, string> = {
   GAINE: "VENTILATION",
   // Traitement eau
   BAC_SEL: "TRAITEMENT_EAU",
+  // Émetteurs
+  EMETTEUR: "CHAUFFAGE",
   AUTRE: "AUTRE",
 };
 
@@ -876,6 +887,8 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
   GAINE: 30,
   // Traitement eau
   BAC_SEL: 15,
+  // Émetteurs
+  EMETTEUR: 25,
   AUTRE: 15,
 };
 
