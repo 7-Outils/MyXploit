@@ -478,6 +478,66 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "ballon solaire": "BALLON_SOLAIRE",
   "station solaire": "STATION_SOLAIRE",
 
+  // Electrovannes / Vannes
+  "électrovanne": "ELECTROVANNE",
+  "electrovanne": "ELECTROVANNE",
+  "électrovanne gaz": "ELECTROVANNE_GAZ",
+  "electrovanne gaz": "ELECTROVANNE_GAZ",
+  "vanne gaz": "ELECTROVANNE_GAZ",
+  "vanne 2 voies": "VANNE_2_VOIES",
+  "v2v": "VANNE_2_VOIES",
+  "vanne deux voies": "VANNE_2_VOIES",
+  "vanne 2 voies + servomoteur": "VANNE_2_VOIES",
+  "vanne 2 voies servomoteur": "VANNE_2_VOIES",
+  "servomoteur": "SERVOMOTEUR",
+  "servo": "SERVOMOTEUR",
+  "actionneur": "SERVOMOTEUR",
+
+  // Détection gaz
+  "centrale détection gaz": "CENTRALE_DETECTION_GAZ",
+  "centrale detection gaz": "CENTRALE_DETECTION_GAZ",
+  "centrale de détection gaz": "CENTRALE_DETECTION_GAZ",
+  "détecteur gaz": "DETECTEUR_GAZ",
+  "detecteur gaz": "DETECTEUR_GAZ",
+
+  // Extracteurs / Caissons ventilation
+  "extracteur": "EXTRACTEUR",
+  "extracteur air": "EXTRACTEUR",
+  "caisson ventilation": "CAISSON_VENTILATION",
+  "caisson de ventilation": "CAISSON_VENTILATION",
+
+  // Cuves / Réservoirs
+  "cuve": "CUVE",
+  "cuve fioul": "CUVE_FIOUL",
+  "cuve fuel": "CUVE_FIOUL",
+  "réservoir": "CUVE",
+  "reservoir": "CUVE",
+  "cuve gaz": "CUVE_GAZ",
+  "citerne": "CUVE",
+  "citerne gaz": "CUVE_GAZ",
+
+  // Interface / Commande
+  "écran tactile": "ECRAN_TACTILE",
+  "ecran tactile": "ECRAN_TACTILE",
+  "interface": "ECRAN_TACTILE",
+  "ihm": "ECRAN_TACTILE",
+  "télécommande": "TELECOMMANDE",
+  "telecommande": "TELECOMMANDE",
+  "télécommande filaire": "TELECOMMANDE",
+  "telecommande filaire": "TELECOMMANDE",
+  "commande déportée": "TELECOMMANDE",
+  "commande deportee": "TELECOMMANDE",
+
+  // ECS - variantes orthographiques
+  "balon d'eau chaude": "BALLON_ECS",
+  "balon d eau chaude": "BALLON_ECS",
+  "balon eau chaude": "BALLON_ECS",
+  "ballon d'eau chaude": "BALLON_ECS",
+
+  // Comptage énergie (variantes)
+  "compteur d'énergie": "COMPTEUR_ENERGIE",
+  "compteur d energie": "COMPTEUR_ENERGIE",
+
   // Autre
   "autre": "AUTRE",
 };
@@ -691,6 +751,24 @@ const TYPE_TO_DOMAIN: Record<string, string> = {
   PANNEAU_SOLAIRE_THERMIQUE: "CHAUFFAGE",
   BALLON_SOLAIRE: "ECS",
   STATION_SOLAIRE: "CHAUFFAGE",
+  // Electrovannes / Vannes
+  ELECTROVANNE: "CHAUFFAGE",
+  ELECTROVANNE_GAZ: "CHAUFFAGE",
+  VANNE_2_VOIES: "CHAUFFAGE",
+  SERVOMOTEUR: "CHAUFFAGE",
+  // Détection gaz
+  CENTRALE_DETECTION_GAZ: "CFO_CFA",
+  DETECTEUR_GAZ: "CFO_CFA",
+  // Extracteurs / Ventilation
+  EXTRACTEUR: "VENTILATION",
+  CAISSON_VENTILATION: "VENTILATION",
+  // Cuves
+  CUVE: "CHAUFFAGE",
+  CUVE_FIOUL: "CHAUFFAGE",
+  CUVE_GAZ: "CHAUFFAGE",
+  // Interface / Commande
+  ECRAN_TACTILE: "CFO_CFA",
+  TELECOMMANDE: "CFO_CFA",
   AUTRE: "AUTRE",
 };
 
@@ -757,6 +835,16 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
   MODULE_HYDRAULIQUE: 20, STATION_RELEVAGE: 15,
   // Solaire thermique
   PANNEAU_SOLAIRE_THERMIQUE: 25, BALLON_SOLAIRE: 20, STATION_SOLAIRE: 15,
+  // Electrovannes / Vannes
+  ELECTROVANNE: 15, ELECTROVANNE_GAZ: 15, VANNE_2_VOIES: 15, SERVOMOTEUR: 12,
+  // Détection gaz
+  CENTRALE_DETECTION_GAZ: 15, DETECTEUR_GAZ: 10,
+  // Extracteurs / Ventilation
+  EXTRACTEUR: 15, CAISSON_VENTILATION: 20,
+  // Cuves
+  CUVE: 30, CUVE_FIOUL: 30, CUVE_GAZ: 30,
+  // Interface / Commande
+  ECRAN_TACTILE: 10, TELECOMMANDE: 10,
   AUTRE: 15,
 };
 
