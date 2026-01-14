@@ -39,6 +39,8 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "radiant": "RADIANT_GAZ",
   "radiant gaz": "RADIANT_GAZ",
   "tube radiant": "RADIANT_GAZ",
+  "panneau rayonnant": "PANNEAU_RAYONNANT",
+  "panneaux rayonnants": "PANNEAU_RAYONNANT",
 
   // Chauffage - Distribution
   "pompe": "CIRCULATEUR",
@@ -280,6 +282,202 @@ const TYPE_SYNONYMS: Record<string, string> = {
   "robot nettoyage": "ROBOT_NETTOYAGE",
   "robot": "ROBOT_NETTOYAGE",
 
+  // Régulation / Automatisme
+  "automate": "AUTOMATE",
+  "automate programmable": "AUTOMATE",
+  "gtb": "AUTOMATE",
+  "gtc": "AUTOMATE",
+  "gestion technique": "AUTOMATE",
+  "supervision": "AUTOMATE",
+  "bms": "AUTOMATE",
+
+  // Climatisation - VRV/DRV
+  "drv": "DRV",
+  "vrv": "DRV",
+  "vrf": "DRV",
+  "débit réfrigérant variable": "DRV",
+  "debit refrigerant variable": "DRV",
+
+  // Distribution / Réseau
+  "distribution": "RESEAU_DISTRIBUTION",
+  "réseau distribution": "RESEAU_DISTRIBUTION",
+  "reseau distribution": "RESEAU_DISTRIBUTION",
+  "réseau enterré": "RESEAU_ENTERRE",
+  "reseau enterre": "RESEAU_ENTERRE",
+  "canalisation enterrée": "RESEAU_ENTERRE",
+  "canalisation enterree": "RESEAU_ENTERRE",
+  "tuyauterie enterrée": "RESEAU_ENTERRE",
+
+  // Comptage spécifique
+  "compteur appoint": "COMPTEUR_APPOINT",
+  "compteur d'appoint": "COMPTEUR_APPOINT",
+  "appoint eau": "COMPTEUR_APPOINT",
+
+  // Pot d'injection / Traitement réseau
+  "pot d'injection": "POT_INJECTION",
+  "pot d injection": "POT_INJECTION",
+  "pot injection": "POT_INJECTION",
+
+  // Télésurveillance / Alarme
+  "télésurveillance": "TELESURVEILLANCE",
+  "telesurveillance": "TELESURVEILLANCE",
+  "alarme": "TELESURVEILLANCE",
+  "alarme technique": "TELESURVEILLANCE",
+  "détecteur fuite": "TELESURVEILLANCE",
+  "detecteur fuite": "TELESURVEILLANCE",
+
+  // Pressostats / Capteurs pression
+  "pressostat": "PRESSOSTAT",
+  "pressostat différentiel": "PRESSOSTAT",
+  "pressostat differentiel": "PRESSOSTAT",
+  "capteur pression": "PRESSOSTAT",
+  "sonde pression": "PRESSOSTAT",
+  "manomètre": "MANOMETRE",
+  "manometre": "MANOMETRE",
+
+  // Thermostats / Aquastats
+  "thermostat": "THERMOSTAT",
+  "thermostat ambiance": "THERMOSTAT_AMBIANCE",
+  "thermostat d'ambiance": "THERMOSTAT_AMBIANCE",
+  "aquastat": "AQUASTAT",
+  "thermostat chaudière": "AQUASTAT",
+  "thermostat eau": "AQUASTAT",
+  "thermomètre": "THERMOMETRE",
+  "thermometre": "THERMOMETRE",
+
+  // Sécurités
+  "soupape": "SOUPAPE_SECURITE",
+  "soupape sécurité": "SOUPAPE_SECURITE",
+  "soupape securite": "SOUPAPE_SECURITE",
+  "soupape de sécurité": "SOUPAPE_SECURITE",
+  "clapet": "CLAPET_ANTI_RETOUR",
+  "clapet anti-retour": "CLAPET_ANTI_RETOUR",
+  "clapet anti retour": "CLAPET_ANTI_RETOUR",
+
+  // Hydraulique / Distribution
+  "bouteille mélange": "BOUTEILLE_MELANGE",
+  "bouteille melange": "BOUTEILLE_MELANGE",
+  "bouteille casse-pression": "BOUTEILLE_MELANGE",
+  "bouteille de mélange": "BOUTEILLE_MELANGE",
+  "collecteur": "COLLECTEUR",
+  "nourrice": "COLLECTEUR",
+  "séparateur air": "SEPARATEUR_AIR",
+  "separateur air": "SEPARATEUR_AIR",
+  "purgeur": "PURGEUR",
+  "purgeur automatique": "PURGEUR",
+  "robinet vidange": "ROBINET_VIDANGE",
+  "robinet de vidange": "ROBINET_VIDANGE",
+  "vanne d'isolement": "VANNE_ISOLEMENT",
+  "vanne isolement": "VANNE_ISOLEMENT",
+  "vanne d'arrêt": "VANNE_ISOLEMENT",
+  "vanne arret": "VANNE_ISOLEMENT",
+  "vanne équilibrage": "VANNE_EQUILIBRAGE",
+  "vanne equilibrage": "VANNE_EQUILIBRAGE",
+  "vanne d'équilibrage": "VANNE_EQUILIBRAGE",
+  "équilibreur": "VANNE_EQUILIBRAGE",
+  "equilibreur": "VANNE_EQUILIBRAGE",
+
+  // Robinetterie
+  "robinet thermostatique": "ROBINET_THERMOSTATIQUE",
+  "tête thermostatique": "TETE_THERMOSTATIQUE",
+  "tete thermostatique": "TETE_THERMOSTATIQUE",
+
+  // Générateurs air chaud
+  "générateur air chaud": "GENERATEUR_AIR_CHAUD",
+  "generateur air chaud": "GENERATEUR_AIR_CHAUD",
+  "gac": "GENERATEUR_AIR_CHAUD",
+  "aérotherme gaz": "AEROTHERME_GAZ",
+  "aerotherme gaz": "AEROTHERME_GAZ",
+  "unit heater": "UNIT_HEATER",
+  "unit-heater": "UNIT_HEATER",
+
+  // Ventilation avancée
+  "bouche extraction": "BOUCHE_EXTRACTION",
+  "bouche d'extraction": "BOUCHE_EXTRACTION",
+  "bouche soufflage": "BOUCHE_SOUFFLAGE",
+  "bouche de soufflage": "BOUCHE_SOUFFLAGE",
+  "diffuseur": "DIFFUSEUR",
+  "diffuseur plafond": "DIFFUSEUR",
+  "grille ventilation": "GRILLE_VENTILATION",
+  "grille de ventilation": "GRILLE_VENTILATION",
+  "grille": "GRILLE_VENTILATION",
+  "plénum": "PLENUM",
+  "plenum": "PLENUM",
+  "silencieux": "SILENCIEUX",
+  "silencieux acoustique": "SILENCIEUX",
+  "clapet coupe-feu": "CLAPET_COUPE_FEU",
+  "clapet coupe feu": "CLAPET_COUPE_FEU",
+  "volet coupe-feu": "CLAPET_COUPE_FEU",
+  "volet coupe feu": "CLAPET_COUPE_FEU",
+  "humidificateur": "HUMIDIFICATEUR",
+  "humidification": "HUMIDIFICATEUR",
+
+  // Rideau d'air
+  "rideau air": "RIDEAU_AIR",
+  "rideau d'air": "RIDEAU_AIR",
+  "rideau d air": "RIDEAU_AIR",
+
+  // Refroidissement
+  "tour refroidissement": "TOUR_REFROIDISSEMENT",
+  "tour de refroidissement": "TOUR_REFROIDISSEMENT",
+  "aéroréfrigérant": "AEROREFRIGERANT",
+  "aerorefrigerant": "AEROREFRIGERANT",
+  "dry cooler": "DRY_COOLER",
+  "drycooler": "DRY_COOLER",
+  "refroidisseur adiabatique": "REFROIDISSEUR_ADIABATIQUE",
+  "refroidisseur sec": "DRY_COOLER",
+
+  // Unités intérieur/extérieur (VRV/Split)
+  "unité intérieure": "UNITE_INTERIEURE",
+  "unite interieure": "UNITE_INTERIEURE",
+  "ui": "UNITE_INTERIEURE",
+  "unité extérieure": "UNITE_EXTERIEURE",
+  "unite exterieure": "UNITE_EXTERIEURE",
+  "ue": "UNITE_EXTERIEURE",
+  "groupe extérieur": "UNITE_EXTERIEURE",
+  "groupe exterieur": "UNITE_EXTERIEURE",
+  "console": "CONSOLE_CLIMATISATION",
+  "console clim": "CONSOLE_CLIMATISATION",
+  "mural": "MURAL_CLIMATISATION",
+  "mural clim": "MURAL_CLIMATISATION",
+  "armoire climatisation": "ARMOIRE_CLIMATISATION",
+  "armoire clim": "ARMOIRE_CLIMATISATION",
+
+  // Comptage / Mesure
+  "débitmètre": "DEBITMETRE",
+  "debitmetre": "DEBITMETRE",
+  "compteur volumétrique": "DEBITMETRE",
+  "compteur volumetrique": "DEBITMETRE",
+  "variateur": "VARIATEUR_FREQUENCE",
+  "variateur fréquence": "VARIATEUR_FREQUENCE",
+  "variateur frequence": "VARIATEUR_FREQUENCE",
+  "variateur de fréquence": "VARIATEUR_FREQUENCE",
+  "vfd": "VARIATEUR_FREQUENCE",
+
+  // Détection / Sécurité incendie
+  "détecteur fumée": "DETECTEUR_FUMEE",
+  "detecteur fumee": "DETECTEUR_FUMEE",
+  "détecteur de fumée": "DETECTEUR_FUMEE",
+  "détecteur co": "DETECTEUR_CO",
+  "detecteur co": "DETECTEUR_CO",
+  "détecteur monoxyde": "DETECTEUR_CO",
+
+  // Module / Station
+  "module hydraulique": "MODULE_HYDRAULIQUE",
+  "groupe transfert": "MODULE_HYDRAULIQUE",
+  "groupe de transfert": "MODULE_HYDRAULIQUE",
+  "station relevage": "STATION_RELEVAGE",
+  "station de relevage": "STATION_RELEVAGE",
+  "pompe relevage": "STATION_RELEVAGE",
+  "pompe de relevage": "STATION_RELEVAGE",
+
+  // Solaire thermique
+  "panneau solaire": "PANNEAU_SOLAIRE_THERMIQUE",
+  "capteur solaire": "PANNEAU_SOLAIRE_THERMIQUE",
+  "panneau solaire thermique": "PANNEAU_SOLAIRE_THERMIQUE",
+  "ballon solaire": "BALLON_SOLAIRE",
+  "station solaire": "STATION_SOLAIRE",
+
   // Autre
   "autre": "AUTRE",
 };
@@ -419,6 +617,80 @@ const TYPE_TO_DOMAIN: Record<string, string> = {
   BACHE_TAMPON: "PISCINE",
   NAGE_CONTRE_COURANT: "PISCINE",
   ROBOT_NETTOYAGE: "PISCINE",
+  // Automatisme / Régulation
+  AUTOMATE: "CFO_CFA",
+  // Climatisation VRV/DRV
+  DRV: "CLIMATISATION",
+  // Réseaux
+  RESEAU_DISTRIBUTION: "CHAUFFAGE",
+  RESEAU_ENTERRE: "CHAUFFAGE",
+  // Comptage
+  COMPTEUR_APPOINT: "COMPTAGE",
+  // Pot d'injection / Traitement réseau
+  POT_INJECTION: "TRAITEMENT_EAU",
+  // Télésurveillance
+  TELESURVEILLANCE: "CFO_CFA",
+  // Pressostats / Capteurs
+  PRESSOSTAT: "CHAUFFAGE",
+  MANOMETRE: "COMPTAGE",
+  // Thermostats
+  THERMOSTAT: "CHAUFFAGE",
+  THERMOSTAT_AMBIANCE: "CHAUFFAGE",
+  AQUASTAT: "CHAUFFAGE",
+  THERMOMETRE: "COMPTAGE",
+  // Sécurités hydrauliques
+  SOUPAPE_SECURITE: "CHAUFFAGE",
+  CLAPET_ANTI_RETOUR: "CHAUFFAGE",
+  // Hydraulique / Distribution
+  BOUTEILLE_MELANGE: "CHAUFFAGE",
+  COLLECTEUR: "CHAUFFAGE",
+  SEPARATEUR_AIR: "TRAITEMENT_EAU",
+  PURGEUR: "CHAUFFAGE",
+  ROBINET_VIDANGE: "CHAUFFAGE",
+  VANNE_ISOLEMENT: "CHAUFFAGE",
+  VANNE_EQUILIBRAGE: "CHAUFFAGE",
+  // Robinetterie
+  ROBINET_THERMOSTATIQUE: "CHAUFFAGE",
+  TETE_THERMOSTATIQUE: "CHAUFFAGE",
+  // Générateurs air chaud
+  GENERATEUR_AIR_CHAUD: "CHAUFFAGE",
+  AEROTHERME_GAZ: "CHAUFFAGE",
+  UNIT_HEATER: "CHAUFFAGE",
+  PANNEAU_RAYONNANT: "CHAUFFAGE",
+  // Ventilation avancée
+  BOUCHE_EXTRACTION: "VENTILATION",
+  BOUCHE_SOUFFLAGE: "VENTILATION",
+  DIFFUSEUR: "VENTILATION",
+  GRILLE_VENTILATION: "VENTILATION",
+  PLENUM: "VENTILATION",
+  SILENCIEUX: "VENTILATION",
+  CLAPET_COUPE_FEU: "VENTILATION",
+  HUMIDIFICATEUR: "VENTILATION",
+  RIDEAU_AIR: "VENTILATION",
+  // Refroidissement
+  TOUR_REFROIDISSEMENT: "CLIMATISATION",
+  AEROREFRIGERANT: "CLIMATISATION",
+  DRY_COOLER: "CLIMATISATION",
+  REFROIDISSEUR_ADIABATIQUE: "CLIMATISATION",
+  // Unités clim
+  UNITE_INTERIEURE: "CLIMATISATION",
+  UNITE_EXTERIEURE: "CLIMATISATION",
+  CONSOLE_CLIMATISATION: "CLIMATISATION",
+  MURAL_CLIMATISATION: "CLIMATISATION",
+  ARMOIRE_CLIMATISATION: "CLIMATISATION",
+  // Comptage / Mesure
+  DEBITMETRE: "COMPTAGE",
+  VARIATEUR_FREQUENCE: "CFO_CFA",
+  // Détection / Sécurité
+  DETECTEUR_FUMEE: "CFO_CFA",
+  DETECTEUR_CO: "CFO_CFA",
+  // Module / Station
+  MODULE_HYDRAULIQUE: "CHAUFFAGE",
+  STATION_RELEVAGE: "PLOMBERIE",
+  // Solaire thermique
+  PANNEAU_SOLAIRE_THERMIQUE: "CHAUFFAGE",
+  BALLON_SOLAIRE: "ECS",
+  STATION_SOLAIRE: "CHAUFFAGE",
   AUTRE: "AUTRE",
 };
 
@@ -444,6 +716,47 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
   ELECTROLYSEUR_SEL: 5, TRAITEMENT_CHLORE: 10, TRAITEMENT_UV: 8, TRAITEMENT_OZONE: 10,
   REGULATEUR_PH: 8, REGULATEUR_CHLORE: 8, POMPE_DOSEUSE: 8, SONDE_PH: 2, SONDE_REDOX: 2, SONDE_TEMPERATURE_EAU: 10,
   DESHUMIDIFICATEUR: 15, CTA_PISCINE: 20, BACHE_TAMPON: 25, NAGE_CONTRE_COURANT: 15, ROBOT_NETTOYAGE: 5,
+  // Automatisme / Régulation
+  AUTOMATE: 15,
+  // Climatisation VRV/DRV
+  DRV: 15,
+  // Réseaux
+  RESEAU_DISTRIBUTION: 30, RESEAU_ENTERRE: 40,
+  // Comptage
+  COMPTEUR_APPOINT: 15,
+  // Pot d'injection / Traitement réseau
+  POT_INJECTION: 20,
+  // Télésurveillance
+  TELESURVEILLANCE: 10,
+  // Pressostats / Capteurs
+  PRESSOSTAT: 10, MANOMETRE: 10,
+  // Thermostats
+  THERMOSTAT: 10, THERMOSTAT_AMBIANCE: 10, AQUASTAT: 10, THERMOMETRE: 10,
+  // Sécurités hydrauliques
+  SOUPAPE_SECURITE: 15, CLAPET_ANTI_RETOUR: 20,
+  // Hydraulique / Distribution
+  BOUTEILLE_MELANGE: 25, COLLECTEUR: 30, SEPARATEUR_AIR: 20, PURGEUR: 10,
+  ROBINET_VIDANGE: 20, VANNE_ISOLEMENT: 25, VANNE_EQUILIBRAGE: 20,
+  // Robinetterie
+  ROBINET_THERMOSTATIQUE: 15, TETE_THERMOSTATIQUE: 8,
+  // Générateurs air chaud
+  GENERATEUR_AIR_CHAUD: 20, AEROTHERME_GAZ: 15, UNIT_HEATER: 15, PANNEAU_RAYONNANT: 20,
+  // Ventilation avancée
+  BOUCHE_EXTRACTION: 20, BOUCHE_SOUFFLAGE: 20, DIFFUSEUR: 25, GRILLE_VENTILATION: 30,
+  PLENUM: 25, SILENCIEUX: 25, CLAPET_COUPE_FEU: 20, HUMIDIFICATEUR: 10, RIDEAU_AIR: 15,
+  // Refroidissement
+  TOUR_REFROIDISSEMENT: 20, AEROREFRIGERANT: 20, DRY_COOLER: 20, REFROIDISSEUR_ADIABATIQUE: 15,
+  // Unités clim
+  UNITE_INTERIEURE: 12, UNITE_EXTERIEURE: 15, CONSOLE_CLIMATISATION: 12,
+  MURAL_CLIMATISATION: 12, ARMOIRE_CLIMATISATION: 15,
+  // Comptage / Mesure
+  DEBITMETRE: 15, VARIATEUR_FREQUENCE: 15,
+  // Détection / Sécurité
+  DETECTEUR_FUMEE: 10, DETECTEUR_CO: 7,
+  // Module / Station
+  MODULE_HYDRAULIQUE: 20, STATION_RELEVAGE: 15,
+  // Solaire thermique
+  PANNEAU_SOLAIRE_THERMIQUE: 25, BALLON_SOLAIRE: 20, STATION_SOLAIRE: 15,
   AUTRE: 15,
 };
 
