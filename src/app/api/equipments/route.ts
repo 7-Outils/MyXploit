@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
+import { equipmentCreateSchema, validateInput } from "@/lib/validations";
 
 // Mapping type -> domain
 const TYPE_TO_DOMAIN: Record<string, string> = {
@@ -500,6 +502,11 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
 // GET /api/equipments - List all equipments (optionally filter by siteId, contractId, domain)
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    const { success } = await rateLimit(clientId);
+    if (!success) return rateLimitExceeded();
+
     const user = await requireAuth();
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get("siteId");
@@ -556,6 +563,11 @@ export async function GET(request: NextRequest) {
 // POST /api/equipments - Create a new equipment
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    const { success } = await rateLimit(clientId);
+    if (!success) return rateLimitExceeded();
+
     const user = await requireAuth();
 
     if (user.role === "READER") {
@@ -566,6 +578,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Validate input
+    const validation = validateInput(equipmentCreateSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
 
     // Verify the site belongs to the user's organization
     const site = await prisma.site.findFirst({

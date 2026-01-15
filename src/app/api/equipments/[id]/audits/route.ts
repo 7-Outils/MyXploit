@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
+import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
+import { auditCreateSchema, validateInput } from "@/lib/validations";
 
 // GET /api/equipments/[id]/audits - Get all audits for an equipment
 export async function GET(
@@ -8,6 +10,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    const { success } = await rateLimit(clientId);
+    if (!success) return rateLimitExceeded();
+
     const user = await requireAuth();
     const { id: equipmentId } = await params;
 
@@ -47,6 +54,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Rate limiting
+    const clientId = getClientIdentifier(request);
+    const { success } = await rateLimit(clientId);
+    if (!success) return rateLimitExceeded();
+
     const user = await requireAuth();
     const { id: equipmentId } = await params;
 
@@ -73,6 +85,12 @@ export async function POST(
     }
 
     const body = await request.json();
+
+    // Validate input
+    const validation = validateInput(auditCreateSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
 
     const audit = await prisma.equipmentAudit.create({
       data: {

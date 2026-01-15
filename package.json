@@ -17,6 +17,8 @@
     "@prisma/client": "^7.0.1",
     "@types/leaflet": "^1.9.21",
     "@uploadthing/react": "^7.3.3",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.36.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "jspdf": "^3.0.4",
@@ -31,7 +33,8 @@
     "tailwind-merge": "^2.5.4",
     "unpdf": "^1.4.0",
     "uploadthing": "^7.7.4",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/node": "^20",
