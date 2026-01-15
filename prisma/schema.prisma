@@ -215,6 +215,7 @@ enum EquipmentType {
   ECHANGEUR_THERMIQUE
   BRULEUR
   REGULATEUR
+  AUTOMATE           // Automate de régulation / GTB
   SONDE_TEMPERATURE
   SONDE_EXTERIEURE
   // === ECS ===
@@ -246,6 +247,7 @@ enum EquipmentType {
   CASSETTE
   GAINABLE
   ROOFTOP
+  DRV               // Débit de Régulation Variable
   // === TRAITEMENT EAU ===
   ADOUCISSEUR
   DISCONNECTEUR
@@ -259,6 +261,8 @@ enum EquipmentType {
   SURPRESSEUR
   BACHE_EAU
   REDUCTION_PRESSION
+  POMPE_RELEVAGE     // Pompe de relevage
+  STATION_RELEVAGE   // Station de relevage
   // === CFO/CFA (Électricité) ===
   ARMOIRE_ELECTRIQUE
   ARMOIRE_TGBT       // Tableau Général Basse Tension
@@ -276,6 +280,7 @@ enum EquipmentType {
   COMPTEUR_ELECTRIQUE    // Compteur électrique
   SOUS_COMPTEUR_ELEC     // Sous-compteur électrique
   COMPTEUR_HORAIRE       // Compteur horaire
+  COMPTEUR_APPOINT       // Compteur d'appoint
   ANALYSEUR_RESEAU       // Analyseur de réseau électrique
   SONDE_TEMPERATURE_AMB  // Sonde de température ambiante
   SONDE_HYGROMETRIE      // Sonde d'hygrométrie
