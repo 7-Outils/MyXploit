@@ -114,6 +114,77 @@ export async function PUT(
   }
 }
 
+// PATCH /api/equipments/[id] - Partial update of an equipment
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAuth();
+    const { id } = await params;
+
+    if (user.role === "READER") {
+      return NextResponse.json(
+        { error: "Vous n'avez pas les droits pour modifier cet équipement" },
+        { status: 403 }
+      );
+    }
+
+    // Verify equipment belongs to organization
+    const existingEquipment = await prisma.equipment.findFirst({
+      where: {
+        id,
+        organizationId: user.organizationId,
+      },
+    });
+
+    if (!existingEquipment) {
+      return NextResponse.json(
+        { error: "Équipement non trouvé" },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Build update data with only provided fields
+    const updateData: Record<string, unknown> = {};
+    if (body.name !== undefined) updateData.name = body.name || null;
+    if (body.brand !== undefined) updateData.brand = body.brand || null;
+    if (body.model !== undefined) updateData.model = body.model || null;
+    if (body.year !== undefined) updateData.year = body.year ? parseInt(body.year) : null;
+    if (body.status !== undefined) updateData.status = body.status;
+    if (body.domain !== undefined) updateData.domain = body.domain;
+    if (body.type !== undefined) updateData.type = body.type;
+    if (body.serialNumber !== undefined) updateData.serialNumber = body.serialNumber || null;
+    if (body.power !== undefined) updateData.power = body.power ? parseFloat(body.power) : null;
+    if (body.quantity !== undefined) updateData.quantity = body.quantity ? parseInt(body.quantity) : null;
+    if (body.location !== undefined) updateData.location = body.location || null;
+    if (body.level !== undefined) updateData.level = body.level || null;
+    if (body.theoreticalLifespan !== undefined) updateData.theoreticalLifespan = body.theoreticalLifespan ? parseInt(body.theoreticalLifespan) : null;
+    if (body.installDate !== undefined) updateData.installDate = body.installDate ? new Date(body.installDate) : null;
+    if (body.warrantyEnd !== undefined) updateData.warrantyEnd = body.warrantyEnd ? new Date(body.warrantyEnd) : null;
+
+    const equipment = await prisma.equipment.update({
+      where: { id },
+      data: updateData,
+      include: {
+        site: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    return NextResponse.json(equipment);
+  } catch (error) {
+    console.error("Error updating equipment:", error);
+    return NextResponse.json(
+      { error: "Erreur lors de la mise à jour de l'équipement" },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE /api/equipments/[id] - Delete an equipment
 export async function DELETE(
   request: NextRequest,
