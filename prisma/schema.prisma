@@ -344,6 +344,10 @@ model Equipment {
   // Localisation dans le site
   location       String?         // Local/Pièce (ex: "Chaufferie", "Sous-sol technique")
   level          String?         // Niveau/Étage (ex: "RDC", "Sous-sol", "Toiture")
+  serviceArea    String?         // Zone desservie (ex: "Bâtiment A", "Aile Nord")
+  // Liste contradictoire (équipement sur liste vs présent sur site)
+  inContractList Boolean         @default(true)  // Figure sur la liste contractuelle
+  presentOnSite  Boolean         @default(true)  // Présent physiquement sur site
   // Durée de vie théorique
   theoreticalLifespan Int?       // Durée de vie en années (ex: 20 pour chaudière)
   status         EquipmentStatus @default(OPERATIONNEL)

@@ -90,6 +90,9 @@ export async function PUT(
         quantity: body.quantity ? parseInt(body.quantity) : null,
         location: body.location || null,
         level: body.level || null,
+        serviceArea: body.serviceArea || null,
+        inContractList: body.inContractList ?? true,
+        presentOnSite: body.presentOnSite ?? true,
         theoreticalLifespan: body.theoreticalLifespan
           ? parseInt(body.theoreticalLifespan)
           : null,
@@ -161,6 +164,9 @@ export async function PATCH(
     if (body.quantity !== undefined) updateData.quantity = body.quantity ? parseInt(body.quantity) : null;
     if (body.location !== undefined) updateData.location = body.location || null;
     if (body.level !== undefined) updateData.level = body.level || null;
+    if (body.serviceArea !== undefined) updateData.serviceArea = body.serviceArea || null;
+    if (body.inContractList !== undefined) updateData.inContractList = body.inContractList;
+    if (body.presentOnSite !== undefined) updateData.presentOnSite = body.presentOnSite;
     if (body.theoreticalLifespan !== undefined) updateData.theoreticalLifespan = body.theoreticalLifespan ? parseInt(body.theoreticalLifespan) : null;
     if (body.installDate !== undefined) updateData.installDate = body.installDate ? new Date(body.installDate) : null;
     if (body.warrantyEnd !== undefined) updateData.warrantyEnd = body.warrantyEnd ? new Date(body.warrantyEnd) : null;
