@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/auth";
 // Valid audit ratings
 const VALID_RATINGS = ["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"];
 
-// Synonymes pour les notes d'audit
+// Synonymes pour les notes d'audit (incluant les labels contextuels)
 const RATING_SYNONYMS: Record<string, string> = {
   // Non évalué
   "non évalué": "NON_EVALUE",
@@ -14,25 +14,66 @@ const RATING_SYNONYMS: Record<string, string> = {
   "n/a": "NON_EVALUE",
   "-": "NON_EVALUE",
   "": "NON_EVALUE",
-  // Critique
+  // Critique (1)
   "critique": "CRITIQUE",
   "crit": "CRITIQUE",
   "1": "CRITIQUE",
-  // Mauvais
+  "degradation majeure": "CRITIQUE",
+  "dégradation majeure": "CRITIQUE",
+  "defaillant": "CRITIQUE",
+  "défaillant": "CRITIQUE",
+  "danger immediat": "CRITIQUE",
+  "danger immédiat": "CRITIQUE",
+  "inaccessible": "CRITIQUE",
+  "non conformite majeure": "CRITIQUE",
+  "non-conformite majeure": "CRITIQUE",
+  "non conformité majeure": "CRITIQUE",
+  "non-conformité majeure": "CRITIQUE",
+  // Mauvais (2)
   "mauvais": "MAUVAIS",
   "mauv": "MAUVAIS",
   "2": "MAUVAIS",
-  // Moyen
+  "usure importante": "MAUVAIS",
+  "sous performant": "MAUVAIS",
+  "sous-performant": "MAUVAIS",
+  "risques importants": "MAUVAIS",
+  "difficile": "MAUVAIS",
+  "non conformite mineure": "MAUVAIS",
+  "non-conformite mineure": "MAUVAIS",
+  "non conformité mineure": "MAUVAIS",
+  "non-conformité mineure": "MAUVAIS",
+  // Moyen (3)
   "moyen": "MOYEN",
   "moy": "MOYEN",
   "3": "MOYEN",
-  // Bon
+  "usure normale": "MOYEN",
+  "acceptable": "MOYEN",
+  "a surveiller": "MOYEN",
+  "à surveiller": "MOYEN",
+  "limite": "MOYEN",
+  "limité": "MOYEN",
+  "a verifier": "MOYEN",
+  "à vérifier": "MOYEN",
+  "a verifer": "MOYEN",
+  // Bon (4)
   "bon": "BON",
   "4": "BON",
-  // Excellent
+  "bon etat": "BON",
+  "bon état": "BON",
+  "performant": "BON",
+  "conforme": "BON",
+  "accessible": "BON",
+  // Excellent (5)
   "excellent": "EXCELLENT",
   "exc": "EXCELLENT",
   "5": "EXCELLENT",
+  "etat neuf": "EXCELLENT",
+  "état neuf": "EXCELLENT",
+  "optimal": "EXCELLENT",
+  "securise": "EXCELLENT",
+  "sécurisé": "EXCELLENT",
+  "certifie": "EXCELLENT",
+  "certifié": "EXCELLENT",
 };
 
 // Normalise un texte pour la recherche
