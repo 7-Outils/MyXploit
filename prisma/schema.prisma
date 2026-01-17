@@ -336,6 +336,7 @@ model Equipment {
   brand          String?
   model          String?
   serialNumber   String?
+  imageUrl       String?         // URL de l'image de l'équipement
   year           Int?            // Année de fabrication
   installDate    DateTime?
   warrantyEnd    DateTime?

@@ -85,6 +85,7 @@ export async function PUT(
         brand: body.brand || null,
         model: body.model || null,
         serialNumber: body.serialNumber || null,
+        imageUrl: body.imageUrl || null,
         year: body.year ? parseInt(body.year) : null,
         power: body.power ? parseFloat(body.power) : null,
         quantity: body.quantity ? parseInt(body.quantity) : null,
@@ -160,6 +161,7 @@ export async function PATCH(
     if (body.domain !== undefined) updateData.domain = body.domain;
     if (body.type !== undefined) updateData.type = body.type;
     if (body.serialNumber !== undefined) updateData.serialNumber = body.serialNumber || null;
+    if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl || null;
     if (body.power !== undefined) updateData.power = body.power ? parseFloat(body.power) : null;
     if (body.quantity !== undefined) updateData.quantity = body.quantity ? parseInt(body.quantity) : null;
     if (body.location !== undefined) updateData.location = body.location || null;
