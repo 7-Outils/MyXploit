@@ -10,6 +10,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.971.0",
+    "@aws-sdk/s3-request-presigner": "^3.971.0",
     "@clerk/localizations": "^3.28.5",
     "@clerk/nextjs": "^6.35.5",
     "@neondatabase/serverless": "^1.0.2",
