@@ -114,15 +114,16 @@ function groupEquipments(equipments: ReportEquipment[]): Map<string, Map<string,
   const grouped = new Map<string, Map<string, ReportEquipment[]>>();
 
   for (const eq of equipments) {
-    const siteName = eq.site.name;
+    const siteName = eq.site?.name || "Site inconnu";
+    const domain = eq.domain || "AUTRE";
     if (!grouped.has(siteName)) {
       grouped.set(siteName, new Map());
     }
     const siteGroup = grouped.get(siteName)!;
-    if (!siteGroup.has(eq.domain)) {
-      siteGroup.set(eq.domain, []);
+    if (!siteGroup.has(domain)) {
+      siteGroup.set(domain, []);
     }
-    siteGroup.get(eq.domain)!.push(eq);
+    siteGroup.get(domain)!.push(eq);
   }
 
   return grouped;
@@ -163,15 +164,30 @@ export async function generateEquipmentReportPDF(
   equipments: ReportEquipment[],
   options: ReportOptions = {}
 ): Promise<void> {
-  if (equipments.length === 0) {
+  if (!equipments || equipments.length === 0) {
     alert("Aucun équipement à exporter");
     return;
   }
 
-  // Preload images
-  const imageMap = await preloadImages(equipments);
+  console.log("Generating PDF for", equipments.length, "equipments");
 
-  const doc = new jsPDF();
+  // Preload images (with error handling)
+  let imageMap = new Map<string, string>();
+  try {
+    imageMap = await preloadImages(equipments);
+    console.log("Loaded", imageMap.size, "images");
+  } catch (e) {
+    console.warn("Error loading images:", e);
+  }
+
+  let doc: jsPDF;
+  try {
+    doc = new jsPDF();
+  } catch (e) {
+    console.error("Error creating jsPDF instance:", e);
+    throw new Error("Impossible de créer le document PDF");
+  }
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   let y = 20;
@@ -417,9 +433,17 @@ export async function generateEquipmentReportPDF(
   // Generate filename
   const dateStr = new Date().toISOString().split("T")[0];
   const sitePart = options.siteName
-    ? options.siteName.toLowerCase().replace(/\s+/g, "-")
+    ? options.siteName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
     : "tous-sites";
   const fileName = `rapport-patrimoine-${sitePart}-${dateStr}.pdf`;
 
-  doc.save(fileName);
+  console.log("Saving PDF as:", fileName);
+
+  try {
+    doc.save(fileName);
+    console.log("PDF saved successfully");
+  } catch (e) {
+    console.error("Error saving PDF:", e);
+    throw new Error("Erreur lors de la sauvegarde du PDF");
+  }
 }
