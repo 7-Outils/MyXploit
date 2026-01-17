@@ -386,6 +386,8 @@ export async function generateEquipmentReportPDF(
           // Draw images in first column
           if (data.column.index === 0 && data.section === "body") {
             const rowData = tableBody[data.row.index];
+            if (!rowData) return; // Safety check
+
             if (rowData.imageData) {
               const cellX = data.cell.x + 2;
               const cellY = data.cell.y + 2;
@@ -398,7 +400,7 @@ export async function generateEquipmentReportPDF(
             }
 
             // Draw rating color indicator
-            const ratingColor = RATING_COLORS[rowData.rating as AuditRating];
+            const ratingColor = RATING_COLORS[rowData.rating as AuditRating] || RATING_COLORS.NON_EVALUE;
             doc.setFillColor(...ratingColor);
             doc.rect(data.cell.x + data.cell.width - 4, data.cell.y + 2, 2, data.cell.height - 4, "F");
           }
