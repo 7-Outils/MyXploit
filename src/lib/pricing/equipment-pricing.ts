@@ -797,6 +797,33 @@ export const EQUIPMENT_TYPE_LABELS: Record<string, string> = {
   BACHE_TAMPON: "Bâche tampon",
   NAGE_CONTRE_COURANT: "Nage contre-courant",
   ROBOT_NETTOYAGE: "Robot nettoyage",
+  // PLOMBERIE
+  STATION_RELEVAGE: "Station de relevage",
+  SURPRESSEUR: "Surpresseur",
+  BACHE_EAU: "Bâche à eau",
+  REDUCTION_PRESSION: "Réducteur de pression",
+  VANNE_GENERALE: "Vanne générale",
+  // CFO / CFA
+  ARMOIRE_ELECTRIQUE: "Armoire électrique",
+  ARMOIRE_TGBT: "TGBT",
+  ARMOIRE_TD: "Tableau divisionnaire",
+  AUTOMATE: "Automate",
+  ONDULEUR: "Onduleur",
+  TRANSFORMATEUR: "Transformateur",
+  GROUPE_ELECTROGENE: "Groupe électrogène",
+  ALARME_INCENDIE: "Alarme incendie",
+  ALARME_INTRUSION: "Alarme intrusion",
+  ECLAIRAGE_SECURITE: "Éclairage de sécurité",
+  // COMPTAGE
+  COMPTEUR_APPOINT: "Compteur d'appoint",
+  COMPTEUR_ELECTRIQUE: "Compteur électrique",
+  SOUS_COMPTEUR: "Sous-compteur",
+  TELERELEVE: "Télérelève",
+  // CLIMATISATION (compléments)
+  DRV: "DRV",
+  VRV: "VRV",
+  CLIMATISATION: "Climatisation",
+  REGISTRE: "Registre",
   AUTRE: "Autre",
 };
 
