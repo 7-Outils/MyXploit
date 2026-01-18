@@ -49,6 +49,9 @@ interface ReportOptions {
   context?: string;
   scope?: string[];
   objectives?: string[];
+  // New fields for configuration
+  reportTitle?: string;  // Title for the header (e.g., "MyXploit" or custom)
+  madeBy?: string;       // Who made the report (e.g., "Équipe technique")
 }
 
 // Domain labels
@@ -60,7 +63,7 @@ const DOMAIN_LABELS: Record<string, string> = {
   TRAITEMENT_EAU: "Traitement d'eau",
   PLOMBERIE: "Plomberie",
   CFO_CFA: "Électricité CFO/CFA",
-  COMPTAGE: "Comptage / Métrologie",
+  COMPTAGE: "Comptage",
   PISCINE: "Piscine",
   AUTRE: "Autre",
 };
@@ -317,7 +320,7 @@ export async function generateEquipmentReportPDF(
     doc.setFont("helvetica", "normal");
     const title = options.siteName || "Rapport d'état du patrimoine";
     doc.text(title, 14, 8);
-    doc.text(options.organizationName || "MyXploit", pageWidth - 14, 8, { align: "right" });
+    doc.text(options.reportTitle || "MyXploit", pageWidth - 14, 8, { align: "right" });
     doc.setTextColor(0, 0, 0);
   };
 
@@ -407,13 +410,12 @@ export async function generateEquipmentReportPDF(
   doc.setFont("helvetica", "bold");
   doc.text(equipments.length.toString(), pageWidth - 30, y, { align: "right" });
 
-  // Organization name at bottom
-  if (options.organizationName) {
-    doc.setTextColor(...grayColor);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(options.organizationName, pageWidth / 2, pageHeight - 20, { align: "center" });
-  }
+  // Report maker at bottom
+  const reportMaker = options.madeBy || options.reportTitle || "MyXploit";
+  doc.setTextColor(...grayColor);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(reportMaker, pageWidth / 2, pageHeight - 20, { align: "center" });
 
   // Footer
   doc.setTextColor(...grayColor);
@@ -560,13 +562,16 @@ export async function generateEquipmentReportPDF(
   doc.text("À l'issue de l'audit, un score est défini sur les 5 critères audités. Le tableau ci-après détaille le code couleur utilisé :", 20, y);
   y += 8;
 
-  // Methodology table
+  // Methodology table - uniform column widths
+  const methodTableWidth = pageWidth - 28; // 14 + 14 margins
+  const methodColWidth = methodTableWidth / 6; // 6 columns
+
   autoTable(doc, {
     startY: y,
-    head: [["Couleur", "État visuel", "Performance", "Sécurité", "Accessibilité", "Conformité"]],
+    head: [["", "État visuel", "Performance", "Sécurité", "Accessibilité", "Conformité"]],
     body: [
       [
-        { content: "", styles: { fillColor: RATING_COLORS.CRITIQUE } },
+        { content: "Critique", styles: { fillColor: RATING_COLORS.CRITIQUE, textColor: [255, 255, 255] } },
         "Dégradation majeure",
         "Défaillant",
         "Danger immédiat",
@@ -574,7 +579,7 @@ export async function generateEquipmentReportPDF(
         "Non-conformité majeure",
       ],
       [
-        { content: "", styles: { fillColor: RATING_COLORS.MAUVAIS } },
+        { content: "Mauvais", styles: { fillColor: RATING_COLORS.MAUVAIS, textColor: [255, 255, 255] } },
         "Usure importante",
         "Sous-performant",
         "Risques importants",
@@ -582,7 +587,7 @@ export async function generateEquipmentReportPDF(
         "Non-conformité mineure",
       ],
       [
-        { content: "", styles: { fillColor: RATING_COLORS.MOYEN } },
+        { content: "Moyen", styles: { fillColor: RATING_COLORS.MOYEN, textColor: [255, 255, 255] } },
         "Usure normale",
         "Acceptable",
         "À surveiller",
@@ -590,7 +595,7 @@ export async function generateEquipmentReportPDF(
         "À vérifier",
       ],
       [
-        { content: "", styles: { fillColor: RATING_COLORS.BON } },
+        { content: "Bon", styles: { fillColor: RATING_COLORS.BON, textColor: [255, 255, 255] } },
         "Bon état",
         "Performant",
         "Conforme",
@@ -598,7 +603,7 @@ export async function generateEquipmentReportPDF(
         "Conforme",
       ],
       [
-        { content: "", styles: { fillColor: RATING_COLORS.NON_EVALUE } },
+        { content: "Non évalué", styles: { fillColor: RATING_COLORS.NON_EVALUE } },
         "Non évalué",
         "Non évalué",
         "Non évalué",
@@ -607,15 +612,15 @@ export async function generateEquipmentReportPDF(
       ],
     ],
     theme: "grid",
-    headStyles: { fillColor: primaryColor, fontSize: 8, cellPadding: 2 },
-    bodyStyles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: primaryColor, fontSize: 8, cellPadding: 3, halign: "center" },
+    bodyStyles: { fontSize: 8, cellPadding: 3, halign: "center" },
     columnStyles: {
-      0: { cellWidth: 15, halign: "center" },
-      1: { cellWidth: 32 },
-      2: { cellWidth: 32 },
-      3: { cellWidth: 32 },
-      4: { cellWidth: 32 },
-      5: { cellWidth: 32 },
+      0: { cellWidth: methodColWidth, halign: "center", fontStyle: "bold" },
+      1: { cellWidth: methodColWidth },
+      2: { cellWidth: methodColWidth },
+      3: { cellWidth: methodColWidth },
+      4: { cellWidth: methodColWidth },
+      5: { cellWidth: methodColWidth },
     },
     margin: { left: 14, right: 14 },
   });
@@ -758,31 +763,63 @@ export async function generateEquipmentReportPDF(
   doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.text("5. États du patrimoine", 14, y);
+  y += 12;
+
+  // Color legend
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...grayColor);
+  doc.text("Légende des couleurs :", 14, y);
+  y += 6;
+
+  const legendItems: Array<{ label: string; color: [number, number, number] }> = [
+    { label: "Excellent", color: RATING_COLORS.EXCELLENT },
+    { label: "Bon", color: RATING_COLORS.BON },
+    { label: "Moyen", color: RATING_COLORS.MOYEN },
+    { label: "Mauvais", color: RATING_COLORS.MAUVAIS },
+    { label: "Critique", color: RATING_COLORS.CRITIQUE },
+    { label: "Non évalué", color: RATING_COLORS.NON_EVALUE },
+  ];
+
+  let legendX = 20;
+  for (const item of legendItems) {
+    doc.setFillColor(...item.color);
+    doc.roundedRect(legendX, y - 3, 8, 8, 1, 1, "F");
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(7);
+    doc.text(item.label, legendX + 10, y + 2);
+    legendX += 32;
+  }
   y += 15;
 
-  // 5.1 Par domaine
+  // Matrix by domain
+  doc.setTextColor(...primaryColor);
   doc.setFontSize(12);
-  doc.text("5.1 Par domaine", 14, y);
-  tocEntries.push({ title: "5.1 Par domaine", page: currentPage, level: 2 });
+  doc.setFont("helvetica", "bold");
+  doc.text("Matrice par domaine", 14, y);
   y += 10;
 
-  // Draw matrix header
-  const matrixX = 50;
-  const cellSize = 12;
+  // Draw matrix header with full names
+  const matrixX = 55;
+  const cellSize = 25;
+  const cellSpacing = 2;
   const criteria = ["visualState", "performance", "security", "accessibility", "compliance"] as const;
+  const criteriaHeaderLabels = ["Visuel", "Perf.", "Sécu.", "Access.", "Conf."];
 
   // Domain labels on left
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
 
-  // Criteria headers (rotated text simulation - just abbreviations)
+  // Criteria headers
   let headerX = matrixX;
-  for (const criterion of criteria) {
+  for (let i = 0; i < criteriaHeaderLabels.length; i++) {
     doc.setTextColor(...grayColor);
-    doc.text(CRITERIA_SHORT[criterion], headerX + cellSize / 2, y, { align: "center" });
-    headerX += cellSize + 2;
+    doc.text(criteriaHeaderLabels[i], headerX + cellSize / 2, y, { align: "center" });
+    headerX += cellSize + cellSpacing;
   }
   y += 6;
+
+  doc.setFont("helvetica", "normal");
 
   // Draw matrix rows
   for (const [domain, domainEquipments] of byDomain) {
@@ -795,8 +832,8 @@ export async function generateEquipmentReportPDF(
     // Domain label
     doc.setTextColor(...primaryColor);
     doc.setFontSize(8);
-    const domainLabel = (DOMAIN_LABELS[domain] || domain).substring(0, 15);
-    doc.text(domainLabel, 14, y + cellSize / 2 + 2);
+    const domainLabel = DOMAIN_LABELS[domain] || domain;
+    doc.text(domainLabel, 14, y + cellSize / 2);
 
     // Rating cells
     let cellX = matrixX;
@@ -804,70 +841,38 @@ export async function generateEquipmentReportPDF(
       const rating = calculateAggregateRating(domainEquipments, criterion);
       const color = RATING_COLORS[rating];
       doc.setFillColor(...color);
-      doc.roundedRect(cellX, y, cellSize, cellSize, 1, 1, "F");
-      cellX += cellSize + 2;
+      doc.roundedRect(cellX, y, cellSize, cellSize - 8, 2, 2, "F");
+      cellX += cellSize + cellSpacing;
     }
 
-    y += cellSize + 4;
-  }
-
-  y += 10;
-
-  // 5.2 Par type d'équipement
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("5.2 Par type d'équipement", 14, y);
-  tocEntries.push({ title: "5.2 Par type d'équipement", page: currentPage, level: 2 });
-  y += 10;
-
-  // Criteria headers
-  headerX = matrixX;
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  for (const criterion of criteria) {
-    doc.setTextColor(...grayColor);
-    doc.text(CRITERIA_SHORT[criterion], headerX + cellSize / 2, y, { align: "center" });
-    headerX += cellSize + 2;
-  }
-  y += 6;
-
-  const byType = groupByType(equipments);
-  let typeCount = 0;
-  const maxTypes = 12; // Limit to avoid overflow
-
-  for (const [type, typeEquipments] of byType) {
-    if (typeCount >= maxTypes) break;
-    if (y > pageHeight - 30) {
-      y = addNewPage();
-      drawPageHeader();
-      y = 25;
-    }
-
-    // Type label
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(8);
-    const typeLabel = (EQUIPMENT_TYPE_LABELS[type] || type).substring(0, 18);
-    doc.text(typeLabel, 14, y + cellSize / 2 + 2);
-
-    // Rating cells
-    let cellX = matrixX;
-    for (const criterion of criteria) {
-      const rating = calculateAggregateRating(typeEquipments, criterion);
-      const color = RATING_COLORS[rating];
-      doc.setFillColor(...color);
-      doc.roundedRect(cellX, y, cellSize, cellSize, 1, 1, "F");
-      cellX += cellSize + 2;
-    }
-
-    y += cellSize + 4;
-    typeCount++;
+    y += cellSize - 4;
   }
 
   // ============================================
   // PAGES: SYNTHESIS BY DOMAIN
   // ============================================
-  tocEntries.push({ title: "6. Synthèse par domaine", page: currentPage + 1, level: 1 });
+  // Add section 6 title page
+  y = addNewPage();
+  drawPageHeader();
+  tocEntries.push({ title: "6. Synthèse par domaine", page: currentPage, level: 1 });
+
+  y = 25;
+  doc.setTextColor(...primaryColor);
+  doc.setFontSize(16);
+  doc.setFont("helvetica", "bold");
+  doc.text("6. Synthèse par domaine", 14, y);
+  y += 12;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...grayColor);
+  doc.text("Cette section présente l'analyse détaillée de chaque domaine technique :", 14, y);
+  y += 8;
+
+  for (const [domain] of byDomain) {
+    doc.text(`• ${DOMAIN_LABELS[domain] || domain}`, 20, y);
+    y += 5;
+  }
 
   let domainIndex = 1;
   for (const [domain, domainEquipments] of byDomain) {
@@ -941,9 +946,13 @@ export async function generateEquipmentReportPDF(
       };
     });
 
+    // Calculate available width (pageWidth - left margin - right margin)
+    const availableWidth = pageWidth - 28; // 14 + 14 margins
+    const colWidth = availableWidth / 11; // 11 columns
+
     autoTable(doc, {
       startY: y,
-      head: [["Photo", "Équipement", "Niveau", "Local", "Marque", "Statut", "V", "P", "S", "A", "C"]],
+      head: [["Photo", "Équipement", "Niveau", "Local", "Marque", "Statut", "Vis.", "Perf.", "Sécu.", "Acc.", "Conf."]],
       body: tableBody.map((row) => [
         "", // Photo placeholder
         row.name,
@@ -954,20 +963,20 @@ export async function generateEquipmentReportPDF(
         "", "", "", "", "", // Rating placeholders
       ]),
       theme: "grid",
-      headStyles: { fillColor: primaryColor, fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: primaryColor, fontSize: 6, cellPadding: 2 },
       bodyStyles: { fontSize: 7, cellPadding: 2, minCellHeight: 20, valign: "middle" },
       columnStyles: {
-        0: { cellWidth: 18 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 22 },
-        5: { cellWidth: 22 },
-        6: { cellWidth: 8, halign: "center" },
-        7: { cellWidth: 8, halign: "center" },
-        8: { cellWidth: 8, halign: "center" },
-        9: { cellWidth: 8, halign: "center" },
-        10: { cellWidth: 8, halign: "center" },
+        0: { cellWidth: colWidth * 1.2 },      // Photo
+        1: { cellWidth: colWidth * 2 },         // Équipement
+        2: { cellWidth: colWidth * 0.8 },       // Niveau
+        3: { cellWidth: colWidth * 1.2 },       // Local
+        4: { cellWidth: colWidth * 1.2 },       // Marque
+        5: { cellWidth: colWidth * 1.2 },       // Statut
+        6: { cellWidth: colWidth * 0.68, halign: "center" },  // Vis.
+        7: { cellWidth: colWidth * 0.68, halign: "center" },  // Perf.
+        8: { cellWidth: colWidth * 0.68, halign: "center" },  // Sécu.
+        9: { cellWidth: colWidth * 0.68, halign: "center" },  // Acc.
+        10: { cellWidth: colWidth * 0.68, halign: "center" }, // Conf.
       },
       margin: { left: 14, right: 14 },
       didDrawCell: (data) => {
