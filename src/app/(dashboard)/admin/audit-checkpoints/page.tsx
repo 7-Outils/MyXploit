@@ -559,32 +559,59 @@ export default function AuditCheckpointsPage() {
                       {form.findings.map((finding, index) => (
                         <div
                           key={finding.id}
-                          className="border border-gray-100 rounded-lg p-3 bg-gray-50"
+                          className={`border rounded-lg p-3 ${finding.isConform ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
                         >
                           <div className="flex items-start gap-3">
                             <div className="flex-1 space-y-2">
-                              <input
-                                type="text"
-                                value={finding.label}
-                                onChange={(e) =>
-                                  updateFinding(index, { label: e.target.value })
-                                }
-                                placeholder="ex: Absent"
-                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                              />
-                              <div className="flex items-center gap-4">
-                                <label className="flex items-center gap-2 text-sm">
+                              {/* Label du constat */}
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={finding.label}
+                                  onChange={(e) =>
+                                    updateFinding(index, { label: e.target.value })
+                                  }
+                                  placeholder="ex: Absent"
+                                  className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                />
+                                <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                                   <input
                                     type="checkbox"
                                     checked={finding.isConform}
                                     onChange={(e) =>
                                       updateFinding(index, { isConform: e.target.checked })
                                     }
-                                    className="rounded border-gray-300 text-accent focus:ring-accent"
+                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                                   />
                                   Conforme
                                 </label>
-                                {!finding.isConform && (
+                              </div>
+
+                              {/* Texte du rapport */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                  Texte du rapport
+                                </label>
+                                <textarea
+                                  value={finding.reportText || ""}
+                                  onChange={(e) =>
+                                    updateFinding(index, { reportText: e.target.value })
+                                  }
+                                  placeholder={finding.isConform
+                                    ? "ex: Le schéma de principe est présent et correctement affiché."
+                                    : "ex: Absence de schéma de principe. (Art. R.224-41-4)"
+                                  }
+                                  rows={2}
+                                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                />
+                              </div>
+
+                              {/* Préconisation liée (si non conforme) */}
+                              {!finding.isConform && (
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                                    Préconisation associée
+                                  </label>
                                   <select
                                     value={finding.recommendationId || ""}
                                     onChange={(e) =>
@@ -592,17 +619,17 @@ export default function AuditCheckpointsPage() {
                                         recommendationId: e.target.value || null,
                                       })
                                     }
-                                    className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
                                   >
-                                    <option value="">Lier une préconisation...</option>
+                                    <option value="">Aucune préconisation</option>
                                     {recommendations.map((r) => (
                                       <option key={r.id} value={r.id}>
                                         {r.title} {r.price ? `(${r.price}€ ${r.priceUnit})` : ""}
                                       </option>
                                     ))}
                                   </select>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                             <button
                               type="button"
