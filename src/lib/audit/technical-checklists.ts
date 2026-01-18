@@ -554,13 +554,60 @@ export function groupItemsByCategory(items: ChecklistItem[]): Map<string, Checkl
 
 /**
  * Type pour les résultats d'un item de checklist sauvegardé
+ * (pour un audit de site, inclut le type d'équipement)
  */
 export interface SavedChecklistItem {
+  equipmentType: string;  // Type d'équipement (ex: "CHAUDIERE")
   itemId: string;
   label: string;
   category: string;
   result: ChecklistItemResult;
   notes?: string;
+}
+
+/**
+ * Récupère les checklists agrégées pour une liste de types d'équipements présents sur un site
+ * Retourne un tableau avec les checklists uniques (dédupliquées par checklist.name)
+ */
+export function getChecklistsForEquipmentTypes(equipmentTypes: string[]): TechnicalChecklist[] {
+  const uniqueTypes = [...new Set(equipmentTypes)];
+  const checklists: TechnicalChecklist[] = [];
+  const seenNames = new Set<string>();
+
+  for (const type of uniqueTypes) {
+    const checklist = getChecklistForEquipmentType(type);
+    if (checklist && !seenNames.has(checklist.name)) {
+      seenNames.add(checklist.name);
+      checklists.push(checklist);
+    }
+  }
+
+  return checklists;
+}
+
+/**
+ * Génère les items de checklist initiaux pour un site
+ * basé sur les types d'équipements présents
+ */
+export function generateInitialChecklistItems(equipmentTypes: string[]): SavedChecklistItem[] {
+  const checklists = getChecklistsForEquipmentTypes(equipmentTypes);
+  const items: SavedChecklistItem[] = [];
+
+  for (const checklist of checklists) {
+    // Utiliser le premier type comme référence
+    const equipmentType = checklist.types[0];
+    for (const item of checklist.items) {
+      items.push({
+        equipmentType,
+        itemId: item.id,
+        label: item.label,
+        category: item.category,
+        result: "NON_VERIFIE",
+      });
+    }
+  }
+
+  return items;
 }
 
 /**

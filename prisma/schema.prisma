@@ -151,6 +151,7 @@ model Site {
   poolBasins      PoolBasin[]     // Bassins de piscine pour ce site
   heatingSeasons  HeatingSeason[] // Saisons de chauffage (dates allumage/arrêt)
   aliases         SiteAlias[]     // Alias pour l'import de données
+  technicalAudits TechnicalAudit[] // Audits techniques du site
 
   @@map("sites")
 }
@@ -370,7 +371,6 @@ model Equipment {
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   avenantItems AvenantItem[]     // Modifications d'avenant concernant cet équipement
   audits       EquipmentAudit[]  // Historique des audits simples
-  technicalAudits TechnicalAudit[] // Historique des audits techniques
 
   @@map("equipments")
 }
@@ -405,14 +405,14 @@ model EquipmentAudit {
   @@map("equipment_audits")
 }
 
-// Audit technique d'un équipement (checklist de conformité)
+// Audit technique d'un site (checklist de conformité par type d'équipement)
 model TechnicalAudit {
   id             String               @id @default(cuid())
-  equipmentId    String
+  siteId         String
   auditDate      DateTime             // Date de l'audit
   auditor        String?              // Nom de l'auditeur
   // Résultats de la checklist (stocké en JSON)
-  // Format: [{itemId, label, category, result: "CONFORME"|"NON_CONFORME"|"NA"|"NON_VERIFIE", notes?}]
+  // Format: [{equipmentType, itemId, label, category, result: "CONFORME"|"NON_CONFORME"|"NA"|"NON_VERIFIE", notes?}]
   checklistItems Json
   globalResult   TechnicalAuditResult @default(NON_VERIFIE)
   generalNotes   String?              // Observations générales
@@ -421,7 +421,7 @@ model TechnicalAudit {
   updatedAt      DateTime             @updatedAt
 
   // Relations
-  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
   @@map("technical_audits")
 }

@@ -3,26 +3,26 @@ import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { calculateGlobalResult, SavedChecklistItem } from "@/lib/audit/technical-checklists";
 
-// GET /api/equipments/[id]/technical-audits/[auditId] - Get a specific technical audit
+// GET /api/sites/[id]/technical-audits/[auditId] - Get a specific technical audit
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; auditId: string }> }
 ) {
   try {
     const user = await requireAuth();
-    const { id: equipmentId, auditId } = await params;
+    const { id: siteId, auditId } = await params;
 
-    // Verify equipment belongs to organization
-    const equipment = await prisma.equipment.findFirst({
+    // Verify site belongs to organization
+    const site = await prisma.site.findFirst({
       where: {
-        id: equipmentId,
+        id: siteId,
         organizationId: user.organizationId,
       },
     });
 
-    if (!equipment) {
+    if (!site) {
       return NextResponse.json(
-        { error: "Équipement non trouvé" },
+        { error: "Site non trouve" },
         { status: 404 }
       );
     }
@@ -30,13 +30,13 @@ export async function GET(
     const audit = await prisma.technicalAudit.findFirst({
       where: {
         id: auditId,
-        equipmentId,
+        siteId,
       },
     });
 
     if (!audit) {
       return NextResponse.json(
-        { error: "Audit technique non trouvé" },
+        { error: "Audit technique non trouve" },
         { status: 404 }
       );
     }
@@ -45,20 +45,20 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching technical audit:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la récupération de l'audit technique" },
+      { error: "Erreur lors de la recuperation de l'audit technique" },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/equipments/[id]/technical-audits/[auditId] - Update a technical audit
+// PUT /api/sites/[id]/technical-audits/[auditId] - Update a technical audit
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; auditId: string }> }
 ) {
   try {
     const user = await requireAuth();
-    const { id: equipmentId, auditId } = await params;
+    const { id: siteId, auditId } = await params;
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -67,17 +67,17 @@ export async function PUT(
       );
     }
 
-    // Verify equipment belongs to organization
-    const equipment = await prisma.equipment.findFirst({
+    // Verify site belongs to organization
+    const site = await prisma.site.findFirst({
       where: {
-        id: equipmentId,
+        id: siteId,
         organizationId: user.organizationId,
       },
     });
 
-    if (!equipment) {
+    if (!site) {
       return NextResponse.json(
-        { error: "Équipement non trouvé" },
+        { error: "Site non trouve" },
         { status: 404 }
       );
     }
@@ -86,13 +86,13 @@ export async function PUT(
     const existingAudit = await prisma.technicalAudit.findFirst({
       where: {
         id: auditId,
-        equipmentId,
+        siteId,
       },
     });
 
     if (!existingAudit) {
       return NextResponse.json(
-        { error: "Audit technique non trouvé" },
+        { error: "Audit technique non trouve" },
         { status: 404 }
       );
     }
@@ -127,14 +127,14 @@ export async function PUT(
   }
 }
 
-// DELETE /api/equipments/[id]/technical-audits/[auditId] - Delete a technical audit
+// DELETE /api/sites/[id]/technical-audits/[auditId] - Delete a technical audit
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; auditId: string }> }
 ) {
   try {
     const user = await requireAuth();
-    const { id: equipmentId, auditId } = await params;
+    const { id: siteId, auditId } = await params;
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -143,17 +143,17 @@ export async function DELETE(
       );
     }
 
-    // Verify equipment belongs to organization
-    const equipment = await prisma.equipment.findFirst({
+    // Verify site belongs to organization
+    const site = await prisma.site.findFirst({
       where: {
-        id: equipmentId,
+        id: siteId,
         organizationId: user.organizationId,
       },
     });
 
-    if (!equipment) {
+    if (!site) {
       return NextResponse.json(
-        { error: "Équipement non trouvé" },
+        { error: "Site non trouve" },
         { status: 404 }
       );
     }
@@ -162,13 +162,13 @@ export async function DELETE(
     const existingAudit = await prisma.technicalAudit.findFirst({
       where: {
         id: auditId,
-        equipmentId,
+        siteId,
       },
     });
 
     if (!existingAudit) {
       return NextResponse.json(
-        { error: "Audit technique non trouvé" },
+        { error: "Audit technique non trouve" },
         { status: 404 }
       );
     }

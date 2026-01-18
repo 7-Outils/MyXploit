@@ -83,8 +83,9 @@ export const auditCreateSchema = z.object({
   status: z.enum(["OPERATIONNEL", "MAINTENANCE", "PANNE", "HORS_SERVICE"]).optional(),
 });
 
-// Technical audit validation (checklist-based audit)
+// Technical audit validation (checklist-based audit for site)
 const checklistItemResultSchema = z.object({
+  equipmentType: z.string(),  // Type d'equipement (ex: "CHAUDIERE")
   itemId: z.string(),
   label: z.string(),
   category: z.string(),

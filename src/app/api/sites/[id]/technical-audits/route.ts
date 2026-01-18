@@ -2,10 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
-import { technicalAuditCreateSchema, validateInput } from "@/lib/validations";
 import { calculateGlobalResult, SavedChecklistItem } from "@/lib/audit/technical-checklists";
+import { z } from "zod";
 
-// GET /api/equipments/[id]/technical-audits - Get all technical audits for an equipment
+// Validation schema for technical audit
+const checklistItemSchema = z.object({
+  equipmentType: z.string(),
+  itemId: z.string(),
+  label: z.string(),
+  category: z.string(),
+  result: z.enum(["CONFORME", "NON_CONFORME", "NA", "NON_VERIFIE"]),
+  notes: z.string().optional(),
+});
+
+const technicalAuditSchema = z.object({
+  auditDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  auditor: z.string().max(500).optional(),
+  checklistItems: z.array(checklistItemSchema).min(1),
+  globalResult: z.enum(["NON_VERIFIE", "CONFORME", "NON_CONFORME", "PARTIEL"]).optional(),
+  generalNotes: z.string().max(5000).optional(),
+  photos: z.array(z.string().url()).optional(),
+});
+
+// GET /api/sites/[id]/technical-audits - Get all technical audits for a site
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -17,25 +36,25 @@ export async function GET(
     if (!success) return rateLimitExceeded();
 
     const user = await requireAuth();
-    const { id: equipmentId } = await params;
+    const { id: siteId } = await params;
 
-    // Verify equipment belongs to organization
-    const equipment = await prisma.equipment.findFirst({
+    // Verify site belongs to organization
+    const site = await prisma.site.findFirst({
       where: {
-        id: equipmentId,
+        id: siteId,
         organizationId: user.organizationId,
       },
     });
 
-    if (!equipment) {
+    if (!site) {
       return NextResponse.json(
-        { error: "Équipement non trouvé" },
+        { error: "Site non trouve" },
         { status: 404 }
       );
     }
 
     const audits = await prisma.technicalAudit.findMany({
-      where: { equipmentId },
+      where: { siteId },
       orderBy: { auditDate: "desc" },
     });
 
@@ -43,13 +62,13 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching technical audits:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la récupération des audits techniques" },
+      { error: "Erreur lors de la recuperation des audits techniques" },
       { status: 500 }
     );
   }
 }
 
-// POST /api/equipments/[id]/technical-audits - Create a new technical audit for an equipment
+// POST /api/sites/[id]/technical-audits - Create a new technical audit for a site
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -61,26 +80,26 @@ export async function POST(
     if (!success) return rateLimitExceeded();
 
     const user = await requireAuth();
-    const { id: equipmentId } = await params;
+    const { id: siteId } = await params;
 
     if (user.role === "READER") {
       return NextResponse.json(
-        { error: "Vous n'avez pas les droits pour créer un audit technique" },
+        { error: "Vous n'avez pas les droits pour creer un audit technique" },
         { status: 403 }
       );
     }
 
-    // Verify equipment belongs to organization
-    const equipment = await prisma.equipment.findFirst({
+    // Verify site belongs to organization
+    const site = await prisma.site.findFirst({
       where: {
-        id: equipmentId,
+        id: siteId,
         organizationId: user.organizationId,
       },
     });
 
-    if (!equipment) {
+    if (!site) {
       return NextResponse.json(
-        { error: "Équipement non trouvé" },
+        { error: "Site non trouve" },
         { status: 404 }
       );
     }
@@ -88,9 +107,15 @@ export async function POST(
     const body = await request.json();
 
     // Validate input
-    const validation = validateInput(technicalAuditCreateSchema, body);
+    const validation = technicalAuditSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
+      const firstError = validation.error.issues[0];
+      const path = firstError.path.join(".");
+      const message = firstError.message;
+      return NextResponse.json(
+        { error: path ? `${path}: ${message}` : message },
+        { status: 400 }
+      );
     }
 
     // Calculate global result from checklist items
@@ -99,7 +124,7 @@ export async function POST(
 
     const audit = await prisma.technicalAudit.create({
       data: {
-        equipmentId,
+        siteId,
         auditDate: body.auditDate ? new Date(body.auditDate) : new Date(),
         auditor: body.auditor || null,
         checklistItems: checklistItems as unknown as object[],
@@ -113,7 +138,7 @@ export async function POST(
   } catch (error) {
     console.error("Error creating technical audit:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la création de l'audit technique" },
+      { error: "Erreur lors de la creation de l'audit technique" },
       { status: 500 }
     );
   }
