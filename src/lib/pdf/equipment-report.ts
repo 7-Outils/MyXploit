@@ -113,33 +113,86 @@ const CRITERIA_SHORT = {
 
 // Convert image URL to base64 data URL
 async function fetchImageAsBase64(url: string): Promise<string | null> {
+  // If it's already a data URL, return as-is
+  if (url.startsWith("data:")) {
+    return url;
+  }
+
+  // Try using Image API first (better CORS handling for some cases)
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
+    return await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+            resolve(dataUrl);
+          } else {
+            resolve(null);
+          }
+        } catch {
+          resolve(null);
+        }
+      };
+
+      img.onerror = () => {
+        // Fallback: try fetch API
+        fetch(url, { mode: "cors" })
+          .then((response) => {
+            if (!response.ok) throw new Error("Fetch failed");
+            return response.blob();
+          })
+          .then((blob) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(blob);
+          })
+          .catch(() => resolve(null));
+      };
+
+      img.src = url;
     });
   } catch {
     return null;
   }
 }
 
-// Preload all images
+// Preload all images with timeout
 async function preloadImages(equipments: ReportEquipment[]): Promise<Map<string, string>> {
   const imageMap = new Map<string, string>();
-  const imagePromises = equipments
-    .filter((eq) => eq.imageUrl)
-    .map(async (eq) => {
-      const base64 = await fetchImageAsBase64(eq.imageUrl!);
+  const equipmentsWithImages = equipments.filter((eq) => eq.imageUrl);
+
+  console.log(`[PDF] Loading ${equipmentsWithImages.length} images...`);
+
+  const imagePromises = equipmentsWithImages.map(async (eq) => {
+    try {
+      // Add timeout of 5 seconds per image
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+      const imagePromise = fetchImageAsBase64(eq.imageUrl!);
+
+      const base64 = await Promise.race([imagePromise, timeoutPromise]);
+
       if (base64) {
         imageMap.set(eq.id, base64);
+        console.log(`[PDF] Loaded image for ${eq.id}`);
+      } else {
+        console.warn(`[PDF] Failed to load image for ${eq.id}: ${eq.imageUrl}`);
       }
-    });
+    } catch (error) {
+      console.warn(`[PDF] Error loading image for ${eq.id}:`, error);
+    }
+  });
+
   await Promise.all(imagePromises);
+  console.log(`[PDF] Successfully loaded ${imageMap.size}/${equipmentsWithImages.length} images`);
   return imageMap;
 }
 
