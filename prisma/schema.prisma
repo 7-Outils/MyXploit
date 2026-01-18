@@ -23,17 +23,21 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   // Relations
-  users           User[]
-  sites           Site[]
-  siteAliases     SiteAlias[]
-  contracts       Contract[]
-  invoices        Invoice[]
-  quotes          Quote[]
-  meetings        Meeting[]
-  alerts          Alert[]
-  equipments      Equipment[]
-  consumptions    Consumption[]
-  energyProviders EnergyProvider[]
+  users                   User[]
+  sites                   Site[]
+  siteAliases             SiteAlias[]
+  contracts               Contract[]
+  invoices                Invoice[]
+  quotes                  Quote[]
+  meetings                Meeting[]
+  alerts                  Alert[]
+  equipments              Equipment[]
+  consumptions            Consumption[]
+  energyProviders         EnergyProvider[]
+  // Configuration audit technique
+  checklistTemplates      ChecklistTemplate[]
+  recommendationTemplates RecommendationTemplate[]
+  checklistCategories     ChecklistCategory[]
 
   @@map("organizations")
 }
@@ -421,9 +425,136 @@ model TechnicalAudit {
   updatedAt      DateTime             @updatedAt
 
   // Relations
-  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site            Site                  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  recommendations AuditRecommendation[] // Préconisations générées
 
   @@map("technical_audits")
+}
+
+// ============================================
+// CONFIGURATION AUDIT TECHNIQUE (Admin)
+// ============================================
+
+// Template de checklist configurable par l'admin
+model ChecklistTemplate {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String   // Ex: "Chaudière", "Disconnecteur"
+  domain          String   // Ex: "CHAUFFAGE", "PLOMBERIE"
+  equipmentTypes  String[] // Types d'équipements concernés
+  description     String?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        ChecklistTemplateItem[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("checklist_templates")
+}
+
+// Item de checklist avec textes de rapport
+model ChecklistTemplateItem {
+  id                  String   @id @default(cuid())
+  templateId          String
+  itemKey             String   // Clé unique dans le template (ex: "schema_principe")
+  label               String   // Label affiché (ex: "Schéma de principe présent")
+  category            String   // Catégorie (ex: "DOSSIER_TECHNIQUE")
+  description         String?  // Description détaillée optionnelle
+  // Textes pour le rapport selon le résultat
+  conformeText        String   // Texte professionnel si CONFORME
+  nonConformeText     String   // Texte d'alerte si NON_CONFORME
+  regulatoryReference String?  // Référence réglementaire (ex: "Article R.224-41-4")
+  sortOrder           Int      @default(0)
+  isRequired          Boolean  @default(false) // Si requis pour validation
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  template        ChecklistTemplate        @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  recommendations RecommendationTemplate[] // Recommandations par défaut pour cet item
+
+  @@unique([templateId, itemKey])
+  @@index([templateId])
+  @@index([category])
+  @@map("checklist_template_items")
+}
+
+// Template de recommandation (action corrective par défaut)
+model RecommendationTemplate {
+  id               String   @id @default(cuid())
+  organizationId   String
+  checklistItemId  String?  // Liée à un item de checklist (optionnel)
+  title            String   // Ex: "Mise en place du schéma de principe"
+  description      String   // Description détaillée de l'action
+  defaultCostMin   Float?   // Estimation de coût minimum (€ HT)
+  defaultCostMax   Float?   // Estimation de coût maximum (€ HT)
+  priority         Int      @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
+  category         String?  // Catégorie (ex: "MAINTENANCE", "REMPLACEMENT", "REGLEMENTAIRE")
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  checklistItem        ChecklistTemplateItem?  @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+  auditRecommendations AuditRecommendation[]
+
+  @@index([organizationId])
+  @@index([checklistItemId])
+  @@map("recommendation_templates")
+}
+
+// Recommandation générée lors d'un audit (instance)
+model AuditRecommendation {
+  id                 String    @id @default(cuid())
+  technicalAuditId   String
+  templateId         String?   // Template source (null si créée manuellement)
+  checklistItemKey   String?   // Clé de l'item de checklist concerné
+  title              String
+  description        String
+  estimatedCostMin   Float?    // Coût estimé min (modifiable par l'auditeur)
+  estimatedCostMax   Float?    // Coût estimé max
+  actualCost         Float?    // Coût réel si travaux effectués
+  priority           Int       @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
+  status             String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+  auditorNotes       String?   // Notes de l'auditeur
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Relations
+  technicalAudit TechnicalAudit          @relation(fields: [technicalAuditId], references: [id], onDelete: Cascade)
+  template       RecommendationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([technicalAuditId])
+  @@index([status])
+  @@map("audit_recommendations")
+}
+
+// Catégories personnalisables pour les checklists
+model ChecklistCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  key            String   // Ex: "DOSSIER_TECHNIQUE", "COMBUSTION"
+  label          String   // Ex: "Dossier technique", "Combustion"
+  description    String?
+  sortOrder      Int      @default(0)
+  icon           String?  // Nom d'icône optionnel (lucide-react)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@map("checklist_categories")
 }
 
 // ============================================

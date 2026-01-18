@@ -13,6 +13,22 @@ const checklistItemSchema = z.object({
   category: z.string(),
   result: z.enum(["CONFORME", "NON_CONFORME", "NA", "NON_VERIFIE"]),
   notes: z.string().optional(),
+  // Nouveaux champs pour les textes de rapport
+  conformeText: z.string().optional(),
+  nonConformeText: z.string().optional(),
+  regulatoryReference: z.string().optional(),
+});
+
+// Validation schema for recommendations
+const recommendationSchema = z.object({
+  templateId: z.string().optional(),
+  checklistItemKey: z.string().optional(),
+  title: z.string().min(1),
+  description: z.string(),
+  estimatedCostMin: z.number().optional(),
+  estimatedCostMax: z.number().optional(),
+  priority: z.number().int().min(1).max(4).default(3),
+  auditorNotes: z.string().optional(),
 });
 
 const technicalAuditSchema = z.object({
@@ -22,6 +38,7 @@ const technicalAuditSchema = z.object({
   globalResult: z.enum(["NON_VERIFIE", "CONFORME", "NON_CONFORME", "PARTIEL"]).optional(),
   generalNotes: z.string().max(5000).optional(),
   photos: z.array(z.string().url()).optional(),
+  recommendations: z.array(recommendationSchema).optional(),
 });
 
 // GET /api/sites/[id]/technical-audits - Get all technical audits for a site
@@ -122,19 +139,47 @@ export async function POST(
     const checklistItems = body.checklistItems as SavedChecklistItem[];
     const globalResult = body.globalResult || calculateGlobalResult(checklistItems);
 
-    const audit = await prisma.technicalAudit.create({
-      data: {
-        siteId,
-        auditDate: body.auditDate ? new Date(body.auditDate) : new Date(),
-        auditor: body.auditor || null,
-        checklistItems: checklistItems as unknown as object[],
-        globalResult,
-        generalNotes: body.generalNotes || null,
-        photos: body.photos || [],
-      },
+    // Create audit with recommendations in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the audit
+      const audit = await tx.technicalAudit.create({
+        data: {
+          siteId,
+          auditDate: body.auditDate ? new Date(body.auditDate) : new Date(),
+          auditor: body.auditor || null,
+          checklistItems: checklistItems as unknown as object[],
+          globalResult,
+          generalNotes: body.generalNotes || null,
+          photos: body.photos || [],
+        },
+      });
+
+      // Create recommendations if provided
+      const recommendations = body.recommendations || [];
+      if (recommendations.length > 0) {
+        await tx.auditRecommendation.createMany({
+          data: recommendations.map((rec: z.infer<typeof recommendationSchema>) => ({
+            technicalAuditId: audit.id,
+            templateId: rec.templateId || null,
+            checklistItemKey: rec.checklistItemKey || null,
+            title: rec.title,
+            description: rec.description,
+            estimatedCostMin: rec.estimatedCostMin || null,
+            estimatedCostMax: rec.estimatedCostMax || null,
+            priority: rec.priority || 3,
+            auditorNotes: rec.auditorNotes || null,
+          })),
+        });
+      }
+
+      // Fetch the complete audit with recommendations
+      return tx.technicalAudit.findUnique({
+        where: { id: audit.id },
+        include: { recommendations: true },
+      });
     });
 
-    return NextResponse.json(audit, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error("Error creating technical audit:", error);
     return NextResponse.json(
