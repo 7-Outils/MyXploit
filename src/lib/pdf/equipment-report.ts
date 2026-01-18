@@ -311,13 +311,11 @@ export async function generateEquipmentReportPDF(
     imageMap = await preloadImages(equipments);
     console.log("Loaded", imageMap.size, "images");
 
-    // Try to load cover image
+    // Try to load cover image (only if explicitly provided)
     if (options.coverImageUrl) {
       coverImage = await fetchImageAsBase64(options.coverImageUrl);
-    } else if (equipments[0]?.imageUrl) {
-      // Use first equipment image as fallback
-      coverImage = imageMap.get(equipments[0].id) || null;
     }
+    // No fallback - if no cover image provided, none will be shown
   } catch (e) {
     console.warn("Error loading images:", e);
   }

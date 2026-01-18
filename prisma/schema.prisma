@@ -328,6 +328,14 @@ enum AuditRating {
   EXCELLENT   // 5 - État neuf ou quasi-neuf
 }
 
+// Résultat global d'un audit technique
+enum TechnicalAuditResult {
+  NON_VERIFIE   // Pas encore vérifié
+  CONFORME      // Tous les points conformes
+  NON_CONFORME  // Au moins un point non conforme critique
+  PARTIEL       // Certains points conformes, d'autres non
+}
+
 model Equipment {
   id             String          @id @default(cuid())
   name           String?         // Optionnel - auto-généré depuis le type si vide
@@ -361,7 +369,8 @@ model Equipment {
   site         Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   avenantItems AvenantItem[]     // Modifications d'avenant concernant cet équipement
-  audits       EquipmentAudit[]  // Historique des audits
+  audits       EquipmentAudit[]  // Historique des audits simples
+  technicalAudits TechnicalAudit[] // Historique des audits techniques
 
   @@map("equipments")
 }
@@ -394,6 +403,27 @@ model EquipmentAudit {
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 
   @@map("equipment_audits")
+}
+
+// Audit technique d'un équipement (checklist de conformité)
+model TechnicalAudit {
+  id             String               @id @default(cuid())
+  equipmentId    String
+  auditDate      DateTime             // Date de l'audit
+  auditor        String?              // Nom de l'auditeur
+  // Résultats de la checklist (stocké en JSON)
+  // Format: [{itemId, label, category, result: "CONFORME"|"NON_CONFORME"|"NA"|"NON_VERIFIE", notes?}]
+  checklistItems Json
+  globalResult   TechnicalAuditResult @default(NON_VERIFIE)
+  generalNotes   String?              // Observations générales
+  photos         String[]             // URLs des photos
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  // Relations
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@map("technical_audits")
 }
 
 // ============================================

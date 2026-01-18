@@ -70,7 +70,7 @@ export const quoteCreateSchema = z.object({
   contractId: z.string().uuid(),
 });
 
-// Audit validation
+// Audit validation (simple audit)
 export const auditCreateSchema = z.object({
   auditDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   auditor: z.string().max(MAX_STRING_LENGTH).optional(),
@@ -81,6 +81,24 @@ export const auditCreateSchema = z.object({
   compliance: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]),
   generalNotes: z.string().max(MAX_TEXT_LENGTH).optional(),
   status: z.enum(["OPERATIONNEL", "MAINTENANCE", "PANNE", "HORS_SERVICE"]).optional(),
+});
+
+// Technical audit validation (checklist-based audit)
+const checklistItemResultSchema = z.object({
+  itemId: z.string(),
+  label: z.string(),
+  category: z.string(),
+  result: z.enum(["CONFORME", "NON_CONFORME", "NA", "NON_VERIFIE"]),
+  notes: z.string().max(MAX_TEXT_LENGTH).optional(),
+});
+
+export const technicalAuditCreateSchema = z.object({
+  auditDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  auditor: z.string().max(MAX_STRING_LENGTH).optional(),
+  checklistItems: z.array(checklistItemResultSchema).min(1),
+  globalResult: z.enum(["NON_VERIFIE", "CONFORME", "NON_CONFORME", "PARTIEL"]).optional(),
+  generalNotes: z.string().max(MAX_TEXT_LENGTH).optional(),
+  photos: z.array(z.string().url()).optional(),
 });
 
 // Meeting validation
