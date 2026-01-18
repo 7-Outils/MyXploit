@@ -34,10 +34,13 @@ model Organization {
   equipments              Equipment[]
   consumptions            Consumption[]
   energyProviders         EnergyProvider[]
-  // Configuration audit technique
+  // Configuration audit technique (ancien système)
   checklistTemplates      ChecklistTemplate[]
   recommendationTemplates RecommendationTemplate[]
   checklistCategories     ChecklistCategory[]
+  // Nouveau système d'audit configurable
+  recommendationLibrary   RecommendationLibrary[]
+  auditCheckPoints        AuditCheckPoint[]
 
   @@map("organizations")
 }
@@ -555,6 +558,101 @@ model ChecklistCategory {
   @@unique([organizationId, key])
   @@index([organizationId])
   @@map("checklist_categories")
+}
+
+// ============================================
+// NOUVEAU SYSTÈME D'AUDIT CONFIGURABLE
+// ============================================
+
+// Bibliothèque de préconisations (réutilisable)
+model RecommendationLibrary {
+  id              String   @id @default(cuid())
+  organizationId  String
+  title           String   // "Mise en place schéma de principe"
+  description     String?
+  price           Float?   // 750
+  priceUnit       String   @default("HT") // "HT", "TTC"
+  category        String?  // Pour organiser: "DOCUMENTATION", "COMBUSTION", etc.
+  priority        Int      @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([category])
+  @@map("recommendation_library")
+}
+
+// Point de contrôle d'audit configurable
+model AuditCheckPoint {
+  id              String   @id @default(cuid())
+  organizationId  String
+
+  // Identification
+  label           String   // "Schéma de principe"
+  category        String   // "REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"
+  description     String?
+
+  // Type de réponse
+  // "YES_NO" - Simple oui/non
+  // "MULTI_CHOICE" - Choix multiples avec préconisations différentes
+  // "YES_NO_DATE" - Oui/non + date si oui
+  // "YES_NO_VALUES" - Oui/non + valeurs à saisir si oui (ex: analyse combustion)
+  responseType    String   @default("MULTI_CHOICE")
+
+  // Constats possibles (JSON)
+  // Format:
+  // [
+  //   {
+  //     "id": "present_ok",
+  //     "label": "Présent et affiché",
+  //     "isConform": true,
+  //     "reportText": "Le schéma est présent et correctement affiché"
+  //   },
+  //   {
+  //     "id": "absent",
+  //     "label": "Absent",
+  //     "isConform": false,
+  //     "recommendationId": "clxxx",
+  //     "reportText": "Absence de schéma de principe"
+  //   },
+  //   {
+  //     "id": "not_updated",
+  //     "label": "Présent mais pas à jour",
+  //     "isConform": false,
+  //     "recommendationId": "clyyy",
+  //     "reportText": "Schéma de principe non mis à jour"
+  //   }
+  // ]
+  findings        Json     @default("[]")
+
+  // Configuration pour réponses avec valeurs (YES_NO_VALUES)
+  // [
+  //   { "name": "date", "label": "Date de réalisation", "type": "date", "required": true },
+  //   { "name": "co", "label": "CO (ppm)", "type": "number", "maxThreshold": 50, "outOfRangeRecommendationId": "clxxx" },
+  //   { "name": "co2", "label": "CO2 (%)", "type": "number", "minThreshold": 8, "maxThreshold": 12 },
+  //   { "name": "rendement", "label": "Rendement (%)", "type": "number", "minThreshold": 90 }
+  // ]
+  valueFields     Json?
+
+  // Référence réglementaire (affichée dans le rapport si non conforme)
+  regulatoryRef   String?  // "Article R.224-41-4 du Code de l'environnement"
+
+  // Ordre et état
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([category])
+  @@map("audit_check_points")
 }
 
 // ============================================

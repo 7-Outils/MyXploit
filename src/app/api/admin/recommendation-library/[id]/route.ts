@@ -3,16 +3,18 @@ import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 import { z } from "zod";
 
-// Validation schema for update
-const updateCategorySchema = z.object({
-  key: z.string().min(1).max(50).regex(/^[A-Z_]+$/, "La clé doit être en majuscules avec underscores").optional(),
-  label: z.string().min(1).max(100).optional(),
+// Validation schema
+const updateRecommendationSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
   description: z.string().nullable().optional(),
-  sortOrder: z.number().int().optional(),
-  icon: z.string().nullable().optional(),
+  price: z.number().positive().nullable().optional(),
+  priceUnit: z.enum(["HT", "TTC"]).optional(),
+  category: z.string().nullable().optional(),
+  priority: z.number().int().min(1).max(4).optional(),
+  isActive: z.boolean().optional(),
 });
 
-// GET /api/admin/checklist-categories/[id]
+// GET /api/admin/recommendation-library/[id]
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,31 +30,31 @@ export async function GET(
       );
     }
 
-    const category = await prisma.checklistCategory.findFirst({
+    const recommendation = await prisma.recommendationLibrary.findFirst({
       where: {
         id,
         organizationId: user.organizationId,
       },
     });
 
-    if (!category) {
+    if (!recommendation) {
       return NextResponse.json(
-        { error: "Catégorie non trouvée" },
+        { error: "Préconisation non trouvée" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(category);
+    return NextResponse.json(recommendation);
   } catch (error) {
-    console.error("Error fetching category:", error);
+    console.error("Error fetching recommendation:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la récupération de la catégorie" },
+      { error: "Erreur lors de la récupération de la préconisation" },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/admin/checklist-categories/[id]
+// PUT /api/admin/recommendation-library/[id]
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -68,8 +70,8 @@ export async function PUT(
       );
     }
 
-    // Vérifier que la catégorie appartient à l'organisation
-    const existing = await prisma.checklistCategory.findFirst({
+    // Vérifier que la préconisation appartient à l'organisation
+    const existing = await prisma.recommendationLibrary.findFirst({
       where: {
         id,
         organizationId: user.organizationId,
@@ -78,13 +80,13 @@ export async function PUT(
 
     if (!existing) {
       return NextResponse.json(
-        { error: "Catégorie non trouvée" },
+        { error: "Préconisation non trouvée" },
         { status: 404 }
       );
     }
 
     const body = await request.json();
-    const validation = updateCategorySchema.safeParse(body);
+    const validation = updateRecommendationSchema.safeParse(body);
 
     if (!validation.success) {
       return NextResponse.json(
@@ -93,40 +95,22 @@ export async function PUT(
       );
     }
 
-    // Si la clé change, vérifier unicité
-    if (validation.data.key && validation.data.key !== existing.key) {
-      const keyExists = await prisma.checklistCategory.findFirst({
-        where: {
-          organizationId: user.organizationId,
-          key: validation.data.key,
-          id: { not: id },
-        },
-      });
-
-      if (keyExists) {
-        return NextResponse.json(
-          { error: "Une catégorie avec cette clé existe déjà" },
-          { status: 400 }
-        );
-      }
-    }
-
-    const category = await prisma.checklistCategory.update({
+    const recommendation = await prisma.recommendationLibrary.update({
       where: { id },
       data: validation.data,
     });
 
-    return NextResponse.json(category);
+    return NextResponse.json(recommendation);
   } catch (error) {
-    console.error("Error updating category:", error);
+    console.error("Error updating recommendation:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la modification de la catégorie" },
+      { error: "Erreur lors de la mise à jour de la préconisation" },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/admin/checklist-categories/[id]
+// DELETE /api/admin/recommendation-library/[id]
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -142,8 +126,8 @@ export async function DELETE(
       );
     }
 
-    // Vérifier que la catégorie appartient à l'organisation
-    const existing = await prisma.checklistCategory.findFirst({
+    // Vérifier que la préconisation appartient à l'organisation
+    const existing = await prisma.recommendationLibrary.findFirst({
       where: {
         id,
         organizationId: user.organizationId,
@@ -152,20 +136,22 @@ export async function DELETE(
 
     if (!existing) {
       return NextResponse.json(
-        { error: "Catégorie non trouvée" },
+        { error: "Préconisation non trouvée" },
         { status: 404 }
       );
     }
 
-    await prisma.checklistCategory.delete({
+    // Soft delete - on désactive au lieu de supprimer
+    await prisma.recommendationLibrary.update({
       where: { id },
+      data: { isActive: false },
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting category:", error);
+    console.error("Error deleting recommendation:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la suppression de la catégorie" },
+      { error: "Erreur lors de la suppression de la préconisation" },
       { status: 500 }
     );
   }
