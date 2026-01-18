@@ -21,6 +21,11 @@ export interface TechnicalChecklist {
 
 // Labels des catégories pour l'affichage
 export const CATEGORY_LABELS: Record<string, string> = {
+  // Documentation et conformité (section commune)
+  DOSSIER_TECHNIQUE: "Dossier technique",
+  CONFORMITE_REGLEMENTAIRE: "Conformité réglementaire",
+  CONSIGNES: "Consignes d'exploitation",
+  // Catégories équipements
   COMBUSTION: "Combustion",
   SECURITE: "Sécurité",
   EVACUATION: "Évacuation",
@@ -95,6 +100,36 @@ export const CATEGORY_LABELS: Record<string, string> = {
   ETAT: "État",
   DIMENSIONNEMENT: "Dimensionnement",
   ETANCHEITE: "Étanchéité",
+};
+
+// ============================================
+// CHECKLIST COMMUNE - Documentation et Conformité
+// S'applique à tout le site, indépendamment des équipements
+// ============================================
+
+export const COMMON_CHECKLIST: TechnicalChecklist = {
+  types: ["_SITE_COMMON_"], // Type spécial pour la checklist commune
+  domain: "DOCUMENTATION",
+  name: "Documentation et Conformité",
+  items: [
+    // Dossier technique
+    { id: "doc_plans", label: "Plans des installations présents et accessibles", category: "DOSSIER_TECHNIQUE" },
+    { id: "doc_notices", label: "Notices techniques des équipements disponibles", category: "DOSSIER_TECHNIQUE" },
+    { id: "doc_schema_principe", label: "Schémas de principe à jour (obligatoire)", category: "DOSSIER_TECHNIQUE" },
+    { id: "doc_carnet_entretien", label: "Carnet d'entretien tenu à jour", category: "DOSSIER_TECHNIQUE" },
+    { id: "doc_registre_securite", label: "Registre de sécurité présent", category: "DOSSIER_TECHNIQUE" },
+    // Conformité réglementaire
+    { id: "conf_controle_periodique", label: "Attestation de contrôle périodique valide (organisme agréé)", category: "CONFORMITE_REGLEMENTAIRE" },
+    { id: "conf_rapport_verification", label: "Rapport de vérification périodique disponible", category: "CONFORMITE_REGLEMENTAIRE" },
+    { id: "conf_contrat_maintenance", label: "Contrat de maintenance en vigueur", category: "CONFORMITE_REGLEMENTAIRE" },
+    { id: "conf_fiches_intervention", label: "Fiches d'intervention à jour", category: "CONFORMITE_REGLEMENTAIRE" },
+    // Consignes d'exploitation
+    { id: "cons_affichage", label: "Consignes de sécurité affichées et lisibles", category: "CONSIGNES" },
+    { id: "cons_exploitation", label: "Consignes d'exploitation disponibles", category: "CONSIGNES" },
+    { id: "cons_urgence", label: "Procédures d'urgence affichées", category: "CONSIGNES" },
+    { id: "cons_numeros", label: "Numéros d'urgence affichés (pompiers, gaz, etc.)", category: "CONSIGNES" },
+    { id: "cons_acces", label: "Accès chaufferie conforme (éclairage, dégagement)", category: "CONSIGNES" },
+  ],
 };
 
 // ============================================
@@ -567,11 +602,12 @@ export interface SavedChecklistItem {
 
 /**
  * Récupère les checklists agrégées pour une liste de types d'équipements présents sur un site
- * Retourne un tableau avec les checklists uniques (dédupliquées par checklist.name)
+ * Retourne un tableau avec la checklist commune en premier, puis les checklists équipements
  */
 export function getChecklistsForEquipmentTypes(equipmentTypes: string[]): TechnicalChecklist[] {
   const uniqueTypes = [...new Set(equipmentTypes)];
-  const checklists: TechnicalChecklist[] = [];
+  // Toujours commencer par la checklist commune Documentation
+  const checklists: TechnicalChecklist[] = [COMMON_CHECKLIST];
   const seenNames = new Set<string>();
 
   for (const type of uniqueTypes) {
