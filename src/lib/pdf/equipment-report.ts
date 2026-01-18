@@ -1178,7 +1178,8 @@ export async function generateEquipmentReportPDF(
     doc.setTextColor(...grayColor);
     doc.setFont("helvetica", "normal");
     doc.text(stat.label, statX, y);
-    doc.setTextColor(stat.color ? stat.color : primaryColor);
+    const colorToUse = stat.color || primaryColor;
+    doc.setTextColor(...colorToUse);
     doc.setFont("helvetica", "bold");
     doc.text(stat.value, statX, y + 6);
     statX += 45;
