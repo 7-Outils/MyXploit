@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   Loader2,
@@ -13,8 +13,20 @@ import {
   Banknote,
   ClipboardCheck,
   Calendar,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  MinusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  convertCheckpointsToBlueprints,
+  evaluateAuditItem,
+  type AuditItemBlueprint,
+  type UserInput,
+  type EvaluationResult,
+  type EvaluationContext,
+} from "@/lib/audit/audit-engine";
 
 // Types pour les checkpoints
 interface Finding {
@@ -108,8 +120,46 @@ const CATEGORY_LABELS: Record<string, string> = {
   PERIODIQUE: "Périodique",
 };
 
+// Status display configuration
+const STATUS_CONFIG = {
+  CONFORME: {
+    icon: CheckCircle2,
+    color: "text-green-600",
+    bg: "bg-green-50",
+    border: "border-green-200",
+    label: "Conforme",
+  },
+  NON_CONFORME: {
+    icon: XCircle,
+    color: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-200",
+    label: "Non conforme",
+  },
+  AVERTISSEMENT: {
+    icon: AlertTriangle,
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    label: "Avertissement",
+  },
+  NA: {
+    icon: MinusCircle,
+    color: "text-gray-500",
+    bg: "bg-gray-50",
+    border: "border-gray-200",
+    label: "N/A",
+  },
+  NON_EVALUE: {
+    icon: MinusCircle,
+    color: "text-gray-400",
+    bg: "bg-gray-50",
+    border: "border-gray-100",
+    label: "Non évalué",
+  },
+};
+
 export default function TechnicalAuditModal({
-  siteId,
   siteName,
   onClose,
   onSave,
@@ -117,12 +167,17 @@ export default function TechnicalAuditModal({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [checkpoints, setCheckpoints] = useState<AuditCheckPoint[]>([]);
+  const [blueprints, setBlueprints] = useState<AuditItemBlueprint[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [evaluationResults, setEvaluationResults] = useState<Map<string, EvaluationResult>>(new Map());
   const [noCheckpointsConfigured, setNoCheckpointsConfigured] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"])
   );
   const [showRecommendations, setShowRecommendations] = useState(true);
+
+  // Context for evaluation (can be extended with equipment/site data)
+  const [evaluationContext] = useState<EvaluationContext>({});
 
   // Form data
   const [formData, setFormData] = useState<AuditFormData>({
@@ -147,6 +202,16 @@ export default function TechnicalAuditModal({
         } else {
           setCheckpoints(data.checkpoints);
           setRecommendations(data.recommendations);
+
+          // Convert checkpoints to blueprints for the evaluation engine
+          const convertedBlueprints = convertCheckpointsToBlueprints(
+            data.checkpoints.map((cp: AuditCheckPoint) => ({
+              ...cp,
+              findings: cp.findings || [],
+            }))
+          );
+          setBlueprints(convertedBlueprints);
+
           // Initialize responses
           const initialResponses: CheckpointResponse[] = data.checkpoints.map(
             (cp: AuditCheckPoint) => ({
@@ -185,7 +250,10 @@ export default function TechnicalAuditModal({
     setExpandedCategories(newSet);
   };
 
-  const updateResponse = (checkpointId: string, updates: Partial<CheckpointResponse>) => {
+  const updateResponse = useCallback((checkpointId: string, updates: Partial<CheckpointResponse>) => {
+    // Find the blueprint for evaluation
+    const blueprint = blueprints.find((b) => b.id === checkpointId);
+
     setFormData((prev) => {
       const newResponses = prev.checkpointResponses.map((r) =>
         r.checkpointId === checkpointId ? { ...r, ...updates } : r
@@ -233,7 +301,35 @@ export default function TechnicalAuditModal({
         recommendations: newRecommendations,
       };
     });
-  };
+
+    // Evaluate using the engine if we have a blueprint
+    if (blueprint) {
+      // Determine the input value based on response type
+      let inputValue: string | boolean | null = null;
+      if (updates.selectedFindingId !== undefined) {
+        inputValue = updates.selectedFindingId;
+      } else if (updates.isConform !== undefined) {
+        inputValue = updates.isConform;
+      }
+
+      if (inputValue !== null) {
+        const userInput: UserInput = {
+          itemId: checkpointId,
+          value: inputValue,
+          notes: updates.notes,
+          timestamp: new Date(),
+        };
+
+        const result = evaluateAuditItem(blueprint, userInput, evaluationContext);
+
+        setEvaluationResults((prev) => {
+          const newResults = new Map(prev);
+          newResults.set(checkpointId, result);
+          return newResults;
+        });
+      }
+    }
+  }, [blueprints, checkpoints, recommendations, evaluationContext]);
 
   const updateRecommendation = (id: string, updates: Partial<GeneratedRecommendation>) => {
     setFormData((prev) => ({
@@ -274,13 +370,13 @@ export default function TechnicalAuditModal({
   };
 
   // Group checkpoints by category
-  const groupedByCategory = checkpoints.reduce((acc, cp) => {
+  const groupedByCategory = useMemo(() => checkpoints.reduce((acc, cp) => {
     if (!acc[cp.category]) {
       acc[cp.category] = [];
     }
     acc[cp.category].push(cp);
     return acc;
-  }, {} as Record<string, AuditCheckPoint[]>);
+  }, {} as Record<string, AuditCheckPoint[]>), [checkpoints]);
 
   const { minTotal, maxTotal } = calculateTotalCost();
 
@@ -615,6 +711,29 @@ export default function TechnicalAuditModal({
                                 className="mt-2 w-full px-3 py-1.5 text-sm border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
                               />
                             )}
+
+                            {/* Evaluation Result Display */}
+                            {(() => {
+                              const evalResult = evaluationResults.get(checkpoint.id);
+                              if (!evalResult || evalResult.status === "NON_EVALUE") return null;
+
+                              const statusConfig = STATUS_CONFIG[evalResult.status];
+                              const StatusIcon = statusConfig.icon;
+
+                              return (
+                                <div
+                                  className={`mt-3 p-3 rounded-lg text-sm ${statusConfig.bg} ${statusConfig.border} border`}
+                                >
+                                  <div className="font-medium mb-1 flex items-center gap-2">
+                                    <StatusIcon size={16} className={statusConfig.color} />
+                                    <span className={statusConfig.color}>
+                                      {statusConfig.label}
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-700">{evalResult.reportText}</p>
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })}

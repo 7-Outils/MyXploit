@@ -442,6 +442,210 @@ export const EXAMPLE_DISCONNECTEUR_BLUEPRINT: AuditItemBlueprint = {
 };
 
 // ============================================================================
+// CONVERTER: AuditCheckPoint → AuditItemBlueprint
+// ============================================================================
+
+/**
+ * Database model for AuditCheckPoint (from Prisma)
+ */
+interface DBFinding {
+  id: string;
+  label: string;
+  isConform: boolean;
+  recommendationId?: string | null;
+  reportText?: string;
+}
+
+interface DBValueField {
+  key: string;
+  label: string;
+  unit?: string;
+  type: "number" | "date" | "text";
+  thresholdMin?: number;
+  thresholdMax?: number;
+  interpretation?: {
+    belowMin?: string;
+    withinRange?: string;
+    aboveMax?: string;
+  };
+}
+
+interface DBAuditCheckPoint {
+  id: string;
+  label: string;
+  category: string;
+  description?: string | null;
+  responseType: string;
+  findings: DBFinding[];
+  valueFields?: DBValueField[] | null;
+  regulatoryRef?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+/**
+ * Convert a database AuditCheckPoint to an AuditItemBlueprint
+ * This allows existing checkpoints to work with the JsonLogic engine
+ */
+export function convertCheckpointToBlueprint(
+  checkpoint: DBAuditCheckPoint
+): AuditItemBlueprint {
+  const { id, label, category, description, responseType, findings, valueFields, regulatoryRef, sortOrder, isActive } = checkpoint;
+
+  // Build input config based on response type
+  let input: InputConfig;
+  let rules: LogicRule[] = [];
+
+  switch (responseType) {
+    case "YES_NO":
+      input = {
+        type: "BOOLEAN",
+        label: label,
+        required: true,
+      };
+      // Generate rules: true = conforme, false = non-conforme
+      rules = [
+        {
+          id: `${id}_yes`,
+          name: "Conforme",
+          condition: { "==": [{ "var": "input" }, true] },
+          result: {
+            status: "CONFORME",
+            reportText: `${label} : Conforme.`,
+          },
+        },
+        {
+          id: `${id}_no`,
+          name: "Non conforme",
+          condition: { "==": [{ "var": "input" }, false] },
+          result: {
+            status: "NON_CONFORME",
+            reportText: `${label} : Non conforme.${regulatoryRef ? ` (${regulatoryRef})` : ""}`,
+            severity: 2,
+          },
+        },
+      ];
+      break;
+
+    case "YES_NO_DATE":
+      input = {
+        type: "BOOLEAN",
+        label: label,
+        required: true,
+      };
+      rules = [
+        {
+          id: `${id}_yes`,
+          name: "Conforme",
+          condition: { "==": [{ "var": "input" }, true] },
+          result: {
+            status: "CONFORME",
+            reportText: `${label} : Conforme.`,
+          },
+        },
+        {
+          id: `${id}_no`,
+          name: "Non conforme",
+          condition: { "==": [{ "var": "input" }, false] },
+          result: {
+            status: "NON_CONFORME",
+            reportText: `${label} : Non conforme ou date non renseignée.${regulatoryRef ? ` (${regulatoryRef})` : ""}`,
+            severity: 2,
+          },
+        },
+      ];
+      break;
+
+    case "YES_NO_VALUES":
+      input = {
+        type: "BOOLEAN",
+        label: label,
+        required: true,
+      };
+      // For value-based checks, create rules based on thresholds if defined
+      rules = [
+        {
+          id: `${id}_yes`,
+          name: "Valeurs conformes",
+          condition: { "==": [{ "var": "input" }, true] },
+          result: {
+            status: "CONFORME",
+            reportText: `${label} : Valeurs dans les normes.`,
+          },
+        },
+        {
+          id: `${id}_no`,
+          name: "Valeurs non conformes ou absentes",
+          condition: { "==": [{ "var": "input" }, false] },
+          result: {
+            status: "NON_CONFORME",
+            reportText: `${label} : Valeurs hors normes ou non mesurées.${regulatoryRef ? ` (${regulatoryRef})` : ""}`,
+            severity: 2,
+          },
+        },
+      ];
+      break;
+
+    case "MULTI_CHOICE":
+    default:
+      // Build options from findings
+      const options = findings.map((f) => ({
+        value: f.id,
+        label: f.label,
+      }));
+
+      input = {
+        type: "SELECT",
+        label: label,
+        required: true,
+        options,
+      };
+
+      // Generate a rule for each finding
+      rules = findings.map((finding) => ({
+        id: finding.id,
+        name: finding.label,
+        condition: { "==": [{ "var": "input" }, finding.id] },
+        result: {
+          status: finding.isConform ? "CONFORME" : "NON_CONFORME",
+          reportText: finding.reportText || (finding.isConform
+            ? `${label} : ${finding.label}. Conforme.`
+            : `${label} : ${finding.label}. Non conforme.${regulatoryRef ? ` (${regulatoryRef})` : ""}`),
+          recommendationId: finding.recommendationId || undefined,
+          severity: finding.isConform ? undefined : 2,
+        },
+      }));
+      break;
+  }
+
+  return {
+    id,
+    code: id,
+    category,
+    subcategory: description || undefined,
+    input,
+    contextVariables: [],
+    rules,
+    defaultResult: {
+      status: "NON_EVALUE",
+      reportText: `${label} : Non évalué.`,
+    },
+    regulatoryRef: regulatoryRef || undefined,
+    sortOrder,
+    isActive,
+  };
+}
+
+/**
+ * Convert multiple checkpoints to blueprints
+ */
+export function convertCheckpointsToBlueprints(
+  checkpoints: DBAuditCheckPoint[]
+): AuditItemBlueprint[] {
+  return checkpoints.map(convertCheckpointToBlueprint);
+}
+
+// ============================================================================
 // EXAMPLE: ANALYSE COMBUSTION
 // ============================================================================
 
