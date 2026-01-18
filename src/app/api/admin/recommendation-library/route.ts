@@ -6,10 +6,10 @@ import { z } from "zod";
 // Validation schema
 const createRecommendationSchema = z.object({
   title: z.string().min(1, "Le titre est requis").max(200),
-  description: z.string().optional(),
-  price: z.number().positive("Le prix doit être positif").optional(),
+  description: z.string().nullable().optional(),
+  price: z.number().positive("Le prix doit être positif").nullable().optional(),
   priceUnit: z.enum(["HT", "TTC"]).default("HT"),
-  category: z.string().optional(),
+  category: z.string().nullable().optional(),
   priority: z.number().int().min(1).max(4).default(3),
 });
 

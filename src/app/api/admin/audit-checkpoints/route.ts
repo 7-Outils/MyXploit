@@ -32,11 +32,11 @@ const valueFieldSchema = z.object({
 const createCheckPointSchema = z.object({
   label: z.string().min(1, "Le libellé est requis").max(200),
   category: z.enum(["REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"]),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   responseType: z.enum(["YES_NO", "MULTI_CHOICE", "YES_NO_DATE", "YES_NO_VALUES"]).default("MULTI_CHOICE"),
   findings: z.array(findingSchema).default([]),
-  valueFields: z.array(valueFieldSchema).optional(),
-  regulatoryRef: z.string().optional(),
+  valueFields: z.array(valueFieldSchema).nullable().optional(),
+  regulatoryRef: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
 });
 
