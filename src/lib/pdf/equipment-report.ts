@@ -349,7 +349,7 @@ export async function generateEquipmentReportPDF(
   doc.setTextColor(...primaryColor);
   doc.text(siteName, pageWidth / 2, 67, { align: "center" });
 
-  // Cover image
+  // Cover image (only show if provided)
   let y = 85;
   if (coverImage) {
     try {
@@ -358,17 +358,10 @@ export async function generateEquipmentReportPDF(
       doc.addImage(coverImage, "JPEG", 20, y, imgWidth, imgHeight);
       y += imgHeight + 10;
     } catch {
-      y += 10;
+      // Skip if image fails to load
     }
-  } else {
-    // Placeholder
-    doc.setFillColor(...lightGray);
-    doc.roundedRect(20, y, pageWidth - 40, 100, 3, 3, "F");
-    doc.setTextColor(...grayColor);
-    doc.setFontSize(12);
-    doc.text("Photo du site", pageWidth / 2, y + 50, { align: "center" });
-    y += 110;
   }
+  // No placeholder if no image - just continue
 
   // Info box
   doc.setFillColor(...lightGray);
