@@ -118,49 +118,29 @@ async function fetchImageAsBase64(url: string): Promise<string | null> {
     return url;
   }
 
-  // Try using Image API first (better CORS handling for some cases)
   try {
-    return await new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
+    // Use our proxy API to avoid CORS issues with R2
+    let fetchUrl = url;
+    if (url.includes("r2.dev") || url.includes("cloudflare")) {
+      // Use proxy for R2 images
+      fetchUrl = `/api/images/proxy?url=${encodeURIComponent(url)}`;
+    }
 
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext("2d");
-          if (ctx) {
-            ctx.drawImage(img, 0, 0);
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-            resolve(dataUrl);
-          } else {
-            resolve(null);
-          }
-        } catch {
-          resolve(null);
-        }
-      };
+    const response = await fetch(fetchUrl);
+    if (!response.ok) {
+      console.warn(`[PDF] Failed to fetch ${url}: ${response.status}`);
+      return null;
+    }
 
-      img.onerror = () => {
-        // Fallback: try fetch API
-        fetch(url, { mode: "cors" })
-          .then((response) => {
-            if (!response.ok) throw new Error("Fetch failed");
-            return response.blob();
-          })
-          .then((blob) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(blob);
-          })
-          .catch(() => resolve(null));
-      };
-
-      img.src = url;
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
     });
-  } catch {
+  } catch (error) {
+    console.warn(`[PDF] Error fetching image ${url}:`, error);
     return null;
   }
 }
