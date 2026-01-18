@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -24,15 +24,6 @@ interface Finding {
   reportText?: string;
 }
 
-interface ValueField {
-  key: string;
-  label: string;
-  unit?: string;
-  type: "number" | "date" | "text";
-  thresholdMin?: number;
-  thresholdMax?: number;
-}
-
 interface CheckPoint {
   id: string;
   label: string;
@@ -40,7 +31,6 @@ interface CheckPoint {
   description: string | null;
   responseType: string;
   findings: Finding[];
-  valueFields: ValueField[] | null;
   regulatoryRef: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -53,20 +43,6 @@ interface Recommendation {
   priceUnit: string;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: "REGLEMENTAIRE", label: "Réglementaire" },
-  { value: "CONFORMITE", label: "Conformité" },
-  { value: "SECURITE", label: "Sécurité" },
-  { value: "PERIODIQUE", label: "Périodique" },
-];
-
-const RESPONSE_TYPE_OPTIONS = [
-  { value: "YES_NO", label: "Oui / Non" },
-  { value: "MULTI_CHOICE", label: "Choix multiple (constats)" },
-  { value: "YES_NO_DATE", label: "Oui/Non + Date" },
-  { value: "YES_NO_VALUES", label: "Oui/Non + Valeurs" },
-];
-
 export default function AuditCheckpointsPage() {
   const [checkpoints, setCheckpoints] = useState<CheckPoint[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -76,22 +52,35 @@ export default function AuditCheckpointsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(["REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"]));
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [newCategory, setNewCategory] = useState("");
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
     label: "",
-    category: "REGLEMENTAIRE",
+    category: "",
     description: "",
-    responseType: "MULTI_CHOICE",
     regulatoryRef: "",
     findings: [] as Finding[],
-    valueFields: [] as ValueField[],
   });
+
+  // Get unique categories from existing checkpoints
+  const existingCategories = useMemo(() => {
+    const cats = new Set(checkpoints.map((cp) => cp.category));
+    return Array.from(cats).sort();
+  }, [checkpoints]);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Expand all categories when checkpoints are loaded
+  useEffect(() => {
+    if (checkpoints.length > 0) {
+      setExpandedCategories(new Set(existingCategories));
+    }
+  }, [existingCategories, checkpoints.length]);
 
   const fetchData = async () => {
     try {
@@ -144,13 +133,13 @@ export default function AuditCheckpointsPage() {
     setEditingId(null);
     setForm({
       label: "",
-      category: "REGLEMENTAIRE",
+      category: existingCategories[0] || "",
       description: "",
-      responseType: "MULTI_CHOICE",
       regulatoryRef: "",
       findings: [],
-      valueFields: [],
     });
+    setShowCategoryInput(false);
+    setNewCategory("");
     setShowModal(true);
   };
 
@@ -160,11 +149,11 @@ export default function AuditCheckpointsPage() {
       label: cp.label,
       category: cp.category,
       description: cp.description || "",
-      responseType: cp.responseType,
       regulatoryRef: cp.regulatoryRef || "",
       findings: cp.findings || [],
-      valueFields: cp.valueFields || [],
     });
+    setShowCategoryInput(false);
+    setNewCategory("");
     setShowModal(true);
   };
 
@@ -195,45 +184,30 @@ export default function AuditCheckpointsPage() {
     setForm({ ...form, findings: newFindings });
   };
 
-  const addValueField = () => {
-    setForm({
-      ...form,
-      valueFields: [
-        ...form.valueFields,
-        {
-          key: `field_${Date.now()}`,
-          label: "",
-          unit: "",
-          type: "number",
-        },
-      ],
-    });
-  };
-
-  const updateValueField = (index: number, updates: Partial<ValueField>) => {
-    const newFields = [...form.valueFields];
-    newFields[index] = { ...newFields[index], ...updates };
-    setForm({ ...form, valueFields: newFields });
-  };
-
-  const removeValueField = (index: number) => {
-    const newFields = form.valueFields.filter((_, i) => i !== index);
-    setForm({ ...form, valueFields: newFields });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
+    // Use new category if creating one
+    const finalCategory = showCategoryInput && newCategory.trim()
+      ? newCategory.trim()
+      : form.category;
+
+    if (!finalCategory) {
+      alert("Veuillez sélectionner ou créer une catégorie");
+      setSaving(false);
+      return;
+    }
+
     try {
       const payload = {
         label: form.label,
-        category: form.category,
+        category: finalCategory,
         description: form.description || null,
-        responseType: form.responseType,
+        responseType: "MULTI_CHOICE", // Always MULTI_CHOICE now
         regulatoryRef: form.regulatoryRef || null,
         findings: form.findings,
-        valueFields: form.valueFields.length > 0 ? form.valueFields : null,
+        valueFields: null,
       };
 
       const url = editingId
@@ -293,6 +267,9 @@ export default function AuditCheckpointsPage() {
     acc[cp.category].push(cp);
     return acc;
   }, {} as Record<string, CheckPoint[]>);
+
+  // Sort categories
+  const sortedCategories = Object.keys(groupedByCategory).sort();
 
   if (loading) {
     return (
@@ -361,20 +338,20 @@ export default function AuditCheckpointsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {CATEGORY_OPTIONS.map(({ value, label }) => {
-            const categoryCheckpoints = groupedByCategory[value] || [];
+          {sortedCategories.map((category) => {
+            const categoryCheckpoints = groupedByCategory[category] || [];
             if (categoryCheckpoints.length === 0) return null;
 
-            const isExpanded = expandedCategories.has(value);
+            const isExpanded = expandedCategories.has(category);
 
             return (
-              <div key={value} className="bg-white rounded-xl border border-gray-100">
+              <div key={category} className="bg-white rounded-xl border border-gray-100">
                 <button
-                  onClick={() => toggleCategory(value)}
+                  onClick={() => toggleCategory(category)}
                   className="w-full flex items-center justify-between p-4 text-left"
                 >
                   <h2 className="text-lg font-semibold text-gray-800">
-                    {label} ({categoryCheckpoints.length})
+                    {category} ({categoryCheckpoints.length})
                   </h2>
                   {isExpanded ? (
                     <ChevronDown size={20} className="text-gray-400" />
@@ -401,9 +378,6 @@ export default function AuditCheckpointsPage() {
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-2">
-                              <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
-                                {RESPONSE_TYPE_OPTIONS.find((o) => o.value === cp.responseType)?.label}
-                              </span>
                               {cp.findings.length > 0 && (
                                 <span className="px-2 py-0.5 text-xs bg-accent/10 text-accent rounded">
                                   {cp.findings.length} constats
@@ -477,39 +451,55 @@ export default function AuditCheckpointsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Catégorie *
-                  </label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                  >
-                    {CATEGORY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Type de réponse *
-                  </label>
-                  <select
-                    value={form.responseType}
-                    onChange={(e) => setForm({ ...form, responseType: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                  >
-                    {RESPONSE_TYPE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              {/* Category selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Catégorie *
+                </label>
+                {!showCategoryInput ? (
+                  <div className="space-y-2">
+                    <select
+                      value={form.category}
+                      onChange={(e) => setForm({ ...form, category: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    >
+                      <option value="">Sélectionner une catégorie</option>
+                      {existingCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryInput(true)}
+                      className="text-sm text-accent hover:underline"
+                    >
+                      + Créer une nouvelle catégorie
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={newCategory}
+                      onChange={(e) => setNewCategory(e.target.value)}
+                      placeholder="Nom de la nouvelle catégorie"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCategoryInput(false);
+                        setNewCategory("");
+                      }}
+                      className="text-sm text-gray-500 hover:underline"
+                    >
+                      ← Utiliser une catégorie existante
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -520,6 +510,7 @@ export default function AuditCheckpointsPage() {
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
+                  placeholder="Description optionnelle"
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
                 />
               </div>
@@ -537,211 +528,112 @@ export default function AuditCheckpointsPage() {
                 />
               </div>
 
-              {/* Findings section - for MULTI_CHOICE */}
-              {(form.responseType === "MULTI_CHOICE" || form.responseType === "YES_NO") && (
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700">
-                      Constats possibles
-                    </label>
-                    <Button type="button" variant="outline" size="sm" onClick={addFinding}>
-                      <Plus size={14} className="mr-1" />
-                      Ajouter
-                    </Button>
-                  </div>
+              {/* Findings section */}
+              <div className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-medium text-gray-700">
+                    Constats possibles
+                  </label>
+                  <Button type="button" variant="outline" size="sm" onClick={addFinding}>
+                    <Plus size={14} className="mr-1" />
+                    Ajouter
+                  </Button>
+                </div>
 
-                  {form.findings.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      Ajoutez les différents constats possibles pour ce point
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {form.findings.map((finding, index) => (
-                        <div
-                          key={finding.id}
-                          className={`border rounded-lg p-3 ${finding.isConform ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 space-y-2">
-                              {/* Label du constat */}
-                              <div className="flex items-center gap-2">
+                {form.findings.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Ajoutez les différents constats possibles pour ce point
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {form.findings.map((finding, index) => (
+                      <div
+                        key={finding.id}
+                        className={`border rounded-lg p-3 ${finding.isConform ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 space-y-2">
+                            {/* Label du constat */}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={finding.label}
+                                onChange={(e) =>
+                                  updateFinding(index, { label: e.target.value })
+                                }
+                                placeholder="ex: Absent"
+                                className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                              />
+                              <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                                 <input
-                                  type="text"
-                                  value={finding.label}
+                                  type="checkbox"
+                                  checked={finding.isConform}
                                   onChange={(e) =>
-                                    updateFinding(index, { label: e.target.value })
+                                    updateFinding(index, { isConform: e.target.checked })
                                   }
-                                  placeholder="ex: Absent"
-                                  className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                                 />
-                                <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-                                  <input
-                                    type="checkbox"
-                                    checked={finding.isConform}
-                                    onChange={(e) =>
-                                      updateFinding(index, { isConform: e.target.checked })
-                                    }
-                                    className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                  />
-                                  Conforme
-                                </label>
-                              </div>
+                                Conforme
+                              </label>
+                            </div>
 
-                              {/* Texte du rapport */}
+                            {/* Texte du rapport */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                                Texte du rapport
+                              </label>
+                              <textarea
+                                value={finding.reportText || ""}
+                                onChange={(e) =>
+                                  updateFinding(index, { reportText: e.target.value })
+                                }
+                                placeholder={finding.isConform
+                                  ? "ex: Le schéma de principe est présent et correctement affiché."
+                                  : "ex: Absence de schéma de principe. (Art. R.224-41-4)"
+                                }
+                                rows={2}
+                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                              />
+                            </div>
+
+                            {/* Préconisation liée (si non conforme) */}
+                            {!finding.isConform && (
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                                  Texte du rapport
+                                  Préconisation associée
                                 </label>
-                                <textarea
-                                  value={finding.reportText || ""}
+                                <select
+                                  value={finding.recommendationId || ""}
                                   onChange={(e) =>
-                                    updateFinding(index, { reportText: e.target.value })
+                                    updateFinding(index, {
+                                      recommendationId: e.target.value || null,
+                                    })
                                   }
-                                  placeholder={finding.isConform
-                                    ? "ex: Le schéma de principe est présent et correctement affiché."
-                                    : "ex: Absence de schéma de principe. (Art. R.224-41-4)"
-                                  }
-                                  rows={2}
-                                  className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
-                                />
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                >
+                                  <option value="">Aucune préconisation</option>
+                                  {recommendations.map((r) => (
+                                    <option key={r.id} value={r.id}>
+                                      {r.title} {r.price ? `(${r.price}€ ${r.priceUnit})` : ""}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-
-                              {/* Préconisation liée (si non conforme) */}
-                              {!finding.isConform && (
-                                <div>
-                                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                                    Préconisation associée
-                                  </label>
-                                  <select
-                                    value={finding.recommendationId || ""}
-                                    onChange={(e) =>
-                                      updateFinding(index, {
-                                        recommendationId: e.target.value || null,
-                                      })
-                                    }
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
-                                  >
-                                    <option value="">Aucune préconisation</option>
-                                    {recommendations.map((r) => (
-                                      <option key={r.id} value={r.id}>
-                                        {r.title} {r.price ? `(${r.price}€ ${r.priceUnit})` : ""}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeFinding(index)}
-                              className="p-1 text-gray-400 hover:text-red-500"
-                            >
-                              <X size={16} />
-                            </button>
+                            )}
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFinding(index)}
+                            className="p-1 text-gray-400 hover:text-red-500"
+                          >
+                            <X size={16} />
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Value fields section - for YES_NO_VALUES */}
-              {form.responseType === "YES_NO_VALUES" && (
-                <div className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-gray-700">
-                      Champs de valeurs
-                    </label>
-                    <Button type="button" variant="outline" size="sm" onClick={addValueField}>
-                      <Plus size={14} className="mr-1" />
-                      Ajouter
-                    </Button>
+                      </div>
+                    ))}
                   </div>
-
-                  {form.valueFields.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      Ajoutez les champs de valeurs à mesurer (ex: CO, CO2, rendement)
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {form.valueFields.map((field, index) => (
-                        <div
-                          key={field.key}
-                          className="border border-gray-100 rounded-lg p-3 bg-gray-50"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 grid grid-cols-4 gap-2">
-                              <input
-                                type="text"
-                                value={field.label}
-                                onChange={(e) =>
-                                  updateValueField(index, { label: e.target.value })
-                                }
-                                placeholder="Libellé (ex: CO)"
-                                className="col-span-2 px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                              />
-                              <input
-                                type="text"
-                                value={field.unit || ""}
-                                onChange={(e) =>
-                                  updateValueField(index, { unit: e.target.value })
-                                }
-                                placeholder="Unité (ex: ppm)"
-                                className="px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                              />
-                              <select
-                                value={field.type}
-                                onChange={(e) =>
-                                  updateValueField(index, { type: e.target.value as ValueField["type"] })
-                                }
-                                className="px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                              >
-                                <option value="number">Nombre</option>
-                                <option value="date">Date</option>
-                                <option value="text">Texte</option>
-                              </select>
-                              {field.type === "number" && (
-                                <>
-                                  <input
-                                    type="number"
-                                    value={field.thresholdMin ?? ""}
-                                    onChange={(e) =>
-                                      updateValueField(index, {
-                                        thresholdMin: e.target.value ? parseFloat(e.target.value) : undefined,
-                                      })
-                                    }
-                                    placeholder="Seuil min"
-                                    className="px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                                  />
-                                  <input
-                                    type="number"
-                                    value={field.thresholdMax ?? ""}
-                                    onChange={(e) =>
-                                      updateValueField(index, {
-                                        thresholdMax: e.target.value ? parseFloat(e.target.value) : undefined,
-                                      })
-                                    }
-                                    placeholder="Seuil max"
-                                    className="px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                                  />
-                                </>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => removeValueField(index)}
-                              className="p-1 text-gray-400 hover:text-red-500"
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button
