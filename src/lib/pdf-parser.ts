@@ -266,6 +266,8 @@ export function normalizeCity(city: string): string {
 
 /**
  * Chercher un site par nom ou ville
+ * IMPORTANT: Ne match par ville que si un nom de site a été trouvé dans le PDF
+ * pour éviter de matcher le mauvais site (ex: Mairie au lieu de l'école)
  */
 export function findSiteMatch(
   siteName: string | null,
@@ -277,26 +279,43 @@ export function findSiteMatch(
   const normalizedSearchCity = siteCity ? normalizeCity(siteCity) : "";
   const normalizedSearchName = siteName ? siteName.toLowerCase() : "";
 
-  for (const site of sites) {
-    const normalizedCity = normalizeCity(site.city);
-    const normalizedName = site.name.toLowerCase();
+  // PREMIÈRE PASSE: Match par nom (priorité absolue)
+  if (normalizedSearchName) {
+    for (const site of sites) {
+      const normalizedName = site.name.toLowerCase();
 
-    // Match par nom partiel (priorité)
-    if (normalizedSearchName && normalizedName.includes(normalizedSearchName)) {
-      return { id: site.id, name: site.name };
-    }
-    if (normalizedSearchName && normalizedSearchName.includes(normalizedName)) {
-      return { id: site.id, name: site.name };
-    }
-
-    // Match par ville
-    if (normalizedSearchCity && normalizedCity.includes(normalizedSearchCity)) {
-      return { id: site.id, name: site.name };
-    }
-    if (normalizedSearchCity && normalizedSearchCity.includes(normalizedCity)) {
-      return { id: site.id, name: site.name };
+      // Match exact ou partiel par nom
+      if (normalizedName.includes(normalizedSearchName)) {
+        return { id: site.id, name: site.name };
+      }
+      if (normalizedSearchName.includes(normalizedName)) {
+        return { id: site.id, name: site.name };
+      }
     }
   }
+
+  // DEUXIÈME PASSE: Match par ville + nom combinés
+  // Seulement si on a un nom ET une ville
+  if (normalizedSearchName && normalizedSearchCity) {
+    for (const site of sites) {
+      const normalizedCity = normalizeCity(site.city);
+      const normalizedName = site.name.toLowerCase();
+
+      // Chercher un site qui match la ville ET contient des mots-clés du nom
+      if (normalizedCity.includes(normalizedSearchCity) || normalizedSearchCity.includes(normalizedCity)) {
+        // Vérifier si des mots du nom correspondent
+        const searchWords = normalizedSearchName.split(/\s+/).filter(w => w.length > 3);
+        const siteWords = normalizedName.split(/\s+/);
+        const hasWordMatch = searchWords.some(sw => siteWords.some(w => w.includes(sw) || sw.includes(w)));
+        if (hasWordMatch) {
+          return { id: site.id, name: site.name };
+        }
+      }
+    }
+  }
+
+  // NE PAS matcher par ville seule - trop de faux positifs
+  // L'utilisateur doit sélectionner manuellement si le nom n'est pas trouvé
 
   return null;
 }
