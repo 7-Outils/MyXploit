@@ -12,10 +12,11 @@ import {
   LogOut,
   ChevronLeft,
   Briefcase,
+  Shield,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Simplified navigation for AMO profile
 const navigation = [
@@ -62,6 +63,22 @@ const bottomNavigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkRole() {
+      try {
+        const res = await fetch("/api/user/profile");
+        if (res.ok) {
+          const user = await res.json();
+          setIsSuperAdmin(user.role === "SUPER_ADMIN");
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+    checkRole();
+  }, []);
 
   // Check if current path matches navigation item (including sub-paths)
   const isActive = (href: string) => {
@@ -136,6 +153,24 @@ export function Sidebar() {
 
       {/* Bottom navigation */}
       <div className="py-4 px-3 border-t border-white/10 space-y-1">
+        {/* Admin link - SUPER_ADMIN only */}
+        {isSuperAdmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+              pathname.startsWith("/admin")
+                ? "bg-orange-500 text-white"
+                : "text-orange-400 hover:text-orange-300 hover:bg-orange-500/20"
+            )}
+          >
+            <Shield size={20} className="flex-shrink-0" />
+            {!collapsed && (
+              <span className="text-sm font-medium">Administration</span>
+            )}
+          </Link>
+        )}
+
         {bottomNavigation.map((item) => {
           const active = pathname === item.href;
           return (
