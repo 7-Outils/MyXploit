@@ -113,12 +113,12 @@ interface AuditFormData {
   generalNotes: string;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  REGLEMENTAIRE: "Réglementaire",
-  CONFORMITE: "Conformité",
-  SECURITE: "Sécurité",
-  PERIODIQUE: "Périodique",
-};
+interface Category {
+  id: string;
+  label: string;
+  description: string | null;
+  sortOrder: number;
+}
 
 // Status display configuration
 const STATUS_CONFIG = {
@@ -167,13 +167,12 @@ export default function TechnicalAuditModal({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [checkpoints, setCheckpoints] = useState<AuditCheckPoint[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [blueprints, setBlueprints] = useState<AuditItemBlueprint[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [evaluationResults, setEvaluationResults] = useState<Map<string, EvaluationResult>>(new Map());
   const [noCheckpointsConfigured, setNoCheckpointsConfigured] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(["REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"])
-  );
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [showRecommendations, setShowRecommendations] = useState(true);
 
   // Context for evaluation (can be extended with equipment/site data)
@@ -201,7 +200,12 @@ export default function TechnicalAuditModal({
           setNoCheckpointsConfigured(true);
         } else {
           setCheckpoints(data.checkpoints);
-          setRecommendations(data.recommendations);
+          setCategories(data.categories || []);
+          setRecommendations(data.recommendations || []);
+
+          // Expand all categories by default
+          const categoryIds = (data.categories || []).map((c: Category) => c.id);
+          setExpandedCategories(new Set(categoryIds));
 
           // Convert checkpoints to blueprints for the evaluation engine
           const convertedBlueprints = convertCheckpointsToBlueprints(
@@ -457,24 +461,24 @@ export default function TechnicalAuditModal({
             </div>
 
             {/* Checkpoints by category */}
-            {Object.entries(CATEGORY_LABELS).map(([categoryKey, categoryLabel]) => {
-              const categoryCheckpoints = groupedByCategory[categoryKey] || [];
+            {categories.map((category) => {
+              const categoryCheckpoints = groupedByCategory[category.id] || [];
               if (categoryCheckpoints.length === 0) return null;
 
-              const isExpanded = expandedCategories.has(categoryKey);
+              const isExpanded = expandedCategories.has(category.id);
 
               return (
                 <div
-                  key={categoryKey}
+                  key={category.id}
                   className="border border-gray-200 rounded-xl overflow-hidden"
                 >
                   <button
-                    onClick={() => toggleCategory(categoryKey)}
+                    onClick={() => toggleCategory(category.id)}
                     className="w-full bg-accent px-4 py-3 text-white font-medium flex items-center justify-between"
                   >
                     <div className="flex items-center gap-2">
                       <ClipboardCheck size={18} />
-                      {categoryLabel} ({categoryCheckpoints.length})
+                      {category.label} ({categoryCheckpoints.length})
                     </div>
                     {isExpanded ? (
                       <ChevronDown size={20} />
