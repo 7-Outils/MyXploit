@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
 
@@ -94,12 +95,28 @@ export async function POST(request: NextRequest) {
         lastName: lastName || null,
         role: role || "READER",
         organizationId: orgId,
-        clerkId: null, // Sera rempli lors de la connexion via Clerk
+        // clerkId sera rempli automatiquement lors de la connexion
       },
       include: {
         organization: true,
       },
     });
+
+    // Envoyer une invitation Clerk par email
+    try {
+      const clerk = await clerkClient();
+      await clerk.invitations.createInvitation({
+        emailAddress: email,
+        redirectUrl: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || "/overview",
+        publicMetadata: {
+          dbUserId: newUser.id,
+          role: newUser.role,
+        },
+      });
+    } catch (clerkError) {
+      console.error("Clerk invitation error:", clerkError);
+      // L'utilisateur est créé en base, l'invitation pourra être renvoyée plus tard
+    }
 
     return NextResponse.json(newUser, { status: 201 });
   } catch (error) {

@@ -9,11 +9,11 @@ import {
   Users,
   Building2,
   Trash2,
-  Edit,
   X,
   Check,
   Mail,
   Clock,
+  Send,
 } from "lucide-react";
 
 interface Organization {
@@ -56,6 +56,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
@@ -155,6 +156,27 @@ export default function AdminUsersPage() {
       }
     } catch {
       alert("Erreur lors de la suppression");
+    }
+  };
+
+  const handleResendInvitation = async (userId: string) => {
+    setResending(userId);
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/resend-invitation`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Invitation envoyée avec succès !");
+      } else {
+        alert(data.error || "Erreur lors de l'envoi");
+      }
+    } catch {
+      alert("Erreur lors de l'envoi de l'invitation");
+    } finally {
+      setResending(null);
     }
   };
 
@@ -311,6 +333,20 @@ export default function AdminUsersPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
+                    {!user.clerkId && (
+                      <button
+                        onClick={() => handleResendInvitation(user.id)}
+                        disabled={resending === user.id}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                        title="Renvoyer l'invitation"
+                      >
+                        {resending === user.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Send size={16} />
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteUser(user.id, user.email)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
