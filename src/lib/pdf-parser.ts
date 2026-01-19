@@ -11,6 +11,7 @@ export interface ParsedQuote {
   siteCity: string | null;
   objet: string | null;
   amountHT: number | null;
+  quoteType: "P3" | "P5" | "TRAVAUX" | "AMELIORATION" | "AUTRE" | null;
   rawText: string;
 }
 
@@ -33,11 +34,21 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     siteCity: null,
     objet: null,
     amountHT: null,
+    quoteType: null,
     rawText: text,
   };
 
+  // 0. TYPE DE DEVIS (P3, P5, etc.)
+  const typeMatch = text.match(/Devis\s+(P3|P5)\s+/i) || text.match(/\b(P3|P5)\b/);
+  if (typeMatch) {
+    result.quoteType = typeMatch[1].toUpperCase() as "P3" | "P5";
+  }
+
   // 1. RÉFÉRENCE DU DEVIS
   const refPatterns = [
+    // Format IDEX: "Devis P3 DD251202778-A1"
+    /Devis\s+P\d\s+([A-Z]{2}\d+(?:-[A-Z0-9]+)?)/i,
+    // Format standard avec N°
     /DEVIS\s*N°?\s*:?\s*([A-Z0-9\-]+)/i,
     /Devis\s*n°?\s*:?\s*([A-Z0-9\-]+)/i,
     /N°\s*(?:devis)?\s*:?\s*([A-Z]{2}\d+)/i,
@@ -50,43 +61,64 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     }
   }
 
-  // 2. SITE / CHANTIER - Arrêter à "Adresse de facturation"
-  const siteMatch = text.match(/Adresse\s*de\s*Chantier\s*:?\s*([\s\S]*?)(?:Adresse\s*de\s*facturation|ADRESSE\s*DE\s*FACTURATION|Facturer\s*[àa]|Client\s*:|Description|Descriptif|N°\s*Description)/i);
+  // 2. SITE / CHANTIER
+  // Format IDEX: "Site ECOLE ELEMENTAIRE CHARLES PEGUY - GONESSE" suivi de "Adresse ..."
+  const idexSiteMatch = text.match(/Site\s+([A-ZÀ-Ü][A-Za-zÀ-ü\s'''\-]+?)(?:\s*[\-\n]|\s+Adresse)/i);
+  if (idexSiteMatch) {
+    result.siteName = idexSiteMatch[1].trim().replace(/\s*-\s*$/, "");
+  }
 
-  if (siteMatch) {
-    const siteInfo = siteMatch[1].trim();
+  // Chercher la ville dans "Adresse" IDEX: "93550 GONESSE CEDEX"
+  const idexCityMatch = text.match(/Adresse[\s\S]{0,100}?(\d{5})\s+([A-ZÀ-Ü][A-Za-zÀ-ü\s\-]+?)(?:\s+CEDEX|\s*\n)/i);
+  if (idexCityMatch) {
+    result.siteCity = idexCityMatch[2].trim().toUpperCase().replace(/\s+CEDEX/i, "");
+  }
 
-    // Extraire le nom du site - couper avant les mots d'adresse
-    const nameMatch = siteInfo.match(/^([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s'''-]+?)(?:\s+(?:\d+\s*)?(?:Allée|Rue|Avenue|Boulevard|Place|Chemin|Impasse|Route|Cours|Passage|Quai)\s)/i);
-    if (nameMatch) {
-      result.siteName = nameMatch[1].trim();
-    } else {
-      // Fallback: prendre jusqu'au premier nombre ou code postal
-      const fallbackMatch = siteInfo.match(/^([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s'''-]+?)(?:\s+\d)/);
-      if (fallbackMatch) {
-        result.siteName = fallbackMatch[1].trim();
+  // Fallback: Format standard "Adresse de Chantier"
+  if (!result.siteName) {
+    const siteMatch = text.match(/Adresse\s*de\s*Chantier\s*:?\s*([\s\S]*?)(?:Adresse\s*de\s*facturation|ADRESSE\s*DE\s*FACTURATION|Facturer\s*[àa]|Client\s*:|Description|Descriptif|N°\s*Description)/i);
+
+    if (siteMatch) {
+      const siteInfo = siteMatch[1].trim();
+
+      // Extraire le nom du site - couper avant les mots d'adresse
+      const nameMatch = siteInfo.match(/^([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s'''-]+?)(?:\s+(?:\d+\s*)?(?:Allée|Rue|Avenue|Boulevard|Place|Chemin|Impasse|Route|Cours|Passage|Quai)\s)/i);
+      if (nameMatch) {
+        result.siteName = nameMatch[1].trim();
       } else {
-        // Dernier recours: premiers mots significatifs
-        result.siteName = siteInfo.split(/\s{2,}|\n/)[0]?.trim().substring(0, 50) || null;
+        // Fallback: prendre jusqu'au premier nombre ou code postal
+        const fallbackMatch = siteInfo.match(/^([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s'''-]+?)(?:\s+\d)/);
+        if (fallbackMatch) {
+          result.siteName = fallbackMatch[1].trim();
+        } else {
+          // Dernier recours: premiers mots significatifs
+          result.siteName = siteInfo.split(/\s{2,}|\n/)[0]?.trim().substring(0, 50) || null;
+        }
       }
-    }
 
-    // Extraire la ville (code postal + nom)
-    const cityMatch = siteInfo.match(/(\d{5})\s+([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s\-]+?)(?:\s|$)/);
-    if (cityMatch) {
-      result.siteCity = cityMatch[2].trim().toUpperCase();
+      // Extraire la ville (code postal + nom)
+      if (!result.siteCity) {
+        const cityMatch = siteInfo.match(/(\d{5})\s+([A-ZÀ-Üa-zà-ü][A-Za-zÀ-ü\s\-]+?)(?:\s|$)/);
+        if (cityMatch) {
+          result.siteCity = cityMatch[2].trim().toUpperCase();
+        }
+      }
     }
   }
 
   // 3. OBJET DES TRAVAUX - Chercher "Remplacement", "Installation", "Travaux" etc.
+  // D'abord chercher les lignes encadrées (format IDEX avec bordure)
+  // Le pattern cherche une ligne isolée commençant par un mot-clé de travaux
   const objetPatterns = [
+    // Format IDEX: ligne isolée avec travaux (avant "Travaux réalisés le")
+    /\n([Rr]emplacement[^\n]{5,60})\n(?:\s*Travaux\s*réalisés|Référence|MAT|MO)/,
     // Champ "Objet" explicite
     /Objet\s*(?:des\s*travaux)?\s*:?\s*([^\n]+)/i,
     /Nature\s*des\s*travaux\s*:?\s*([^\n]+)/i,
     // Lignes commençant par un numéro puis description de travaux
     /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,80})/im,
-    // Recherche directe de mots-clés de travaux (sans numéro)
-    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+(?:des?|du|de la|d')\s+[A-Za-zÀ-ü\s]+)/i,
+    // Recherche directe de mots-clés de travaux (sans numéro) - mais pas dans les CGV
+    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+(?:des?|du|de la|d'un|d'une)\s+[A-Za-zÀ-ü\s]{3,40})/i,
   ];
 
   for (const pattern of objetPatterns) {
@@ -96,6 +128,10 @@ export function parseQuoteFromText(text: string): ParsedQuote {
       // Nettoyer - enlever les quantités/prix à la fin et caractères indésirables
       objet = objet.replace(/\s+\d+[\s,\.]*\d*\s*(€|EUR|U\.|Ens|Forf|ML|M2|M3|H)?.*$/i, "").trim();
       objet = objet.replace(/\s{2,}/g, " ").trim(); // Espaces multiples
+      // Ignorer si c'est clairement des CGV (contient "génie climatique" sans contexte travaux)
+      if (objet.toLowerCase().includes("génie climatique") && !objet.toLowerCase().includes("remplacement")) {
+        continue;
+      }
       // Couper si trop long (garder la partie principale)
       if (objet.length > 80) {
         const shortened = objet.match(/^(.{20,80}?)(?:\s+(?:avec|et|pour|sur|dans|en)\s|,|\.|$)/);
@@ -116,13 +152,33 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     return parseFloat(cleaned) || 0;
   };
 
-  // Chercher spécifiquement "Total HT" suivi d'un montant (pas TTC!)
-  // Format possible: "Total HT 57 551,00" ou "Total HT : 57551.00 €"
-  const htMatch = text.match(/Total\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i);
-  if (htMatch) {
-    const amount = parseAmount(htMatch[1]);
-    if (amount > 100) {
-      result.amountHT = amount;
+  // Format IDEX: tableau avec "Total HT" comme en-tête et montant en dessous
+  // "Base HT TVA% Montant TVA Total HT Total TVA Total TTC"
+  // "1 068,06 20 213,61 1 068,06 213,61 1 281,67 €"
+  // Chercher "Total TTC" suivi d'un montant avec €, puis extraire le Total HT (avant-dernier montant)
+  const ttcMatch = text.match(/Total\s*TTC[^\d]*([\d\s\u00A0]+[,\.]\d{2})\s*€/i);
+  if (ttcMatch) {
+    const ttcAmount = parseAmount(ttcMatch[1]);
+    // Chercher tous les montants proches du HT attendu (~83% du TTC pour TVA 20%)
+    const matches = text.matchAll(/([\d\s\u00A0]+[,\.]\d{2})/g);
+    for (const match of matches) {
+      const amount = parseAmount(match[1]);
+      // Le HT doit être entre 75% et 95% du TTC (TVA entre 5% et 33%)
+      if (amount > ttcAmount * 0.75 && amount < ttcAmount * 0.95) {
+        result.amountHT = amount;
+        break;
+      }
+    }
+  }
+
+  // Fallback: Chercher spécifiquement "Total HT" suivi directement d'un montant
+  if (!result.amountHT) {
+    const htMatch = text.match(/Total\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})\s*(?:€|$)/i);
+    if (htMatch) {
+      const amount = parseAmount(htMatch[1]);
+      if (amount > 10) {
+        result.amountHT = amount;
+      }
     }
   }
 
@@ -131,13 +187,26 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     const fallbackMatch = text.match(/(?:Sous[\s-]?total|Montant)\s*HT\s*:?\s*([\d\s\u00A0]+[,\.]\d{2})/i);
     if (fallbackMatch) {
       const amount = parseAmount(fallbackMatch[1]);
-      if (amount > 100) {
+      if (amount > 10) {
         result.amountHT = amount;
       }
     }
   }
 
-  // Dernier recours: chercher tous les montants et prendre le 2ème plus grand (HT < TTC)
+  // Dernier recours: chercher ligne "Récapitulatif du devis" et extraire les montants
+  if (!result.amountHT) {
+    // Format IDEX: après "Récapitulatif du devis", première ligne de données
+    const recapMatch = text.match(/Récapitulatif\s*du\s*devis[\s\S]{0,200}?([\d\s\u00A0]+[,\.]\d{2})\s+\d+\s+([\d\s\u00A0]+[,\.]\d{2})\s+([\d\s\u00A0]+[,\.]\d{2})/i);
+    if (recapMatch) {
+      // Le 3ème montant est "Total HT" dans le tableau IDEX
+      const amount = parseAmount(recapMatch[3]);
+      if (amount > 10) {
+        result.amountHT = amount;
+      }
+    }
+  }
+
+  // Dernier recours absolu: chercher le montant juste avant "€" dans le total
   if (!result.amountHT) {
     const allAmounts: number[] = [];
     const matches = text.matchAll(/([\d]{1,3}[\s\u00A0]?\d{3}[,\.]\d{2})/g);
@@ -147,7 +216,7 @@ export function parseQuoteFromText(text: string): ParsedQuote {
         allAmounts.push(amount);
       }
     }
-    // Trier et prendre le 2ème (HT) au lieu du 1er (TTC)
+    // Trier et prendre le 2ème plus grand (HT < TTC)
     allAmounts.sort((a, b) => b - a);
     if (allAmounts.length >= 2) {
       result.amountHT = allAmounts[1]; // 2ème plus grand = HT
