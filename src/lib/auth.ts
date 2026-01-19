@@ -23,41 +23,66 @@ export async function getOrCreateUser() {
     return null;
   }
 
-  // Check if user exists
+  // 1. Chercher par clerkId (utilisateur déjà connecté)
   let user = await prisma.user.findUnique({
     where: { clerkId: userId },
     include: { organization: true },
   });
 
-  if (!user) {
-    // Get user info from Clerk
-    const clerkUser = await currentUser();
+  if (user) {
+    return user;
+  }
 
-    if (!clerkUser) {
-      return null;
-    }
+  // 2. Obtenir les infos de Clerk
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    return null;
+  }
 
-    // Create default organization for new user
-    const org = await prisma.organization.create({
-      data: {
-        name: `${clerkUser.firstName || "Mon"} Organisation`,
-        slug: `org-${userId.slice(0, 8)}`,
-      },
-    });
+  const email = clerkUser.emailAddresses[0]?.emailAddress;
+  if (!email) {
+    return null;
+  }
 
-    // Create user linked to organization
-    user = await prisma.user.create({
+  // 3. Chercher par email (invitation en attente - sans clerkId)
+  const pendingUser = await prisma.user.findFirst({
+    where: { email },
+    include: { organization: true },
+  });
+
+  if (pendingUser) {
+    // Lier le compte Clerk à l'utilisateur pré-créé
+    user = await prisma.user.update({
+      where: { id: pendingUser.id },
       data: {
         clerkId: userId,
-        email: clerkUser.emailAddresses[0]?.emailAddress || "",
-        firstName: clerkUser.firstName,
-        lastName: clerkUser.lastName,
-        role: "ADMIN",
-        organizationId: org.id,
+        firstName: clerkUser.firstName || pendingUser.firstName,
+        lastName: clerkUser.lastName || pendingUser.lastName,
       },
       include: { organization: true },
     });
+    return user;
   }
+
+  // 4. Nouvel utilisateur: créer organisation + compte
+  const org = await prisma.organization.create({
+    data: {
+      name: `${clerkUser.firstName || "Mon"} Organisation`,
+      slug: `org-${userId.slice(0, 8)}`,
+    },
+  });
+
+  user = await prisma.user.create({
+    data: {
+      clerkId: userId,
+      email,
+      firstName: clerkUser.firstName,
+      lastName: clerkUser.lastName,
+      role: "ADMIN",
+      organizationId: org.id,
+    },
+    include: { organization: true },
+  });
 
   return user;
 }

@@ -46,7 +46,8 @@ model Organization {
 }
 
 enum UserRole {
-  ADMIN
+  SUPER_ADMIN  // Peut voir toutes les organisations
+  ADMIN        // Admin d'une organisation
   MANAGER
   READER
 }
@@ -60,8 +61,8 @@ enum UserProfile {
 
 model User {
   id             String       @id @default(cuid())
-  clerkId        String       @unique // ID from Clerk
-  email          String
+  clerkId        String?      @unique // ID from Clerk (null = invitation en attente)
+  email          String       @unique // Email unique pour matcher lors de la connexion
   firstName      String?
   lastName       String?
   role           UserRole     @default(READER)
