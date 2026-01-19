@@ -699,6 +699,97 @@ export default function TechnicalAuditModal({
                               </div>
                             )}
 
+                            {/* STATUS_DATE: Show findings + date + attestation */}
+                            {(checkpoint.responseType === "STATUS_DATE" || checkpoint.responseType === "STATUS") &&
+                              checkpoint.findings.length > 0 && (
+                                <div className="space-y-3">
+                                  {/* Statut buttons */}
+                                  <div className="flex flex-wrap gap-2">
+                                    {checkpoint.findings.map((finding) => (
+                                      <button
+                                        key={finding.id}
+                                        onClick={() =>
+                                          updateResponse(checkpoint.id, {
+                                            selectedFindingId:
+                                              response?.selectedFindingId === finding.id
+                                                ? null
+                                                : finding.id,
+                                            isConform: finding.isConform,
+                                          })
+                                        }
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                          response?.selectedFindingId === finding.id
+                                            ? finding.isConform
+                                              ? "bg-green-500 text-white"
+                                              : "bg-red-500 text-white"
+                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        }`}
+                                      >
+                                        {finding.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* Date + Attestation when selected (not N/A) */}
+                                  {response?.selectedFindingId && response.selectedFindingId !== "na" && (
+                                    <div className="flex flex-wrap items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                                      {/* Date du dernier contrôle */}
+                                      <div className="flex items-center gap-2">
+                                        <Calendar size={16} className="text-gray-400" />
+                                        <span className="text-xs text-gray-600">Date :</span>
+                                        <input
+                                          type="date"
+                                          value={response?.dateValue || ""}
+                                          onChange={(e) =>
+                                            updateResponse(checkpoint.id, {
+                                              dateValue: e.target.value,
+                                            })
+                                          }
+                                          className="px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                                        />
+                                      </div>
+                                      {/* Attestation disponible */}
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-600">Attestation :</span>
+                                        <button
+                                          onClick={() =>
+                                            updateResponse(checkpoint.id, {
+                                              values: {
+                                                ...(response?.values || {}),
+                                                attestation: "oui",
+                                              },
+                                            })
+                                          }
+                                          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                                            response?.values?.attestation === "oui"
+                                              ? "bg-green-500 text-white"
+                                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                          }`}
+                                        >
+                                          Présente
+                                        </button>
+                                        <button
+                                          onClick={() =>
+                                            updateResponse(checkpoint.id, {
+                                              values: {
+                                                ...(response?.values || {}),
+                                                attestation: "non",
+                                              },
+                                            })
+                                          }
+                                          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                                            response?.values?.attestation === "non"
+                                              ? "bg-amber-500 text-white"
+                                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                          }`}
+                                        >
+                                          Absente
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
                             {/* Notes */}
                             {(response?.isConform === false ||
                               (response?.selectedFindingId &&
