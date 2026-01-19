@@ -6,7 +6,7 @@ import { Shield, Loader2 } from "lucide-react";
 
 interface User {
   id: string;
-  role: "ADMIN" | "MANAGER" | "READER";
+  role: "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "READER";
 }
 
 export default function AdminLayout({
@@ -29,7 +29,7 @@ export default function AdminLayout({
 
         const user: User = await response.json();
 
-        if (user.role !== "ADMIN") {
+        if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
           router.push("/");
           return;
         }
