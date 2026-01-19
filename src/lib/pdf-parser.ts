@@ -63,9 +63,23 @@ export function parseQuoteFromText(text: string): ParsedQuote {
 
   // 2. SITE / CHANTIER
   // Format IDEX: "Site ECOLE ELEMENTAIRE CHARLES PEGUY - GONESSE" suivi de "Adresse ..."
+  // IMPORTANT: Exclure les noms de clients (VILLE DE, MAIRIE, etc.)
   const idexSiteMatch = text.match(/Site\s+([A-ZÀ-Ü][A-Za-zÀ-ü\s'''\-]+?)(?:\s*[\-\n]|\s+Adresse)/i);
   if (idexSiteMatch) {
-    result.siteName = idexSiteMatch[1].trim().replace(/\s*-\s*$/, "");
+    const potentialSite = idexSiteMatch[1].trim().replace(/\s*-\s*$/, "");
+    // Exclure les noms de clients typiques (mairie, ville de, etc.)
+    if (!potentialSite.match(/^(VILLE\s+DE|MAIRIE|COMMUNE\s+DE|COMMUNAUTE)/i)) {
+      result.siteName = potentialSite;
+    }
+  }
+
+  // Si pas de site trouvé ou exclu, chercher un établissement spécifique
+  if (!result.siteName) {
+    // Chercher "Site" suivi d'un nom d'établissement (école, collège, lycée, etc.)
+    const etablissementMatch = text.match(/Site\s+((?:ECOLE|COLLEGE|LYCEE|CRECHE|GYMNASE|STADE|CENTRE|MAISON|GROUPE\s+SCOLAIRE)[A-Za-zÀ-ü\s'''\-]+?)(?:\s*[\-\n]|\s+Adresse)/i);
+    if (etablissementMatch) {
+      result.siteName = etablissementMatch[1].trim().replace(/\s*-\s*$/, "");
+    }
   }
 
   // Chercher la ville dans "Adresse" IDEX: "93550 GONESSE CEDEX"
@@ -117,7 +131,9 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     /Nature\s*des\s*travaux\s*:?\s*([^\n]+)/i,
     // Lignes commençant par un numéro puis description de travaux
     /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,80})/im,
-    // Recherche directe de mots-clés de travaux (sans numéro) - mais pas dans les CGV
+    // Format IDEX: "Remplacement ballon ecs en cuisine" (sans préposition obligatoire)
+    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+[A-Za-zÀ-ü\s]{5,50})/i,
+    // Recherche directe de mots-clés de travaux avec préposition
     /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+(?:des?|du|de la|d'un|d'une)\s+[A-Za-zÀ-ü\s]{3,40})/i,
   ];
 
