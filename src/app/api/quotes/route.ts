@@ -46,11 +46,21 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // Récupérer le fournisseur du contrat si non fourni
+    let provider = body.provider;
+    if (!provider && body.contractId) {
+      const contract = await prisma.contract.findUnique({
+        where: { id: body.contractId },
+        select: { provider: true },
+      });
+      provider = contract?.provider || "Fournisseur";
+    }
+
     const quote = await prisma.quote.create({
       data: {
         reference: body.reference || `DEV-${Date.now()}`,
         title: body.title || "Devis importé",
-        provider: body.provider,
+        provider: provider || "Fournisseur",
         client: body.client,
         quoteType: body.quoteType || null,
         amountHT: parseFloat(body.amountHT || body.amount || 0),
