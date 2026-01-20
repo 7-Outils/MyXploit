@@ -69,7 +69,14 @@ export async function POST(request: NextRequest) {
     // Créer ou utiliser l'organisation
     let orgId = organizationId;
 
-    if (!orgId && organizationName) {
+    // Si "new" est sélectionné, créer une nouvelle organisation
+    if (organizationId === "new" || (!orgId && organizationName)) {
+      if (!organizationName) {
+        return NextResponse.json(
+          { error: "Le nom de l'organisation est requis" },
+          { status: 400 }
+        );
+      }
       // Créer une nouvelle organisation
       const newOrg = await prisma.organization.create({
         data: {
