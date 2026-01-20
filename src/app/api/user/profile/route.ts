@@ -32,9 +32,9 @@ export async function PATCH(request: NextRequest) {
     const user = await requireAuth();
     const body = await request.json();
 
-    const { profile } = body;
+    const { profile, firstName, lastName } = body;
 
-    // Validate profile value
+    // Validate profile value if provided
     if (profile && !["EXPLOITANT", "CLIENT", "AMO"].includes(profile)) {
       return NextResponse.json(
         { error: "Profil invalide" },
@@ -42,11 +42,20 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Build update data
+    const updateData: {
+      profile?: UserProfile;
+      firstName?: string;
+      lastName?: string;
+    } = {};
+
+    if (profile) updateData.profile = profile as UserProfile;
+    if (firstName !== undefined) updateData.firstName = firstName;
+    if (lastName !== undefined) updateData.lastName = lastName;
+
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
-      data: {
-        profile: profile as UserProfile,
-      },
+      data: updateData,
       include: { organization: true },
     });
 
