@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import prisma from "./prisma";
 import crypto from "crypto";
 
-const JWT_SECRET = process.env.JWT_SECRET || "default-secret-change-me";
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || "default-secret-change-me"
+);
 const SESSION_COOKIE_NAME = "myxploit_session";
 
 // Password utilities
@@ -24,13 +26,19 @@ export function generateInvitationToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-export function generateSessionToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "30d" });
+export async function generateSessionToken(userId: string): Promise<string> {
+  return new SignJWT({ userId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("30d")
+    .sign(JWT_SECRET);
 }
 
-export function verifySessionToken(token: string): { userId: string } | null {
+export async function verifySessionToken(
+  token: string
+): Promise<{ userId: string } | null> {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    return { userId: payload.userId as string };
   } catch {
     return null;
   }
@@ -38,7 +46,7 @@ export function verifySessionToken(token: string): { userId: string } | null {
 
 // Session management
 export async function createSession(userId: string) {
-  const token = generateSessionToken(userId);
+  const token = await generateSessionToken(userId);
   const cookieStore = await cookies();
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
@@ -65,7 +73,7 @@ export async function getSessionUserId(): Promise<string | null> {
     return null;
   }
 
-  const payload = verifySessionToken(sessionCookie.value);
+  const payload = await verifySessionToken(sessionCookie.value);
   return payload?.userId || null;
 }
 

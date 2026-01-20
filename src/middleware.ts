@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import jwt from "jsonwebtoken";
+import { jwtVerify } from "jose";
 
 const SESSION_COOKIE_NAME = "myxploit_session";
-const JWT_SECRET = process.env.JWT_SECRET || "default-secret-change-me";
 
 // Routes publiques (accessibles sans connexion)
 const publicRoutes = [
@@ -20,7 +19,7 @@ function isPublicRoute(pathname: string): boolean {
   );
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip static files and Next.js internals
@@ -47,9 +46,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  // Verify JWT token
+  // Verify JWT token using jose (Edge-compatible)
   try {
-    jwt.verify(sessionCookie.value, JWT_SECRET);
+    const secret = new TextEncoder().encode(
+      process.env.JWT_SECRET || "default-secret-change-me"
+    );
+    await jwtVerify(sessionCookie.value, secret);
     return NextResponse.next();
   } catch {
     // Invalid session, redirect to sign-in
