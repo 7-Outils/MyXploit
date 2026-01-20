@@ -14,6 +14,7 @@ import {
   Mail,
   Clock,
   Send,
+  Pencil,
 } from "lucide-react";
 
 interface Organization {
@@ -55,11 +56,13 @@ export default function AdminUsersPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
+  // Form state for new user
   const [formData, setFormData] = useState({
     email: "",
     firstName: "",
@@ -67,6 +70,14 @@ export default function AdminUsersPage() {
     role: "READER" as User["role"],
     organizationId: "",
     newOrgName: "",
+  });
+
+  // Form state for edit user
+  const [editFormData, setEditFormData] = useState({
+    firstName: "",
+    lastName: "",
+    role: "READER" as User["role"],
+    organizationId: "",
   });
 
   const fetchData = async () => {
@@ -133,6 +144,54 @@ export default function AdminUsersPage() {
         organizationId: "",
         newOrgName: "",
       });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setEditFormData({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      role: user.role,
+      organizationId: user.organization.id,
+    });
+    setShowEditModal(true);
+    setError(null);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: editFormData.firstName || null,
+          lastName: editFormData.lastName || null,
+          role: editFormData.role,
+          organizationId: editFormData.organizationId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erreur lors de la modification");
+      }
+
+      // Refresh data
+      await fetchData();
+      setShowEditModal(false);
+      setEditingUser(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
@@ -332,7 +391,14 @@ export default function AdminUsersPage() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Modifier"
+                    >
+                      <Pencil size={16} />
+                    </button>
                     {!user.password && (
                       <button
                         onClick={() => handleResendInvitation(user.id)}
@@ -522,6 +588,132 @@ export default function AdminUsersPage() {
                 >
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   Créer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal édition */}
+      {showEditModal && editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Modifier l&apos;utilisateur</h2>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingUser(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateUser} className="p-4 space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">Email</p>
+                <p className="font-medium text-gray-900">{editingUser.email}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prénom
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.firstName}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, firstName: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nom
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.lastName}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, lastName: e.target.value })
+                    }
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Rôle
+                </label>
+                <select
+                  value={editFormData.role}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      role: e.target.value as User["role"],
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                >
+                  <option value="READER">Lecteur</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Admin</option>
+                  <option value="SUPER_ADMIN">Super Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Organisation
+                </label>
+                <select
+                  value={editFormData.organizationId}
+                  onChange={(e) =>
+                    setEditFormData({
+                      ...editFormData,
+                      organizationId: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setEditingUser(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {saving && <Loader2 size={16} className="animate-spin" />}
+                  Enregistrer
                 </button>
               </div>
             </form>

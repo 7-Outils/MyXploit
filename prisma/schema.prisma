@@ -1219,7 +1219,7 @@ model Quote {
   amountTTC      Float       @default(0) // Montant TTC
   status         QuoteStatus @default(BROUILLON)
   issueDate      DateTime    @default(now()) // Date d'émission
-  validUntil     DateTime    // Date de validité
+  validUntil     DateTime?   // Date de validité (optionnel)
   description    String?
   documentUrl    String?     // URL du PDF original
   siteId         String?     // Site concerné

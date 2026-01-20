@@ -9,7 +9,6 @@ import {
   FileText,
   Wrench,
   Settings,
-  LogOut,
   ChevronLeft,
   Briefcase,
   Shield,
@@ -192,15 +191,6 @@ export function Sidebar() {
           );
         })}
 
-        {/* Logout */}
-        <button
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 group"
-        >
-          <LogOut size={20} className="flex-shrink-0" />
-          {!collapsed && (
-            <span className="text-sm font-medium">Déconnexion</span>
-          )}
-        </button>
       </div>
     </aside>
   );

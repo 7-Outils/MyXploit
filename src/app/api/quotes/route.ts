@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
 
     const quote = await prisma.quote.create({
       data: {
-        reference: body.reference,
-        title: body.title,
+        reference: body.reference || `DEV-${Date.now()}`,
+        title: body.title || "Devis importé",
         provider: body.provider,
         client: body.client,
         quoteType: body.quoteType || null,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         amountTTC: parseFloat(body.amountTTC || body.amount || 0),
         status: body.status || "BROUILLON",
         issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
-        validUntil: new Date(body.validUntil),
+        validUntil: body.validUntil ? new Date(body.validUntil) : null,
         description: body.description,
         siteId: body.siteId || null,
         contractId: body.contractId || null,
