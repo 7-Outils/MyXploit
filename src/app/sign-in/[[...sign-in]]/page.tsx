@@ -50,7 +50,7 @@ function SignInForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <Logo size="xl" />
+            <Logo size="xl" variant="white" />
           </Link>
         </div>
 

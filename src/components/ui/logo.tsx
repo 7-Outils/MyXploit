@@ -7,9 +7,10 @@ interface LogoProps {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
   showText?: boolean;
+  variant?: "default" | "white";
 }
 
-export function Logo({ className, size = "md", showText = true }: LogoProps) {
+export function Logo({ className, size = "md", showText = true, variant = "default" }: LogoProps) {
   const sizes = {
     sm: { width: 100, height: 40 },
     md: { width: 130, height: 52 },
@@ -18,6 +19,7 @@ export function Logo({ className, size = "md", showText = true }: LogoProps) {
   };
 
   const { width, height } = sizes[size];
+  const logoSrc = variant === "white" ? "/logo-white.png" : "/logo.png";
 
   // Si on ne veut pas le texte, on montre juste l'icône (version carrée)
   if (!showText) {
@@ -32,7 +34,7 @@ export function Logo({ className, size = "md", showText = true }: LogoProps) {
     return (
       <div className={cn("relative", className)} style={{ width: iconSize, height: iconSize }}>
         <Image
-          src="/logo.png"
+          src={logoSrc}
           alt="MyXploit"
           fill
           className="object-contain"
@@ -45,7 +47,7 @@ export function Logo({ className, size = "md", showText = true }: LogoProps) {
   return (
     <div className={cn("relative", className)} style={{ width, height }}>
       <Image
-        src="/logo.png"
+        src={logoSrc}
         alt="MyXploit"
         fill
         className="object-contain"
