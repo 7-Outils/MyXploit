@@ -12,6 +12,7 @@ import {
   Trash2,
   AlertTriangle,
   Users,
+  Building2,
 } from "lucide-react";
 
 interface Stats {
@@ -192,6 +193,15 @@ export default function AdminPage() {
             <Users size={20} className="text-gray-400 group-hover:text-accent" />
             <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
               Gestion des utilisateurs
+            </span>
+          </Link>
+          <Link
+            href="/admin/organizations"
+            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
+          >
+            <Building2 size={20} className="text-gray-400 group-hover:text-accent" />
+            <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
+              Gestion des organisations
             </span>
           </Link>
           <Link
