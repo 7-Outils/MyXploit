@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { Loader2, Mail, Lock, AlertCircle } from "lucide-react";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/overview";
@@ -147,5 +147,19 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background-secondary flex items-center justify-center">
+          <Loader2 size={48} className="animate-spin text-accent" />
+        </div>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }
