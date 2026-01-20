@@ -95,14 +95,11 @@ export function Sidebar() {
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
         {!collapsed && (
-          <Logo
-            size="sm"
-            className="[&_span]:text-white [&_.text-accent]:text-accent-light"
-          />
+          <Logo size="sm" variant="white" />
         )}
         {collapsed && (
           <div className="w-10 h-10 mx-auto">
-            <Logo size="sm" showText={false} />
+            <Logo size="sm" showText={false} variant="white" />
           </div>
         )}
         <button

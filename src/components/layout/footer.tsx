@@ -51,7 +51,7 @@ export function Footer() {
           {/* Logo and description */}
           <div className="col-span-2">
             <div className="mb-4">
-              <Logo size="md" className="[&_span]:text-white [&_.text-accent]:text-accent-light" />
+              <Logo size="md" variant="white" />
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-6 max-w-xs">
               La plateforme de référence pour le pilotage des marchés

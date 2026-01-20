@@ -39,7 +39,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex-shrink-0">
-            <Logo size="md" variant="white" />
+            <Logo size="md" />
           </Link>
 
           {/* Desktop Navigation */}
