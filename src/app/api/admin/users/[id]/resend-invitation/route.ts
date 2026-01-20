@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, createInvitationToken } from "@/lib/auth";
+import { sendInvitationEmail } from "@/lib/email";
 
 // POST /api/admin/users/[id]/resend-invitation - Renvoyer l'invitation
 export async function POST(
@@ -31,39 +31,18 @@ export async function POST(
       );
     }
 
-    if (user.clerkId) {
+    if (user.password) {
       return NextResponse.json(
         { error: "Cet utilisateur est déjà activé" },
         { status: 400 }
       );
     }
 
-    // Envoyer une nouvelle invitation Clerk
-    const clerk = await clerkClient();
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://myxploit.fr";
+    // Créer un nouveau token d'invitation
+    const token = await createInvitationToken(user.id);
 
-    // Révoquer les invitations existantes pour cet email
-    try {
-      const existingInvitations = await clerk.invitations.getInvitationList({
-        status: "pending",
-      });
-      for (const inv of existingInvitations.data) {
-        if (inv.emailAddress === user.email) {
-          await clerk.invitations.revokeInvitation(inv.id);
-        }
-      }
-    } catch {
-      // Ignorer les erreurs de révocation
-    }
-
-    await clerk.invitations.createInvitation({
-      emailAddress: user.email,
-      redirectUrl: `${appUrl}/overview`,
-      publicMetadata: {
-        dbUserId: user.id,
-        role: user.role,
-      },
-    });
+    // Envoyer l'email d'invitation
+    await sendInvitationEmail(user.email, user.firstName, token);
 
     return NextResponse.json({ success: true, message: "Invitation envoyée" });
   } catch (error) {

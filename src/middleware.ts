@@ -1,19 +1,66 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import jwt from "jsonwebtoken";
+
+const SESSION_COOKIE_NAME = "myxploit_session";
+const JWT_SECRET = process.env.JWT_SECRET || "default-secret-change-me";
 
 // Routes publiques (accessibles sans connexion)
-const isPublicRoute = createRouteMatcher([
+const publicRoutes = [
   "/",
-  "/login(.*)",
-  "/register(.*)",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-]);
+  "/sign-in",
+  "/set-password",
+  "/api/auth/login",
+  "/api/auth/set-password",
+];
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
+function isPublicRoute(pathname: string): boolean {
+  return publicRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
+  );
+}
+
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip static files and Next.js internals
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/uploadthing") ||
+    pathname.includes(".") // Static files
+  ) {
+    return NextResponse.next();
   }
-});
+
+  // Allow public routes
+  if (isPublicRoute(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Check for session cookie
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+
+  if (!sessionCookie?.value) {
+    // No session, redirect to sign-in
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Verify JWT token
+  try {
+    jwt.verify(sessionCookie.value, JWT_SECRET);
+    return NextResponse.next();
+  } catch {
+    // Invalid session, redirect to sign-in
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect", pathname);
+    const response = NextResponse.redirect(signInUrl);
+    // Clear invalid cookie
+    response.cookies.delete(SESSION_COOKIE_NAME);
+    return response;
+  }
+}
 
 export const config = {
   matcher: [

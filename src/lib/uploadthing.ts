@@ -1,5 +1,5 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
-import { auth } from "@clerk/nextjs/server";
+import { getSessionUserId } from "@/lib/auth";
 
 const f = createUploadthing();
 
@@ -8,7 +8,7 @@ export const ourFileRouter = {
   // Equipment/Audit photo uploader
   equipmentPhoto: f({ image: { maxFileSize: "4MB", maxFileCount: 10 } })
     .middleware(async () => {
-      const { userId } = await auth();
+      const userId = await getSessionUserId();
       if (!userId) throw new Error("Unauthorized");
       return { userId };
     })

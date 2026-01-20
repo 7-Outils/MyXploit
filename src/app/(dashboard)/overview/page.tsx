@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
@@ -182,9 +181,15 @@ const QUICK_ACTIONS = {
   ],
 };
 
+interface CurrentUser {
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}
+
 export default function OverviewPage() {
-  const { user } = useUser();
   const { profile, isLoading: profileLoading } = useUserProfile();
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
@@ -199,8 +204,9 @@ export default function OverviewPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes, expiringRes, sitesRes] =
+        const [userRes, contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes, expiringRes, sitesRes] =
           await Promise.all([
+            fetch("/api/auth/me"),
             fetch("/api/contracts"),
             fetch("/api/invoices"),
             fetch("/api/meetings"),
@@ -211,8 +217,9 @@ export default function OverviewPage() {
             fetch("/api/sites"),
           ]);
 
-        const [contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData, expiringData, sitesData] =
+        const [userData, contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData, expiringData, sitesData] =
           await Promise.all([
+            userRes.json(),
             contractsRes.json(),
             invoicesRes.json(),
             meetingsRes.json(),
@@ -223,6 +230,9 @@ export default function OverviewPage() {
             sitesRes.json(),
           ]);
 
+        if (userData?.user) {
+          setCurrentUser(userData.user);
+        }
         setContracts(Array.isArray(contractsData) ? contractsData : []);
         setInvoices(Array.isArray(invoicesData) ? invoicesData : []);
         setMeetings(Array.isArray(meetingsData) ? meetingsData : []);
@@ -498,7 +508,7 @@ export default function OverviewPage() {
             Vue d&apos;ensemble
           </h1>
           <p className="text-text-secondary">
-            Bienvenue{user?.firstName ? `, ${user.firstName}` : ""}. {welcomeMessage}
+            Bienvenue{currentUser?.firstName ? `, ${currentUser.firstName}` : ""}. {welcomeMessage}
           </p>
         </div>
         {profile && (

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, generateInvitationData } from "@/lib/auth";
+import { sendInvitationEmail } from "@/lib/email";
 
 // GET /api/admin/users - Lister tous les utilisateurs (SUPER_ADMIN uniquement)
 export async function GET() {
@@ -94,7 +94,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer l'utilisateur (sans clerkId - sera lié lors de la première connexion)
+    // Créer le token d'invitation
+    const { token, expires } = generateInvitationData();
+
+    // Créer l'utilisateur avec le token d'invitation
     const newUser = await prisma.user.create({
       data: {
         email,
@@ -102,27 +105,19 @@ export async function POST(request: NextRequest) {
         lastName: lastName || null,
         role: role || "READER",
         organizationId: orgId,
-        // clerkId sera rempli automatiquement lors de la connexion
+        invitationToken: token,
+        invitationExpires: expires,
       },
       include: {
         organization: true,
       },
     });
 
-    // Envoyer une invitation Clerk par email
+    // Envoyer l'email d'invitation
     try {
-      const clerk = await clerkClient();
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://myxploit.fr";
-      await clerk.invitations.createInvitation({
-        emailAddress: email,
-        redirectUrl: `${appUrl}/overview`,
-        publicMetadata: {
-          dbUserId: newUser.id,
-          role: newUser.role,
-        },
-      });
-    } catch (clerkError) {
-      console.error("Clerk invitation error:", clerkError);
+      await sendInvitationEmail(email, firstName || null, token);
+    } catch (emailError) {
+      console.error("Email invitation error:", emailError);
       // L'utilisateur est créé en base, l'invitation pourra être renvoyée plus tard
     }
 

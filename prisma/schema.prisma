@@ -60,16 +60,18 @@ enum UserProfile {
 }
 
 model User {
-  id             String       @id @default(cuid())
-  clerkId        String?      @unique // ID from Clerk (null = invitation en attente)
-  email          String       @unique // Email unique pour matcher lors de la connexion
-  firstName      String?
-  lastName       String?
-  role           UserRole     @default(READER)
-  profile        UserProfile? // Profil métier (null = pas encore choisi)
-  organizationId String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  email             String       @unique
+  password          String?      // Hashed password (null = invitation en attente)
+  firstName         String?
+  lastName          String?
+  role              UserRole     @default(READER)
+  profile           UserProfile? // Profil métier (null = pas encore choisi)
+  organizationId    String
+  invitationToken   String?      @unique // Token pour accepter l'invitation
+  invitationExpires DateTime?    // Expiration du token
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

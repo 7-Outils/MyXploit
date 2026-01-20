@@ -31,7 +31,7 @@ interface User {
   firstName: string | null;
   lastName: string | null;
   role: "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "READER";
-  clerkId: string | null;
+  password: string | null;
   organization: Organization;
   createdAt: string;
 }
@@ -248,7 +248,7 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                {users.filter((u) => u.clerkId).length}
+                {users.filter((u) => u.password).length}
               </p>
               <p className="text-sm text-gray-600">Comptes activés</p>
             </div>
@@ -261,7 +261,7 @@ export default function AdminUsersPage() {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">
-                {users.filter((u) => !u.clerkId).length}
+                {users.filter((u) => !u.password).length}
               </p>
               <p className="text-sm text-gray-600">En attente</p>
             </div>
@@ -319,7 +319,7 @@ export default function AdminUsersPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {user.clerkId ? (
+                  {user.password ? (
                     <span className="flex items-center gap-1 text-sm text-green-600">
                       <Check size={14} />
                       Activé
@@ -333,7 +333,7 @@ export default function AdminUsersPage() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-2">
-                    {!user.clerkId && (
+                    {!user.password && (
                       <button
                         onClick={() => handleResendInvitation(user.id)}
                         disabled={resending === user.id}
