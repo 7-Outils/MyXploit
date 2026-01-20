@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
@@ -11,48 +10,34 @@ interface LogoProps {
 }
 
 export function Logo({ className, size = "md", showText = true, variant = "default" }: LogoProps) {
-  const sizes = {
-    sm: { width: 28, height: 28 },
-    md: { width: 36, height: 36 },
-    lg: { width: 48, height: 48 },
-    xl: { width: 64, height: 64 },
+  const fontSizes = {
+    sm: "text-lg",
+    md: "text-xl",
+    lg: "text-2xl",
+    xl: "text-3xl",
   };
 
-  const { width, height } = sizes[size];
-  const logoSrc = variant === "white" ? "/logo-white.svg" : "/logo.svg";
+  const textColor = variant === "white" ? "text-white" : "text-gray-900";
+  const accentColor = "text-accent";
 
-  // Si on ne veut pas le texte, on montre juste l'icône (version carrée)
   if (!showText) {
     const iconSizes = {
-      sm: 24,
-      md: 32,
-      lg: 40,
-      xl: 56,
+      sm: "text-lg",
+      md: "text-xl",
+      lg: "text-2xl",
+      xl: "text-3xl",
     };
-    const iconSize = iconSizes[size];
 
     return (
-      <div className={cn("relative", className)} style={{ width: iconSize, height: iconSize }}>
-        <Image
-          src={logoSrc}
-          alt="MyXploit"
-          fill
-          className="object-contain"
-          priority
-        />
-      </div>
+      <span className={cn("font-bold", iconSizes[size], textColor, className)}>
+        M<span className={accentColor}>x</span>
+      </span>
     );
   }
 
   return (
-    <div className={cn("relative", className)} style={{ width, height }}>
-      <Image
-        src={logoSrc}
-        alt="MyXploit"
-        fill
-        className="object-contain"
-        priority
-      />
-    </div>
+    <span className={cn("font-bold tracking-tight", fontSizes[size], textColor, className)}>
+      My<span className={accentColor}>X</span>ploit
+    </span>
   );
 }
