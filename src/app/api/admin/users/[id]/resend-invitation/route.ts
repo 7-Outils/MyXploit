@@ -41,6 +41,21 @@ export async function POST(
     // Envoyer une nouvelle invitation Clerk
     const clerk = await clerkClient();
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://myxploit.fr";
+
+    // Révoquer les invitations existantes pour cet email
+    try {
+      const existingInvitations = await clerk.invitations.getInvitationList({
+        status: "pending",
+      });
+      for (const inv of existingInvitations.data) {
+        if (inv.emailAddress === user.email) {
+          await clerk.invitations.revokeInvitation(inv.id);
+        }
+      }
+    } catch {
+      // Ignorer les erreurs de révocation
+    }
+
     await clerk.invitations.createInvitation({
       emailAddress: user.email,
       redirectUrl: `${appUrl}/overview`,
