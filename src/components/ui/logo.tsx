@@ -12,14 +12,14 @@ interface LogoProps {
 
 export function Logo({ className, size = "md", showText = true, variant = "default" }: LogoProps) {
   const sizes = {
-    sm: { width: 100, height: 40 },
-    md: { width: 130, height: 52 },
-    lg: { width: 160, height: 64 },
-    xl: { width: 200, height: 80 },
+    sm: { width: 100, height: 75 },
+    md: { width: 130, height: 98 },
+    lg: { width: 160, height: 120 },
+    xl: { width: 200, height: 150 },
   };
 
   const { width, height } = sizes[size];
-  const logoSrc = variant === "white" ? "/logo-white.png" : "/logo.png";
+  const logoSrc = variant === "white" ? "/logo-white.svg" : "/logo.svg";
 
   // Si on ne veut pas le texte, on montre juste l'icône (version carrée)
   if (!showText) {

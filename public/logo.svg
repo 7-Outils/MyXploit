@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" fill="none">
+  <!-- M Shape - Two arches forming M -->
+  <path d="M20 90
+           L20 40
+           Q20 15 45 15
+           Q70 15 85 40
+           L100 60
+           L115 40
+           Q130 15 155 15
+           Q180 15 180 40
+           L180 90"
+        stroke="#1a1a1a"
+        stroke-width="12"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"/>
+
+  <!-- Teal swoosh accent -->
+  <path d="M90 28
+           Q125 45 138 68
+           Q152 92 185 82"
+        stroke="url(#tealGradient)"
+        stroke-width="10"
+        stroke-linecap="round"
+        fill="none"/>
+
+  <!-- MyXploit text -->
+  <text x="100" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#1a1a1a">
+    My<tspan fill="#1a1a1a">X</tspan>ploit
+  </text>
+
+  <!-- Gradient definition -->
+  <defs>
+    <linearGradient id="tealGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5DD3C8"/>
+      <stop offset="100%" stop-color="#3BA99C"/>
+    </linearGradient>
+  </defs>
+</svg>
