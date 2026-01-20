@@ -112,9 +112,10 @@ export async function POST(request: NextRequest) {
     // Envoyer une invitation Clerk par email
     try {
       const clerk = await clerkClient();
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://myxploit.fr";
       await clerk.invitations.createInvitation({
         emailAddress: email,
-        redirectUrl: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || "/overview",
+        redirectUrl: `${appUrl}/overview`,
         publicMetadata: {
           dbUserId: newUser.id,
           role: newUser.role,
