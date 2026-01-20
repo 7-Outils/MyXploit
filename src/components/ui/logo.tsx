@@ -12,10 +12,10 @@ interface LogoProps {
 
 export function Logo({ className, size = "md", showText = true, variant = "default" }: LogoProps) {
   const sizes = {
-    sm: { width: 100, height: 75 },
-    md: { width: 130, height: 98 },
-    lg: { width: 160, height: 120 },
-    xl: { width: 200, height: 150 },
+    sm: { width: 28, height: 28 },
+    md: { width: 36, height: 36 },
+    lg: { width: 48, height: 48 },
+    xl: { width: 64, height: 64 },
   };
 
   const { width, height } = sizes[size];
@@ -24,10 +24,10 @@ export function Logo({ className, size = "md", showText = true, variant = "defau
   // Si on ne veut pas le texte, on montre juste l'icône (version carrée)
   if (!showText) {
     const iconSizes = {
-      sm: 32,
-      md: 40,
-      lg: 56,
-      xl: 72,
+      sm: 24,
+      md: 32,
+      lg: 40,
+      xl: 56,
     };
     const iconSize = iconSizes[size];
 

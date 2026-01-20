@@ -1,39 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150" fill="none">
-  <!-- M Shape - Two arches forming M (white version) -->
-  <path d="M20 90
-           L20 40
-           Q20 15 45 15
-           Q70 15 85 40
-           L100 60
-           L115 40
-           Q130 15 155 15
-           Q180 15 180 40
-           L180 90"
-        stroke="#ffffff"
-        stroke-width="12"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        fill="none"/>
-
-  <!-- Teal swoosh accent -->
-  <path d="M90 28
-           Q125 45 138 68
-           Q152 92 185 82"
-        stroke="url(#tealGradientWhite)"
-        stroke-width="10"
-        stroke-linecap="round"
-        fill="none"/>
-
-  <!-- MyXploit text -->
-  <text x="100" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#ffffff">
-    MyXploit
-  </text>
-
-  <!-- Gradient definition -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" fill="none">
   <defs>
-    <linearGradient id="tealGradientWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="tealGradientW" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#5DD3C8"/>
       <stop offset="100%" stop-color="#3BA99C"/>
     </linearGradient>
   </defs>
+
+  <!-- M Shape -->
+  <path d="M5 40 L5 18 Q5 8 12 8 Q19 8 25 18 L25 22 L25 18 Q31 8 38 8 Q45 8 45 18 L45 40"
+        stroke="#ffffff"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"/>
+
+  <!-- Teal swoosh -->
+  <path d="M22 12 Q32 18 36 28 Q40 38 48 35"
+        stroke="url(#tealGradientW)"
+        stroke-width="4"
+        stroke-linecap="round"
+        fill="none"/>
 </svg>
