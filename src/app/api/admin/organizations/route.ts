@@ -22,6 +22,12 @@ export async function GET() {
             sites: true,
           },
         },
+        modules: {
+          select: {
+            module: true,
+            isEnabled: true,
+          },
+        },
       },
       orderBy: { name: "asc" },
     });

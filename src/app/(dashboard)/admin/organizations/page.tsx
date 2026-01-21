@@ -13,7 +13,11 @@ import {
   MapPin,
   Edit2,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Package,
 } from "lucide-react";
+import { Module } from "@/generated/prisma/client";
 
 interface Organization {
   id: string;
@@ -24,7 +28,21 @@ interface Organization {
     users: number;
     sites: number;
   };
+  modules?: Array<{
+    module: Module;
+    isEnabled: boolean;
+  }>;
 }
+
+const MODULE_LABELS: Record<Module, string> = {
+  ENERGY: "Suivi énergétique",
+  FINANCIER: "Suivi financier",
+  ADMINISTRATIF: "Suivi administratif",
+  EXPLOITATION: "Suivi exploitation",
+  OUTILS: "Boîte à outils",
+  CONTRACTS: "Gestion contrats",
+  PRICING: "Tarification",
+};
 
 export default function AdminOrganizationsPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -34,6 +52,7 @@ export default function AdminOrganizationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
 
   const [formData, setFormData] = useState({
     name: "",
@@ -129,6 +148,39 @@ export default function AdminOrganizationsPage() {
     }
   };
 
+  const toggleModule = async (orgId: string, module: Module, currentState: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/organizations/${orgId}/modules`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          module,
+          isEnabled: !currentState,
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh organizations
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error toggling module:", error);
+      alert("Erreur lors de la modification du module");
+    }
+  };
+
+  const toggleOrgExpansion = (orgId: string) => {
+    setExpandedOrgs((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(orgId)) {
+        newSet.delete(orgId);
+      } else {
+        newSet.add(orgId);
+      }
+      return newSet;
+    });
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -207,108 +259,145 @@ export default function AdminOrganizationsPage() {
         </div>
       </div>
 
-      {/* Organizations Table */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                Organisation
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                Utilisateurs
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                Sites
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                Cree le
-              </th>
-              <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {organizations.map((org) => (
-              <tr key={org.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  {editingId === org.id ? (
+      {/* Organizations Cards */}
+      <div className="space-y-4">
+        {organizations.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-500">
+            Aucune organisation
+          </div>
+        ) : (
+          organizations.map((org) => {
+            const isExpanded = expandedOrgs.has(org.id);
+            const enabledModulesCount = org.modules?.filter((m) => m.isEnabled).length || 0;
+
+            return (
+              <div key={org.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                {/* Organization Header */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      {editingId === org.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent flex-1 max-w-md"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => handleUpdateOrg(org.id)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          >
+                            <Check size={18} />
+                          </button>
+                          <button
+                            onClick={() => { setEditingId(null); setEditName(""); }}
+                            className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                            <Building2 size={20} className="text-accent" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900">{org.name}</h3>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <Users size={14} />
+                                {org._count?.users || 0} users
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MapPin size={14} />
+                                {org._count?.sites || 0} sites
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Package size={14} />
+                                {enabledModulesCount}/{Object.keys(MODULE_LABELS).length} modules
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="px-2 py-1 border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleUpdateOrg(org.id)}
-                        className="p-1 text-green-600 hover:bg-green-50 rounded"
-                      >
-                        <Check size={16} />
-                      </button>
-                      <button
-                        onClick={() => { setEditingId(null); setEditName(""); }}
-                        className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                      >
-                        <X size={16} />
-                      </button>
+                      {editingId !== org.id && (
+                        <>
+                          <button
+                            onClick={() => toggleOrgExpansion(org.id)}
+                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title={isExpanded ? "Réduire" : "Gérer les modules"}
+                          >
+                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                          </button>
+                          <button
+                            onClick={() => { setEditingId(org.id); setEditName(org.name); }}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Renommer"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteOrg(org.id, org.name)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
+                      )}
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-                        <Building2 size={16} className="text-accent" />
-                      </div>
-                      <span className="font-medium text-gray-900">{org.name}</span>
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-gray-700">
-                    {org._count?.users || 0}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-gray-700">
-                    {org._count?.sites || 0}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <span className="text-sm text-gray-500">
-                    {new Date(org.createdAt).toLocaleDateString("fr-FR")}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => { setEditingId(org.id); setEditName(org.name); }}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Renommer"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteOrg(org.id, org.name)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Supprimer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
                   </div>
-                </td>
-              </tr>
-            ))}
-            {organizations.length === 0 && (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                  Aucune organisation
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </div>
+
+                {/* Modules Section (Expandable) */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 bg-gray-50 p-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-3">Gestion des modules</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {Object.entries(MODULE_LABELS).map(([moduleKey, label]) => {
+                        const module = moduleKey as Module;
+                        const moduleData = org.modules?.find((m) => m.module === module);
+                        const isEnabled = moduleData?.isEnabled ?? false;
+
+                        return (
+                          <label
+                            key={module}
+                            className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                              isEnabled
+                                ? "border-accent bg-white"
+                                : "border-gray-200 bg-white hover:border-gray-300"
+                            }`}
+                          >
+                            <span className="text-sm font-medium text-gray-900">{label}</span>
+                            <button
+                              type="button"
+                              onClick={() => toggleModule(org.id, module, isEnabled)}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                isEnabled ? "bg-accent" : "bg-gray-300"
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                  isEnabled ? "translate-x-6" : "translate-x-1"
+                                }`}
+                              />
+                            </button>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
+
 
       {/* Modal creation */}
       {showModal && (

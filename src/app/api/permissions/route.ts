@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { requireAuth, getGhostSession } from "@/lib/auth";
 
 // GET /api/permissions - Récupérer les permissions de l'utilisateur connecté
 export async function GET() {
   try {
     const user = await requireAuth();
-    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     // Vérifier si l'utilisateur est en mode fantôme (SUPER_ADMIN uniquement)
     let isGhostMode = false;
@@ -15,15 +14,7 @@ export async function GET() {
     let effectiveOrgId = user.organizationId;
 
     if (user.role === "SUPER_ADMIN") {
-      const ghostSession = await prisma.ghostSession.findFirst({
-        where: {
-          superAdminId: user.id,
-          expiresAt: { gt: new Date() },
-        },
-        include: {
-          targetOrganization: { select: { id: true, name: true } },
-        },
-      });
+      const ghostSession = await getGhostSession(user.id);
 
       if (ghostSession) {
         isGhostMode = true;
