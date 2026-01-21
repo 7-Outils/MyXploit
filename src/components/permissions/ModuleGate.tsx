@@ -1,6 +1,6 @@
 "use client";
 
-import { Module } from "@/generated/prisma";
+import { Module } from "@/generated/prisma/client";
 import { useHasModule } from "@/contexts/PermissionContext";
 
 interface ModuleGateProps {
