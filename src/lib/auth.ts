@@ -4,9 +4,18 @@ import { cookies } from "next/headers";
 import prisma from "./prisma";
 import crypto from "crypto";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "default-secret-change-me"
-);
+// CRITICAL: JWT_SECRET must be defined in environment variables
+const JWT_SECRET_STRING = process.env.JWT_SECRET;
+
+if (!JWT_SECRET_STRING) {
+  throw new Error(
+    "FATAL ERROR: JWT_SECRET environment variable is not defined!\n" +
+    "Generate a secure secret with: openssl rand -base64 32\n" +
+    "Then add it to your .env file: JWT_SECRET=your_generated_secret"
+  );
+}
+
+const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 const SESSION_COOKIE_NAME = "myxploit_session";
 
 // Password utilities

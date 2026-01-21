@@ -49,6 +49,7 @@ export default function AdminOrganizationsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -181,6 +182,33 @@ export default function AdminOrganizationsPage() {
     });
   };
 
+  const seedAllModules = async () => {
+    if (!confirm("Activer tous les modules (7) pour toutes les organisations ?")) {
+      return;
+    }
+
+    setSeeding(true);
+    try {
+      const response = await fetch("/api/admin/seed-modules", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`✓ Succès! ${data.message}`);
+        await fetchData(); // Refresh
+      } else {
+        const data = await response.json();
+        alert(`✗ Erreur: ${data.error || "Une erreur est survenue"}`);
+      }
+    } catch (error) {
+      console.error("Error seeding modules:", error);
+      alert("✗ Erreur lors de l'activation des modules");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -209,13 +237,27 @@ export default function AdminOrganizationsPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-        >
-          <Plus size={20} />
-          Nouvelle organisation
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={seedAllModules}
+            disabled={seeding}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {seeding ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <Package size={20} />
+            )}
+            {seeding ? "Activation..." : "Activer tous les modules"}
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+          >
+            <Plus size={20} />
+            Nouvelle organisation
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
