@@ -1,6 +1,8 @@
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
+import { PermissionProvider } from "@/contexts/PermissionContext";
+import { GhostModeBar } from "@/components/admin/GhostModeBar";
 
 export default function DashboardLayout({
   children,
@@ -9,13 +11,16 @@ export default function DashboardLayout({
 }) {
   return (
     <UserProfileProvider>
-      <div className="min-h-screen bg-background-secondary">
-        <Sidebar />
-        <div className="pl-64 transition-all duration-300">
-          <Topbar />
-          <main className="p-6">{children}</main>
+      <PermissionProvider>
+        <GhostModeBar />
+        <div className="min-h-screen bg-background-secondary">
+          <Sidebar />
+          <div className="pl-64 transition-all duration-300">
+            <Topbar />
+            <main className="p-6">{children}</main>
+          </div>
         </div>
-      </div>
+      </PermissionProvider>
     </UserProfileProvider>
   );
 }

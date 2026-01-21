@@ -41,15 +41,30 @@ model Organization {
   // Nouveau système d'audit configurable
   recommendationLibrary   RecommendationLibrary[]
   auditCheckPoints        AuditCheckPoint[]
+  // Permissions et modules
+  modules                 OrganizationModule[]
+  ghostSessions           GhostSession[]
 
   @@map("organizations")
 }
 
 enum UserRole {
-  SUPER_ADMIN  // Peut voir toutes les organisations
-  ADMIN        // Admin d'une organisation
-  MANAGER
-  READER
+  SUPER_ADMIN  // Plateforme - accès toutes orgs en mode fantôme
+  ADMIN        // Org - gère les utilisateurs de son org
+  EDITOR       // Org - crée/modifie/supprime dans son org
+  MANAGER      // @deprecated - migrer vers EDITOR
+  READER       // Org - consulte et exporte uniquement
+}
+
+// Modules fonctionnels (accès configurable par organisation)
+enum Module {
+  ENERGY          // Suivi énergétique
+  FINANCIER       // Suivi financier
+  ADMINISTRATIF   // Suivi administratif
+  EXPLOITATION    // Suivi exploitation
+  OUTILS          // Boîte à outils
+  CONTRACTS       // Gestion contrats
+  PRICING         // Tarification
 }
 
 // Profil métier de l'utilisateur (expérience personnalisée)
@@ -74,10 +89,43 @@ model User {
   updatedAt         DateTime     @updatedAt
 
   // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdSites Site[]       @relation("CreatedBy")
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdSites  Site[]         @relation("CreatedBy")
+  ghostSessions GhostSession[] @relation("SuperAdminGhostSessions")
 
   @@map("users")
+}
+
+// Modules activés par organisation
+model OrganizationModule {
+  id             String       @id @default(cuid())
+  organizationId String
+  module         Module
+  isEnabled      Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, module])
+  @@index([organizationId])
+  @@map("organization_modules")
+}
+
+// Sessions fantômes pour SUPER_ADMIN
+model GhostSession {
+  id                   String       @id @default(cuid())
+  superAdminId         String
+  targetOrganizationId String
+  createdAt            DateTime     @default(now())
+  expiresAt            DateTime     // Auto-expire après 4h
+
+  superAdmin         User         @relation("SuperAdminGhostSessions", fields: [superAdminId], references: [id], onDelete: Cascade)
+  targetOrganization Organization @relation(fields: [targetOrganizationId], references: [id], onDelete: Cascade)
+
+  @@index([superAdminId])
+  @@index([targetOrganizationId])
+  @@map("ghost_sessions")
 }
 
 // ============================================

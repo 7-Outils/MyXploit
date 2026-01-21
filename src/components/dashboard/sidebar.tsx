@@ -15,39 +15,53 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Module } from "@/generated/prisma";
+import { usePermissions } from "@/contexts/PermissionContext";
+import { OrganizationSwitcher } from "@/components/admin/OrganizationSwitcher";
 
-// Simplified navigation for AMO profile
-const navigation = [
+// Navigation avec modules (toujours visible si module undefined)
+const navigation: Array<{
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  module?: Module; // undefined = toujours visible (ex: Vue d'ensemble)
+}> = [
   {
     name: "Vue d'ensemble",
     href: "/overview",
     icon: LayoutDashboard,
+    // Pas de module = toujours visible
   },
   {
     name: "Suivi énergétique",
     href: "/energy",
     icon: BarChart3,
+    module: "ENERGY",
   },
   {
     name: "Suivi financier",
     href: "/financier",
     icon: Euro,
+    module: "FINANCIER",
   },
   {
     name: "Suivi administratif",
     href: "/administratif",
     icon: FileText,
+    module: "ADMINISTRATIF",
   },
   {
     name: "Suivi exploitation",
     href: "/exploitation",
     icon: Wrench,
+    module: "EXPLOITATION",
   },
   {
     name: "Boîte à outils",
     href: "/outils",
     icon: Briefcase,
+    module: "OUTILS",
   },
 ];
 
@@ -62,28 +76,23 @@ const bottomNavigation = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
-  useEffect(() => {
-    async function checkRole() {
-      try {
-        const res = await fetch("/api/user/profile");
-        if (res.ok) {
-          const user = await res.json();
-          setIsSuperAdmin(user.role === "SUPER_ADMIN");
-        }
-      } catch {
-        // Ignore errors
-      }
-    }
-    checkRole();
-  }, []);
+  const { hasModule, userRole, isLoading } = usePermissions();
 
   // Check if current path matches navigation item (including sub-paths)
   const isActive = (href: string) => {
     if (href === "/overview") return pathname === href || pathname === "/";
     return pathname === href || pathname.startsWith(href + "?");
   };
+
+  // Filtrer la navigation selon les modules activés
+  const visibleNavigation = navigation.filter((item) => {
+    // Si pas de module spécifié, toujours visible
+    if (!item.module) return true;
+    // Sinon vérifier si le module est activé
+    return hasModule(item.module);
+  });
+
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
 
   return (
     <aside
@@ -113,9 +122,16 @@ export function Sidebar() {
         </button>
       </div>
 
+      {/* Organization Switcher (SUPER_ADMIN only) */}
+      {!collapsed && isSuperAdmin && (
+        <div className="px-3 pt-4 pb-2">
+          <OrganizationSwitcher />
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
