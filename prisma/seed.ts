@@ -1,6 +1,16 @@
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { PrismaClient, UserRole, Module, EnergyType, SiteType } from "../src/generated/prisma/client";
 import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
+import path from "path";
+
+// Load environment variables from .env.local and .env
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is not defined!");
+}
 
 const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -228,7 +238,6 @@ async function main() {
       endDate: new Date("2025-12-31"),
       status: "ACTIF",
       organizationId: orgDemo.id,
-      createdById: adminLyon.id,
     },
   });
 
@@ -241,7 +250,6 @@ async function main() {
       endDate: new Date("2026-02-28"),
       status: "ACTIF",
       organizationId: orgDemo.id,
-      createdById: adminLyon.id,
     },
   });
 
@@ -266,16 +274,15 @@ async function main() {
     data: [
       {
         name: "Chaudière gaz Viessmann Vitodens 200",
-        type: "Chaudière",
+        type: "CHAUDIERE",
         brand: "Viessmann",
         model: "Vitodens 200-W",
         serialNumber: "VIT-2024-001",
         power: 150.0,
-        installationDate: new Date("2020-06-15"),
-        warrantyEndDate: new Date("2025-06-15"),
+        installDate: new Date("2020-06-15"),
+        warrantyEnd: new Date("2025-06-15"),
         siteId: sites[0].id,
         organizationId: orgDemo.id,
-        createdById: editorLyon.id,
       },
       {
         name: "Pompe à chaleur Daikin",
@@ -284,24 +291,22 @@ async function main() {
         model: "EWAQ-D9W",
         serialNumber: "DAI-2023-045",
         power: 95.0,
-        installationDate: new Date("2023-03-20"),
-        warrantyEndDate: new Date("2026-03-20"),
+        installDate: new Date("2023-03-20"),
+        warrantyEnd: new Date("2026-03-20"),
         siteId: sites[1].id,
         organizationId: orgDemo.id,
-        createdById: editorLyon.id,
       },
       {
         name: "CTA double flux Aldes",
-        type: "Ventilation",
+        type: "CTA",
         brand: "Aldes",
         model: "T.Flow Hygro+ 600",
         serialNumber: "ALD-2022-112",
         power: 5.5,
-        installationDate: new Date("2022-09-10"),
-        warrantyEndDate: new Date("2024-09-10"),
+        installDate: new Date("2022-09-10"),
+        warrantyEnd: new Date("2024-09-10"),
         siteId: sites[2].id,
         organizationId: orgDemo.id,
-        createdById: editorLyon.id,
       },
     ],
   });
@@ -314,33 +319,36 @@ async function main() {
     data: [
       {
         reference: "FACT-2024-001",
+        type: "P2",
         amount: 12450.0,
         issueDate: new Date("2024-01-15"),
         dueDate: new Date("2024-02-15"),
         status: "PAYEE",
+        siteId: sites[0].id,
         contractId: contract1.id,
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
       {
         reference: "FACT-2024-002",
+        type: "P2",
         amount: 8750.0,
         issueDate: new Date("2024-02-10"),
         dueDate: new Date("2024-03-10"),
         status: "PAYEE",
+        siteId: sites[1].id,
         contractId: contract2.id,
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
       {
         reference: "FACT-2024-003",
+        type: "P2",
         amount: 15200.0,
         issueDate: new Date("2024-03-05"),
         dueDate: new Date("2024-04-05"),
         status: "EN_ATTENTE",
+        siteId: sites[2].id,
         contractId: contract1.id,
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
     ],
   });
@@ -354,22 +362,26 @@ async function main() {
       {
         reference: "DEV-2024-001",
         title: "Remplacement chaudière Lycée Louis-le-Grand",
-        amount: 45000.0,
-        status: "EN_ATTENTE",
-        createdAt: new Date("2024-01-10"),
+        provider: "Engie Solutions",
+        amountHT: 37500.0,
+        amountTTC: 45000.0,
+        status: "ENVOYE",
+        issueDate: new Date("2024-01-10"),
+        siteId: sites[0].id,
         contractId: contract1.id,
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
       {
         reference: "DEV-2024-002",
         title: "Installation système GTC piscine",
-        amount: 28500.0,
+        provider: "SPIE Facilities",
+        amountHT: 23750.0,
+        amountTTC: 28500.0,
         status: "ACCEPTE",
-        createdAt: new Date("2024-02-05"),
+        issueDate: new Date("2024-02-05"),
+        siteId: sites[1].id,
         contractId: contract2.id,
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
     ],
   });
@@ -382,22 +394,18 @@ async function main() {
     data: [
       {
         title: "Température anormale chaudière",
-        description: "La température de la chaudière du Lycée Louis-le-Grand dépasse les seuils normaux",
-        type: "TECHNIQUE",
-        severity: "HIGH",
-        status: "OPEN",
+        message: "La température de la chaudière du Lycée Louis-le-Grand dépasse les seuils normaux",
+        type: "EQUIPEMENT_PANNE",
+        priority: "HAUTE",
         siteId: sites[0].id,
         organizationId: orgDemo.id,
-        createdById: editorLyon.id,
       },
       {
         title: "Échéance contrat dans 3 mois",
-        description: "Le contrat CONT-2024-002 arrive à échéance le 28/02/2026",
-        type: "CONTRAT",
-        severity: "MEDIUM",
-        status: "OPEN",
+        message: "Le contrat CONT-2024-002 arrive à échéance le 28/02/2026",
+        type: "CONTRAT_EXPIRATION",
+        priority: "MOYENNE",
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
     ],
   });
@@ -411,18 +419,16 @@ async function main() {
       {
         title: "Point mensuel maintenance",
         date: new Date("2024-04-15T14:00:00"),
-        type: "SUIVI",
+        type: "EXPLOITATION",
         location: "Mairie de Lyon - Salle de réunion A",
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
       {
         title: "Présentation projet renovation énergétique",
         date: new Date("2024-04-22T10:00:00"),
-        type: "COMMERCIAL",
+        type: "AUTRE",
         location: "Visioconférence",
         organizationId: orgDemo.id,
-        createdById: adminLyon.id,
       },
     ],
   });

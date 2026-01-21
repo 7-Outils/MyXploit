@@ -48,13 +48,17 @@ export async function middleware(request: NextRequest) {
 
   // Verify JWT token using jose (Edge-compatible)
   try {
-    const secret = new TextEncoder().encode(
-      process.env.JWT_SECRET || "default-secret-change-me"
-    );
+    if (!process.env.JWT_SECRET) {
+      console.error("FATAL: JWT_SECRET not defined in middleware");
+      throw new Error("JWT_SECRET not configured");
+    }
+
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     await jwtVerify(sessionCookie.value, secret);
     return NextResponse.next();
-  } catch {
+  } catch (error) {
     // Invalid session, redirect to sign-in
+    console.error("JWT verification failed:", error);
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("redirect", pathname);
     const response = NextResponse.redirect(signInUrl);
