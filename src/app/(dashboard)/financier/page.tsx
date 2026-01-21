@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { ReadOnlyGate } from "@/components/permissions";
 import {
   Receipt,
   Plus,
@@ -990,16 +991,18 @@ function FacturationContent({
             </select>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowImportModal(true)}>
-            <Upload size={18} className="mr-2" />
-            Importer PDF
-          </Button>
-          <Button onClick={() => setShowInvoiceModal(true)}>
-            <Plus size={18} className="mr-2" />
-            Saisir facture
-          </Button>
-        </div>
+        <ReadOnlyGate>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImportModal(true)}>
+              <Upload size={18} className="mr-2" />
+              Importer PDF
+            </Button>
+            <Button onClick={() => setShowInvoiceModal(true)}>
+              <Plus size={18} className="mr-2" />
+              Saisir facture
+            </Button>
+          </div>
+        </ReadOnlyGate>
       </div>
 
       {/* Invoices list */}
@@ -1010,16 +1013,18 @@ function FacturationContent({
             <p className="text-text-secondary mb-4">
               {statusFilter !== "ALL" || typeFilter !== "ALL" ? "Aucune facture avec ces filtres" : "Aucune facture pour ce contrat"}
             </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowImportModal(true)}>
-                <Upload size={18} className="mr-2" />
-                Importer PDF
-              </Button>
-              <Button onClick={() => setShowInvoiceModal(true)}>
-                <Plus size={18} className="mr-2" />
-                Saisir facture
-              </Button>
-            </div>
+            <ReadOnlyGate>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setShowImportModal(true)}>
+                  <Upload size={18} className="mr-2" />
+                  Importer PDF
+                </Button>
+                <Button onClick={() => setShowInvoiceModal(true)}>
+                  <Plus size={18} className="mr-2" />
+                  Saisir facture
+                </Button>
+              </div>
+            </ReadOnlyGate>
           </div>
         </ChartCard>
       ) : (

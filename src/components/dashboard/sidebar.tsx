@@ -24,7 +24,7 @@ import { OrganizationSwitcher } from "@/components/admin/OrganizationSwitcher";
 const navigation: Array<{
   name: string;
   href: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: React.ComponentType<any>;
   module?: Module; // undefined = toujours visible (ex: Vue d'ensemble)
 }> = [
   {

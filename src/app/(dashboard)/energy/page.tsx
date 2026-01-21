@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { ReadOnlyGate } from "@/components/permissions";
 import {
   BarChart3,
   TrendingDown,
@@ -1865,23 +1866,25 @@ function ClimatContent({
           <h3 className="font-semibold text-primary-dark">Synchronisation des DJU</h3>
           <p className="text-sm text-text-secondary">Récupère les DJU réels depuis la station météo et les applique aux consommations</p>
         </div>
-        <button
-          onClick={handleSyncDju}
-          disabled={syncing || !contractId}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {syncing ? (
-            <>
-              <Loader2 size={16} className="animate-spin" />
-              Synchronisation...
-            </>
-          ) : (
-            <>
-              <RefreshCw size={16} />
-              Synchroniser DJU
-            </>
-          )}
-        </button>
+        <ReadOnlyGate>
+          <button
+            onClick={handleSyncDju}
+            disabled={syncing || !contractId}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {syncing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Synchronisation...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} />
+                Synchroniser DJU
+              </>
+            )}
+          </button>
+        </ReadOnlyGate>
       </div>
 
       {syncResult && (
@@ -2187,21 +2190,23 @@ function PrixReferenceContent() {
           <h2 className="text-lg font-semibold text-primary-dark">Prix de référence du gaz naturel</h2>
           <p className="text-sm text-gray-600">Composantes tarifaires et taxes applicables</p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={handleSyncPrices}
-            variant="outline"
-            className="gap-2"
-            disabled={syncing}
-          >
-            <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
-            {syncing ? "Synchronisation..." : "Synchroniser"}
-          </Button>
-          <Button onClick={() => setShowAddModal(true)} className="gap-2">
-            <Plus size={16} />
-            Ajouter un prix
-          </Button>
-        </div>
+        <ReadOnlyGate>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleSyncPrices}
+              variant="outline"
+              className="gap-2"
+              disabled={syncing}
+            >
+              <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
+              {syncing ? "Synchronisation..." : "Synchroniser"}
+            </Button>
+            <Button onClick={() => setShowAddModal(true)} className="gap-2">
+              <Plus size={16} />
+              Ajouter un prix
+            </Button>
+          </div>
+        </ReadOnlyGate>
       </div>
 
       {/* Price cards grid */}

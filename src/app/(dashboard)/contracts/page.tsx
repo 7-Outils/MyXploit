@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { ReadOnlyGate } from "@/components/permissions";
 import {
   FileText,
   Plus,
@@ -203,10 +204,12 @@ export default function ContractsPage() {
             Gérez vos marchés d&apos;exploitation CVC
           </p>
         </div>
-        <Button onClick={() => setShowModal(true)}>
-          <Plus size={18} className="mr-2" />
-          Nouveau contrat
-        </Button>
+        <ReadOnlyGate>
+          <Button onClick={() => setShowModal(true)}>
+            <Plus size={18} className="mr-2" />
+            Nouveau contrat
+          </Button>
+        </ReadOnlyGate>
       </div>
 
       {/* Stats */}
