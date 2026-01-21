@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/heating-seasons/[id] - Récupérer une saison de chauffage
 export async function GET(
@@ -9,6 +9,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     const heatingSeason = await prisma.heatingSeason.findUnique({
@@ -52,6 +53,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
     const body = await request.json();
 
@@ -117,6 +119,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     // Get existing record

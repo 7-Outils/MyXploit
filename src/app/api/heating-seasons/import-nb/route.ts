@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { EnergyType, NbUnit } from "@/generated/prisma/client";
 
@@ -26,6 +26,7 @@ function getNbUnitForEnergyType(energyType: EnergyType): NbUnit {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Get contract to determine year mapping
     const contract = await prisma.contract.findUnique({
-      where: { id: contractId, organizationId: user.organizationId },
+      where: { id: contractId, organizationId: effectiveOrgId },
       select: {
         id: true,
         title: true,
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest) {
     const contractSiteIds = contract.contractSites.map((cs) => cs.siteId);
     const sites = await prisma.site.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         id: { in: contractSiteIds },
       },
       select: { id: true, name: true, city: true, energyType: true },
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     // Get site aliases
     const siteAliases = await prisma.siteAlias.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: { alias: true, siteId: true, site: { select: { name: true } } },
     });
 

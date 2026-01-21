@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/equipments/[id] - Get a single equipment with details
 export async function GET(
@@ -9,12 +9,13 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     const equipment = await prisma.equipment.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         site: {
@@ -50,6 +51,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role === "READER") {
@@ -63,7 +65,7 @@ export async function PUT(
     const existingEquipment = await prisma.equipment.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -125,6 +127,7 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role === "READER") {
@@ -138,7 +141,7 @@ export async function PATCH(
     const existingEquipment = await prisma.equipment.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -200,6 +203,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role !== "ADMIN") {
@@ -213,7 +217,7 @@ export async function DELETE(
     const existingEquipment = await prisma.equipment.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

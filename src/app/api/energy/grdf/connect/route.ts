@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { testGRDFConnection, getGRDFAccessToken } from "@/lib/grdf";
 
 // POST /api/energy/grdf/connect - Connect GRDF account
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
     const provider = await prisma.energyProvider.upsert({
       where: {
         organizationId_provider: {
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           provider: "GRDF",
         },
       },
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date(),
       },
       create: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         provider: "GRDF",
         accessToken: tokenResponse.access_token,
         refreshToken: `${clientId}:${clientSecret}`,
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -102,7 +104,7 @@ export async function DELETE() {
 
     await prisma.energyProvider.updateMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         provider: "GRDF",
       },
       data: {

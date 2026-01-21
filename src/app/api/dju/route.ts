@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // Force dynamic rendering - disable caching for this route
 export const dynamic = 'force-dynamic';
@@ -353,6 +353,7 @@ async function fetchWeatherData(
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
 
     const contractId = searchParams.get("contractId");
@@ -372,7 +373,7 @@ export async function GET(request: NextRequest) {
     let sites;
     if (siteId) {
       const site = await prisma.site.findFirst({
-        where: { id: siteId, organizationId: user.organizationId },
+        where: { id: siteId, organizationId: effectiveOrgId },
         select: {
           id: true,
           name: true,
@@ -760,6 +761,7 @@ function formatMonthLabel(month: string): string {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -788,7 +790,7 @@ export async function POST(request: NextRequest) {
 
     if (siteId) {
       const site = await prisma.site.findFirst({
-        where: { id: siteId, organizationId: user.organizationId },
+        where: { id: siteId, organizationId: effectiveOrgId },
         select: { id: true, name: true, postalCode: true, stationMeteo: true },
       });
       sites = site ? [site] : [];
@@ -819,7 +821,7 @@ export async function POST(request: NextRequest) {
     // Get consumptions that need DJU sync
     const consumptionsWhere: Record<string, unknown> = {
       siteId: { in: sites.map((s) => s.id) },
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
     };
 
     // Only update consumptions without djuReel unless overwrite is true

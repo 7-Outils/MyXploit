@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
   CATEGORIES,
   getAllCheckpointsSorted,
@@ -36,6 +36,7 @@ function convertToApiFormat(checkpoint: CheckpointDefinition) {
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url);
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
     try {
       recommendations = await prisma.recommendationLibrary.findMany({
         where: {
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           isActive: true,
         },
         select: {

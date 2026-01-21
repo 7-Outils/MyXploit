@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { geocodeAddress } from "@/lib/geocoding";
 
 // POST /api/sites/geocode - Re-geocode sites without coordinates for a specific contract
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     const contract = await prisma.contract.findFirst({
       where: {
         id: contractId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

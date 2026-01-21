@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
   getEnedisDailyConsumptions,
   refreshEnedisToken,
@@ -12,6 +12,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     const provider = await prisma.energyProvider.findUnique({
       where: {
         organizationId_provider: {
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           provider: "ENEDIS",
         },
       },
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest) {
     // Get all sites with PDL
     const sites = await prisma.site.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         pdl: { not: null },
       },
       select: {
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
             },
             create: {
               siteId: site.id,
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               energyType: "ELECTRICITE",
               usage: "CHAUFFAGE",
               period: period,

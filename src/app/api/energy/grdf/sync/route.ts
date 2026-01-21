@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { getGRDFAccessToken, getGRDFMonthlyConsumptions } from "@/lib/grdf";
 
 // POST /api/energy/grdf/sync - Sync GRDF consumptions for all sites with PCE
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     const provider = await prisma.energyProvider.findUnique({
       where: {
         organizationId_provider: {
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           provider: "GRDF",
         },
       },
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
     // Get all sites with PCE
     const sites = await prisma.site.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         pce: { not: null },
       },
       select: {
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
             },
             create: {
               siteId: site.id,
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               energyType: "GAZ",
               usage: "CHAUFFAGE",
               period: period,

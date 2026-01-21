@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
   parseQuotePDF,
   findSiteMatch,
@@ -19,6 +19,7 @@ export interface ImportResult {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     if (parsed.siteName || parsed.siteCity) {
       const sites = await prisma.site.findMany({
-        where: { organizationId: user.organizationId },
+        where: { organizationId: effectiveOrgId },
         select: { id: true, name: true, city: true, address: true },
       });
       matchedSite = findSiteMatch(parsed.siteName, parsed.siteCity, sites);

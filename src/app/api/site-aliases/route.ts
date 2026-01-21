@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/site-aliases - List all site aliases for the organization
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
     const source = searchParams.get("source");
 
     const where: { organizationId: string; source?: string } = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
     };
 
     if (source) {
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
 
       // Verify site belongs to organization
       const site = await prisma.site.findFirst({
-        where: { id: siteId, organizationId: user.organizationId },
+        where: { id: siteId, organizationId: effectiveOrgId },
       });
 
       if (!site) {
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
             alias_source_organizationId: {
               alias,
               source: source || null,
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
             },
           },
           update: { siteId },
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
             alias,
             source: source || null,
             siteId,
-            organizationId: user.organizationId,
+            organizationId: effectiveOrgId,
           },
           include: {
             site: {
@@ -126,6 +128,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -142,7 +145,7 @@ export async function DELETE(request: NextRequest) {
     if (id) {
       // Delete by ID
       await prisma.siteAlias.delete({
-        where: { id, organizationId: user.organizationId },
+        where: { id, organizationId: effectiveOrgId },
       });
     } else if (alias) {
       // Delete by alias + source
@@ -150,7 +153,7 @@ export async function DELETE(request: NextRequest) {
         where: {
           alias,
           source: source || null,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
         },
       });
     } else {

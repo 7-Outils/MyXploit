@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/consumptions - List all consumptions
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get("siteId");
     const contractId = searchParams.get("contractId");
 
-    const where: Record<string, unknown> = { organizationId: user.organizationId };
+    const where: Record<string, unknown> = { organizationId: effectiveOrgId };
 
     if (siteId) {
       where.siteId = siteId;
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
         unit: body.unit,
         cost: body.cost ? parseFloat(body.cost) : null,
         djuReel: body.djuReel ? parseFloat(body.djuReel) : null,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -104,7 +107,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const where: Record<string, unknown> = { organizationId: user.organizationId };
+    const where: Record<string, unknown> = { organizationId: effectiveOrgId };
 
     // Collect siteIds for HeatingSeason deletion
     let affectedSiteIds: string[] = [];

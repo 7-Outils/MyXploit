@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/contracts/[id] - Get a single contract
 export async function GET(
@@ -9,12 +9,13 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     const contract = await prisma.contract.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         contractSites: {
@@ -96,6 +97,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role === "READER") {
@@ -110,7 +112,7 @@ export async function PUT(
     const existingContract = await prisma.contract.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -168,6 +170,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role !== "ADMIN") {
@@ -180,7 +183,7 @@ export async function DELETE(
     const existingContract = await prisma.contract.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         contractSites: {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
 import { auditCreateSchema, validateInput } from "@/lib/validations";
 
@@ -16,13 +16,14 @@ export async function GET(
     if (!success) return rateLimitExceeded();
 
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: equipmentId } = await params;
 
     // Verify equipment belongs to organization
     const equipment = await prisma.equipment.findFirst({
       where: {
         id: equipmentId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -60,6 +61,7 @@ export async function POST(
     if (!success) return rateLimitExceeded();
 
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: equipmentId } = await params;
 
     if (user.role === "READER") {
@@ -73,7 +75,7 @@ export async function POST(
     const equipment = await prisma.equipment.findFirst({
       where: {
         id: equipmentId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

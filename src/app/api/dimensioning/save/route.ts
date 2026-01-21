@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 /**
  * Sauvegarde un dimensionnement en créant un contrat
@@ -29,6 +29,7 @@ interface DimensioningSummary {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const body = await request.json();
 
     const { projectName, siteIds, duration, startYear, dimensioning } = body as {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
         endDate: new Date(startYear + duration, 0, 1),
         status: "EN_ATTENTE",
         description: `Dimensionnement créé le ${new Date().toLocaleDateString("fr-FR")}\n\nBudget estimé:\n- P2 Annuel: ${dimensioning.totalP2Annual.toLocaleString("fr-FR")} €\n- P3 GE Annuel: ${dimensioning.totalP3GEAnnual.toLocaleString("fr-FR")} €\n- P3 R Annuel: ${dimensioning.totalP3RAnnual.toLocaleString("fr-FR")} €\n- Total Annuel: ${dimensioning.totalAnnual.toLocaleString("fr-FR")} €\n- Total Marché (${duration} ans): ${dimensioning.totalContract.toLocaleString("fr-FR")} €\n\nHeures P2: ${dimensioning.totalHoursP2}h/an\nRenouvellements prévus: ${dimensioning.renewalsCount}`,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         // Store dimensioning data as JSON in metadata if available
       },
     });

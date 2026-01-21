@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
   calculateMarketDimensioning,
   EquipmentForPricing,
@@ -10,6 +10,7 @@ import {
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
 
     const contractId = searchParams.get("contractId");
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
       const contract = await prisma.contract.findFirst({
         where: {
           id: contractId,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
         },
         include: {
           contractSites: {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       const sites = await prisma.site.findMany({
         where: {
           id: { in: siteIds },
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
         },
         include: {
           equipments: {
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
     } else {
       // Get all equipments from organization
       equipments = await prisma.equipment.findMany({
-        where: { organizationId: user.organizationId },
+        where: { organizationId: effectiveOrgId },
         include: {
           site: { select: { id: true, name: true } },
           audits: {

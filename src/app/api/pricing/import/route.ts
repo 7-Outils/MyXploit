@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { SiteType, EnergyType, EquipmentDomain, EquipmentType } from "@/generated/prisma/enums";
 import { geocodeAddress } from "@/lib/geocoding";
@@ -561,6 +561,7 @@ async function saveToDatabase(
   }>
 ) {
   const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
   // Create a contract as "project" for the tender
   const contract = await prisma.contract.create({
@@ -572,7 +573,7 @@ async function saveToDatabase(
       endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 8)), // 8 ans par défaut
       status: "EN_ATTENTE",
       description: `Projet d'appel d'offres importé le ${new Date().toLocaleDateString("fr-FR")}`,
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
     },
   });
 
@@ -606,7 +607,7 @@ async function saveToDatabase(
         energyType: EnergyType.GAZ, // Default
         latitude,
         longitude,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         createdById: user.id,
       },
     });
@@ -640,7 +641,7 @@ async function saveToDatabase(
           level: eq.level,
           theoreticalLifespan: eq.theoreticalLifespan,
           siteId: site.id,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
         },
       });
       eqCount++;

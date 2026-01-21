@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/quotes - List all quotes
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
 
     const quotes = await prisma.quote.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         ...(contractId && { contractId }),
       },
       include: {
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -58,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     const quote = await prisma.quote.create({
       data: {
-        reference: body.reference || `DEV-${Date.now()}`,
+        reference: body.reference || "DEV-" + Date.now(),
         title: body.title || "Devis importé",
         provider: provider || "Fournisseur",
         client: body.client,
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
         description: body.description,
         siteId: body.siteId || null,
         contractId: body.contractId || null,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         site: { select: { id: true, name: true } },

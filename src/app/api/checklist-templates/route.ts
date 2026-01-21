@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // Type pour la catégorie (fallback vers les labels hardcodés si pas en BDD)
 const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
@@ -88,6 +88,7 @@ const DEFAULT_CATEGORY_LABELS: Record<string, string> = {
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     const { searchParams } = new URL(request.url);
     const equipmentTypes = searchParams.get("equipmentTypes")?.split(",").filter(Boolean);
@@ -98,7 +99,7 @@ export async function GET(request: NextRequest) {
       isActive: boolean;
       equipmentTypes?: { hasSome: string[] };
     } = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
       isActive: true,
     };
 
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
 
     // Récupérer les catégories personnalisées de l'organisation
     const categories = await prisma.checklistCategory.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
     });
 
     // Créer un map des labels de catégories (BDD + fallback)

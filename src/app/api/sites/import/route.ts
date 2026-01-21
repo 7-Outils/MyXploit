@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { SiteType, EnergyType, NbUnit, ContractType } from "@/generated/prisma/enums";
 
@@ -163,6 +163,7 @@ function parseNumber(value: unknown): number | undefined {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -190,7 +191,7 @@ export async function POST(request: NextRequest) {
       contract = await prisma.contract.findFirst({
         where: {
           id: contractId,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
         },
       });
 
@@ -250,7 +251,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch existing sites for duplicate detection (by name + city)
     const existingSites = await prisma.site.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: { id: true, name: true, city: true },
     });
     // Create a unique key: "name|city" (both lowercase)
@@ -413,7 +414,7 @@ export async function POST(request: NextRequest) {
           rae: siteData.rae,
           latitude: null,
           longitude: null,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           createdById: user.id,
         },
       });

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/energy/providers - List energy providers status
 export async function GET() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     const providers = await prisma.energyProvider.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       select: {
         id: true,

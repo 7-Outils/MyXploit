@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // Synonymes et alias pour les types d'équipements
 // Permet de matcher "pompe" → "CIRCULATEUR", "clim" → "CLIMATISEUR", etc.
@@ -1165,6 +1165,7 @@ interface ImportRow {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const body = await request.json();
     const { rows, contractId, preview = true, siteMappings = {}, saveAliases = false } = body as {
       rows: ImportRow[];
@@ -1203,7 +1204,7 @@ export async function POST(request: NextRequest) {
 
     // Get site aliases for this organization
     const siteAliases = await prisma.siteAlias.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: { alias: true, siteId: true },
     });
 
@@ -1231,7 +1232,7 @@ export async function POST(request: NextRequest) {
     const existingEquipments = await prisma.equipment.findMany({
       where: {
         siteId: { in: siteIds },
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       select: {
         id: true,
@@ -1554,7 +1555,7 @@ export async function POST(request: NextRequest) {
           // Check if alias already exists
           const existingAlias = await prisma.siteAlias.findFirst({
             where: {
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               alias: excelName,
             },
           });
@@ -1564,7 +1565,7 @@ export async function POST(request: NextRequest) {
               data: {
                 alias: excelName,
                 siteId,
-                organizationId: user.organizationId,
+                organizationId: effectiveOrgId,
               },
             });
           }
@@ -1595,7 +1596,7 @@ export async function POST(request: NextRequest) {
             level: row.level || undefined,
             theoreticalLifespan: row.lifespan || undefined,
             siteId: row.siteId!,
-            organizationId: user.organizationId,
+            organizationId: effectiveOrgId,
           },
         });
 

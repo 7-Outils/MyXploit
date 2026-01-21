@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // DELETE /api/admin/delete-all-equipments - Delete all equipment for the organization
 export async function DELETE() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     // Only allow admin users
     if (user.role !== "ADMIN") {
@@ -18,7 +19,7 @@ export async function DELETE() {
     // Delete all equipment for this organization
     const result = await prisma.equipment.deleteMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

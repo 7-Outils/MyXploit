@@ -85,12 +85,15 @@ export function Sidebar() {
   };
 
   // Filtrer la navigation selon les modules activés
-  const visibleNavigation = navigation.filter((item) => {
-    // Si pas de module spécifié, toujours visible
-    if (!item.module) return true;
-    // Sinon vérifier si le module est activé
-    return hasModule(item.module);
-  });
+  // Pendant le chargement, afficher toute la navigation
+  const visibleNavigation = isLoading
+    ? navigation
+    : navigation.filter((item) => {
+        // Si pas de module spécifié, toujours visible
+        if (!item.module) return true;
+        // Sinon vérifier si le module est activé
+        return hasModule(item.module);
+      });
 
   const isSuperAdmin = userRole === "SUPER_ADMIN";
 

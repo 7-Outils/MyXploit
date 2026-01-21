@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/contracts - List all contracts
 export async function GET() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     const contracts = await prisma.contract.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       include: {
         contractSites: {
           include: {
@@ -38,6 +39,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -57,7 +59,7 @@ export async function POST(request: NextRequest) {
         endDate: new Date(body.endDate),
         status: body.status || "ACTIF",
         description: body.description,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         yearType: body.yearType || "HEATING_SEASON",
         billingFrequency: body.billingFrequency || "TRIMESTRIEL",
       },

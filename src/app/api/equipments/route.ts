@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
 import { equipmentCreateSchema, validateInput } from "@/lib/validations";
 
@@ -508,6 +508,7 @@ export async function GET(request: NextRequest) {
     if (!success) return rateLimitExceeded();
 
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get("siteId");
     const contractId = searchParams.get("contractId");
@@ -515,7 +516,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: Record<string, unknown> = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
     };
 
     if (siteId) {
@@ -569,6 +570,7 @@ export async function POST(request: NextRequest) {
     if (!success) return rateLimitExceeded();
 
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -589,7 +591,7 @@ export async function POST(request: NextRequest) {
     const site = await prisma.site.findFirst({
       where: {
         id: body.siteId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -630,7 +632,7 @@ export async function POST(request: NextRequest) {
         installDate: body.installDate ? new Date(body.installDate) : null,
         warrantyEnd: body.warrantyEnd ? new Date(body.warrantyEnd) : null,
         siteId: body.siteId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         site: {

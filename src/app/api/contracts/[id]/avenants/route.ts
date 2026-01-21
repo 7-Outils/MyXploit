@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { AvenantItemType } from "@/generated/prisma/enums";
 
 // GET /api/contracts/[id]/avenants - List all avenants for a contract
@@ -10,13 +10,14 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: contractId } = await params;
 
     // Verify contract exists and belongs to organization
     const contract = await prisma.contract.findFirst({
       where: {
         id: contractId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -98,6 +99,7 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: contractId } = await params;
 
     if (user.role === "READER") {
@@ -111,7 +113,7 @@ export async function POST(
     const contract = await prisma.contract.findFirst({
       where: {
         id: contractId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -176,7 +178,7 @@ export async function POST(
               const site = await prisma.site.findFirst({
                 where: {
                   id: item.siteId,
-                  organizationId: user.organizationId,
+                  organizationId: effectiveOrgId,
                 },
               });
 

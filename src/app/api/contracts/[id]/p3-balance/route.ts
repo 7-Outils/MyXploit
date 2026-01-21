@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 interface P3YearData {
   year: string;
@@ -47,13 +47,14 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: contractId } = await params;
 
     // Get contract with dates
     const contract = await prisma.contract.findFirst({
       where: {
         id: contractId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       select: {
         id: true,
@@ -78,7 +79,7 @@ export async function GET(
       where: {
         contractId,
         type: "P3",
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         site: { select: { name: true } },
@@ -92,7 +93,7 @@ export async function GET(
         contractId,
         quoteType: "P3",
         status: { in: ["ACCEPTE", "COMMANDE", "FACTURE"] },
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         site: { select: { name: true } },

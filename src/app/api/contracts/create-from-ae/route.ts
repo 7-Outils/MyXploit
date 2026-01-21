@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { ContractType, EnergyType, NbUnit, SiteType } from "@/generated/prisma/client";
 
@@ -398,6 +398,7 @@ function parseEnergyType(value?: string): EnergyType {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -607,7 +608,7 @@ export async function POST(request: NextRequest) {
 
     // Get existing sites for matching
     const existingSites = await prisma.site.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: { id: true, name: true, city: true, energyType: true },
     });
 
@@ -786,7 +787,7 @@ export async function POST(request: NextRequest) {
       // Create contract
       const contract = await tx.contract.create({
         data: {
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           reference,
           title,
           provider,
@@ -831,7 +832,7 @@ export async function POST(request: NextRequest) {
             const details = siteDetailsMap.get(normalizedName);
 
             return {
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               name: s.siteName,
               type: details?.type ? parseSiteType(details.type) : SiteType.AUTRE,
               energyType: details?.energyType ? parseEnergyType(details.energyType) : EnergyType.GAZ,
@@ -855,7 +856,7 @@ export async function POST(request: NextRequest) {
       const createdSites = newSitesToCreate.length > 0
         ? await tx.site.findMany({
             where: {
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               name: { in: newSitesToCreate.map(s => s.siteName) },
             },
             select: { id: true, name: true, energyType: true },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/sites/[id]/meters - List all meters for a site
 export async function GET(
@@ -9,13 +9,14 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: siteId } = await params;
 
     // Verify site belongs to organization
     const site = await prisma.site.findFirst({
       where: {
         id: siteId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -63,6 +64,7 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: siteId } = await params;
 
     if (user.role === "READER") {
@@ -76,7 +78,7 @@ export async function POST(
     const site = await prisma.site.findFirst({
       where: {
         id: siteId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
 
 // GET /api/consumptions/analytics - Get energy performance analytics (NC vs N'B)
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
 
     // Filters
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all sites with their NB and DJU contractuels
-    const sitesWhere: Record<string, unknown> = { organizationId: user.organizationId };
+    const sitesWhere: Record<string, unknown> = { organizationId: effectiveOrgId };
     if (siteId) {
       sitesWhere.id = siteId;
     } else if (contractSiteIds) {
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
 
     // Get consumptions for the period
     const consumptionsWhere: Record<string, unknown> = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
       period: {
         gte: startDate,
         lte: endDate,

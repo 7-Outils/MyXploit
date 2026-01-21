@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 /**
  * GET /api/contracts/expiring
@@ -13,6 +13,7 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
 
     const months = parseInt(searchParams.get("months") || "12");
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     const contracts = await prisma.contract.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         endDate: dateConditions,
         status: "ACTIF", // Seulement les contrats actifs
       },

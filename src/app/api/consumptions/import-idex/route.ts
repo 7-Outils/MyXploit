@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { EnergyType, EnergyUsage } from "@/generated/prisma/client";
 
@@ -73,6 +73,7 @@ const METER_PATTERNS: Array<{
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
     // Get sites for matching - filter by contract if provided
     // Also get PCS coefficient for gas conversion (20 mbar: ~10.5, 300 mbar: ~14.5)
     let sitesQuery: { organizationId: string; id?: { in: string[] } } = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
     };
 
     // Map siteId -> PCS coefficient (for gas m³ to kWh conversion)
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     // Get site aliases for this organization (for fuzzy matching)
     const siteAliases = await prisma.siteAlias.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: { alias: true, siteId: true, site: { select: { name: true } } },
     });
 
@@ -557,7 +558,7 @@ export async function POST(request: NextRequest) {
           await prisma.consumption.create({
             data: {
               siteId: data.siteId,
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               energyType: data.energyType,
               usage: data.usage,
               period: data.period,

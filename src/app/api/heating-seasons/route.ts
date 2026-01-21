@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/heating-seasons - Liste des saisons de chauffage
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
 
     const siteId = searchParams.get("siteId");
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     if (siteId) {
       // Verify site belongs to user's organization
       const site = await prisma.site.findFirst({
-        where: { id: siteId, organizationId: user.organizationId },
+        where: { id: siteId, organizationId: effectiveOrgId },
       });
       if (!site) {
         return NextResponse.json({ error: "Site non trouvé" }, { status: 404 });
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     } else {
       // All sites of the organization
       const sites = await prisma.site.findMany({
-        where: { organizationId: user.organizationId },
+        where: { organizationId: effectiveOrgId },
         select: { id: true },
       });
       where.siteId = { in: sites.map((s) => s.id) };
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const body = await request.json();
 
     const { siteId, season, startDate, endDate, startIndex, startIndexUnit, endIndex, notes, nb, nbUnit, djuContractuel } = body;
@@ -86,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Verify site belongs to user's organization
     const site = await prisma.site.findFirst({
-      where: { id: siteId, organizationId: user.organizationId },
+      where: { id: siteId, organizationId: effectiveOrgId },
     });
     if (!site) {
       return NextResponse.json({ error: "Site non trouvé" }, { status: 404 });

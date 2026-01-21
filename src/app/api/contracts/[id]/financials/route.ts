@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 interface Acompte {
   number: number; // 1, 2, 3, 4
@@ -43,12 +43,13 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: contractId } = await params;
 
     const contract = await prisma.contract.findFirst({
       where: {
         id: contractId,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
       include: {
         contractSites: {

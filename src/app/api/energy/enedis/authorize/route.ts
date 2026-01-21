@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { getEnedisAuthorizationUrl } from "@/lib/enedis";
 import { randomBytes } from "crypto";
 
@@ -7,6 +7,7 @@ import { randomBytes } from "crypto";
 export async function GET() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -27,7 +28,7 @@ export async function GET() {
 
     // Generate state token (includes organization ID for callback)
     const stateData = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
       nonce: randomBytes(16).toString("hex"),
       timestamp: Date.now(),
     };

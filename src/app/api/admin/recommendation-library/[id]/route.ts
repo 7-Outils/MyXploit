@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { z } from "zod";
 
 // Validation schema
@@ -21,6 +21,7 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role !== "ADMIN") {
@@ -33,7 +34,7 @@ export async function GET(
     const recommendation = await prisma.recommendationLibrary.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -61,6 +62,7 @@ export async function PUT(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role !== "ADMIN") {
@@ -74,7 +76,7 @@ export async function PUT(
     const existing = await prisma.recommendationLibrary.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -117,6 +119,7 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
     if (user.role !== "ADMIN") {
@@ -130,7 +133,7 @@ export async function DELETE(
     const existing = await prisma.recommendationLibrary.findFirst({
       where: {
         id,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

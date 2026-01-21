@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/equipments/analytics - Get renewal plan and risk matrix data
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
 
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Get all equipment with year and power data
     const where: Record<string, unknown> = {
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
     };
     if (siteIds.length > 0) {
       where.siteId = { in: siteIds };

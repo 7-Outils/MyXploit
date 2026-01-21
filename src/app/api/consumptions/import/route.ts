@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyType, EnergyUsage } from "@/generated/prisma/client";
 import { syncDjuForSites } from "@/lib/dju-sync";
 
@@ -8,6 +8,7 @@ import { syncDjuForSites } from "@/lib/dju-sync";
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Get all sites for matching
     const sites = await prisma.site.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: { id: true, name: true, pce: true, pdl: true },
     });
 
@@ -258,7 +259,7 @@ export async function POST(request: NextRequest) {
           await prisma.consumption.create({
             data: {
               siteId,
-              organizationId: user.organizationId,
+              organizationId: effectiveOrgId,
               energyType,
               usage,
               period,

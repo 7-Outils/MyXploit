@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { z } from "zod";
 
 // Validation schema
@@ -17,6 +17,7 @@ const createRecommendationSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role !== "ADMIN") {
       return NextResponse.json(
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     const recommendations = await prisma.recommendationLibrary.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         isActive: true,
         ...(category && { category }),
       },
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role !== "ADMIN") {
       return NextResponse.json(
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
     const recommendation = await prisma.recommendationLibrary.create({
       data: {
         ...validation.data,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

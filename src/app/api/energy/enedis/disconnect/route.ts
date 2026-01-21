@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // DELETE /api/energy/enedis/disconnect - Disconnect Enedis account
 export async function DELETE() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -16,7 +17,7 @@ export async function DELETE() {
 
     await prisma.energyProvider.updateMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         provider: "ENEDIS",
       },
       data: {

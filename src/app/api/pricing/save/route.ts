@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { SiteType, EnergyType, EquipmentDomain, EquipmentType } from "@/generated/prisma/enums";
 
 /**
@@ -102,6 +102,7 @@ const DEFAULT_LIFESPAN: Record<string, number> = {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const body = await request.json();
 
     const { projectName, sites, duration } = body as {
@@ -128,7 +129,7 @@ export async function POST(request: NextRequest) {
         endDate: new Date(new Date().setFullYear(new Date().getFullYear() + (duration || 8))),
         status: "EN_ATTENTE",
         description: `Projet d'appel d'offres créé le ${new Date().toLocaleDateString("fr-FR")}`,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
           postalCode: siteData.postalCode || "",
           surface: siteData.surface,
           energyType: EnergyType.GAZ,
-          organizationId: user.organizationId,
+          organizationId: effectiveOrgId,
           createdById: user.id,
         },
       });
@@ -181,7 +182,7 @@ export async function POST(request: NextRequest) {
             level: eq.level || undefined,
             theoreticalLifespan: lifespan,
             siteId: site.id,
-            organizationId: user.organizationId,
+            organizationId: effectiveOrgId,
           },
         });
         eqCount++;

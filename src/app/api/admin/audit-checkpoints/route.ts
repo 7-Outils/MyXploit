@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { z } from "zod";
 
 // Type pour un constat/finding
@@ -44,6 +44,7 @@ const createCheckPointSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role !== "ADMIN") {
       return NextResponse.json(
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     const checkpoints = await prisma.auditCheckPoint.findMany({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         isActive: true,
         ...(category && { category }),
       },
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role !== "ADMIN") {
       return NextResponse.json(
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
         valueFields: validation.data.valueFields
           ? validation.data.valueFields
           : Prisma.JsonNull,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

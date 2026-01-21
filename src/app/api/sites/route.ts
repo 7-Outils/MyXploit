@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { geocodeAddress } from "@/lib/geocoding";
 
 // GET /api/sites - List all sites for the organization
 export async function GET() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     const sites = await prisma.site.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       select: {
         id: true,
         name: true,
@@ -56,6 +57,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
     // Check for duplicate (case-insensitive name + city match)
     const existingSite = await prisma.site.findFirst({
       where: {
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         name: {
           equals: body.name,
           mode: "insensitive",
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
         latitude,
         longitude,
         image: body.image,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
         createdById: user.id,
       },
     });

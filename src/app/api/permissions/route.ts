@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/permissions - Récupérer les permissions de l'utilisateur connecté
 export async function GET() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     // Vérifier si l'utilisateur est en mode fantôme (SUPER_ADMIN uniquement)
     let isGhostMode = false;
@@ -45,7 +46,7 @@ export async function GET() {
 
     return NextResponse.json({
       role: user.role,
-      organizationId: user.organizationId,
+      organizationId: effectiveOrgId,
       effectiveOrganizationId: effectiveOrgId,
       enabledModules,
       isGhostMode,

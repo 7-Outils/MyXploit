@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/alerts - List all alerts
 export async function GET() {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     const alerts = await prisma.alert.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: effectiveOrgId },
       include: {
         site: {
           select: { id: true, name: true },
@@ -31,6 +32,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
+    const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
     if (user.role === "READER") {
       return NextResponse.json(
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
         message: body.message,
         isRead: false,
         siteId: body.siteId || null,
-        organizationId: user.organizationId,
+        organizationId: effectiveOrgId,
       },
     });
 

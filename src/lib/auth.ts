@@ -185,3 +185,49 @@ export async function activateUserAccount(
 
   return user;
 }
+
+// Ghost mode utilities
+export async function getGhostSession(userId: string) {
+  const ghostSession = await prisma.ghostSession.findFirst({
+    where: {
+      superAdminId: userId,
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      targetOrganization: true,
+    },
+  });
+
+  return ghostSession;
+}
+
+/**
+ * Retourne l'ID de l'organisation effective
+ * Si en mode fantôme, retourne l'org cible, sinon l'org de l'user
+ */
+export async function getEffectiveOrganizationId(userId: string, userOrgId: string): Promise<string> {
+  const ghostSession = await getGhostSession(userId);
+  return ghostSession?.targetOrganizationId || userOrgId;
+}
+
+/**
+ * Retourne l'utilisateur avec son contexte (incluant mode fantôme)
+ */
+export async function getCurrentUserWithContext() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const ghostSession = await getGhostSession(user.id);
+  const effectiveOrganizationId = ghostSession?.targetOrganizationId || user.organizationId;
+
+  return {
+    ...user,
+    effectiveOrganizationId,
+    isGhostMode: !!ghostSession,
+    ghostOrgId: ghostSession?.targetOrganizationId || null,
+    ghostOrgName: ghostSession?.targetOrganization?.name || null,
+  };
+}
