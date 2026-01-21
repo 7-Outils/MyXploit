@@ -5,18 +5,27 @@ import prisma from "./prisma";
 import crypto from "crypto";
 
 // CRITICAL: JWT_SECRET must be defined in environment variables
-const JWT_SECRET_STRING = process.env.JWT_SECRET;
-
-if (!JWT_SECRET_STRING) {
-  throw new Error(
-    "FATAL ERROR: JWT_SECRET environment variable is not defined!\n" +
-    "Generate a secure secret with: openssl rand -base64 32\n" +
-    "Then add it to your .env file: JWT_SECRET=your_generated_secret"
-  );
-}
-
-const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
 const SESSION_COOKIE_NAME = "myxploit_session";
+
+// Lazy initialization of JWT_SECRET - validates on first use
+let JWT_SECRET: Uint8Array | null = null;
+
+function getJWTSecret(): Uint8Array {
+  if (JWT_SECRET) return JWT_SECRET;
+
+  const JWT_SECRET_STRING = process.env.JWT_SECRET;
+
+  if (!JWT_SECRET_STRING) {
+    throw new Error(
+      "FATAL ERROR: JWT_SECRET environment variable is not defined!\n" +
+      "Generate a secure secret with: openssl rand -base64 32\n" +
+      "Then add it to your .env file: JWT_SECRET=your_generated_secret"
+    );
+  }
+
+  JWT_SECRET = new TextEncoder().encode(JWT_SECRET_STRING);
+  return JWT_SECRET;
+}
 
 // Password utilities
 export async function hashPassword(password: string): Promise<string> {
@@ -39,14 +48,14 @@ export async function generateSessionToken(userId: string): Promise<string> {
   return new SignJWT({ userId })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
-    .sign(JWT_SECRET);
+    .sign(getJWTSecret());
 }
 
 export async function verifySessionToken(
   token: string
 ): Promise<{ userId: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJWTSecret());
     return { userId: payload.userId as string };
   } catch {
     return null;
