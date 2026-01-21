@@ -16,7 +16,7 @@ import {
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Module } from "@/generated/prisma";
+import { Module } from "@/generated/prisma/client";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { OrganizationSwitcher } from "@/components/admin/OrganizationSwitcher";
 

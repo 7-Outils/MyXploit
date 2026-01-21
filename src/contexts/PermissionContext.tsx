@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { UserRole, Module } from "@/generated/prisma";
+import { UserRole, Module } from "@/generated/prisma/client";
 import { canEdit, canDelete, canCreate, canImport, canSync, canManageUsers, canUseGhostMode } from "@/lib/permissions";
 
 interface PermissionContextType {

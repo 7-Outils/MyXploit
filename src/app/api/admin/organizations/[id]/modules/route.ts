@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { Module } from "@/generated/prisma";
+import { Module } from "@/generated/prisma/client";
 
 // GET /api/admin/organizations/[id]/modules - Liste des modules d'une org
 export async function GET(

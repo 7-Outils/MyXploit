@@ -1,4 +1,4 @@
-import { UserRole, Module } from "@/generated/prisma";
+import { UserRole, Module } from "@/generated/prisma/client";
 
 // Actions possibles sur les ressources
 export type Action =

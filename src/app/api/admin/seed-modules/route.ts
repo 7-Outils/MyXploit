@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import { Module } from "@/generated/prisma";
+import { Module } from "@/generated/prisma/client";
 
 const ALL_MODULES: Module[] = [
   "ENERGY",
