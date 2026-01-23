@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { handleQuoteStatusChange } from "@/lib/work-order-hooks";
 
 // GET /api/quotes/[id] - Get a single quote
 export async function GET(
@@ -81,6 +82,16 @@ export async function PUT(
         ...(body.validUntil && { validUntil: new Date(body.validUntil) }),
       },
     });
+
+    // Hook: Créer automatiquement un WorkOrder si le devis est accepté/commandé
+    if (body.status && body.status !== existingQuote.status) {
+      try {
+        await handleQuoteStatusChange(id, body.status);
+      } catch (error) {
+        console.error("Erreur lors de la création du WorkOrder:", error);
+        // Ne pas bloquer la mise à jour du devis si le WorkOrder échoue
+      }
+    }
 
     return NextResponse.json(quote);
   } catch (error) {

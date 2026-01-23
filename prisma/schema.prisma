@@ -481,6 +481,7 @@ model TechnicalAudit {
   // Relations
   site            Site                  @relation(fields: [siteId], references: [id], onDelete: Cascade)
   recommendations AuditRecommendation[] // Préconisations générées
+  workLevees      WorkLevee[]           // Levées de réserves liées à cet audit
 
   @@map("technical_audits")
 }
@@ -1281,6 +1282,7 @@ model Quote {
   site         Site?        @relation(fields: [siteId], references: [id])
   contract     Contract?    @relation(fields: [contractId], references: [id])
   items        QuoteItem[]
+  workOrder    WorkOrder?   // Suivi de l'exécution des travaux
 
   @@map("quotes")
 }
@@ -1331,6 +1333,7 @@ model Meeting {
   // Relations
   site         Site?        @relation(fields: [siteId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workLevees   WorkLevee[]  // Levées de réserves liées à cette réunion
 
   @@map("meetings")
 }
@@ -1432,4 +1435,144 @@ model EnergyPrice {
 
   @@index([type, date])
   @@map("energy_prices")
+}
+
+// ============================================
+// SUIVI DES TRAVAUX (Work Tracking)
+// ============================================
+
+enum WorkStatus {
+  PLANIFIE            // Travaux planifiés (devis accepté)
+  EN_COURS            // Travaux en cours d'exécution
+  TERMINE             // Travaux terminés sur site
+  ATTENTE_ATTACHEMENT // Attachement reçu, en attente de levée
+  ATTENTE_LEVEE       // Réserves à lever
+  CLOTURE             // Travaux clôturés (comptés dans P3)
+  ANNULE              // Travaux annulés
+}
+
+enum AttachementType {
+  PHOTO
+  PDF
+  DOCUMENT
+  AUTRE
+}
+
+enum LeveeType {
+  VISITE_ANNUELLE  // Visite annuelle P2
+  AUDIT_TECHNIQUE  // Audit technique
+  VISITE_DEDIEE    // Visite dédiée pour levée
+  AUTRE
+}
+
+// Ordre de Travail (Work Order) - Suivi de l'exécution des devis acceptés
+model WorkOrder {
+  id             String     @id @default(cuid())
+  quoteId        String     @unique
+  status         WorkStatus @default(PLANIFIE)
+
+  // Timeline
+  planifiedDate  DateTime?
+  startDate      DateTime?
+  completionDate DateTime?
+  closedAt       DateTime?
+  closedBy       String?
+
+  // Notes internes
+  internalNotes String?
+
+  // Annulation
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  // Relations
+  quote        Quote               @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  attachements WorkAttachement[]
+  reservations WorkReservation[]
+  levees       WorkLevee[]
+  events       WorkEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("work_orders")
+}
+
+// Pièces jointes prouvant l'exécution des travaux
+model WorkAttachement {
+  id          String          @id @default(cuid())
+  workOrderId String
+  type        AttachementType @default(PHOTO)
+  fileName    String
+  fileUrl     String
+  fileSize    Int?
+  description String?
+  uploadedAt  DateTime        @default(now())
+  uploadedBy  String?
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_attachements")
+}
+
+// Réserves détectées lors des inspections
+model WorkReservation {
+  id          String   @id @default(cuid())
+  workOrderId String
+  description String
+  severity    String   @default("MINEURE") // MINEURE, MAJEURE, BLOQUANTE
+  detectedAt  DateTime @default(now())
+  detectedBy  String?
+
+  // Levée de réserve
+  isResolved      Boolean   @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolutionNotes String?
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_reservations")
+}
+
+// Levées de réserves (inspections post-travaux)
+model WorkLevee {
+  id               String    @id @default(cuid())
+  workOrderId      String
+  type             LeveeType
+  leveeDate        DateTime
+  inspector        String?
+
+  // Liens optionnels vers Meeting ou TechnicalAudit
+  meetingId        String?
+  technicalAuditId String?
+
+  // Résultats
+  allReservationsLifted Boolean @default(false)
+  notes                 String?
+
+  workOrder      WorkOrder       @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  meeting        Meeting?        @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  technicalAudit TechnicalAudit? @relation(fields: [technicalAuditId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("work_levees")
+}
+
+// Journal d'audit pour traçabilité complète
+model WorkEvent {
+  id          String   @id @default(cuid())
+  workOrderId String
+  eventType   String // STATUS_CHANGE, ATTACHEMENT_ADDED, RESERVATION_ADDED, LEVEE_COMPLETED, CLOSED
+  oldValue    String?
+  newValue    String?
+  performedBy String?
+  performedAt DateTime @default(now())
+  notes       String?
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+
+  @@map("work_events")
 }

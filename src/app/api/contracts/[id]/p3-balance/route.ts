@@ -20,6 +20,8 @@ interface P3YearData {
     amountHT: number;
     status: string;
     siteName: string | null;
+    workOrderStatus?: string | null;
+    workOrderClosedAt?: string | null;
   }[];
   totalInvoices: number;  // Recettes P3 (alimentation du pot)
   totalQuotes: number;    // Dépenses P3 (consommation du pot)
@@ -87,16 +89,23 @@ export async function GET(
       orderBy: { issueDate: "asc" },
     });
 
-    // Get all P3 quotes (validated) for this contract
+    // Get all P3 quotes (validated AND with closed work orders) for this contract
+    // RÈGLE MÉTIER: Seuls les travaux clôturés sont comptés dans le P3
     const quotes = await prisma.quote.findMany({
       where: {
         contractId,
         quoteType: "P3",
         status: { in: ["ACCEPTE", "COMMANDE", "FACTURE"] },
         organizationId: effectiveOrgId,
+        // NOUVEAU: Compter uniquement si WorkOrder clôturé (ou pas de WorkOrder)
+        OR: [
+          { workOrder: { status: "CLOTURE" } },  // Travaux clôturés
+          { workOrder: null },                    // Anciens devis sans suivi (rétrocompatibilité)
+        ],
       },
       include: {
         site: { select: { name: true } },
+        workOrder: { select: { status: true, closedAt: true } },
       },
       orderBy: { issueDate: "asc" },
     });
@@ -180,6 +189,8 @@ export async function GET(
         amountHT: quote.amountHT,
         status: quote.status,
         siteName: quote.site?.name || null,
+        workOrderStatus: quote.workOrder?.status || null,
+        workOrderClosedAt: quote.workOrder?.closedAt?.toISOString() || null,
       });
       yearData.totalQuotes += quote.amountHT;
     }

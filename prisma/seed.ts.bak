@@ -1,0 +1,457 @@
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { PrismaClient, UserRole, Module, EnergyType, SiteType } from "../src/generated/prisma/client";
+import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
+import path from "path";
+
+// Load environment variables from .env.local and .env
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+dotenv.config({ path: path.resolve(process.cwd(), ".env") });
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is not defined!");
+}
+
+const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  console.log("🌱 Starting database seed...\n");
+
+  // Nettoyer les données existantes (dev only!)
+  console.log("🧹 Cleaning existing data...");
+  await prisma.consumption.deleteMany();
+  await prisma.invoice.deleteMany();
+  await prisma.quote.deleteMany();
+  await prisma.meeting.deleteMany();
+  await prisma.alert.deleteMany();
+  await prisma.equipment.deleteMany();
+  await prisma.contractSite.deleteMany();
+  await prisma.contract.deleteMany();
+  await prisma.site.deleteMany();
+  await prisma.ghostSession.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.organizationModule.deleteMany();
+  await prisma.organization.deleteMany();
+
+  // 1. Créer les organisations
+  console.log("\n📦 Creating organizations...");
+  const orgDemo = await prisma.organization.create({
+    data: {
+      name: "Ville de Lyon",
+      slug: "ville-lyon",
+    },
+  });
+
+  const orgSage = await prisma.organization.create({
+    data: {
+      name: "SAGE",
+      slug: "sage",
+    },
+  });
+
+  const orgTepi = await prisma.organization.create({
+    data: {
+      name: "TEPI",
+      slug: "tepi",
+    },
+  });
+
+  console.log(`✓ Created 3 organizations`);
+
+  // 2. Activer tous les modules pour toutes les orgs
+  console.log("\n🔧 Enabling modules...");
+  const allModules: Module[] = [
+    "ENERGY",
+    "FINANCIER",
+    "ADMINISTRATIF",
+    "EXPLOITATION",
+    "OUTILS",
+    "CONTRACTS",
+    "PRICING",
+  ];
+
+  for (const org of [orgDemo, orgSage, orgTepi]) {
+    for (const module of allModules) {
+      await prisma.organizationModule.create({
+        data: {
+          organizationId: org.id,
+          module,
+          isEnabled: true,
+        },
+      });
+    }
+  }
+  console.log(`✓ Enabled all modules for all organizations`);
+
+  // 3. Créer les utilisateurs
+  console.log("\n👥 Creating users...");
+  const passwordHash = await bcrypt.hash("password123", 12);
+
+  const superAdmin = await prisma.user.create({
+    data: {
+      email: "admin@myxploit.fr",
+      password: passwordHash,
+      firstName: "Super",
+      lastName: "Admin",
+      role: "SUPER_ADMIN",
+      organizationId: orgDemo.id,
+    },
+  });
+
+  const adminLyon = await prisma.user.create({
+    data: {
+      email: "admin@lyon.fr",
+      password: passwordHash,
+      firstName: "Marie",
+      lastName: "Dupont",
+      role: "ADMIN",
+      organizationId: orgDemo.id,
+    },
+  });
+
+  const editorLyon = await prisma.user.create({
+    data: {
+      email: "technicien@lyon.fr",
+      password: passwordHash,
+      firstName: "Pierre",
+      lastName: "Martin",
+      role: "EDITOR",
+      organizationId: orgDemo.id,
+    },
+  });
+
+  const readerLyon = await prisma.user.create({
+    data: {
+      email: "consultant@lyon.fr",
+      password: passwordHash,
+      firstName: "Sophie",
+      lastName: "Bernard",
+      role: "READER",
+      organizationId: orgDemo.id,
+    },
+  });
+
+  const adminSage = await prisma.user.create({
+    data: {
+      email: "admin@sage.fr",
+      password: passwordHash,
+      firstName: "Jean",
+      lastName: "Sage",
+      role: "ADMIN",
+      organizationId: orgSage.id,
+    },
+  });
+
+  const adminTepi = await prisma.user.create({
+    data: {
+      email: "admin@tepi.fr",
+      password: passwordHash,
+      firstName: "Claire",
+      lastName: "Tepi",
+      role: "ADMIN",
+      organizationId: orgTepi.id,
+    },
+  });
+
+  console.log(`✓ Created 6 users (passwords: password123)`);
+
+  // 4. Créer des sites pour Lyon
+  console.log("\n🏢 Creating sites...");
+  const sites = await Promise.all([
+    prisma.site.create({
+      data: {
+        name: "Lycée Louis-le-Grand",
+        type: "LYCEE",
+        address: "123 rue Saint-Jacques",
+        city: "Paris",
+        postalCode: "75005",
+        energyType: "GAZ",
+        surface: 8500,
+        surfaceChauffee: 7200,
+        latitude: 48.848611,
+        longitude: 2.344722,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    }),
+    prisma.site.create({
+      data: {
+        name: "Piscine Municipale des Gratte-Ciel",
+        type: "PISCINE",
+        address: "12 avenue Henri Barbusse",
+        city: "Villeurbanne",
+        postalCode: "69100",
+        energyType: "GAZ",
+        surface: 3200,
+        surfaceChauffee: 2800,
+        latitude: 45.768611,
+        longitude: 4.883889,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    }),
+    prisma.site.create({
+      data: {
+        name: "Mairie de Quartier Part-Dieu",
+        type: "MAIRIE",
+        address: "30 boulevard Vivier Merle",
+        city: "Lyon",
+        postalCode: "69003",
+        energyType: "ELECTRICITE",
+        surface: 1200,
+        surfaceChauffee: 1100,
+        latitude: 45.760833,
+        longitude: 4.857222,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    }),
+    prisma.site.create({
+      data: {
+        name: "Gymnase Jean Macé",
+        type: "GYMNASE",
+        address: "45 rue Garibaldi",
+        city: "Lyon",
+        postalCode: "69006",
+        energyType: "GAZ",
+        surface: 2400,
+        surfaceChauffee: 2200,
+        latitude: 45.747778,
+        longitude: 4.849444,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    }),
+  ]);
+
+  console.log(`✓ Created ${sites.length} sites`);
+
+  // 5. Créer des contrats
+  console.log("\n📋 Creating contracts...");
+  const contract1 = await prisma.contract.create({
+    data: {
+      reference: "CONT-2024-001",
+      title: "Contrat Maintenance Chauffage Lyon Centre",
+      provider: "Engie Solutions",
+      startDate: new Date("2024-01-01"),
+      endDate: new Date("2025-12-31"),
+      status: "ACTIF",
+      organizationId: orgDemo.id,
+    },
+  });
+
+  const contract2 = await prisma.contract.create({
+    data: {
+      reference: "CONT-2024-002",
+      title: "Contrat Multi-technique Équipements Sportifs",
+      provider: "SPIE Facilities",
+      startDate: new Date("2024-03-01"),
+      endDate: new Date("2026-02-28"),
+      status: "ACTIF",
+      organizationId: orgDemo.id,
+    },
+  });
+
+  console.log(`✓ Created 2 contracts`);
+
+  // 6. Lier contrats aux sites
+  console.log("\n🔗 Linking contracts to sites...");
+  await prisma.contractSite.createMany({
+    data: [
+      { contractId: contract1.id, siteId: sites[0].id, hasP2: true, hasP3: false },
+      { contractId: contract1.id, siteId: sites[2].id, hasP2: true, hasP3: true },
+      { contractId: contract2.id, siteId: sites[1].id, hasP2: true, hasP3: false },
+      { contractId: contract2.id, siteId: sites[3].id, hasP2: true, hasP3: false },
+    ],
+  });
+
+  console.log(`✓ Linked contracts to sites`);
+
+  // 7. Créer des équipements
+  console.log("\n🔧 Creating equipments...");
+  await prisma.equipment.createMany({
+    data: [
+      {
+        name: "Chaudière gaz Viessmann Vitodens 200",
+        type: "Chaudière",
+        brand: "Viessmann",
+        model: "Vitodens 200-W",
+        serialNumber: "VIT-2024-001",
+        power: 150.0,
+        installationDate: new Date("2020-06-15"),
+        warrantyEndDate: new Date("2025-06-15"),
+        siteId: sites[0].id,
+        organizationId: orgDemo.id,
+      },
+      {
+        name: "Pompe à chaleur Daikin",
+        type: "PAC",
+        brand: "Daikin",
+        model: "EWAQ-D9W",
+        serialNumber: "DAI-2023-045",
+        power: 95.0,
+        installationDate: new Date("2023-03-20"),
+        warrantyEndDate: new Date("2026-03-20"),
+        siteId: sites[1].id,
+        organizationId: orgDemo.id,
+      },
+      {
+        name: "CTA double flux Aldes",
+        type: "Ventilation",
+        brand: "Aldes",
+        model: "T.Flow Hygro+ 600",
+        serialNumber: "ALD-2022-112",
+        power: 5.5,
+        installationDate: new Date("2022-09-10"),
+        warrantyEndDate: new Date("2024-09-10"),
+        siteId: sites[2].id,
+        organizationId: orgDemo.id,
+      },
+    ],
+  });
+
+  console.log(`✓ Created 3 equipments`);
+
+  // 8. Créer des factures
+  console.log("\n💰 Creating invoices...");
+  await prisma.invoice.createMany({
+    data: [
+      {
+        reference: "FACT-2024-001",
+        amount: 12450.0,
+        issueDate: new Date("2024-01-15"),
+        dueDate: new Date("2024-02-15"),
+        status: "PAYEE",
+        contractId: contract1.id,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+      {
+        reference: "FACT-2024-002",
+        amount: 8750.0,
+        issueDate: new Date("2024-02-10"),
+        dueDate: new Date("2024-03-10"),
+        status: "PAYEE",
+        contractId: contract2.id,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+      {
+        reference: "FACT-2024-003",
+        amount: 15200.0,
+        issueDate: new Date("2024-03-05"),
+        dueDate: new Date("2024-04-05"),
+        status: "EN_ATTENTE",
+        contractId: contract1.id,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    ],
+  });
+
+  console.log(`✓ Created 3 invoices`);
+
+  // 9. Créer des devis
+  console.log("\n📄 Creating quotes...");
+  await prisma.quote.createMany({
+    data: [
+      {
+        reference: "DEV-2024-001",
+        title: "Remplacement chaudière Lycée Louis-le-Grand",
+        amount: 45000.0,
+        status: "EN_ATTENTE",
+        createdAt: new Date("2024-01-10"),
+        contractId: contract1.id,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+      {
+        reference: "DEV-2024-002",
+        title: "Installation système GTC piscine",
+        amount: 28500.0,
+        status: "ACCEPTE",
+        createdAt: new Date("2024-02-05"),
+        contractId: contract2.id,
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    ],
+  });
+
+  console.log(`✓ Created 2 quotes`);
+
+  // 10. Créer des alertes
+  console.log("\n🚨 Creating alerts...");
+  await prisma.alert.createMany({
+    data: [
+      {
+        title: "Température anormale chaudière",
+        description: "La température de la chaudière du Lycée Louis-le-Grand dépasse les seuils normaux",
+        type: "TECHNIQUE",
+        severity: "HIGH",
+        status: "OPEN",
+        siteId: sites[0].id,
+        organizationId: orgDemo.id,
+      },
+      {
+        title: "Échéance contrat dans 3 mois",
+        description: "Le contrat CONT-2024-002 arrive à échéance le 28/02/2026",
+        type: "CONTRAT",
+        severity: "MEDIUM",
+        status: "OPEN",
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    ],
+  });
+
+  console.log(`✓ Created 2 alerts`);
+
+  // 11. Créer des réunions
+  console.log("\n📅 Creating meetings...");
+  await prisma.meeting.createMany({
+    data: [
+      {
+        title: "Point mensuel maintenance",
+        date: new Date("2024-04-15T14:00:00"),
+        type: "SUIVI",
+        location: "Mairie de Lyon - Salle de réunion A",
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+      {
+        title: "Présentation projet renovation énergétique",
+        date: new Date("2024-04-22T10:00:00"),
+        type: "COMMERCIAL",
+        location: "Visioconférence",
+        organizationId: orgDemo.id,
+        createdById: adminLyon.id,
+      },
+    ],
+  });
+
+  console.log(`✓ Created 2 meetings`);
+
+  console.log("\n✅ Seed completed successfully!\n");
+  console.log("📧 Users created:");
+  console.log("  - admin@myxploit.fr (SUPER_ADMIN) - password: password123");
+  console.log("  - admin@lyon.fr (ADMIN) - password: password123");
+  console.log("  - technicien@lyon.fr (EDITOR) - password: password123");
+  console.log("  - consultant@lyon.fr (READER) - password: password123");
+  console.log("  - admin@sage.fr (ADMIN) - password: password123");
+  console.log("  - admin@tepi.fr (ADMIN) - password: password123");
+  console.log("\n🏢 Organizations: Ville de Lyon, SAGE, TEPI");
+  console.log("🔧 All modules enabled for all organizations");
+  console.log("\n🚀 You can now login and test the application!");
+}
+
+main()
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error("\n❌ Error during seed:", e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
