@@ -49,6 +49,8 @@ export async function POST(
       include: {
         site: { select: { id: true, name: true } },
         contract: { select: { id: true, reference: true } },
+        acceptedByUser: { select: { id: true, name: true, email: true } },
+        refusedByUser: { select: { id: true, name: true, email: true } },
       },
     });
 
