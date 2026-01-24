@@ -1241,19 +1241,18 @@ model Invoice {
 // ============================================
 
 enum QuoteStatus {
-  BROUILLON
-  ENVOYE
-  ACCEPTE
-  REFUSE
-  EXPIRE
-  COMMANDE    // Transformé en commande
-  FACTURE     // Facturé
+  BROUILLON      // Devis en cours de création
+  EN_ATTENTE     // Devis reçu, en attente de décision
+  ACCEPTE        // Devis accepté
+  REFUSE         // Devis refusé
+  EXPIRE         // Devis expiré
+  COMMANDE       // Transformé en commande
+  FACTURE        // Facturé
 }
 
 enum QuoteType {
-  P3          // Maintenance préventive
+  P3          // Maintenance préventive (GER)
   P5          // Gros travaux
-  ASTREINTE   // Astreinte (à régulariser)
 }
 
 model Quote {
@@ -1269,6 +1268,13 @@ model Quote {
   status         QuoteStatus @default(BROUILLON)
   issueDate      DateTime    @default(now()) // Date d'émission
   validUntil     DateTime?   // Date de validité (optionnel)
+
+  // Décision
+  acceptedBy     String?     // ID de l'utilisateur qui a accepté
+  acceptedAt     DateTime?   // Date d'acceptation
+  refusedBy      String?     // ID de l'utilisateur qui a refusé
+  refusedAt      DateTime?   // Date de refus
+
   description    String?
   documentUrl    String?     // URL du PDF original
   siteId         String?     // Site concerné
