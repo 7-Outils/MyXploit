@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Calculator,
@@ -110,7 +110,7 @@ const URGENCY_CONFIG = {
   NONE: { label: "Aucune", color: "bg-gray-100 text-gray-700", bgColor: "bg-gray-300" },
 };
 
-export default function DimensioningPage() {
+function DimensioningPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -931,5 +931,17 @@ export default function DimensioningPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DimensioningPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    }>
+      <DimensioningPageContent />
+    </Suspense>
   );
 }
