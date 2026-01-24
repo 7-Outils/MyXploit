@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/quotes - Create a new quote
 export async function POST(request: NextRequest) {
+  let body: any;
   try {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    body = await request.json();
 
     // Récupérer le fournisseur du contrat si non fourni
     let provider = body.provider;
