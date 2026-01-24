@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
         amountTTC: parseFloat(body.amountTTC || body.amount || 0),
         status: body.status || "BROUILLON",
         issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
-        validUntil: body.validUntil ? new Date(body.validUntil) : null,
         description: body.description,
         siteId: body.siteId || null,
         contractId: body.contractId || null,
