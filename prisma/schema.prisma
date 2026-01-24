@@ -89,9 +89,11 @@ model User {
   updatedAt         DateTime     @updatedAt
 
   // Relations
-  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdSites  Site[]         @relation("CreatedBy")
-  ghostSessions GhostSession[] @relation("SuperAdminGhostSessions")
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdSites    Site[]         @relation("CreatedBy")
+  ghostSessions   GhostSession[] @relation("SuperAdminGhostSessions")
+  quotesAccepted  Quote[]        @relation("QuoteAcceptedBy")
+  quotesRefused   Quote[]        @relation("QuoteRefusedBy")
 
   @@map("users")
 }
@@ -1284,11 +1286,13 @@ model Quote {
   updatedAt      DateTime    @updatedAt
 
   // Relations
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  site         Site?        @relation(fields: [siteId], references: [id])
-  contract     Contract?    @relation(fields: [contractId], references: [id])
-  items        QuoteItem[]
-  workOrder    WorkOrder?   // Suivi de l'exécution des travaux
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site           Site?        @relation(fields: [siteId], references: [id])
+  contract       Contract?    @relation(fields: [contractId], references: [id])
+  items          QuoteItem[]
+  workOrder      WorkOrder?   // Suivi de l'exécution des travaux
+  acceptedByUser User?        @relation("QuoteAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
+  refusedByUser  User?        @relation("QuoteRefusedBy", fields: [refusedBy], references: [id], onDelete: SetNull)
 
   @@map("quotes")
 }
