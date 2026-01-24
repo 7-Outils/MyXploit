@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Calculator,
   Building2,
@@ -110,6 +111,9 @@ const URGENCY_CONFIG = {
 };
 
 export default function DimensioningPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +139,20 @@ export default function DimensioningPage() {
   const [saving, setSaving] = useState(false);
   const [savedProject, setSavedProject] = useState<{ contractId: string; reference: string } | null>(null);
 
+  // Update URL with current parameters
+  const updateURLParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (selectedContract) {
+      params.set("contractId", selectedContract);
+    }
+    if (selectedSites.length > 0) {
+      params.set("siteIds", selectedSites.join(","));
+    }
+    params.set("duration", duration.toString());
+    params.set("startYear", startYear.toString());
+    router.push(`/dimensioning?${params.toString()}`, { scroll: false });
+  }, [selectedContract, selectedSites, duration, startYear, router]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -156,6 +174,29 @@ export default function DimensioningPage() {
     };
     fetchData();
   }, []);
+
+  // Restore parameters from URL on page load
+  useEffect(() => {
+    if (contracts.length > 0 && sites.length > 0) {
+      const contractIdFromUrl = searchParams.get("contractId");
+      const siteIdsFromUrl = searchParams.get("siteIds");
+      const durationFromUrl = searchParams.get("duration");
+      const startYearFromUrl = searchParams.get("startYear");
+
+      if (contractIdFromUrl && !selectedContract) {
+        setSelectedContract(contractIdFromUrl);
+      }
+      if (siteIdsFromUrl && selectedSites.length === 0) {
+        setSelectedSites(siteIdsFromUrl.split(","));
+      }
+      if (durationFromUrl) {
+        setDuration(parseInt(durationFromUrl));
+      }
+      if (startYearFromUrl) {
+        setStartYear(parseInt(startYearFromUrl));
+      }
+    }
+  }, [contracts, sites, searchParams]);
 
   const calculateDimensioning = useCallback(async () => {
     setCalculating(true);
@@ -185,17 +226,34 @@ export default function DimensioningPage() {
   }, [selectedContract, selectedSites, duration, startYear]);
 
   const toggleSite = (siteId: string) => {
-    setSelectedSites((prev) =>
-      prev.includes(siteId)
-        ? prev.filter((id) => id !== siteId)
-        : [...prev, siteId]
-    );
+    const newSites = selectedSites.includes(siteId)
+      ? selectedSites.filter((id) => id !== siteId)
+      : [...selectedSites, siteId];
+    setSelectedSites(newSites);
     setSelectedContract(""); // Clear contract if selecting sites manually
+
+    // Update URL
+    const params = new URLSearchParams();
+    if (newSites.length > 0) {
+      params.set("siteIds", newSites.join(","));
+    }
+    params.set("duration", duration.toString());
+    params.set("startYear", startYear.toString());
+    router.push(`/dimensioning?${params.toString()}`, { scroll: false });
   };
 
   const handleContractChange = (contractId: string) => {
     setSelectedContract(contractId);
     setSelectedSites([]); // Clear sites if selecting contract
+
+    // Update URL
+    const params = new URLSearchParams();
+    if (contractId) {
+      params.set("contractId", contractId);
+    }
+    params.set("duration", duration.toString());
+    params.set("startYear", startYear.toString());
+    router.push(`/dimensioning?${params.toString()}`, { scroll: false });
   };
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -354,7 +412,22 @@ export default function DimensioningPage() {
             </label>
             <select
               value={duration}
-              onChange={(e) => setDuration(parseInt(e.target.value))}
+              onChange={(e) => {
+                const newDuration = parseInt(e.target.value);
+                setDuration(newDuration);
+
+                // Update URL
+                const params = new URLSearchParams();
+                if (selectedContract) {
+                  params.set("contractId", selectedContract);
+                }
+                if (selectedSites.length > 0) {
+                  params.set("siteIds", selectedSites.join(","));
+                }
+                params.set("duration", newDuration.toString());
+                params.set("startYear", startYear.toString());
+                router.push(`/dimensioning?${params.toString()}`, { scroll: false });
+              }}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
             >
               {[4, 5, 6, 7, 8, 9, 10, 12, 15].map((y) => (
@@ -372,7 +445,22 @@ export default function DimensioningPage() {
             </label>
             <select
               value={startYear}
-              onChange={(e) => setStartYear(parseInt(e.target.value))}
+              onChange={(e) => {
+                const newStartYear = parseInt(e.target.value);
+                setStartYear(newStartYear);
+
+                // Update URL
+                const params = new URLSearchParams();
+                if (selectedContract) {
+                  params.set("contractId", selectedContract);
+                }
+                if (selectedSites.length > 0) {
+                  params.set("siteIds", selectedSites.join(","));
+                }
+                params.set("duration", duration.toString());
+                params.set("startYear", newStartYear.toString());
+                router.push(`/dimensioning?${params.toString()}`, { scroll: false });
+              }}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
             >
               {[2024, 2025, 2026, 2027, 2028].map((y) => (
