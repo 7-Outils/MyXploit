@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
         site: { select: { id: true, name: true, city: true } },
         contract: { select: { id: true, reference: true, provider: true } },
         items: true,
-        acceptedByUser: { select: { id: true, name: true, email: true } },
-        refusedByUser: { select: { id: true, name: true, email: true } },
+        acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+        refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { createdAt: "desc" },
     });
