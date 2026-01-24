@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
 
 // POST /api/quotes - Create a new quote
 export async function POST(request: NextRequest) {
-  let body: any;
   try {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
@@ -47,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    body = await request.json();
+    const body = await request.json();
 
     // Récupérer le fournisseur du contrat si non fourni
     let provider = body.provider;
@@ -85,14 +84,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(quote, { status: 201 });
   } catch (error) {
     console.error("Error creating quote:", error);
-    console.error("Error details:", JSON.stringify(error, null, 2));
-    console.error("Request body was:", body);
     return NextResponse.json(
-      {
-        error: "Erreur lors de la création du devis",
-        details: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      },
+      { error: "Erreur lors de la création du devis" },
       { status: 500 }
     );
   }
