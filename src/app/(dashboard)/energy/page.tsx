@@ -321,7 +321,21 @@ function EnergyPageContent() {
   // Tab change handler
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    router.push(`/energy?tab=${tab}`, { scroll: false });
+    const params = new URLSearchParams();
+    params.set("tab", tab);
+    if (selectedContract) {
+      params.set("contractId", selectedContract.id);
+    }
+    router.push(`/energy?${params.toString()}`, { scroll: false });
+  };
+
+  // Update URL when contract changes
+  const handleContractChange = (contract: Contract) => {
+    setSelectedContract(contract);
+    const params = new URLSearchParams();
+    params.set("tab", activeTab);
+    params.set("contractId", contract.id);
+    router.push(`/energy?${params.toString()}`, { scroll: false });
   };
 
   // Calculate available seasons based on contract start date
@@ -378,6 +392,19 @@ function EnergyPageContent() {
     };
     fetchContracts();
   }, []);
+
+  // Restore contract from URL when contracts are loaded
+  useEffect(() => {
+    if (contracts.length > 0 && !selectedContract) {
+      const contractIdFromUrl = searchParams.get("contractId");
+      if (contractIdFromUrl) {
+        const contract = contracts.find(c => c.id === contractIdFromUrl);
+        if (contract) {
+          setSelectedContract(contract);
+        }
+      }
+    }
+  }, [contracts, selectedContract, searchParams]);
 
   const fetchData = useCallback(async () => {
     if (!selectedContract) return;
@@ -694,7 +721,7 @@ function EnergyPageContent() {
             {contracts.map((contract) => (
               <button
                 key={contract.id}
-                onClick={() => setSelectedContract(contract)}
+                onClick={() => handleContractChange(contract)}
                 className="bg-white rounded-xl border border-gray-100 p-6 text-left hover:border-accent hover:shadow-md transition-all group"
               >
                 <div className="flex items-start justify-between mb-3">
@@ -737,6 +764,7 @@ function EnergyPageContent() {
                 setDjuData(null);
                 setConsumptions([]);
                 setSites([]);
+                router.push(`/energy?tab=${activeTab}`, { scroll: false });
               }}
               className="text-text-secondary hover:text-primary-dark"
             >
@@ -753,7 +781,7 @@ function EnergyPageContent() {
             value={selectedContract.id}
             onChange={(e) => {
               const contract = contracts.find((c) => c.id === e.target.value);
-              if (contract) setSelectedContract(contract);
+              if (contract) handleContractChange(contract);
             }}
             className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
           >
