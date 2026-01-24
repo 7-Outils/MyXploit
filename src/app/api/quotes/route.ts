@@ -84,8 +84,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(quote, { status: 201 });
   } catch (error) {
     console.error("Error creating quote:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
+    console.error("Request body was:", body);
     return NextResponse.json(
-      { error: "Erreur lors de la création du devis" },
+      {
+        error: "Erreur lors de la création du devis",
+        details: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
