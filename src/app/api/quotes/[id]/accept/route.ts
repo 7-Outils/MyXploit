@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { handleQuoteStatusChange } from "@/lib/work-order-hooks";
 
 export async function POST(
   request: NextRequest,
@@ -53,6 +54,9 @@ export async function POST(
         refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     });
+
+    // Auto-créer WorkOrder pour les devis P3/P5
+    await handleQuoteStatusChange(id, "ACCEPTE");
 
     return NextResponse.json(updatedQuote);
   } catch (error) {
