@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
+import ThermalProfileSection from "@/components/energy/ThermalProfileSection";
 
 interface SiteData {
   id: string;
@@ -862,6 +863,9 @@ export default function SiteEnergyPage({
           </div>
         )}
       </ChartCard>
+
+      {/* Profil thermique */}
+      <ThermalProfileSection siteId={siteId} />
 
       {/* Informations site */}
       <ChartCard

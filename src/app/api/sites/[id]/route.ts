@@ -146,6 +146,22 @@ export async function PUT(
         latitude,
         longitude,
         image: body.image,
+        // Caractéristiques bâtiment
+        ...(body.constructionYear !== undefined && {
+          constructionYear: body.constructionYear ? parseInt(body.constructionYear) : null,
+        }),
+        ...(body.numberOfFloors !== undefined && {
+          numberOfFloors: body.numberOfFloors ? parseInt(body.numberOfFloors) : null,
+        }),
+        ...(body.buildingHeight !== undefined && {
+          buildingHeight: body.buildingHeight ? parseFloat(body.buildingHeight) : null,
+        }),
+        ...(body.volumeChauffee !== undefined && {
+          volumeChauffee: body.volumeChauffee ? parseFloat(body.volumeChauffee) : null,
+        }),
+        ...(body.insulationLevel !== undefined && { insulationLevel: body.insulationLevel || null }),
+        ...(body.glazingType !== undefined && { glazingType: body.glazingType || null }),
+        ...(body.ventilationType !== undefined && { ventilationType: body.ventilationType || null }),
       },
     });
 
