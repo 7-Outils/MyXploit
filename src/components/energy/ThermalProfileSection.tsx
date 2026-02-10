@@ -10,6 +10,11 @@ import {
   Loader2,
   Save,
   ClipboardCheck,
+  Clock,
+  Plus,
+  Trash2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -85,6 +90,35 @@ interface ThermalProfileData {
   }>;
 }
 
+interface OccupationZone {
+  id: string;
+  name: string;
+  surface: number | null;
+  tempConsigne: number;
+  tempReduit: number;
+  weeklySchedule: Record<string, Array<{ start: string; end: string }>> | null;
+}
+
+const DAYS_OF_WEEK = [
+  { key: "lundi", label: "Lun" },
+  { key: "mardi", label: "Mar" },
+  { key: "mercredi", label: "Mer" },
+  { key: "jeudi", label: "Jeu" },
+  { key: "vendredi", label: "Ven" },
+  { key: "samedi", label: "Sam" },
+  { key: "dimanche", label: "Dim" },
+];
+
+const DEFAULT_SCHEDULE: Record<string, Array<{ start: string; end: string }>> = {
+  lundi: [{ start: "08:00", end: "18:00" }],
+  mardi: [{ start: "08:00", end: "18:00" }],
+  mercredi: [{ start: "08:00", end: "18:00" }],
+  jeudi: [{ start: "08:00", end: "18:00" }],
+  vendredi: [{ start: "08:00", end: "18:00" }],
+  samedi: [],
+  dimanche: [],
+};
+
 interface Props {
   siteId: string;
 }
@@ -159,8 +193,22 @@ export default function ThermalProfileSection({ siteId }: Props) {
     ventilationType: "",
   });
 
+  // Zones d'occupation
+  const [zones, setZones] = useState<OccupationZone[]>([]);
+  const [showZoneForm, setShowZoneForm] = useState(false);
+  const [editingZone, setEditingZone] = useState<OccupationZone | null>(null);
+  const [savingZone, setSavingZone] = useState(false);
+  const [zoneForm, setZoneForm] = useState({
+    name: "",
+    surface: "",
+    tempConsigne: "19",
+    tempReduit: "16",
+    weeklySchedule: DEFAULT_SCHEDULE,
+  });
+
   useEffect(() => {
     fetchProfile();
+    fetchZones();
   }, [siteId]);
 
   const fetchProfile = async () => {
@@ -205,6 +253,128 @@ export default function ThermalProfileSection({ siteId }: Props) {
     } finally {
       setSaving(false);
     }
+  };
+
+  const fetchZones = async () => {
+    try {
+      const res = await fetch(`/api/sites/${siteId}/occupation-zones`);
+      if (res.ok) {
+        const data = await res.json();
+        setZones(data);
+      }
+    } catch (error) {
+      console.error("Error fetching zones:", error);
+    }
+  };
+
+  const resetZoneForm = () => {
+    setZoneForm({
+      name: "",
+      surface: "",
+      tempConsigne: "19",
+      tempReduit: "16",
+      weeklySchedule: DEFAULT_SCHEDULE,
+    });
+    setEditingZone(null);
+    setShowZoneForm(false);
+  };
+
+  const openEditZone = (zone: OccupationZone) => {
+    setEditingZone(zone);
+    setZoneForm({
+      name: zone.name,
+      surface: zone.surface?.toString() || "",
+      tempConsigne: zone.tempConsigne.toString(),
+      tempReduit: zone.tempReduit.toString(),
+      weeklySchedule: zone.weeklySchedule || DEFAULT_SCHEDULE,
+    });
+    setShowZoneForm(true);
+  };
+
+  const handleSaveZone = async () => {
+    setSavingZone(true);
+    try {
+      const url = editingZone
+        ? `/api/sites/${siteId}/occupation-zones/${editingZone.id}`
+        : `/api/sites/${siteId}/occupation-zones`;
+      const method = editingZone ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(zoneForm),
+      });
+
+      if (res.ok) {
+        resetZoneForm();
+        fetchZones();
+      }
+    } catch (error) {
+      console.error("Error saving zone:", error);
+    } finally {
+      setSavingZone(false);
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: string) => {
+    if (!confirm("Supprimer cette zone d'occupation ?")) return;
+    try {
+      const res = await fetch(
+        `/api/sites/${siteId}/occupation-zones/${zoneId}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        fetchZones();
+      }
+    } catch (error) {
+      console.error("Error deleting zone:", error);
+    }
+  };
+
+  const updateScheduleSlot = (
+    day: string,
+    index: number,
+    field: "start" | "end",
+    value: string
+  ) => {
+    setZoneForm((prev) => {
+      const schedule = { ...prev.weeklySchedule };
+      const daySlots = [...(schedule[day] || [])];
+      daySlots[index] = { ...daySlots[index], [field]: value };
+      schedule[day] = daySlots;
+      return { ...prev, weeklySchedule: schedule };
+    });
+  };
+
+  const addScheduleSlot = (day: string) => {
+    setZoneForm((prev) => {
+      const schedule = { ...prev.weeklySchedule };
+      const daySlots = [...(schedule[day] || [])];
+      daySlots.push({ start: "08:00", end: "18:00" });
+      schedule[day] = daySlots;
+      return { ...prev, weeklySchedule: schedule };
+    });
+  };
+
+  const removeScheduleSlot = (day: string, index: number) => {
+    setZoneForm((prev) => {
+      const schedule = { ...prev.weeklySchedule };
+      const daySlots = [...(schedule[day] || [])];
+      daySlots.splice(index, 1);
+      schedule[day] = daySlots;
+      return { ...prev, weeklySchedule: schedule };
+    });
+  };
+
+  const formatScheduleSummary = (
+    schedule: Record<string, Array<{ start: string; end: string }>> | null
+  ) => {
+    if (!schedule) return "Non défini";
+    const activeDays = DAYS_OF_WEEK.filter(
+      (d) => schedule[d.key] && schedule[d.key].length > 0
+    );
+    if (activeDays.length === 0) return "Aucun";
+    return activeDays.map((d) => d.label).join(", ");
   };
 
   if (loading) {
@@ -683,6 +853,353 @@ export default function ThermalProfileSection({ siteId }: Props) {
           </div>
         </div>
       )}
+
+      {/* Zones d'occupation & Températures */}
+      <ChartCard
+        title={
+          <span className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-accent" />
+            Zones d'occupation & Températures de consigne
+          </span>
+        }
+      >
+        <div className="space-y-4">
+          {/* Liste des zones */}
+          {zones.length > 0 ? (
+            <div className="space-y-3">
+              {zones.map((zone) => (
+                <div
+                  key={zone.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-semibold text-gray-900">
+                          {zone.name}
+                        </h4>
+                        {zone.surface && (
+                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                            {zone.surface} m²
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <span className="text-gray-500">T° consigne :</span>{" "}
+                          <strong className="text-orange-600">
+                            {zone.tempConsigne}°C
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">T° réduit :</span>{" "}
+                          <strong className="text-blue-600">
+                            {zone.tempReduit}°C
+                          </strong>
+                        </div>
+                        <div className="md:col-span-2">
+                          <span className="text-gray-500">Occupation :</span>{" "}
+                          <strong>
+                            {formatScheduleSummary(zone.weeklySchedule)}
+                          </strong>
+                        </div>
+                      </div>
+                      {/* Grille visuelle planning */}
+                      {zone.weeklySchedule && (
+                        <div className="mt-3 flex gap-1">
+                          {DAYS_OF_WEEK.map((day) => {
+                            const slots = zone.weeklySchedule?.[day.key] || [];
+                            const isActive = slots.length > 0;
+                            return (
+                              <div
+                                key={day.key}
+                                className="flex-1 text-center"
+                                title={
+                                  isActive
+                                    ? slots
+                                        .map((s) => `${s.start}-${s.end}`)
+                                        .join(", ")
+                                    : "Fermé"
+                                }
+                              >
+                                <div className="text-[10px] text-gray-400 mb-0.5">
+                                  {day.label}
+                                </div>
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    isActive
+                                      ? "bg-orange-400"
+                                      : "bg-gray-200"
+                                  }`}
+                                />
+                                {isActive && (
+                                  <div className="text-[9px] text-gray-400 mt-0.5">
+                                    {slots[0].start}-{slots[0].end}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <ReadOnlyGate>
+                      <div className="flex gap-1 ml-3">
+                        <button
+                          onClick={() => openEditZone(zone)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Modifier"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteZone(zone.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </ReadOnlyGate>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              <Clock size={36} className="mx-auto text-gray-300 mb-3" />
+              <p>Aucune zone d'occupation définie.</p>
+              <p className="text-sm">
+                Ajoutez des zones pour définir les températures de consigne et
+                les horaires d'occupation.
+              </p>
+            </div>
+          )}
+
+          {/* Formulaire ajout/édition zone */}
+          {showZoneForm ? (
+            <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold text-gray-900">
+                  {editingZone ? "Modifier la zone" : "Nouvelle zone"}
+                </h4>
+                <button
+                  onClick={resetZoneForm}
+                  className="p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Nom + Surface */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nom de la zone
+                  </label>
+                  <input
+                    type="text"
+                    value={zoneForm.name}
+                    onChange={(e) =>
+                      setZoneForm({ ...zoneForm, name: e.target.value })
+                    }
+                    placeholder="Ex: Salles de classe, Bureaux, Gymnase..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Surface (m²)
+                  </label>
+                  <input
+                    type="number"
+                    value={zoneForm.surface}
+                    onChange={(e) =>
+                      setZoneForm({ ...zoneForm, surface: e.target.value })
+                    }
+                    placeholder="Optionnel"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                </div>
+              </div>
+
+              {/* Températures */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    T° consigne occupation (°C)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={zoneForm.tempConsigne}
+                    onChange={(e) =>
+                      setZoneForm({
+                        ...zoneForm,
+                        tempConsigne: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Température maintenue pendant l'occupation
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    T° réduit hors occupation (°C)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={zoneForm.tempReduit}
+                    onChange={(e) =>
+                      setZoneForm({
+                        ...zoneForm,
+                        tempReduit: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Température de nuit / week-end / vacances
+                  </p>
+                </div>
+              </div>
+
+              {/* Planning hebdomadaire */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Planning hebdomadaire
+                </label>
+                <div className="space-y-2">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const slots = zoneForm.weeklySchedule[day.key] || [];
+                    return (
+                      <div
+                        key={day.key}
+                        className="flex items-start gap-3"
+                      >
+                        <span className="w-10 text-sm font-medium text-gray-600 pt-2">
+                          {day.label}
+                        </span>
+                        <div className="flex-1 space-y-1">
+                          {slots.length === 0 ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400 italic py-2">
+                                Fermé
+                              </span>
+                              <button
+                                onClick={() => addScheduleSlot(day.key)}
+                                className="text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                + Ajouter
+                              </button>
+                            </div>
+                          ) : (
+                            slots.map((slot, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-2"
+                              >
+                                <input
+                                  type="time"
+                                  value={slot.start}
+                                  onChange={(e) =>
+                                    updateScheduleSlot(
+                                      day.key,
+                                      idx,
+                                      "start",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                                />
+                                <span className="text-gray-400">—</span>
+                                <input
+                                  type="time"
+                                  value={slot.end}
+                                  onChange={(e) =>
+                                    updateScheduleSlot(
+                                      day.key,
+                                      idx,
+                                      "end",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                                />
+                                <button
+                                  onClick={() =>
+                                    removeScheduleSlot(day.key, idx)
+                                  }
+                                  className="p-1 text-gray-400 hover:text-red-500"
+                                  title="Supprimer ce créneau"
+                                >
+                                  <X size={14} />
+                                </button>
+                                {idx === slots.length - 1 && (
+                                  <button
+                                    onClick={() =>
+                                      addScheduleSlot(day.key)
+                                    }
+                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                  >
+                                    +
+                                  </button>
+                                )}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetZoneForm}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveZone}
+                  disabled={savingZone || !zoneForm.name.trim()}
+                >
+                  {savingZone ? (
+                    <Loader2 size={16} className="mr-2 animate-spin" />
+                  ) : (
+                    <Save size={16} className="mr-2" />
+                  )}
+                  {editingZone ? "Modifier" : "Ajouter"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <ReadOnlyGate>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    resetZoneForm();
+                    setShowZoneForm(true);
+                  }}
+                >
+                  <Plus size={16} className="mr-2" />
+                  Ajouter une zone
+                </Button>
+              </div>
+            </ReadOnlyGate>
+          )}
+        </div>
+      </ChartCard>
     </div>
   );
 }
