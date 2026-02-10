@@ -10,8 +10,6 @@ import {
   Loader2,
   Save,
   ClipboardCheck,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -211,7 +209,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
 
   if (loading) {
     return (
-      <ChartCard title="Profil thermique" icon={Thermometer}>
+      <ChartCard title={<span className="flex items-center gap-2"><Thermometer className="h-5 w-5 text-accent" />Profil thermique</span>}>
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-accent" />
         </div>
@@ -238,7 +236,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
   return (
     <div className="space-y-6">
       {/* Caractéristiques bâtiment */}
-      <ChartCard title="Profil thermique" icon={Thermometer}>
+      <ChartCard title={<span className="flex items-center gap-2"><Thermometer className="h-5 w-5 text-accent" />Profil thermique</span>}>
         <div className="space-y-6">
           {/* Résumé caractéristiques ou formulaire */}
           {!showForm ? (
@@ -483,8 +481,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
       {/* Comparaison G estimé vs G réel */}
       {(hasCharacteristics || hasRealG) && (
         <ChartCard
-          title="Coefficient G — Estimé vs Réel"
-          icon={TrendingUp}
+          title={<span className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-accent" />Coefficient G — Estimé vs Réel</span>}
         >
           <div className="space-y-6">
             {/* Jauge comparative */}
