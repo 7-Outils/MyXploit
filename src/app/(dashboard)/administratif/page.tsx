@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useContract } from "@/contexts/ContractContext";
 import {
   FileText,
   Plus,
@@ -10,8 +11,6 @@ import {
   Loader2,
   X,
   Building2,
-  ChevronRight,
-  Trash2,
   FileSpreadsheet,
   AlertCircle,
   Check,
@@ -44,8 +43,6 @@ interface Contract {
   };
 }
 
-type ContractStatus = "ACTIF" | "ALL" | "EXPIRE" | "RESILIE" | "EN_ATTENTE";
-
 const statusLabels = {
   ACTIF: "Actif",
   EXPIRE: "Expiré",
@@ -55,14 +52,13 @@ const statusLabels = {
 
 function AdministratifContent() {
   const router = useRouter();
+  const { selectedContract, isLoading: loadingContracts } = useContract();
 
-  // Contracts state
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [loadingContracts, setLoadingContracts] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<ContractStatus>("ACTIF");
+  // Contract detail state
+  const [contractDetail, setContractDetail] = useState<Contract | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [creatingContract, setCreatingContract] = useState(false);
-  const [deletingContractId, setDeletingContractId] = useState<string | null>(null);
 
   // Contract form
   const [contractFormData, setContractFormData] = useState({
@@ -119,23 +115,28 @@ function AdministratifContent() {
     billingFrequency: "TRIMESTRIEL" as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL",
   });
 
-  // Fetch contracts
+  // Fetch contract detail when selected
   useEffect(() => {
-    fetchContracts();
-  }, []);
-
-  const fetchContracts = async () => {
-    try {
-      setLoadingContracts(true);
-      const response = await fetch("/api/contracts");
-      const data = await response.json();
-      setContracts(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error fetching contracts:", error);
-    } finally {
-      setLoadingContracts(false);
+    if (!selectedContract) {
+      setContractDetail(null);
+      return;
     }
-  };
+    const fetchDetail = async () => {
+      setLoadingDetail(true);
+      try {
+        const response = await fetch(`/api/contracts/${selectedContract.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setContractDetail(data);
+        }
+      } catch (error) {
+        console.error("Error fetching contract detail:", error);
+      } finally {
+        setLoadingDetail(false);
+      }
+    };
+    fetchDetail();
+  }, [selectedContract]);
 
   const parseFrenchDate = (dateStr: string): string => {
     const parts = dateStr.split("/");
@@ -160,7 +161,6 @@ function AdministratifContent() {
       });
       if (response.ok) {
         const newContract = await response.json();
-        await fetchContracts();
         setShowContractModal(false);
         setContractFormData({
           reference: "",
@@ -178,32 +178,6 @@ function AdministratifContent() {
       console.error("Error creating contract:", error);
     } finally {
       setCreatingContract(false);
-    }
-  };
-
-  const handleDeleteContract = async (e: React.MouseEvent, contractId: string, contractTitle: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!confirm(`Supprimer le contrat "${contractTitle}" ? Cette action est irréversible.`)) {
-      return;
-    }
-
-    setDeletingContractId(contractId);
-    try {
-      const response = await fetch(`/api/contracts/${contractId}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        await fetchContracts();
-      } else {
-        const data = await response.json();
-        alert(data.error || "Erreur lors de la suppression");
-      }
-    } catch (error) {
-      console.error("Error deleting contract:", error);
-    } finally {
-      setDeletingContractId(null);
     }
   };
 
@@ -310,12 +284,11 @@ function AdministratifContent() {
         return;
       }
 
-      // Success - close modal, reset, refresh and redirect
+      // Success - close modal, reset and redirect
       setShowAEImportModal(false);
       setAEImportFile(null);
       setAEImportPreview(null);
       setAEImportError(null);
-      await fetchContracts();
 
       // Rediriger vers le nouveau contrat
       if (result.contract?.id) {
@@ -329,19 +302,6 @@ function AdministratifContent() {
     }
   };
 
-  // Filter contracts
-  const filteredContracts = statusFilter === "ALL" ? contracts : contracts.filter((c) => c.status === statusFilter);
-
-  // Contract stats
-  const activeContracts = contracts.filter((c) => c.status === "ACTIF");
-  const totalSites = activeContracts.reduce((sum, c) => sum + c.contractSites.length, 0);
-  const countByStatus = {
-    ACTIF: contracts.filter((c) => c.status === "ACTIF").length,
-    EN_ATTENTE: contracts.filter((c) => c.status === "EN_ATTENTE").length,
-    EXPIRE: contracts.filter((c) => c.status === "EXPIRE").length,
-    RESILIE: contracts.filter((c) => c.status === "RESILIE").length,
-  };
-
   if (loadingContracts) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -350,15 +310,58 @@ function AdministratifContent() {
     );
   }
 
+  // No contract selected
+  if (!selectedContract) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-primary-dark">Suivi administratif</h1>
+            <p className="text-text-secondary">Sélectionnez un contrat dans la barre supérieure</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={openAEImportModal}>
+              <FileSpreadsheet size={18} className="mr-2" />
+              Créer depuis AE
+            </Button>
+            <Button onClick={() => setShowContractModal(true)}>
+              <Plus size={18} className="mr-2" />
+              Nouveau contrat
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const contractSites = contractDetail?.contractSites || [];
+  const hasAnyP1 = contractSites.some((cs) => cs.hasP1);
+  const hasAnyP2 = contractSites.some((cs) => cs.hasP2);
+  const hasAnyP3 = contractSites.some((cs) => cs.hasP3);
+  const hasAnyP4 = contractSites.some((cs) => cs.hasP4);
+  const contractTypes = [...new Set(contractSites.map((cs) => cs.contractType).filter(Boolean))];
+  const contractStatus = (contractDetail?.status || selectedContract.status || "ACTIF") as keyof typeof statusLabels;
+
+  // Calculate remaining days
+  const endDate = new Date(selectedContract.endDate);
+  const now = new Date();
+  const remainingDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-primary-dark">Suivi administratif</h1>
-          <p className="text-text-secondary">Gestion des contrats d&apos;exploitation</p>
+          <p className="text-text-secondary">{selectedContract.reference} - {selectedContract.title}</p>
         </div>
         <div className="flex gap-2">
+          <Link href={`/contracts/${selectedContract.id}`}>
+            <Button variant="outline">
+              <FileText size={18} className="mr-2" />
+              Fiche contrat
+            </Button>
+          </Link>
           <Button variant="outline" onClick={openAEImportModal}>
             <FileSpreadsheet size={18} className="mr-2" />
             Créer depuis AE
@@ -372,121 +375,136 @@ function AdministratifContent() {
 
       {/* Stats */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Contrats actifs" value={countByStatus.ACTIF.toString()} icon={FileText} iconColor="text-accent" />
-        <StatsCard title="Sites totaux" value={totalSites.toString()} icon={Building2} iconColor="text-blue-600" />
-        <StatsCard title="En attente" value={countByStatus.EN_ATTENTE.toString()} icon={FileText} iconColor="text-yellow-600" />
-        <StatsCard title="Expirés" value={countByStatus.EXPIRE.toString()} icon={FileText} iconColor="text-red-600" />
+        <StatsCard
+          title="Statut"
+          value={statusLabels[contractStatus] || contractStatus}
+          icon={FileText}
+          iconColor={contractStatus === "ACTIF" ? "text-green-600" : contractStatus === "EN_ATTENTE" ? "text-yellow-600" : "text-red-600"}
+        />
+        <StatsCard title="Sites" value={contractSites.length.toString()} icon={Building2} iconColor="text-blue-600" />
+        <StatsCard
+          title="Période"
+          value={`${new Date(selectedContract.startDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })} - ${new Date(selectedContract.endDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}`}
+          icon={Calendar}
+          iconColor="text-accent"
+        />
+        <StatsCard
+          title={remainingDays > 0 ? "Jours restants" : "Expiré depuis"}
+          value={`${Math.abs(remainingDays)} j`}
+          icon={Calendar}
+          iconColor={remainingDays > 365 ? "text-green-600" : remainingDays > 90 ? "text-yellow-600" : "text-red-600"}
+        />
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm text-text-secondary mr-2">Filtrer :</span>
-        {(["ACTIF", "EN_ATTENTE", "EXPIRE", "RESILIE", "ALL"] as ContractStatus[]).map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              statusFilter === status
-                ? status === "ALL"
-                  ? "bg-accent text-white"
-                  : status === "ACTIF"
-                  ? "bg-green-100 text-green-700"
-                  : status === "EN_ATTENTE"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-red-100 text-red-700"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-            }`}
-          >
-            {status === "ALL" ? `Tous (${contracts.length})` : `${statusLabels[status]} (${countByStatus[status]})`}
-          </button>
-        ))}
-      </div>
-
-      {/* Contracts list */}
-      {filteredContracts.length === 0 ? (
-        <ChartCard title="">
-          <div className="flex flex-col items-center justify-center py-12">
-            <FileText size={48} className="text-gray-300 mb-4" />
-            <p className="text-text-secondary mb-4">{contracts.length === 0 ? "Aucun contrat" : "Aucun contrat avec ce statut"}</p>
-            <Button onClick={() => setShowContractModal(true)}>
-              <Plus size={18} className="mr-2" />
-              Créer un contrat
-            </Button>
+      {/* Contract info */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <ChartCard title="Informations générales">
+          <div className="space-y-3 -mt-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-text-secondary">Titulaire</span>
+              <span className="text-sm font-medium">{selectedContract.provider}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-text-secondary">Référence</span>
+              <span className="text-sm font-medium">{selectedContract.reference}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-text-secondary">Début</span>
+              <span className="text-sm font-medium">{new Date(selectedContract.startDate).toLocaleDateString("fr-FR")}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-text-secondary">Fin</span>
+              <span className="text-sm font-medium">{new Date(selectedContract.endDate).toLocaleDateString("fr-FR")}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-text-secondary">Statut</span>
+              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                contractStatus === "ACTIF" ? "bg-green-100 text-green-700"
+                : contractStatus === "EN_ATTENTE" ? "bg-yellow-100 text-yellow-700"
+                : "bg-red-100 text-red-700"
+              }`}>
+                {statusLabels[contractStatus] || contractStatus}
+              </span>
+            </div>
           </div>
         </ChartCard>
-      ) : (
-        <div className="space-y-4">
-          {filteredContracts.map((contract) => {
-            const hasAnyP1 = contract.contractSites.some((cs) => cs.hasP1);
-            const hasAnyP2 = contract.contractSites.some((cs) => cs.hasP2);
-            const hasAnyP3 = contract.contractSites.some((cs) => cs.hasP3);
-            const hasAnyP4 = contract.contractSites.some((cs) => cs.hasP4);
-            const contractTypes = [...new Set(contract.contractSites.map((cs) => cs.contractType))];
 
-            return (
-              <Link key={contract.id} href={`/contracts/${contract.id}`}>
-                <ChartCard title="" className="hover:shadow-soft transition-shadow cursor-pointer">
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 -mt-2">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <FileText size={24} className="text-accent" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-primary-dark">{contract.title}</h3>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              contract.status === "ACTIF"
-                                ? "bg-green-100 text-green-700"
-                                : contract.status === "EN_ATTENTE"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                            }`}
-                          >
-                            {statusLabels[contract.status]}
-                          </span>
-                        </div>
-                        <p className="text-sm text-text-secondary">{contract.reference} - Titulaire : {contract.provider}</p>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary">
-                          <span className="flex items-center gap-1">
-                            <Calendar size={14} />
-                            {new Date(contract.startDate).toLocaleDateString("fr-FR")} → {new Date(contract.endDate).toLocaleDateString("fr-FR")}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Building2 size={14} />
-                            {contract.contractSites.length} site{contract.contractSites.length !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {contractTypes.map((type) => (
-                          <span key={type} className="px-2 py-1 bg-accent/10 text-accent rounded text-xs font-medium">
-                            {type}
-                          </span>
-                        ))}
-                        {hasAnyP1 && <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded text-xs">P1</span>}
-                        {hasAnyP2 && <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">P2</span>}
-                        {hasAnyP3 && <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">P3</span>}
-                        {hasAnyP4 && <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">P4</span>}
-                      </div>
-                      <button
-                        onClick={(e) => handleDeleteContract(e, contract.id, contract.title)}
-                        disabled={deletingContractId === contract.id}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                      >
-                        {deletingContractId === contract.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
-                      </button>
-                      <ChevronRight size={20} className="text-text-secondary" />
-                    </div>
-                  </div>
-                </ChartCard>
-              </Link>
-            );
-          })}
+        <ChartCard title="Prestations">
+          <div className="space-y-3 -mt-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              {contractTypes.length > 0 ? contractTypes.map((type) => (
+                <span key={type} className="px-3 py-1.5 bg-accent/10 text-accent rounded-lg text-sm font-medium">
+                  {type}
+                </span>
+              )) : (
+                <span className="text-sm text-text-secondary">Aucun type défini</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${hasAnyP1 ? "bg-yellow-100 text-yellow-700" : "bg-gray-50 text-gray-400"}`}>
+                P1 {hasAnyP1 ? "inclus" : "-"}
+              </span>
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${hasAnyP2 ? "bg-blue-100 text-blue-700" : "bg-gray-50 text-gray-400"}`}>
+                P2 {hasAnyP2 ? "inclus" : "-"}
+              </span>
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${hasAnyP3 ? "bg-green-100 text-green-700" : "bg-gray-50 text-gray-400"}`}>
+                P3 {hasAnyP3 ? "inclus" : "-"}
+              </span>
+              <span className={`px-3 py-1.5 rounded-lg text-sm font-medium ${hasAnyP4 ? "bg-purple-100 text-purple-700" : "bg-gray-50 text-gray-400"}`}>
+                P4 {hasAnyP4 ? "inclus" : "-"}
+              </span>
+            </div>
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* Sites list */}
+      {loadingDetail ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin text-accent" />
         </div>
-      )}
+      ) : contractSites.length > 0 ? (
+        <ChartCard title={`Sites du contrat (${contractSites.length})`}>
+          <div className="overflow-x-auto -mt-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 px-3 text-xs font-medium text-text-secondary uppercase">Site</th>
+                  <th className="text-left py-2 px-3 text-xs font-medium text-text-secondary uppercase">Type contrat</th>
+                  <th className="text-center py-2 px-3 text-xs font-medium text-text-secondary uppercase">P1</th>
+                  <th className="text-center py-2 px-3 text-xs font-medium text-text-secondary uppercase">P2</th>
+                  <th className="text-center py-2 px-3 text-xs font-medium text-text-secondary uppercase">P3</th>
+                  <th className="text-center py-2 px-3 text-xs font-medium text-text-secondary uppercase">P4</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {contractSites.map((cs: ContractSite & { site?: { id: string; name: string; city?: string } }) => (
+                  <tr key={cs.id} className="hover:bg-gray-50/50">
+                    <td className="py-2.5 px-3">
+                      {cs.site ? (
+                        <Link href={`/buildings/${cs.site.id}`} className="font-medium text-primary-dark hover:text-accent">
+                          {cs.site.name}{cs.site.city ? ` - ${cs.site.city}` : ""}
+                        </Link>
+                      ) : (
+                        <span className="text-text-secondary">-</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-3">
+                      {cs.contractType ? (
+                        <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">{cs.contractType}</span>
+                      ) : "-"}
+                    </td>
+                    <td className="py-2.5 px-3 text-center">{cs.hasP1 ? <Check size={16} className="text-yellow-600 mx-auto" /> : "-"}</td>
+                    <td className="py-2.5 px-3 text-center">{cs.hasP2 ? <Check size={16} className="text-blue-600 mx-auto" /> : "-"}</td>
+                    <td className="py-2.5 px-3 text-center">{cs.hasP3 ? <Check size={16} className="text-green-600 mx-auto" /> : "-"}</td>
+                    <td className="py-2.5 px-3 text-center">{cs.hasP4 ? <Check size={16} className="text-purple-600 mx-auto" /> : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartCard>
+      ) : null}
 
       {/* Create Contract Modal */}
       {showContractModal && (

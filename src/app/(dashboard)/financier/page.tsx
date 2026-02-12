@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ReadOnlyGate } from "@/components/permissions";
+import { useContract } from "@/contexts/ContractContext";
 import {
   Receipt,
   Plus,
@@ -186,10 +187,8 @@ function FinancierPageContent() {
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
-  // Contract selection
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
-  const [loadingContracts, setLoadingContracts] = useState(true);
+  // Contract from global context
+  const { selectedContract, isLoading: loadingContracts } = useContract();
 
   // Facturation state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -263,32 +262,6 @@ function FinancierPageContent() {
     router.push(`/financier?${params.toString()}`, { scroll: false });
   };
 
-  // Update URL when contract changes
-  const handleContractChange = (contract: Contract) => {
-    setSelectedContract(contract);
-    const params = new URLSearchParams();
-    params.set("tab", activeTab);
-    params.set("contractId", contract.id);
-    router.push(`/financier?${params.toString()}`, { scroll: false });
-  };
-
-  // Fetch contracts on mount
-  useEffect(() => {
-    fetchContracts();
-  }, []);
-
-  // Restore contract from URL when contracts are loaded
-  useEffect(() => {
-    if (contracts.length > 0 && !selectedContract) {
-      const contractIdFromUrl = searchParams.get("contractId");
-      if (contractIdFromUrl) {
-        const contract = contracts.find(c => c.id === contractIdFromUrl);
-        if (contract) {
-          setSelectedContract(contract);
-        }
-      }
-    }
-  }, [contracts, selectedContract, searchParams]);
 
   // Fetch data when contract selected
   useEffect(() => {
@@ -305,21 +278,6 @@ function FinancierPageContent() {
       }
     }
   }, [selectedContract, activeTab]);
-
-  const fetchContracts = async () => {
-    try {
-      setLoadingContracts(true);
-      const response = await fetch("/api/contracts");
-      if (response.ok) {
-        const data = await response.json();
-        setContracts(data.filter((c: Contract) => c.status === "ACTIF"));
-      }
-    } catch (error) {
-      console.error("Error fetching contracts:", error);
-    } finally {
-      setLoadingContracts(false);
-    }
-  };
 
   const fetchInvoices = async (contractId: string) => {
     try {
@@ -696,48 +654,8 @@ function FinancierPageContent() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-primary-dark">Suivi financier</h1>
-          <p className="text-text-secondary">Sélectionnez un contrat pour accéder au suivi financier</p>
+          <p className="text-text-secondary">Sélectionnez un contrat dans la barre supérieure pour accéder au suivi financier</p>
         </div>
-
-        {contracts.length === 0 ? (
-          <ChartCard title="Aucun contrat actif">
-            <div className="flex flex-col items-center justify-center py-8">
-              <FileText size={48} className="text-gray-300 mb-4" />
-              <p className="text-text-secondary">Créez d&apos;abord un contrat</p>
-            </div>
-          </ChartCard>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {contracts.map((contract) => (
-              <button
-                key={contract.id}
-                onClick={() => handleContractChange(contract)}
-                className="bg-white rounded-xl border border-gray-100 p-6 text-left hover:border-accent hover:shadow-md transition-all group"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center group-hover:bg-accent/20 transition-colors">
-                    <Euro size={24} className="text-accent" />
-                  </div>
-                  <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                    Actif
-                  </span>
-                </div>
-                <h3 className="font-semibold text-primary-dark mb-1">{contract.reference}</h3>
-                <p className="text-sm text-text-secondary mb-3 line-clamp-1">{contract.title}</p>
-                <div className="flex items-center gap-4 text-xs text-text-secondary">
-                  <span className="flex items-center gap-1">
-                    <Users size={14} />
-                    {contract.provider}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Building2 size={14} />
-                    {contract._count?.contractSites || 0} sites
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     );
   }
@@ -748,40 +666,9 @@ function FinancierPageContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <button
-              onClick={() => {
-                setSelectedContract(null);
-                setInvoices([]);
-                setFinancialData(null);
-                setP3Data(null);
-                setContractSites([]);
-                router.push(`/financier?tab=${activeTab}`, { scroll: false });
-              }}
-              className="text-text-secondary hover:text-primary-dark"
-            >
-              Suivi financier
-            </button>
-            <span className="text-text-secondary">/</span>
-            <span className="text-primary-dark font-medium">{selectedContract.reference}</span>
-          </div>
-          <h1 className="text-2xl font-bold text-primary-dark">{selectedContract.title}</h1>
-          <p className="text-text-secondary">{selectedContract.provider}</p>
+          <h1 className="text-2xl font-bold text-primary-dark">Suivi financier</h1>
+          <p className="text-text-secondary">{selectedContract.reference} - {selectedContract.title}</p>
         </div>
-        <select
-          value={selectedContract.id}
-          onChange={(e) => {
-            const contract = contracts.find((c) => c.id === e.target.value);
-            if (contract) handleContractChange(contract);
-          }}
-          className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
-        >
-          {contracts.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.reference} - {c.title}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Tabs */}
