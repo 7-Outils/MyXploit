@@ -41,6 +41,9 @@ model Organization {
   // Nouveau système d'audit configurable
   recommendationLibrary   RecommendationLibrary[]
   auditCheckPoints        AuditCheckPoint[]
+  tickets                 Ticket[]
+  regulatoryControlTypes  RegulatoryControlType[]
+  regulatoryControls      RegulatoryControl[]
   // Permissions et modules
   modules                 OrganizationModule[]
   ghostSessions           GhostSession[]
@@ -94,6 +97,7 @@ model User {
   ghostSessions   GhostSession[] @relation("SuperAdminGhostSessions")
   quotesAccepted  Quote[]        @relation("QuoteAcceptedBy")
   quotesRefused   Quote[]        @relation("QuoteRefusedBy")
+  ticketsCreated  Ticket[]       @relation("TicketCreatedBy")
 
   @@map("users")
 }
@@ -249,7 +253,9 @@ model Site {
   heatingSeasons  HeatingSeason[] // Saisons de chauffage (dates allumage/arrêt)
   aliases          SiteAlias[]      // Alias pour l'import de données
   technicalAudits  TechnicalAudit[] // Audits techniques du site
-  occupationZones  OccupationZone[] // Zones d'occupation thermique
+  occupationZones     OccupationZone[]    // Zones d'occupation thermique
+  tickets             Ticket[]            // Points de suivi
+  regulatoryControls  RegulatoryControl[] // Contrôles réglementaires
 
   @@map("sites")
 }
@@ -486,10 +492,11 @@ model Equipment {
   updatedAt      DateTime        @updatedAt
 
   // Relations
-  site         Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avenantItems AvenantItem[]     // Modifications d'avenant concernant cet équipement
-  audits       EquipmentAudit[]  // Historique des audits simples
+  site               Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avenantItems       AvenantItem[]     // Modifications d'avenant concernant cet équipement
+  audits             EquipmentAudit[]  // Historique des audits simples
+  regulatoryControls RegulatoryControl[] // Contrôles réglementaires liés
 
   @@map("equipments")
 }
@@ -910,6 +917,8 @@ model Contract {
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices      Invoice[]
   quotes        Quote[]
+  tickets       Ticket[]
+  meetings      Meeting[]
 
   @@map("contracts")
 }
@@ -1374,6 +1383,167 @@ model QuoteItem {
 }
 
 // ============================================
+// CONTRÔLES RÉGLEMENTAIRES CVC
+// ============================================
+
+enum RegulatoryCategory {
+  COMBUSTION         // Contrôle combustion, ramonage
+  GAZ                // Vérification installation gaz
+  LEGIONELLE         // Analyse légionelle, carnet sanitaire
+  FLUIDE_FRIGORIGENE // Étanchéité fluide frigorigène
+  ELECTRIQUE         // Vérification installation électrique
+  AERAULIQUE         // Contrôle aéraulique, filtres, débits
+  PRESSION           // Appareils à pression, disconnecteurs
+  TOUR_AERO          // Tours aéroréfrigérantes
+  INCENDIE           // Sécurité incendie, désenfumage
+  EAU                // Qualité eau, traitement eau
+  AUTRE
+}
+
+enum ControlFrequency {
+  MENSUEL         // Tous les mois
+  TRIMESTRIEL     // Tous les 3 mois
+  SEMESTRIEL      // Tous les 6 mois
+  ANNUEL          // Tous les ans
+  BIENNAL         // Tous les 2 ans
+  TRIENNAL        // Tous les 3 ans
+  QUINQUENNAL     // Tous les 5 ans
+  PONCTUEL        // Unique / à la demande
+}
+
+enum ControlStatus {
+  A_PLANIFIER     // Pas encore planifié
+  PLANIFIE        // Date d'intervention prévue
+  EFFECTUE        // Contrôle réalisé
+  EN_RETARD       // Échéance dépassée
+  NON_APPLICABLE  // Ne s'applique plus
+}
+
+enum ControlResult {
+  CONFORME
+  NON_CONFORME
+  AVEC_RESERVES   // Conforme sous réserve
+  EN_ATTENTE      // Résultat en attente (ex: analyse labo)
+}
+
+/// Type de contrôle réglementaire (template configurable par organisation)
+/// Ex: "Ramonage conduit fumée", "Analyse légionelle ECS", "Vérification gaz"
+model RegulatoryControlType {
+  id              String             @id @default(cuid())
+  organizationId  String
+  name            String             // Ex: "Ramonage conduit fumée"
+  category        RegulatoryCategory
+  description     String?            // Détail du contrôle
+  regulatoryRef   String?            // Référence légale (ex: "Arrêté du 15/09/2009")
+  frequency       ControlFrequency   @default(ANNUEL)
+  frequencyMonths Int                @default(12) // Pour calcul précis de la prochaine échéance
+  /// Domaines d'équipements concernés (filtre pour savoir quels sites sont impactés)
+  applicableDomains EquipmentDomain[] // Ex: [CHAUFFAGE] pour ramonage
+  /// Seuils d'applicabilité
+  minPowerKw      Float?             // Applicable si puissance >= X kW (ex: 400kW pour inspection chaudière)
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  // Relations
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  controls     RegulatoryControl[]
+
+  @@index([organizationId])
+  @@map("regulatory_control_types")
+}
+
+/// Instance d'un contrôle réglementaire à réaliser ou réalisé
+model RegulatoryControl {
+  id              String          @id @default(cuid())
+  typeId          String
+  siteId          String
+  equipmentId     String?         // Optionnel : équipement spécifique concerné
+  organizationId  String
+
+  // Planification
+  dueDate         DateTime        // Échéance réglementaire
+  status          ControlStatus   @default(A_PLANIFIER)
+
+  // Réalisation
+  performedDate   DateTime?       // Date effective du contrôle
+  performer       String?         // Entreprise/technicien (ex: "Dekra", "Bureau Veritas")
+  result          ControlResult?
+  reportUrl       String?         // Lien vers le rapport/attestation
+  notes           String?         // Observations, non-conformités relevées
+
+  // Prochaine échéance (calculée après réalisation)
+  nextDueDate     DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  type         RegulatoryControlType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  site         Site                  @relation(fields: [siteId], references: [id])
+  equipment    Equipment?            @relation(fields: [equipmentId], references: [id])
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([siteId])
+  @@index([typeId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("regulatory_controls")
+}
+
+// ============================================
+// TICKETS / POINTS DE SUIVI
+// ============================================
+
+enum TicketSource {
+  EMAIL
+  MEETING
+  VISIT
+  PHONE
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model Ticket {
+  id             String       @id @default(cuid())
+  reference      String       @unique // Format : TKT-2026-0001
+  organizationId String
+  siteId         String
+  contractId     String?
+  title          String
+  description    String?
+  source         TicketSource @default(EMAIL)
+  status         TicketStatus @default(OPEN)
+  responsible    String? // Texte libre : "IDEX", "Mairie", "AMO"
+  dueDate        DateTime? // Échéance pour relances
+  openedAt       DateTime     @default(now())
+  resolvedAt     DateTime?
+  createdById    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site               @relation(fields: [siteId], references: [id])
+  contract     Contract?          @relation(fields: [contractId], references: [id])
+  createdBy    User?              @relation("TicketCreatedBy", fields: [createdById], references: [id])
+  agendaItems  MeetingAgendaItem[]
+
+  @@index([organizationId])
+  @@index([siteId])
+  @@index([contractId])
+  @@index([status])
+  @@map("tickets")
+}
+
+// ============================================
 // REUNIONS D'EXPLOITATION
 // ============================================
 
@@ -1392,19 +1562,43 @@ model Meeting {
   date           DateTime
   location       String?
   attendees      String[] // Liste des participants
-  agenda         String? // Ordre du jour
-  notes          String? // Compte-rendu
+  agenda         String? // Ordre du jour (texte libre legacy)
+  notes          String? // Compte-rendu (texte libre legacy)
   siteId         String?
+  contractId     String? // Contrat lié (pour filtrer les tickets)
   organizationId String
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
   // Relations
-  site         Site?        @relation(fields: [siteId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  workLevees   WorkLevee[]  // Levées de réserves liées à cette réunion
+  site         Site?               @relation(fields: [siteId], references: [id])
+  contract     Contract?           @relation(fields: [contractId], references: [id])
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workLevees   WorkLevee[]         // Levées de réserves liées à cette réunion
+  agendaItems  MeetingAgendaItem[] // ODJ structuré
 
+  @@index([contractId])
   @@map("meetings")
+}
+
+model MeetingAgendaItem {
+  id        String  @id @default(cuid())
+  meetingId String
+  ticketId  String? // null = point libre (pas lié à un ticket)
+  order     Int     // Position dans l'ODJ
+  title     String  // Auto-rempli depuis ticket.title ou libre
+  notes     String? // Notes prises pendant la réunion
+  decision  String? // Décision actée
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  ticket  Ticket? @relation(fields: [ticketId], references: [id])
+
+  @@index([meetingId])
+  @@map("meeting_agenda_items")
 }
 
 // ============================================

@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Briefcase,
   Shield,
+  Building2,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,12 @@ const navigation: Array<{
     name: "Vue d'ensemble",
     href: "/overview",
     icon: LayoutDashboard,
+    // Pas de module = toujours visible
+  },
+  {
+    name: "Bâtiments",
+    href: "/buildings",
+    icon: Building2,
     // Pas de module = toujours visible
   },
   {
@@ -81,6 +88,7 @@ export function Sidebar() {
   // Check if current path matches navigation item (including sub-paths)
   const isActive = (href: string) => {
     if (href === "/overview") return pathname === href || pathname === "/";
+    if (href === "/buildings") return pathname === href || pathname.startsWith("/buildings/");
     return pathname === href || pathname.startsWith(href + "?");
   };
 

@@ -3,6 +3,7 @@
 import { Bell, Search, User, LogOut, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { ContractSelector } from "./ContractSelector";
 
 interface CurrentUser {
   firstName: string | null;
@@ -80,8 +81,11 @@ export function Topbar() {
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      {/* Search */}
-      <div className="flex-1 max-w-xl">
+      {/* Contract Selector + Search */}
+      <div className="flex items-center gap-4 flex-1">
+        <ContractSelector />
+      </div>
+      <div className="flex-1 max-w-md">
         <div className="relative">
           <Search
             size={18}
