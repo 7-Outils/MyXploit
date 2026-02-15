@@ -13,6 +13,8 @@ import {
   Briefcase,
   Shield,
   Building2,
+  Users,
+  MapPin,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -21,63 +23,35 @@ import { Module } from "@/generated/prisma/client";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { OrganizationSwitcher } from "@/components/admin/OrganizationSwitcher";
 
-// Navigation avec modules (toujours visible si module undefined)
-const navigation: Array<{
+type NavItem = {
   name: string;
   href: string;
   icon: React.ComponentType<any>;
-  module?: Module; // undefined = toujours visible (ex: Vue d'ensemble)
-}> = [
-  {
-    name: "Vue d'ensemble",
-    href: "/overview",
-    icon: LayoutDashboard,
-    // Pas de module = toujours visible
-  },
-  {
-    name: "Bâtiments",
-    href: "/buildings",
-    icon: Building2,
-    // Pas de module = toujours visible
-  },
-  {
-    name: "Suivi énergétique",
-    href: "/energy",
-    icon: BarChart3,
-    module: "ENERGY",
-  },
-  {
-    name: "Suivi financier",
-    href: "/financier",
-    icon: Euro,
-    module: "FINANCIER",
-  },
-  {
-    name: "Suivi administratif",
-    href: "/administratif",
-    icon: FileText,
-    module: "ADMINISTRATIF",
-  },
-  {
-    name: "Suivi exploitation",
-    href: "/exploitation",
-    icon: Wrench,
-    module: "EXPLOITATION",
-  },
-  {
-    name: "Boîte à outils",
-    href: "/outils",
-    icon: Briefcase,
-    module: "OUTILS",
-  },
+  module?: Module;
+  adminOnly?: boolean; // Visible uniquement pour ADMIN
+};
+
+// Navigation ADMIN (Dirigeant) — inclut Clients et Equipe
+const adminNavigation: NavItem[] = [
+  { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
+  { name: "Clients", href: "/clients", icon: Building2, adminOnly: true },
+  { name: "Contrats", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
+  { name: "Sites", href: "/buildings", icon: MapPin },
+  { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
+  { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
+  { name: "Suivi exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
+  { name: "Boite a outils", href: "/outils", icon: Briefcase, module: "OUTILS" },
 ];
 
-const bottomNavigation = [
-  {
-    name: "Paramètres",
-    href: "/settings",
-    icon: Settings,
-  },
+// Navigation par defaut (Ingenieur, Lecteur)
+const defaultNavigation: NavItem[] = [
+  { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
+  { name: "Batiments", href: "/buildings", icon: Building2 },
+  { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
+  { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
+  { name: "Suivi administratif", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
+  { name: "Suivi exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
+  { name: "Boite a outils", href: "/outils", icon: Briefcase, module: "OUTILS" },
 ];
 
 export function Sidebar() {
@@ -85,25 +59,28 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { hasModule, userRole, isLoading } = usePermissions();
 
-  // Check if current path matches navigation item (including sub-paths)
   const isActive = (href: string) => {
     if (href === "/overview") return pathname === href || pathname === "/";
     if (href === "/buildings") return pathname === href || pathname.startsWith("/buildings/");
+    if (href === "/clients") return pathname === href || pathname.startsWith("/clients/");
+    if (href === "/team") return pathname === href;
     return pathname === href || pathname.startsWith(href + "?");
   };
 
-  // Filtrer la navigation selon les modules activés
-  // Pendant le chargement, afficher toute la navigation
+  const isAdmin = userRole === "ADMIN";
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+
+  // Choisir la navigation selon le role
+  const baseNavigation = isAdmin || isSuperAdmin ? adminNavigation : defaultNavigation;
+
+  // Filtrer selon les modules actives
   const visibleNavigation = isLoading
-    ? navigation
-    : navigation.filter((item) => {
-        // Si pas de module spécifié, toujours visible
+    ? baseNavigation
+    : baseNavigation.filter((item) => {
+        if (item.adminOnly && !isAdmin && !isSuperAdmin) return false;
         if (!item.module) return true;
-        // Sinon vérifier si le module est activé
         return hasModule(item.module);
       });
-
-  const isSuperAdmin = userRole === "SUPER_ADMIN";
 
   return (
     <aside
@@ -114,9 +91,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
-        {!collapsed && (
-          <Logo size="sm" variant="white" />
-        )}
+        {!collapsed && <Logo size="sm" variant="white" />}
         {collapsed && (
           <div className="w-10 h-10 mx-auto">
             <Logo size="sm" showText={false} variant="white" />
@@ -192,8 +167,26 @@ export function Sidebar() {
           </Link>
         )}
 
+        {/* ADMIN → Equipe */}
+        {isAdmin && (
+          <Link
+            href="/team"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+              isActive("/team")
+                ? "bg-accent text-white"
+                : "text-gray-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <Users size={20} className="flex-shrink-0" />
+            {!collapsed && (
+              <span className="text-sm font-medium">Equipe</span>
+            )}
+          </Link>
+        )}
+
         {/* ADMIN → Administration link */}
-        {userRole === "ADMIN" && (
+        {isAdmin && (
           <Link
             href="/admin"
             className={cn(
@@ -210,27 +203,20 @@ export function Sidebar() {
           </Link>
         )}
 
-        {bottomNavigation.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-                active
-                  ? "bg-accent text-white"
-                  : "text-gray-400 hover:text-white hover:bg-white/10"
-              )}
-            >
-              <item.icon size={20} className="flex-shrink-0" />
-              {!collapsed && (
-                <span className="text-sm font-medium">{item.name}</span>
-              )}
-            </Link>
-          );
-        })}
-
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+            pathname === "/settings"
+              ? "bg-accent text-white"
+              : "text-gray-400 hover:text-white hover:bg-white/10"
+          )}
+        >
+          <Settings size={20} className="flex-shrink-0" />
+          {!collapsed && (
+            <span className="text-sm font-medium">Parametres</span>
+          )}
+        </Link>
       </div>
     </aside>
   );

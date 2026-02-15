@@ -27,6 +27,7 @@ import { ChartCard } from "@/components/dashboard/chart-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { DonutChart, CHART_COLORS } from "@/components/dashboard/donut-chart";
 import { useUserProfile, PROFILE_CONFIG } from "@/contexts/UserProfileContext";
+import { Onboarding } from "@/components/dashboard/onboarding";
 
 // Dynamic import for map to avoid SSR issues
 const SiteMap = dynamic(
@@ -548,6 +549,9 @@ export default function OverviewPage() {
         )}
       </div>
 
+      {/* Onboarding - ADMIN only */}
+      {(currentUser?.role === "ADMIN") && <Onboarding />}
+
       {/* Stats Grid - Profile specific */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {getStatsCards()}
@@ -619,6 +623,119 @@ export default function OverviewPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Expiring Contracts - ADMIN */}
+      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && expiringContracts.length > 0 && (
+        <ChartCard
+          title={
+            <span className="flex items-center gap-2">
+              <Bell size={18} className="text-orange-500" />
+              Contrats à échéance
+            </span>
+          }
+          subtitle={`${expiringContracts.length} contrat(s) arrivent à échéance dans les 6 prochains mois`}
+          action={
+            <Link href="/administratif" className="text-sm text-accent hover:underline flex items-center gap-1">
+              Voir tous les contrats <ChevronRight size={14} />
+            </Link>
+          }
+        >
+          <div className="space-y-3">
+            {expiringContracts.slice(0, 5).map((contract) => {
+              const urgencyConfig = {
+                EXPIRED: { color: "bg-gray-100 text-gray-700", dot: "bg-gray-500", label: "Expiré" },
+                CRITICAL: { color: "bg-red-100 text-red-700", dot: "bg-red-500", label: "Critique" },
+                HIGH: { color: "bg-orange-100 text-orange-700", dot: "bg-orange-500", label: "Urgent" },
+                MEDIUM: { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500", label: "Moyen" },
+                LOW: { color: "bg-blue-100 text-blue-700", dot: "bg-blue-500", label: "Planifié" },
+              };
+              const config = urgencyConfig[contract.urgency];
+
+              return (
+                <div
+                  key={contract.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-primary-dark truncate">{contract.title}</p>
+                      <p className="text-xs text-gray-500">{contract.reference} • {contract.provider} • {contract.siteCount} site(s)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${config.color}`}>
+                      {contract.daysUntilExpiry < 0
+                        ? `Expiré depuis ${Math.abs(contract.daysUntilExpiry)}j`
+                        : contract.daysUntilExpiry === 0
+                        ? "Aujourd'hui"
+                        : `${contract.daysUntilExpiry}j`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {expiringContracts.length > 5 && (
+            <Link
+              href="/administratif"
+              className="mt-4 block text-center text-sm text-accent hover:underline"
+            >
+              +{expiringContracts.length - 5} autre(s) contrat(s)
+            </Link>
+          )}
+        </ChartCard>
+      )}
+
+      {/* Recent Alerts - ADMIN */}
+      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && activeAlerts.length > 0 && (
+        <ChartCard
+          title={
+            <span className="flex items-center gap-2">
+              <AlertTriangle size={18} className="text-red-500" />
+              Alertes récentes
+            </span>
+          }
+          subtitle={`${activeAlerts.length} alerte(s) non lue(s)`}
+        >
+          <div className="space-y-3">
+            {activeAlerts.slice(0, 5).map((alert) => {
+              const priorityConfig = {
+                CRITIQUE: { color: "bg-red-100 text-red-700", dot: "bg-red-500" },
+                HAUTE: { color: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
+                MOYENNE: { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
+                BASSE: { color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
+              };
+              const config = priorityConfig[alert.priority];
+
+              return (
+                <div
+                  key={alert.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-primary-dark truncate">{alert.title}</p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {alert.site?.name ? `${alert.site.name} — ` : ""}{alert.message}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${config.color}`}>
+                      {alert.priority}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(alert.createdAt).toLocaleDateString("fr-FR")}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </ChartCard>
       )}

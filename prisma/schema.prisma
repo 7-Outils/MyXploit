@@ -49,8 +49,35 @@ model Organization {
   ghostSessions           GhostSession[]
   userContractAssignments UserContractAssignment[]
   siteActivityLogs        SiteActivityLog[]
+  clients                 Client[]
+  onboardingCompleted     Boolean @default(false)
 
   @@map("organizations")
+}
+
+// ============================================
+// CLIENT (Collectivité / entité servie par le cabinet AMO)
+// ============================================
+
+model Client {
+  id             String   @id @default(cuid())
+  name           String   // "Ville de Lyon", "Région Auvergne"
+  siret          String?
+  contactName    String?
+  contactEmail   String?
+  contactPhone   String?
+  address        String?
+  city           String?
+  postalCode     String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sites        Site[]
+  contracts    Contract[]
+
+  @@map("clients")
 }
 
 enum UserRole {
@@ -303,12 +330,14 @@ model Site {
   longitude      Float?
   image          String?
   organizationId String
+  clientId       String? // Client (collectivité) rattaché
   createdById    String?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
   // Relations
   organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client          Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
   createdBy       User?           @relation("CreatedBy", fields: [createdById], references: [id])
   contractSites   ContractSite[]  // Relation vers les contrats via la table pivot
   equipments      Equipment[]
@@ -978,6 +1007,7 @@ model Contract {
   // Fréquence de facturation
   billingFrequency BillingFrequency @default(TRIMESTRIEL)
   organizationId   String
+  clientId         String? // Client (collectivité) rattaché
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -985,6 +1015,7 @@ model Contract {
   contractSites ContractSite[] // Relation explicite avec les sites
   avenants      Avenant[]      // Avenants du contrat
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
   invoices      Invoice[]
   quotes        Quote[]
   tickets           Ticket[]

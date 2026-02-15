@@ -12,9 +12,9 @@ export async function POST(
     const currentUser = await requireAuth();
     const { id } = await params;
 
-    if (currentUser.role !== "SUPER_ADMIN") {
+    if (currentUser.role !== "SUPER_ADMIN" && currentUser.role !== "ADMIN") {
       return NextResponse.json(
-        { error: "Accès réservé aux super administrateurs" },
+        { error: "Acces reserve aux administrateurs" },
         { status: 403 }
       );
     }
