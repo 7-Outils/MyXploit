@@ -16,6 +16,7 @@ import {
   Send,
   Pencil,
 } from "lucide-react";
+import { ROLE_LABELS, ROLE_COLORS, ASSIGNABLE_ROLES } from "@/lib/permissions";
 
 interface Organization {
   id: string;
@@ -31,25 +32,12 @@ interface User {
   email: string;
   firstName: string | null;
   lastName: string | null;
-  role: "SUPER_ADMIN" | "ADMIN" | "MANAGER" | "READER";
+  role: "SUPER_ADMIN" | "ADMIN" | "EDITOR" | "MANAGER" | "READER";
   password: string | null;
   organization: Organization;
   createdAt: string;
 }
 
-const roleLabels: Record<string, string> = {
-  SUPER_ADMIN: "Super Admin",
-  ADMIN: "Admin",
-  MANAGER: "Manager",
-  READER: "Lecteur",
-};
-
-const roleColors: Record<string, string> = {
-  SUPER_ADMIN: "bg-purple-100 text-purple-700",
-  ADMIN: "bg-blue-100 text-blue-700",
-  MANAGER: "bg-green-100 text-green-700",
-  READER: "bg-gray-100 text-gray-700",
-};
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -371,10 +359,10 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-3">
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      roleColors[user.role]
+                      ROLE_COLORS[user.role]
                     }`}
                   >
-                    {roleLabels[user.role]}
+                    {ROLE_LABELS[user.role]}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -524,9 +512,11 @@ export default function AdminUsersPage() {
                   }
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
                 >
-                  <option value="READER">Lecteur</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
+                  {ASSIGNABLE_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -667,10 +657,11 @@ export default function AdminUsersPage() {
                   }
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
                 >
-                  <option value="READER">Lecteur</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  {ASSIGNABLE_ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {ROLE_LABELS[role]}
+                    </option>
+                  ))}
                 </select>
               </div>
 

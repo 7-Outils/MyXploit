@@ -54,20 +54,32 @@ export const canUseGhostMode = (role: UserRole): boolean =>
 // ============================================
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  SUPER_ADMIN: "Super Administrateur",
-  ADMIN: "Administrateur",
-  EDITOR: "Éditeur",
-  MANAGER: "Manager", // @deprecated
+  SUPER_ADMIN: "Super Admin",
+  ADMIN: "Dirigeant",
+  EDITOR: "Ingénieur",
+  MANAGER: "Ingénieur", // @deprecated - affiché pareil qu'EDITOR
   READER: "Lecteur",
 };
 
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   SUPER_ADMIN: "Accès complet à toutes les organisations",
-  ADMIN: "Gère les utilisateurs de son organisation",
+  ADMIN: "Dirige et gère les utilisateurs de son organisation",
   EDITOR: "Peut créer, modifier et supprimer",
   MANAGER: "Peut créer, modifier et supprimer", // @deprecated
   READER: "Consultation et export uniquement",
 };
+
+// Couleurs des badges de rôle (centralisées)
+export const ROLE_COLORS: Record<UserRole, string> = {
+  SUPER_ADMIN: "bg-purple-100 text-purple-700",
+  ADMIN: "bg-blue-100 text-blue-700",
+  EDITOR: "bg-green-100 text-green-700",
+  MANAGER: "bg-green-100 text-green-700", // @deprecated
+  READER: "bg-gray-100 text-gray-700",
+};
+
+// Rôles sélectionnables dans les dropdowns (sans MANAGER deprecated, sans SUPER_ADMIN)
+export const ASSIGNABLE_ROLES: UserRole[] = ["ADMIN", "EDITOR", "READER"];
 
 // ============================================
 // Labels des modules

@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const activatedUser = await activateUserAccount(user.id, password);
 
     // Create session
-    await createSession(activatedUser.id);
+    await createSession(activatedUser.id, activatedUser.role);
 
     return NextResponse.json({
       success: true,

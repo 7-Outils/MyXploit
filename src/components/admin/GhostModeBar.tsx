@@ -29,7 +29,10 @@ export function GhostModeBar() {
         </div>
       </div>
       <button
-        onClick={exitGhostMode}
+        onClick={async () => {
+          await exitGhostMode();
+          window.location.href = "/platform";
+        }}
         className="flex items-center gap-2 px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
       >
         <X size={16} />

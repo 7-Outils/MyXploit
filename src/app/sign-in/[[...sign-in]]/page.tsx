@@ -35,7 +35,12 @@ function SignInForm() {
         return;
       }
 
-      router.push(redirect);
+      // SUPER_ADMIN → back-office plateforme
+      if (data.user?.role === "SUPER_ADMIN") {
+        router.push("/platform");
+      } else {
+        router.push(redirect);
+      }
       router.refresh();
     } catch {
       setError("Erreur de connexion au serveur");

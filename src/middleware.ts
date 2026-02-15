@@ -54,7 +54,14 @@ export async function middleware(request: NextRequest) {
     }
 
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-    await jwtVerify(sessionCookie.value, secret);
+    const { payload } = await jwtVerify(sessionCookie.value, secret);
+    const userRole = payload.role as string | undefined;
+
+    // Bloquer /platform/* pour les non-SUPER_ADMIN
+    if (pathname.startsWith("/platform") && userRole !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/overview", request.url));
+    }
+
     return NextResponse.next();
   } catch (error) {
     // Invalid session, redirect to sign-in

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await createSession(user.id);
+    await createSession(user.id, user.role);
 
     return NextResponse.json({
       success: true,

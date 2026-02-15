@@ -39,19 +39,7 @@ interface Assignment {
   contract: ContractSummary;
 }
 
-const roleLabels: Record<string, string> = {
-  ADMIN: "Admin",
-  EDITOR: "Éditeur",
-  MANAGER: "Manager",
-  READER: "Lecteur",
-};
-
-const roleColors: Record<string, string> = {
-  ADMIN: "bg-blue-100 text-blue-700",
-  EDITOR: "bg-green-100 text-green-700",
-  MANAGER: "bg-green-100 text-green-700",
-  READER: "bg-gray-100 text-gray-700",
-};
+import { ROLE_LABELS, ROLE_COLORS } from "@/lib/permissions";
 
 export default function PortfolioAdminPage() {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -275,8 +263,8 @@ export default function PortfolioAdminPage() {
                             {userAssignmentCounts[u.id]} contrat{(userAssignmentCounts[u.id] || 0) > 1 ? "s" : ""}
                           </span>
                         )}
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${roleColors[u.role] || "bg-gray-100 text-gray-700"}`}>
-                          {roleLabels[u.role] || u.role}
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLORS[u.role as keyof typeof ROLE_COLORS] || "bg-gray-100 text-gray-700"}`}>
+                          {ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] || u.role}
                         </span>
                       </div>
                     </div>

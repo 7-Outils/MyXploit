@@ -19,12 +19,7 @@ interface UserData {
   } | null;
 }
 
-const roleLabels: Record<string, string> = {
-  SUPER_ADMIN: "Super Admin",
-  ADMIN: "Administrateur",
-  MANAGER: "Gestionnaire",
-  READER: "Lecteur",
-};
+import { ROLE_LABELS } from "@/lib/permissions";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<UserData | null>(null);
@@ -199,7 +194,7 @@ export default function SettingsPage() {
             </label>
             <input
               type="text"
-              value={roleLabels[user?.role || ""] || user?.role || ""}
+              value={ROLE_LABELS[user?.role as keyof typeof ROLE_LABELS] || user?.role || ""}
               disabled
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
             />

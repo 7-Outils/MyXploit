@@ -20,6 +20,7 @@ export async function GET() {
           select: {
             users: true,
             sites: true,
+            contracts: true,
           },
         },
         modules: {

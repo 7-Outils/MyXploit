@@ -44,8 +44,8 @@ export function generateInvitationToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-export async function generateSessionToken(userId: string): Promise<string> {
-  return new SignJWT({ userId })
+export async function generateSessionToken(userId: string, role: string): Promise<string> {
+  return new SignJWT({ userId, role })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
     .sign(getJWTSecret());
@@ -53,18 +53,18 @@ export async function generateSessionToken(userId: string): Promise<string> {
 
 export async function verifySessionToken(
   token: string
-): Promise<{ userId: string } | null> {
+): Promise<{ userId: string; role: string } | null> {
   try {
     const { payload } = await jwtVerify(token, getJWTSecret());
-    return { userId: payload.userId as string };
+    return { userId: payload.userId as string, role: (payload.role as string) || "" };
   } catch {
     return null;
   }
 }
 
 // Session management
-export async function createSession(userId: string) {
-  const token = await generateSessionToken(userId);
+export async function createSession(userId: string, role: string = "") {
+  const token = await generateSessionToken(userId, role);
   const cookieStore = await cookies();
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
