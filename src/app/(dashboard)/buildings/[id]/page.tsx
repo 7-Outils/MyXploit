@@ -574,23 +574,31 @@ function MetersPlaceholder({
 // ============================================================
 
 const ACTIVITY_TYPE_LABELS: Record<string, string> = {
-  VISITE: "Visite",
-  RAPPORT: "Rapport",
-  AUDIT: "Audit",
-  REUNION: "Réunion",
+  PANNE_CHAUFFAGE: "Panne chauffage",
+  PANNE_ECS: "Panne ECS",
+  PANNE_VENTILATION: "Panne ventilation",
+  FUITE: "Fuite",
+  DYSFONCTIONNEMENT: "Dysfonctionnement",
+  COUPURE: "Coupure énergie",
+  PLAINTE_USAGER: "Plainte usager",
+  INTERVENTION: "Intervention",
+  INCIDENT: "Incident",
   ASSIGNATION: "Assignation",
   NOTE: "Note",
-  AUTRE: "Autre",
 };
 
 const ACTIVITY_TYPE_COLORS: Record<string, string> = {
-  VISITE: "bg-blue-100 text-blue-700",
-  RAPPORT: "bg-green-100 text-green-700",
-  AUDIT: "bg-purple-100 text-purple-700",
-  REUNION: "bg-amber-100 text-amber-700",
-  ASSIGNATION: "bg-red-100 text-red-700",
+  PANNE_CHAUFFAGE: "bg-red-100 text-red-700",
+  PANNE_ECS: "bg-red-100 text-red-700",
+  PANNE_VENTILATION: "bg-red-100 text-red-700",
+  FUITE: "bg-orange-100 text-orange-700",
+  DYSFONCTIONNEMENT: "bg-amber-100 text-amber-700",
+  COUPURE: "bg-red-100 text-red-700",
+  PLAINTE_USAGER: "bg-purple-100 text-purple-700",
+  INTERVENTION: "bg-blue-100 text-blue-700",
+  INCIDENT: "bg-orange-100 text-orange-700",
+  ASSIGNATION: "bg-gray-100 text-gray-600",
   NOTE: "bg-gray-100 text-gray-700",
-  AUTRE: "bg-gray-100 text-gray-700",
 };
 
 interface ActivityLog {
@@ -615,7 +623,7 @@ function ActivityLogTab({ siteId }: { siteId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    activityType: "NOTE",
+    activityType: "INCIDENT",
     title: "",
     description: "",
     activityDate: new Date().toISOString().split("T")[0],
@@ -717,7 +725,7 @@ function ActivityLogTab({ siteId }: { siteId: string }) {
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="Ex: Visite de contrôle chaufferie"
+                placeholder="Ex: Panne chaudière bâtiment A"
                 className="w-full p-2 border border-gray-300 rounded-lg text-sm"
                 required
               />

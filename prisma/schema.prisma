@@ -168,13 +168,17 @@ model UserContractAssignment {
 // ============================================
 
 enum SiteActivityType {
-  VISITE        // Visite de site
-  RAPPORT       // Rapport rédigé
-  AUDIT         // Audit technique
-  REUNION       // Réunion
-  ASSIGNATION   // Changement d'assignation
-  NOTE          // Note libre
-  AUTRE
+  PANNE_CHAUFFAGE     // Panne chauffage
+  PANNE_ECS           // Panne ECS
+  PANNE_VENTILATION   // Panne ventilation / climatisation
+  FUITE               // Fuite eau / gaz
+  DYSFONCTIONNEMENT   // Dysfonctionnement équipement
+  COUPURE             // Coupure énergie / alimentation
+  PLAINTE_USAGER      // Plainte / signalement usager
+  INTERVENTION        // Intervention exploitant
+  INCIDENT            // Incident divers
+  ASSIGNATION         // Changement d'assignation (auto)
+  NOTE                // Note libre
 }
 
 model SiteActivityLog {

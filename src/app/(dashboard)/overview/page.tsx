@@ -553,8 +553,8 @@ export default function OverviewPage() {
         {getStatsCards()}
       </div>
 
-      {/* Workload Dashboard - ADMIN + AMO only */}
-      {profile === "AMO" && currentUser?.role === "ADMIN" && workload.length > 0 && (
+      {/* Workload Dashboard - ADMIN/SUPER_ADMIN */}
+      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && workload.length > 0 && (
         <ChartCard
           title={
             <span className="flex items-center gap-2">
