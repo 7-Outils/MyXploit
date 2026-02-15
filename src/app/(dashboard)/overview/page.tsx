@@ -21,6 +21,8 @@ import {
   ChevronRight,
   MapPin,
   Users,
+  FolderKanban,
+  Clock,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -183,6 +185,55 @@ const QUICK_ACTIONS = {
   ],
 };
 
+interface MissionStats {
+  activeMissions: {
+    total: number;
+    byType: Array<{ type: string; count: number }>;
+  };
+  ca: { active: number; terminated: number; pipeline: number };
+  deliverablesThisMonth: {
+    total: number;
+    aFaire: number;
+    enCours: number;
+    produit: number;
+    transmis: number;
+  };
+  overdueDeliverables: Array<{
+    id: string;
+    title: string;
+    dueDate: string;
+    status: string;
+    mission: { id: string; title: string; reference: string; client: { name: string } };
+  }>;
+  expiringMissions: Array<{
+    id: string;
+    reference: string;
+    title: string;
+    endDate: string;
+    client: { name: string };
+    missionType: { name: string };
+  }>;
+  pipeline: {
+    missions: Array<{
+      id: string;
+      reference: string;
+      title: string;
+      amountHT: number | null;
+      client: { name: string };
+      missionType: { name: string };
+    }>;
+    totalAmount: number;
+  };
+  engineerWorkload: Array<{
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+    activeMissions: number;
+    pendingDeliverables: number;
+  }>;
+}
+
 interface CurrentUser {
   firstName: string | null;
   lastName: string | null;
@@ -212,6 +263,7 @@ export default function OverviewPage() {
     upcomingMeetings: number;
     activeAlerts: number;
   }>>([]);
+  const [missionStats, setMissionStats] = useState<MissionStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -256,16 +308,23 @@ export default function OverviewPage() {
         setExpiringContracts(expiringData?.contracts || []);
         setAllSites(Array.isArray(sitesData) ? sitesData : []);
 
-        // Fetch workload si ADMIN (le backend vérifie les droits)
+        // Fetch workload + mission stats si ADMIN
         if (userData?.user?.role === "ADMIN" || userData?.user?.role === "SUPER_ADMIN") {
           try {
-            const workloadRes = await fetch("/api/admin/workload");
+            const [workloadRes, missionStatsRes] = await Promise.all([
+              fetch("/api/admin/workload"),
+              fetch("/api/missions/stats"),
+            ]);
             if (workloadRes.ok) {
               const workloadData = await workloadRes.json();
               setWorkload(Array.isArray(workloadData) ? workloadData : []);
             }
+            if (missionStatsRes.ok) {
+              const msData = await missionStatsRes.json();
+              setMissionStats(msData);
+            }
           } catch {
-            // Silently ignore workload errors
+            // Silently ignore errors
           }
         }
       } catch (error) {
@@ -413,6 +472,47 @@ export default function OverviewPage() {
 
   // Get profile-specific stats cards
   const getStatsCards = () => {
+    // ADMIN sees mission-centric stats
+    if ((currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && missionStats) {
+      const overdueCount = missionStats.overdueDeliverables?.length || 0;
+      return (
+        <>
+          <StatsCard
+            title="Missions actives"
+            value={missionStats.activeMissions.total.toString()}
+            change={missionStats.pipeline.missions.length > 0 ? `${missionStats.pipeline.missions.length} en pipeline` : undefined}
+            changeType="neutral"
+            icon={FolderKanban}
+            iconColor="text-accent"
+          />
+          <StatsCard
+            title="CA en cours"
+            value={`${(missionStats.ca.active / 1000).toFixed(0)}k€`}
+            change={missionStats.ca.terminated > 0 ? `${(missionStats.ca.terminated / 1000).toFixed(0)}k€ termine` : undefined}
+            changeType="positive"
+            icon={Euro}
+            iconColor="text-blue-600"
+          />
+          <StatsCard
+            title="Livrables ce mois"
+            value={missionStats.deliverablesThisMonth.total.toString()}
+            change={`${missionStats.deliverablesThisMonth.produit + missionStats.deliverablesThisMonth.transmis} produits`}
+            changeType="positive"
+            icon={ClipboardCheck}
+            iconColor="text-purple-600"
+          />
+          <StatsCard
+            title="En retard"
+            value={overdueCount.toString()}
+            change={overdueCount > 0 ? "A traiter" : "Tout est a jour"}
+            changeType={overdueCount > 0 ? "negative" : "positive"}
+            icon={AlertTriangle}
+            iconColor={overdueCount > 0 ? "text-red-600" : "text-green-600"}
+          />
+        </>
+      );
+    }
+
     if (profile === "EXPLOITANT") {
       return (
         <>
@@ -557,74 +657,195 @@ export default function OverviewPage() {
         {getStatsCards()}
       </div>
 
-      {/* Workload Dashboard - ADMIN/SUPER_ADMIN */}
-      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && workload.length > 0 && (
-        <ChartCard
-          title={
-            <span className="flex items-center gap-2">
-              <Users size={18} className="text-purple-600" />
-              Charge de travail équipe
-            </span>
-          }
-          subtitle={`${workload.length} ingénieur(s)`}
-          action={
-            <Link href="/admin/portfolio" className="text-sm text-accent hover:underline flex items-center gap-1">
-              Gérer <ChevronRight size={14} />
-            </Link>
-          }
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-500">Ingénieur</th>
-                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Contrats</th>
-                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Sites</th>
-                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Réunions</th>
-                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Alertes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workload.map((eng) => (
-                  <tr key={eng.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2 px-3">
-                      <p className="text-sm font-medium text-gray-900">
-                        {eng.firstName || ""} {eng.lastName || ""}
-                      </p>
-                      <p className="text-xs text-gray-500">{eng.email}</p>
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                        eng.contractCount > 0 ? "bg-accent/10 text-accent" : "bg-gray-100 text-gray-500"
-                      }`}>
-                        {eng.contractCount}
+      {/* ADMIN Mission Dashboard Sections */}
+      {(currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") && missionStats && (
+        <>
+          {/* Overdue Deliverables + Pipeline side by side */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Overdue deliverables */}
+            <ChartCard
+              title={
+                <span className="flex items-center gap-2">
+                  <Clock size={18} className="text-red-500" />
+                  Livrables en retard
+                </span>
+              }
+              subtitle={`${missionStats.overdueDeliverables.length} livrable(s) en retard`}
+              action={
+                <Link href="/rapports?status=EN_RETARD" className="text-sm text-accent hover:underline flex items-center gap-1">
+                  Voir tous <ChevronRight size={14} />
+                </Link>
+              }
+            >
+              {missionStats.overdueDeliverables.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle size={32} className="mx-auto text-green-500 mb-2" />
+                  <p className="text-sm text-gray-500">Aucun livrable en retard</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {missionStats.overdueDeliverables.slice(0, 5).map((d) => (
+                    <Link
+                      key={d.id}
+                      href={`/missions/${d.mission.id}`}
+                      className="flex items-center justify-between p-3 bg-red-50/50 rounded-lg hover:bg-red-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
+                        <p className="text-xs text-gray-500">{d.mission.reference} • {d.mission.client.name}</p>
+                      </div>
+                      <span className="text-xs text-red-600 font-medium flex-shrink-0">
+                        {new Date(d.dueDate).toLocaleDateString("fr-FR")}
                       </span>
-                    </td>
-                    <td className="py-2 px-3 text-center text-sm text-gray-700">{eng.siteCount}</td>
-                    <td className="py-2 px-3 text-center">
-                      {eng.upcomingMeetings > 0 ? (
-                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                          {eng.upcomingMeetings}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
+
+            {/* Pipeline */}
+            <ChartCard
+              title={
+                <span className="flex items-center gap-2">
+                  <TrendingDown size={18} className="text-purple-500" style={{ transform: "scaleY(-1)" }} />
+                  Pipeline
+                </span>
+              }
+              subtitle={`${missionStats.pipeline.missions.length} mission(s) • ${(missionStats.pipeline.totalAmount / 1000).toFixed(0)}k€ potentiel`}
+              action={
+                <Link href="/missions?status=PROSPECT" className="text-sm text-accent hover:underline flex items-center gap-1">
+                  Voir tout <ChevronRight size={14} />
+                </Link>
+              }
+            >
+              {missionStats.pipeline.missions.length === 0 ? (
+                <div className="text-center py-8">
+                  <FolderKanban size={32} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">Aucune mission en negociation</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {missionStats.pipeline.missions.slice(0, 5).map((m) => (
+                    <Link
+                      key={m.id}
+                      href={`/missions/${m.id}`}
+                      className="flex items-center justify-between p-3 bg-purple-50/50 rounded-lg hover:bg-purple-50"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
+                        <p className="text-xs text-gray-500">{m.missionType.name} • {m.client.name}</p>
+                      </div>
+                      {m.amountHT && (
+                        <span className="text-sm text-purple-700 font-medium flex-shrink-0">
+                          {m.amountHT.toLocaleString("fr-FR")} €
                         </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">-</span>
                       )}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      {eng.activeAlerts > 0 ? (
-                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                          {eng.activeAlerts}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
           </div>
-        </ChartCard>
+
+          {/* Engineer Workload (mission-based) */}
+          {missionStats.engineerWorkload.length > 0 && (
+            <ChartCard
+              title={
+                <span className="flex items-center gap-2">
+                  <Users size={18} className="text-purple-600" />
+                  Charge equipe
+                </span>
+              }
+              subtitle={`${missionStats.engineerWorkload.length} ingenieur(s)`}
+              action={
+                <Link href="/team" className="text-sm text-accent hover:underline flex items-center gap-1">
+                  Gerer <ChevronRight size={14} />
+                </Link>
+              }
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-2 px-3 text-sm font-medium text-gray-500">Ingenieur</th>
+                      <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Missions actives</th>
+                      <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Livrables a produire</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missionStats.engineerWorkload.map((eng) => (
+                      <tr key={eng.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <td className="py-2 px-3">
+                          <p className="text-sm font-medium text-gray-900">
+                            {eng.firstName || ""} {eng.lastName || ""}
+                          </p>
+                          <p className="text-xs text-gray-500">{eng.email}</p>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                            eng.activeMissions > 0 ? "bg-accent/10 text-accent" : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {eng.activeMissions}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                            eng.pendingDeliverables > 0 ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {eng.pendingDeliverables}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ChartCard>
+          )}
+
+          {/* Expiring Missions */}
+          {missionStats.expiringMissions.length > 0 && (
+            <ChartCard
+              title={
+                <span className="flex items-center gap-2">
+                  <Bell size={18} className="text-orange-500" />
+                  Missions a renouveler
+                </span>
+              }
+              subtitle={`${missionStats.expiringMissions.length} mission(s) arrivent a echeance dans les 6 prochains mois`}
+              action={
+                <Link href="/missions" className="text-sm text-accent hover:underline flex items-center gap-1">
+                  Voir tout <ChevronRight size={14} />
+                </Link>
+              }
+            >
+              <div className="space-y-3">
+                {missionStats.expiringMissions.slice(0, 5).map((m) => {
+                  const daysUntil = Math.ceil((new Date(m.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                  return (
+                    <Link
+                      key={m.id}
+                      href={`/missions/${m.id}`}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
+                        <p className="text-xs text-gray-500">{m.missionType.name} • {m.client.name}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded font-medium flex-shrink-0 ${
+                        daysUntil <= 30 ? "bg-red-100 text-red-700" :
+                        daysUntil <= 90 ? "bg-orange-100 text-orange-700" :
+                        "bg-yellow-100 text-yellow-700"
+                      }`}>
+                        {daysUntil}j
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </ChartCard>
+          )}
+        </>
       )}
 
       {/* Expiring Contracts - ADMIN */}

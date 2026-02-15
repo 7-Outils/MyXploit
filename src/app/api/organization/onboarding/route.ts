@@ -20,9 +20,14 @@ export async function GET() {
       where: { organizationId: orgId },
     });
 
+    const missionTypesCount = await prisma.missionType.count({
+      where: { organizationId: orgId },
+    });
+
     return NextResponse.json({
       onboardingCompleted: org?.onboardingCompleted ?? false,
       organizationName: org?.name || "",
+      missionTypesConfigured: missionTypesCount > 0,
       membersInvited: membersCount,
       sitesCreated: sitesCount,
     });

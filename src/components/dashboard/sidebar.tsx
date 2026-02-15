@@ -15,6 +15,8 @@ import {
   Building2,
   Users,
   MapPin,
+  FolderKanban,
+  ClipboardList,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -31,16 +33,14 @@ type NavItem = {
   adminOnly?: boolean; // Visible uniquement pour ADMIN
 };
 
-// Navigation ADMIN (Dirigeant) — inclut Clients et Equipe
+// Navigation ADMIN (Dirigeant) — pilotage missions
 const adminNavigation: NavItem[] = [
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
+  { name: "Missions", href: "/missions", icon: FolderKanban, adminOnly: true },
   { name: "Clients", href: "/clients", icon: Building2, adminOnly: true },
-  { name: "Contrats", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
+  { name: "Rapports", href: "/rapports", icon: ClipboardList, adminOnly: true },
   { name: "Sites", href: "/buildings", icon: MapPin },
-  { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
-  { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
-  { name: "Suivi exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
-  { name: "Boite a outils", href: "/outils", icon: Briefcase, module: "OUTILS" },
+  { name: "Contrats exploitation", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
 ];
 
 // Navigation par defaut (Ingenieur, Lecteur)
@@ -63,6 +63,8 @@ export function Sidebar() {
     if (href === "/overview") return pathname === href || pathname === "/";
     if (href === "/buildings") return pathname === href || pathname.startsWith("/buildings/");
     if (href === "/clients") return pathname === href || pathname.startsWith("/clients/");
+    if (href === "/missions") return pathname === href || pathname.startsWith("/missions/");
+    if (href === "/rapports") return pathname === href;
     if (href === "/team") return pathname === href;
     return pathname === href || pathname.startsWith(href + "?");
   };

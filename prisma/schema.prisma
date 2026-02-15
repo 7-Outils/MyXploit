@@ -50,6 +50,8 @@ model Organization {
   userContractAssignments UserContractAssignment[]
   siteActivityLogs        SiteActivityLog[]
   clients                 Client[]
+  missionTypes            MissionType[]
+  missions                Mission[]
   onboardingCompleted     Boolean @default(false)
 
   @@map("organizations")
@@ -76,8 +78,145 @@ model Client {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sites        Site[]
   contracts    Contract[]
+  missions     Mission[]
 
   @@map("clients")
+}
+
+// ============================================
+// MISSIONS AMO
+// ============================================
+
+enum MissionStatus {
+  PROSPECT       // En cours de négociation (pipeline)
+  ACTIVE         // Mission en cours
+  EN_PAUSE       // Mission suspendue
+  TERMINEE       // Mission terminée
+  ANNULEE        // Mission annulée
+}
+
+enum BillingModality {
+  FORFAIT        // Montant fixe
+  REGIE          // Temps passé
+  POURCENTAGE    // % du montant travaux
+  MIXTE          // Combinaison
+}
+
+enum DeliverableStatus {
+  A_FAIRE      // À faire
+  EN_COURS     // En cours de production
+  PRODUIT      // Produit (terminé par l'ingénieur)
+  TRANSMIS     // Transmis au client
+}
+
+// Type de mission configurable par organisation
+model MissionType {
+  id             String   @id @default(cuid())
+  name           String   // "Suivi de contrat", "Audit énergétique", etc.
+  organizationId String
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  missions     Mission[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("mission_types")
+}
+
+model Mission {
+  id               String          @id @default(cuid())
+  reference        String          // Auto-généré: MIS-2026-0001
+  title            String
+  description      String?
+  status           MissionStatus   @default(ACTIVE)
+  missionTypeId    String
+  clientId         String
+  organizationId   String
+  startDate        DateTime?
+  endDate          DateTime?
+  amountHT         Float?
+  billingModality  BillingModality?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  missionType  MissionType              @relation(fields: [missionTypeId], references: [id])
+  client       Client                   @relation(fields: [clientId], references: [id])
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliverables Deliverable[]
+  engineers    UserMissionAssignment[]
+  sites        MissionSite[]
+  contracts    MissionContract[]
+
+  @@index([organizationId])
+  @@index([clientId])
+  @@index([missionTypeId])
+  @@index([status])
+  @@map("missions")
+}
+
+model Deliverable {
+  id              String            @id @default(cuid())
+  title           String            // "Rapport annuel", "Note d'audit", "CCTP"
+  description     String?
+  status          DeliverableStatus @default(A_FAIRE)
+  dueDate         DateTime?
+  completedDate   DateTime?         // Date de production
+  transmittedDate DateTime?         // Date de transmission au client
+  fileUrl         String?           // Lien vers le document
+  missionId       String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@index([missionId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("deliverables")
+}
+
+// Assignation ingénieur à une mission
+model UserMissionAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  missionId  String
+  assignedAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionId])
+  @@map("user_mission_assignments")
+}
+
+// Sites rattachés à une mission
+model MissionSite {
+  id        String @id @default(cuid())
+  missionId String
+  siteId    String
+
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([missionId, siteId])
+  @@map("mission_sites")
+}
+
+// Contrats d'exploitation rattachés à une mission
+model MissionContract {
+  id         String @id @default(cuid())
+  missionId  String
+  contractId String
+
+  mission  Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([missionId, contractId])
+  @@map("mission_contracts")
 }
 
 enum UserRole {
@@ -128,6 +267,7 @@ model User {
   quotesRefused   Quote[]        @relation("QuoteRefusedBy")
   ticketsCreated         Ticket[]                 @relation("TicketCreatedBy")
   contractAssignments    UserContractAssignment[]
+  missionAssignments     UserMissionAssignment[]
   siteActivityLogs       SiteActivityLog[]
 
   @@map("users")
@@ -355,6 +495,7 @@ model Site {
   tickets             Ticket[]            // Points de suivi
   regulatoryControls  RegulatoryControl[] // Contrôles réglementaires
   activityLogs        SiteActivityLog[]   // Journal d'activité
+  missionSites        MissionSite[]       // Missions rattachées
 
   @@map("sites")
 }
@@ -1021,6 +1162,7 @@ model Contract {
   tickets           Ticket[]
   meetings          Meeting[]
   userAssignments   UserContractAssignment[] // Assignations ingénieurs
+  missionContracts  MissionContract[]       // Missions rattachées
 
   @@map("contracts")
 }
