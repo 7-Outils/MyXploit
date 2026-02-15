@@ -42,7 +42,15 @@ export async function POST(
     const token = await createInvitationToken(user.id);
 
     // Envoyer l'email d'invitation
-    await sendInvitationEmail(user.email, user.firstName, token);
+    try {
+      await sendInvitationEmail(user.email, user.firstName, token);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      return NextResponse.json(
+        { error: "Le token a été régénéré mais l'envoi de l'email a échoué. Vérifiez la configuration SMTP." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ success: true, message: "Invitation envoyée" });
   } catch (error) {

@@ -71,6 +71,9 @@ export default function TeamPage() {
       await fetchTeam();
       setShowModal(false);
       setFormData({ email: "", firstName: "", lastName: "", role: "EDITOR" });
+      if (data.emailSent === false) {
+        alert("Membre cree mais l'email d'invitation n'a pas pu etre envoye. Verifiez la configuration SMTP ou renvoyez l'invitation.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {

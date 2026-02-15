@@ -109,11 +109,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Envoyer l'email d'invitation
+    let emailSent = true;
     try {
       await sendInvitationEmail(newUser.email, newUser.firstName || "", token);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
-      // L'utilisateur est cree, l'invitation peut etre renvoyee
+      emailSent = false;
     }
 
     return NextResponse.json(
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
         lastName: newUser.lastName,
         role: newUser.role,
         isActive: false,
+        emailSent,
       },
       { status: 201 }
     );
