@@ -47,6 +47,8 @@ model Organization {
   // Permissions et modules
   modules                 OrganizationModule[]
   ghostSessions           GhostSession[]
+  userContractAssignments UserContractAssignment[]
+  siteActivityLogs        SiteActivityLog[]
 
   @@map("organizations")
 }
@@ -97,7 +99,9 @@ model User {
   ghostSessions   GhostSession[] @relation("SuperAdminGhostSessions")
   quotesAccepted  Quote[]        @relation("QuoteAcceptedBy")
   quotesRefused   Quote[]        @relation("QuoteRefusedBy")
-  ticketsCreated  Ticket[]       @relation("TicketCreatedBy")
+  ticketsCreated         Ticket[]                 @relation("TicketCreatedBy")
+  contractAssignments    UserContractAssignment[]
+  siteActivityLogs       SiteActivityLog[]
 
   @@map("users")
 }
@@ -132,6 +136,67 @@ model GhostSession {
   @@index([superAdminId])
   @@index([targetOrganizationId])
   @@map("ghost_sessions")
+}
+
+// ============================================
+// ASSIGNATION CONTRATS (Portefeuilles ingénieurs)
+// ============================================
+
+// Assignation d'un utilisateur comme référent d'un contrat
+model UserContractAssignment {
+  id             String   @id @default(cuid())
+  userId         String
+  contractId     String
+  organizationId String
+  assignedAt     DateTime @default(now())
+  assignedById   String?  // Qui a fait l'assignation
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contractId])
+  @@index([userId])
+  @@index([contractId])
+  @@index([organizationId])
+  @@map("user_contract_assignments")
+}
+
+// ============================================
+// JOURNAL D'ACTIVITÉ SITES
+// ============================================
+
+enum SiteActivityType {
+  VISITE        // Visite de site
+  RAPPORT       // Rapport rédigé
+  AUDIT         // Audit technique
+  REUNION       // Réunion
+  ASSIGNATION   // Changement d'assignation
+  NOTE          // Note libre
+  AUTRE
+}
+
+model SiteActivityLog {
+  id             String           @id @default(cuid())
+  siteId         String
+  userId         String
+  organizationId String
+  activityType   SiteActivityType
+  title          String
+  description    String?
+  activityDate   DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+
+  // Relations
+  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([userId])
+  @@index([activityDate])
+  @@map("site_activity_logs")
 }
 
 // ============================================
@@ -256,6 +321,7 @@ model Site {
   occupationZones     OccupationZone[]    // Zones d'occupation thermique
   tickets             Ticket[]            // Points de suivi
   regulatoryControls  RegulatoryControl[] // Contrôles réglementaires
+  activityLogs        SiteActivityLog[]   // Journal d'activité
 
   @@map("sites")
 }
@@ -917,8 +983,9 @@ model Contract {
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices      Invoice[]
   quotes        Quote[]
-  tickets       Ticket[]
-  meetings      Meeting[]
+  tickets           Ticket[]
+  meetings          Meeting[]
+  userAssignments   UserContractAssignment[] // Assignations ingénieurs
 
   @@map("contracts")
 }

@@ -12,6 +12,7 @@ interface PermissionContextType {
   ghostOrgId: string | null;
   ghostOrgName: string | null;
   isLoading: boolean;
+  hasPortfolio: boolean;
 
   // Vérifications rapides
   canEdit: boolean;
@@ -37,6 +38,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   const [isGhostMode, setIsGhostMode] = useState(false);
   const [ghostOrgId, setGhostOrgId] = useState<string | null>(null);
   const [ghostOrgName, setGhostOrgName] = useState<string | null>(null);
+  const [hasPortfolio, setHasPortfolio] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchPermissions = useCallback(async () => {
@@ -49,6 +51,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         setIsGhostMode(data.isGhostMode || false);
         setGhostOrgId(data.ghostOrgId || null);
         setGhostOrgName(data.ghostOrgName || null);
+        setHasPortfolio(data.hasPortfolio || false);
       }
     } catch (error) {
       console.error("Error fetching permissions:", error);
@@ -131,6 +134,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         ghostOrgId,
         ghostOrgName,
         isLoading,
+        hasPortfolio,
         ...permissions,
         hasModule,
         enterGhostMode,

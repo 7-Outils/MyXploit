@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { getUserAssignedContractIds } from "@/lib/portfolio";
 
 // GET /api/contracts - List all contracts
 export async function GET() {
@@ -8,8 +9,16 @@ export async function GET() {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
+    // Filtrage portefeuille : EDITOR/READER avec assignations ne voient que leurs contrats
+    const assignedContractIds = await getUserAssignedContractIds(user.id, user.role, effectiveOrgId);
+
+    const where: Record<string, unknown> = { organizationId: effectiveOrgId };
+    if (assignedContractIds !== null) {
+      where.id = { in: assignedContractIds };
+    }
+
     const contracts = await prisma.contract.findMany({
-      where: { organizationId: effectiveOrgId },
+      where,
       include: {
         contractSites: {
           include: {

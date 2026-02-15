@@ -12,6 +12,7 @@ import {
   Trash2,
   AlertTriangle,
   Users,
+  UserCheck,
   Building2,
 } from "lucide-react";
 
@@ -185,7 +186,7 @@ export default function AdminPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Actions rapides
         </h2>
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/admin/users"
             className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
@@ -193,6 +194,15 @@ export default function AdminPage() {
             <Users size={20} className="text-gray-400 group-hover:text-accent" />
             <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
               Gestion des utilisateurs
+            </span>
+          </Link>
+          <Link
+            href="/admin/portfolio"
+            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
+          >
+            <UserCheck size={20} className="text-gray-400 group-hover:text-accent" />
+            <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
+              Portefeuilles ingénieurs
             </span>
           </Link>
           <Link

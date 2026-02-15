@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { getUserAssignedContractIds } from "@/lib/portfolio";
 
 // GET /api/contracts/[id]/sites - List all sites for a contract
 export async function GET(
@@ -11,6 +12,15 @@ export async function GET(
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: contractId } = await params;
+
+    // Vérifier que le contrat est dans le portefeuille de l'utilisateur
+    const assignedContractIds = await getUserAssignedContractIds(user.id, user.role, effectiveOrgId);
+    if (assignedContractIds !== null && !assignedContractIds.includes(contractId)) {
+      return NextResponse.json(
+        { error: "Contrat non trouvé" },
+        { status: 404 }
+      );
+    }
 
     // Verify contract exists and belongs to organization
     const contract = await prisma.contract.findFirst({

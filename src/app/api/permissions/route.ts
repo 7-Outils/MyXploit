@@ -35,6 +35,16 @@ export async function GET() {
 
     const enabledModules = orgModules.map((m) => m.module);
 
+    // Vérifier si l'utilisateur a un portefeuille (assignations contrats)
+    let hasPortfolio = false;
+    let assignedContractCount = 0;
+    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+      assignedContractCount = await prisma.userContractAssignment.count({
+        where: { userId: user.id, organizationId: effectiveOrgId },
+      });
+      hasPortfolio = assignedContractCount > 0;
+    }
+
     return NextResponse.json({
       role: user.role,
       organizationId: effectiveOrgId,
@@ -43,6 +53,8 @@ export async function GET() {
       isGhostMode,
       ghostOrgId,
       ghostOrgName,
+      hasPortfolio,
+      assignedContractCount,
     });
   } catch (error) {
     console.error("Error fetching permissions:", error);

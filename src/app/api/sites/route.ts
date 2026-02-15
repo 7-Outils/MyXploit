@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { geocodeAddress } from "@/lib/geocoding";
+import { getUserVisibleSiteIds } from "@/lib/portfolio";
 
 // GET /api/sites - List all sites for the organization
 export async function GET() {
@@ -9,8 +10,16 @@ export async function GET() {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
+    // Filtrage portefeuille : EDITOR/READER avec assignations ne voient que les sites de leurs contrats
+    const visibleSiteIds = await getUserVisibleSiteIds(user.id, user.role, effectiveOrgId);
+
+    const where: Record<string, unknown> = { organizationId: effectiveOrgId };
+    if (visibleSiteIds !== null) {
+      where.id = { in: visibleSiteIds };
+    }
+
     const sites = await prisma.site.findMany({
-      where: { organizationId: effectiveOrgId },
+      where,
       select: {
         id: true,
         name: true,

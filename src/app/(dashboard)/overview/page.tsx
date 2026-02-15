@@ -20,6 +20,7 @@ import {
   Bell,
   ChevronRight,
   MapPin,
+  Users,
 } from "lucide-react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -185,6 +186,7 @@ interface CurrentUser {
   firstName: string | null;
   lastName: string | null;
   email: string;
+  role: string;
 }
 
 export default function OverviewPage() {
@@ -198,6 +200,17 @@ export default function OverviewPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
   const [allSites, setAllSites] = useState<Site[]>([]);
+  const [workload, setWorkload] = useState<Array<{
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+    role: string;
+    contractCount: number;
+    siteCount: number;
+    upcomingMeetings: number;
+    activeAlerts: number;
+  }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -241,6 +254,19 @@ export default function OverviewPage() {
         setQuotes(Array.isArray(quotesData) ? quotesData : []);
         setExpiringContracts(expiringData?.contracts || []);
         setAllSites(Array.isArray(sitesData) ? sitesData : []);
+
+        // Fetch workload si ADMIN (le backend vérifie les droits)
+        if (userData?.user?.role === "ADMIN" || userData?.user?.role === "SUPER_ADMIN") {
+          try {
+            const workloadRes = await fetch("/api/admin/workload");
+            if (workloadRes.ok) {
+              const workloadData = await workloadRes.json();
+              setWorkload(Array.isArray(workloadData) ? workloadData : []);
+            }
+          } catch {
+            // Silently ignore workload errors
+          }
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -526,6 +552,76 @@ export default function OverviewPage() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {getStatsCards()}
       </div>
+
+      {/* Workload Dashboard - ADMIN + AMO only */}
+      {profile === "AMO" && currentUser?.role === "ADMIN" && workload.length > 0 && (
+        <ChartCard
+          title={
+            <span className="flex items-center gap-2">
+              <Users size={18} className="text-purple-600" />
+              Charge de travail équipe
+            </span>
+          }
+          subtitle={`${workload.length} ingénieur(s)`}
+          action={
+            <Link href="/admin/portfolio" className="text-sm text-accent hover:underline flex items-center gap-1">
+              Gérer <ChevronRight size={14} />
+            </Link>
+          }
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-500">Ingénieur</th>
+                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Contrats</th>
+                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Sites</th>
+                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Réunions</th>
+                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Alertes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workload.map((eng) => (
+                  <tr key={eng.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-2 px-3">
+                      <p className="text-sm font-medium text-gray-900">
+                        {eng.firstName || ""} {eng.lastName || ""}
+                      </p>
+                      <p className="text-xs text-gray-500">{eng.email}</p>
+                    </td>
+                    <td className="py-2 px-3 text-center">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                        eng.contractCount > 0 ? "bg-accent/10 text-accent" : "bg-gray-100 text-gray-500"
+                      }`}>
+                        {eng.contractCount}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-center text-sm text-gray-700">{eng.siteCount}</td>
+                    <td className="py-2 px-3 text-center">
+                      {eng.upcomingMeetings > 0 ? (
+                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                          {eng.upcomingMeetings}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-3 text-center">
+                      {eng.activeAlerts > 0 ? (
+                        <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                          {eng.activeAlerts}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartCard>
+      )}
 
       {/* Charts Row */}
       <div className="grid lg:grid-cols-3 gap-6">
