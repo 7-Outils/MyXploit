@@ -14,6 +14,7 @@ import {
 
 interface OnboardingData {
   onboardingCompleted: boolean;
+  organizationName: string;
   membersInvited: number;
   sitesCreated: number;
 }
@@ -70,7 +71,7 @@ export function Onboarding() {
             <Sparkles size={20} className="text-accent" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Bienvenue sur MyXploit</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Bienvenue{data.organizationName ? ` ${data.organizationName}` : ""}</h2>
             <p className="text-sm text-gray-600">Configurez votre espace en quelques etapes</p>
           </div>
         </div>

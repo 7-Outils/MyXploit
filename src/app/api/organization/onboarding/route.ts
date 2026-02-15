@@ -9,7 +9,7 @@ export async function GET() {
 
     const org = await prisma.organization.findUnique({
       where: { id: orgId },
-      select: { onboardingCompleted: true },
+      select: { onboardingCompleted: true, name: true },
     });
 
     const membersCount = await prisma.user.count({
@@ -22,6 +22,7 @@ export async function GET() {
 
     return NextResponse.json({
       onboardingCompleted: org?.onboardingCompleted ?? false,
+      organizationName: org?.name || "",
       membersInvited: membersCount,
       sitesCreated: sitesCount,
     });

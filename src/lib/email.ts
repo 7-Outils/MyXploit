@@ -52,7 +52,7 @@ export async function sendInvitationEmail(
               <tr>
                 <td style="padding: 40px 40px 20px; text-align: center;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #1a1a1a;">
-                    🏢 MyXploit
+                    MyXploit
                   </h1>
                 </td>
               </tr>

@@ -185,23 +185,6 @@ export function Sidebar() {
           </Link>
         )}
 
-        {/* ADMIN → Administration link */}
-        {isAdmin && (
-          <Link
-            href="/admin"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-              pathname.startsWith("/admin")
-                ? "bg-orange-500 text-white"
-                : "text-orange-400 hover:text-orange-300 hover:bg-orange-500/20"
-            )}
-          >
-            <Shield size={20} className="flex-shrink-0" />
-            {!collapsed && (
-              <span className="text-sm font-medium">Administration</span>
-            )}
-          </Link>
-        )}
 
         <Link
           href="/settings"
