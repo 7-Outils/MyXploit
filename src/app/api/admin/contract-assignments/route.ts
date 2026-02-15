@@ -14,7 +14,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
 
-    const where: Record<string, unknown> = { organizationId: effectiveOrgId };
+    const where: Record<string, unknown> = {
+      organizationId: effectiveOrgId,
+      user: { role: { not: "SUPER_ADMIN" } },
+    };
     if (userId) where.userId = userId;
 
     const assignments = await prisma.userContractAssignment.findMany({

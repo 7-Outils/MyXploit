@@ -16,6 +16,9 @@ export async function GET() {
     }
 
     const users = await prisma.user.findMany({
+      where: {
+        role: { not: "SUPER_ADMIN" },
+      },
       include: {
         organization: true,
       },

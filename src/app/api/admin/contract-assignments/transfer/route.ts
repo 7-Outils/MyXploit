@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     // Vérifier que les deux utilisateurs appartiennent à l'organisation
     const [fromUser, toUser] = await Promise.all([
-      prisma.user.findFirst({ where: { id: fromUserId, organizationId: effectiveOrgId } }),
-      prisma.user.findFirst({ where: { id: toUserId, organizationId: effectiveOrgId } }),
+      prisma.user.findFirst({ where: { id: fromUserId, organizationId: effectiveOrgId, role: { not: "SUPER_ADMIN" } } }),
+      prisma.user.findFirst({ where: { id: toUserId, organizationId: effectiveOrgId, role: { not: "SUPER_ADMIN" } } }),
     ]);
 
     if (!fromUser) {
