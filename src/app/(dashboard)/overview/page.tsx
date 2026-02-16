@@ -614,9 +614,13 @@ export default function OverviewPage() {
     }
   };
 
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN";
+
   // Get quick actions based on profile
   const quickActions = profile ? QUICK_ACTIONS[profile] : QUICK_ACTIONS.CLIENT;
-  const welcomeMessage = profile ? WELCOME_MESSAGES[profile] : WELCOME_MESSAGES.CLIENT;
+  const welcomeMessage = isAdmin
+    ? "Voici le tableau de bord de pilotage de vos missions."
+    : (profile ? WELCOME_MESSAGES[profile] : WELCOME_MESSAGES.CLIENT);
 
   if (loading || profileLoading) {
     return (
@@ -638,7 +642,11 @@ export default function OverviewPage() {
             Bienvenue{currentUser?.firstName ? `, ${currentUser.firstName}` : ""}. {welcomeMessage}
           </p>
         </div>
-        {profile && (
+        {isAdmin ? (
+          <div className="px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent">
+            Dirigeant
+          </div>
+        ) : profile ? (
           <div className={`px-3 py-1.5 rounded-full text-sm font-medium ${
             profile === "EXPLOITANT" ? "bg-orange-100 text-orange-700" :
             profile === "AMO" ? "bg-purple-100 text-purple-700" :
@@ -646,7 +654,7 @@ export default function OverviewPage() {
           }`}>
             {PROFILE_CONFIG[profile].label}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Onboarding - ADMIN only */}
@@ -961,98 +969,100 @@ export default function OverviewPage() {
         </ChartCard>
       )}
 
-      {/* Charts Row */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Consumption Chart */}
-        <ChartCard
-          title="Consommation énergétique"
-          subtitle={profile === "AMO" ? "NC vs N'B (Performance)" : "Réel vs Référence (MWh)"}
-          className="lg:col-span-2"
-          action={
-            <Link href="/energy" className="text-sm text-accent hover:underline">
-              Voir détails
-            </Link>
-          }
-        >
-          <SimpleBarChart data={consumptionData} height={220} />
-          <div className="flex items-center justify-center gap-4 mt-4 text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-gradient-to-t from-accent to-accent-light rounded" />
-              <span className="text-text-secondary">{profile === "AMO" ? "NC (Réel)" : "Réel"}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 bg-gray-200 rounded" />
-              <span className="text-text-secondary">{profile === "AMO" ? "N'B (Théorique)" : "Référence"}</span>
-            </div>
-          </div>
-        </ChartCard>
-
-        {/* Profile-specific side panel */}
-        {profile === "EXPLOITANT" ? (
-          <ChartCard title="Équipements à traiter" subtitle={`${equipmentInMaintenance.length} intervention(s)`}>
-            {equipmentInMaintenance.length === 0 ? (
-              <div className="text-center py-8">
-                <CheckCircle size={32} className="mx-auto text-green-500 mb-2" />
-                <p className="text-sm text-text-secondary">Tous les équipements sont opérationnels</p>
+      {/* Charts Row - EDITOR only (profile-specific) */}
+      {!isAdmin && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Consumption Chart */}
+          <ChartCard
+            title="Consommation énergétique"
+            subtitle={profile === "AMO" ? "NC vs N'B (Performance)" : "Réel vs Référence (MWh)"}
+            className="lg:col-span-2"
+            action={
+              <Link href="/energy" className="text-sm text-accent hover:underline">
+                Voir détails
+              </Link>
+            }
+          >
+            <SimpleBarChart data={consumptionData} height={220} />
+            <div className="flex items-center justify-center gap-4 mt-4 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-gradient-to-t from-accent to-accent-light rounded" />
+                <span className="text-text-secondary">{profile === "AMO" ? "NC (Réel)" : "Réel"}</span>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {equipmentInMaintenance.slice(0, 5).map((eq) => (
-                  <div key={eq.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-2 h-2 rounded-full ${eq.status === "PANNE" ? "bg-red-500" : "bg-orange-500"}`} />
-                      <div>
-                        <span className="text-sm text-primary-dark truncate block max-w-[140px]">
-                          {eq.name || eq.type}
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-gray-200 rounded" />
+                <span className="text-text-secondary">{profile === "AMO" ? "N'B (Théorique)" : "Référence"}</span>
+              </div>
+            </div>
+          </ChartCard>
+
+          {/* Profile-specific side panel */}
+          {profile === "EXPLOITANT" ? (
+            <ChartCard title="Équipements à traiter" subtitle={`${equipmentInMaintenance.length} intervention(s)`}>
+              {equipmentInMaintenance.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle size={32} className="mx-auto text-green-500 mb-2" />
+                  <p className="text-sm text-text-secondary">Tous les équipements sont opérationnels</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {equipmentInMaintenance.slice(0, 5).map((eq) => (
+                    <div key={eq.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-2 h-2 rounded-full ${eq.status === "PANNE" ? "bg-red-500" : "bg-orange-500"}`} />
+                        <div>
+                          <span className="text-sm text-primary-dark truncate block max-w-[140px]">
+                            {eq.name || eq.type}
+                          </span>
+                          <span className="text-xs text-gray-500">{eq.site.name}</span>
+                        </div>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${eq.status === "PANNE" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>
+                        {eq.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
+          ) : (
+            <ChartCard title="Sites sous contrat" subtitle={`${uniqueSitesFromActiveContracts.length} sites actifs`}>
+              {uniqueSitesFromActiveContracts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Building2 size={32} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-text-secondary">Aucun site sous contrat actif</p>
+                  <Link href="/contracts" className="text-sm text-accent hover:underline">
+                    Voir les contrats
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {uniqueSitesFromActiveContracts.slice(0, 5).map((site, index) => (
+                    <div key={site.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="w-6 h-6 bg-accent/10 rounded-full flex items-center justify-center text-xs font-medium text-accent">
+                          {index + 1}
                         </span>
-                        <span className="text-xs text-gray-500">{eq.site.name}</span>
+                        <span className="text-sm text-primary-dark truncate max-w-[140px]">
+                          {site.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary">
+                          <TrendingDown size={12} className="inline text-green-600" />
+                        </span>
                       </div>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${eq.status === "PANNE" ? "bg-red-100 text-red-700" : "bg-orange-100 text-orange-700"}`}>
-                      {eq.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ChartCard>
-        ) : (
-          <ChartCard title="Sites sous contrat" subtitle={`${uniqueSitesFromActiveContracts.length} sites actifs`}>
-            {uniqueSitesFromActiveContracts.length === 0 ? (
-              <div className="text-center py-8">
-                <Building2 size={32} className="mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-text-secondary">Aucun site sous contrat actif</p>
-                <Link href="/contracts" className="text-sm text-accent hover:underline">
-                  Voir les contrats
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {uniqueSitesFromActiveContracts.slice(0, 5).map((site, index) => (
-                  <div key={site.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 bg-accent/10 rounded-full flex items-center justify-center text-xs font-medium text-accent">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm text-primary-dark truncate max-w-[140px]">
-                        {site.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-text-secondary">
-                        <TrendingDown size={12} className="inline text-green-600" />
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ChartCard>
-        )}
-      </div>
+                  ))}
+                </div>
+              )}
+            </ChartCard>
+          )}
+        </div>
+      )}
 
       {/* Expiring Contracts Alert for EXPLOITANT */}
-      {profile === "EXPLOITANT" && expiringContracts.length > 0 && (
+      {!isAdmin && profile === "EXPLOITANT" && expiringContracts.length > 0 && (
         <ChartCard
           title={
             <span className="flex items-center gap-2">
@@ -1170,68 +1180,70 @@ export default function OverviewPage() {
         </div>
       )}
 
-      {/* Activity & Quick Actions */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Activity */}
-        <ChartCard
-          title="Activité récente"
-          action={
-            <button className="text-sm text-accent hover:underline">
-              Voir tout
-            </button>
-          }
-        >
-          {recentActivities.length === 0 ? (
-            <p className="text-center text-text-secondary py-8">
-              Aucune activité récente
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {recentActivities.slice(0, 4).map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
-                >
+      {/* Activity & Quick Actions - EDITOR only */}
+      {!isAdmin && (
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Recent Activity */}
+          <ChartCard
+            title="Activité récente"
+            action={
+              <button className="text-sm text-accent hover:underline">
+                Voir tout
+              </button>
+            }
+          >
+            {recentActivities.length === 0 ? (
+              <p className="text-center text-text-secondary py-8">
+                Aucune activité récente
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {recentActivities.slice(0, 4).map((activity) => (
                   <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activity.iconBg}`}
+                    key={activity.id}
+                    className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
                   >
-                    <activity.icon size={18} className={activity.iconColor} />
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activity.iconBg}`}
+                    >
+                      <activity.icon size={18} className={activity.iconColor} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-primary-dark">
+                        {activity.title}
+                      </p>
+                      <p className="text-sm text-text-secondary truncate">
+                        {activity.description}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 flex-shrink-0">
+                      {activity.time}
+                    </span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-primary-dark">
-                      {activity.title}
-                    </p>
-                    <p className="text-sm text-text-secondary truncate">
-                      {activity.description}
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-400 flex-shrink-0">
-                    {activity.time}
+                ))}
+              </div>
+            )}
+          </ChartCard>
+
+          {/* Quick Actions - Profile specific */}
+          <ChartCard title="Actions rapides">
+            <div className="grid grid-cols-2 gap-3">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="flex flex-col items-center gap-2 p-4 bg-background-secondary rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  <action.icon size={24} className="text-accent" />
+                  <span className="text-sm text-text-secondary text-center">
+                    {action.label}
                   </span>
-                </div>
+                </Link>
               ))}
             </div>
-          )}
-        </ChartCard>
-
-        {/* Quick Actions - Profile specific */}
-        <ChartCard title="Actions rapides">
-          <div className="grid grid-cols-2 gap-3">
-            {quickActions.map((action) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                className="flex flex-col items-center gap-2 p-4 bg-background-secondary rounded-xl hover:bg-gray-100 transition-colors"
-              >
-                <action.icon size={24} className="text-accent" />
-                <span className="text-sm text-text-secondary text-center">
-                  {action.label}
-                </span>
-              </Link>
-            ))}
-          </div>
-        </ChartCard>
-      </div>
+          </ChartCard>
+        </div>
+      )}
     </div>
   );
 }
