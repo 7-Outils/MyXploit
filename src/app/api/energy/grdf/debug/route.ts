@@ -13,8 +13,8 @@ const ENV_BASE_PATH: Record<GRDFEnvironment, string> = {
 export async function GET() {
   try {
     const user = await requireAuth();
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
-      return NextResponse.json({ error: "Admin only" }, { status: 403 });
+    if (user.role === "READER") {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
