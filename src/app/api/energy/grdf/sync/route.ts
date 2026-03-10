@@ -2,38 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
-  getGRDFAccessToken,
   getGRDFConsosPubliees,
   getGRDFDroitsAcces,
-  GRDFEnvironment,
 } from "@/lib/grdf";
-
-/**
- * Parse le refreshToken stocké en DB pour extraire env + credentials
- * Format: "environment|clientId|clientSecret" (nouveau)
- *      ou "clientId:clientSecret" (ancien, fallback prod)
- */
-function parseCredentials(refreshToken: string): {
-  environment: GRDFEnvironment;
-  clientId: string;
-  clientSecret: string;
-} {
-  if (refreshToken.includes("|")) {
-    const [environment, clientId, ...rest] = refreshToken.split("|");
-    return {
-      environment: environment as GRDFEnvironment,
-      clientId,
-      clientSecret: rest.join("|"), // Le secret peut contenir |
-    };
-  }
-  // Ancien format: clientId:clientSecret
-  const [clientId, ...rest] = refreshToken.split(":");
-  return {
-    environment: "production",
-    clientId,
-    clientSecret: rest.join(":"),
-  };
-}
+import { getGRDFProviderAndToken } from "@/lib/grdf-helpers";
 
 // POST /api/energy/grdf/sync - Sync GRDF consumptions for all sites with PCE
 export async function POST(request: NextRequest) {
@@ -48,65 +20,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get GRDF provider config
-    const provider = await prisma.energyProvider.findUnique({
-      where: {
-        organizationId_provider: {
-          organizationId: effectiveOrgId,
-          provider: "GRDF",
-        },
-      },
-    });
+    // Get GRDF provider + fresh token
+    const grdf = await getGRDFProviderAndToken(effectiveOrgId);
 
-    if (!provider || !provider.isConnected || !provider.refreshToken) {
+    if (!grdf) {
       return NextResponse.json(
         { error: "GRDF non connecté. Veuillez configurer vos identifiants." },
         { status: 400 }
       );
     }
 
-    const { environment, clientId, clientSecret } = parseCredentials(provider.refreshToken);
-
-    if (!clientId || !clientSecret) {
-      return NextResponse.json(
-        { error: "Identifiants GRDF invalides" },
-        { status: 400 }
-      );
-    }
-
-    // Get fresh token
-    let accessToken: string;
-    try {
-      const tokenResponse = await getGRDFAccessToken({
-        clientId,
-        clientSecret,
-        environment,
-      });
-      accessToken = tokenResponse.access_token;
-
-      // Update token in database
-      const expiresAt = new Date();
-      expiresAt.setSeconds(expiresAt.getSeconds() + tokenResponse.expires_in);
-      await prisma.energyProvider.update({
-        where: { id: provider.id },
-        data: {
-          accessToken: tokenResponse.access_token,
-          tokenExpiresAt: expiresAt,
-        },
-      });
-    } catch {
-      await prisma.energyProvider.update({
-        where: { id: provider.id },
-        data: {
-          isConnected: false,
-          lastError: "Échec de l'authentification GRDF",
-        },
-      });
-      return NextResponse.json(
-        { error: "Échec de l'authentification GRDF" },
-        { status: 401 }
-      );
-    }
+    const { accessToken, environment } = grdf;
 
     // Get all sites with PCE
     const sites = await prisma.site.findMany({
@@ -242,7 +166,7 @@ export async function POST(request: NextRequest) {
 
     // Update provider last sync
     await prisma.energyProvider.update({
-      where: { id: provider.id },
+      where: { id: grdf.provider.id },
       data: {
         lastSyncAt: new Date(),
         lastError: results.some((r) => !r.success)

@@ -44,6 +44,7 @@ import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { TelereleveCard } from "@/components/energy/TelereleveCard";
+import { DroitsAccesCard } from "@/components/energy/DroitsAccesCard";
 
 // Types
 interface Contract {
@@ -2486,7 +2487,12 @@ function ECSContent({
 }
 
 function TelereleveContent() {
-  return <TelereleveCard />;
+  return (
+    <div className="space-y-6">
+      <TelereleveCard />
+      <DroitsAccesCard />
+    </div>
+  );
 }
 
 // ============================================
