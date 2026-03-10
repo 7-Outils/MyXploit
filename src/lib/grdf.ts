@@ -88,21 +88,29 @@ export interface GRDFDonneesTechniques {
   frequence_releve: string;
 }
 
-/** Droit d'accès */
+/** Droit d'accès — champs retournés par l'API GRDF ADICT */
 export interface GRDFDroitAcces {
   id_droit_acces: string;
   id_pce: string;
   etat_droit_acces: string;
   role_tiers: string;
-  raison_sociale: string;
-  date_debut_droit_acces: string;
-  date_fin_droit_acces: string;
-  perim_donnees_conso_debut: string;
-  perim_donnees_conso_fin: string;
-  perim_donnees_contractuelles: string;
-  perim_donnees_techniques: string;
+  raison_sociale_du_tiers: string;
+  nom_titulaire: string;
+  raison_sociale_du_titulaire?: string;
+  courriel_titulaire: string;
+  code_postal: string;
+  perim_donnees_techniques_et_contractuelles: string;
+  perim_historique_de_donnees: string;
+  perim_flux_de_donnees: string;
   perim_donnees_informatives: string;
   perim_donnees_publiees: string;
+  date_creation: string;
+  date_fin_autorisation: string;
+  parcours: string;
+  statut_controle_preuve: string | null;
+  date_limite_transmission_preuve: string | null;
+  date_revocation?: string | null;
+  source_revocation?: string | null;
 }
 
 // ─── Parsing NDJSON ──────────────────────────────────────────────────────────
@@ -331,13 +339,11 @@ export async function declareGRDFDroitAcces(
     nom_titulaire: string;
     code_postal: string;
     courriel_titulaire: string;
-    numero_telephone_mobile_titulaire: string;
-    date_debut_droit_acces: string;
-    date_fin_droit_acces: string;
-    perim_donnees_conso_debut: string;
-    perim_donnees_conso_fin: string;
-    perim_donnees_contractuelles: string;
-    perim_donnees_techniques: string;
+    date_consentement_declaree: string;
+    date_fin_autorisation_demandee: string;
+    perim_donnees_techniques_et_contractuelles: string;
+    perim_historique_de_donnees: string;
+    perim_flux_de_donnees: string;
     perim_donnees_informatives: string;
     perim_donnees_publiees: string;
   },

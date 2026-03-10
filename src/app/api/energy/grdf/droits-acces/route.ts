@@ -82,10 +82,8 @@ export async function POST(request: NextRequest) {
       "nom_titulaire",
       "code_postal",
       "courriel_titulaire",
-      "date_debut_droit_acces",
-      "date_fin_droit_acces",
-      "perim_donnees_conso_debut",
-      "perim_donnees_conso_fin",
+      "date_consentement_declaree",
+      "date_fin_autorisation_demandee",
     ];
 
     const missing = requiredFields.filter((f) => !droitAccesData[f]);
@@ -96,20 +94,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Set defaults for perim fields
+    // Build payload with GRDF ADICT field names
     const payload = {
       role_tiers: droitAccesData.role_tiers,
       raison_sociale: droitAccesData.raison_sociale,
       nom_titulaire: droitAccesData.nom_titulaire,
       code_postal: droitAccesData.code_postal,
       courriel_titulaire: droitAccesData.courriel_titulaire,
-      numero_telephone_mobile_titulaire: droitAccesData.numero_telephone_mobile_titulaire || "",
-      date_debut_droit_acces: droitAccesData.date_debut_droit_acces,
-      date_fin_droit_acces: droitAccesData.date_fin_droit_acces,
-      perim_donnees_conso_debut: droitAccesData.perim_donnees_conso_debut,
-      perim_donnees_conso_fin: droitAccesData.perim_donnees_conso_fin,
-      perim_donnees_contractuelles: droitAccesData.perim_donnees_contractuelles || "Vrai",
-      perim_donnees_techniques: droitAccesData.perim_donnees_techniques || "Vrai",
+      date_consentement_declaree: droitAccesData.date_consentement_declaree,
+      date_fin_autorisation_demandee: droitAccesData.date_fin_autorisation_demandee,
+      perim_donnees_techniques_et_contractuelles: droitAccesData.perim_donnees_techniques_et_contractuelles || "Vrai",
+      perim_historique_de_donnees: droitAccesData.perim_historique_de_donnees || "Vrai",
+      perim_flux_de_donnees: droitAccesData.perim_flux_de_donnees || "Vrai",
       perim_donnees_informatives: droitAccesData.perim_donnees_informatives || "Vrai",
       perim_donnees_publiees: droitAccesData.perim_donnees_publiees || "Vrai",
     };
