@@ -124,9 +124,21 @@ export function TelereleveCard() {
       const data = await res.json();
 
       if (res.ok) {
+        // Build detailed message with per-site results
+        let text = `${provider.toUpperCase()}: ${data.message}`;
+        if (data.results && data.results.length > 0) {
+          const details = data.results
+            .map((r: { siteName: string; pce: string; success: boolean; imported: number; error?: string }) =>
+              r.success
+                ? `${r.siteName} (${r.pce}): ${r.imported} relevé(s)`
+                : `${r.siteName} (${r.pce}): ${r.error}`
+            )
+            .join(" | ");
+          text += ` — ${details}`;
+        }
         setMessage({
-          type: "success",
-          text: `${provider.toUpperCase()}: ${data.message}`,
+          type: data.sites?.failed > 0 ? "error" : "success",
+          text,
         });
         fetchProviders();
       } else {
