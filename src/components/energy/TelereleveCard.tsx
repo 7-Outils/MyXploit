@@ -31,7 +31,7 @@ export function TelereleveCard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<"grdf" | "enedis" | null>(null);
   const [showGRDFModal, setShowGRDFModal] = useState(false);
-  const [grdfForm, setGrdfForm] = useState({ clientId: "", clientSecret: "" });
+  const [grdfForm, setGrdfForm] = useState({ clientId: "", clientSecret: "", sandbox: false });
   const [connecting, setConnecting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -82,7 +82,7 @@ export function TelereleveCard() {
       if (res.ok) {
         setMessage({ type: "success", text: "Connexion GRDF établie avec succès !" });
         setShowGRDFModal(false);
-        setGrdfForm({ clientId: "", clientSecret: "" });
+        setGrdfForm({ clientId: "", clientSecret: "", sandbox: false });
         fetchProviders();
       } else {
         setMessage({ type: "error", text: data.error || "Erreur de connexion GRDF" });
@@ -458,6 +458,22 @@ export function TelereleveCard() {
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   placeholder="Votre Client Secret GRDF"
                 />
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <input
+                  type="checkbox"
+                  id="grdf-sandbox"
+                  checked={grdfForm.sandbox}
+                  onChange={(e) => setGrdfForm({ ...grdfForm, sandbox: e.target.checked })}
+                  className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent/20"
+                />
+                <label htmlFor="grdf-sandbox" className="text-sm text-amber-800 cursor-pointer">
+                  <span className="font-medium">Mode Bac \u00e0 Sable</span>
+                  <span className="block text-xs text-amber-600">
+                    Utiliser l&apos;environnement de test GRDF (donn\u00e9es fictives)
+                  </span>
+                </label>
               </div>
 
               <div className="flex gap-3 pt-4">

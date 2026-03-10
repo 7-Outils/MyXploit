@@ -1,7 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { getGRDFAccessToken, getGRDFMonthlyConsumptions } from "@/lib/grdf";
+import {
+  getGRDFAccessToken,
+  getGRDFConsosPubliees,
+  getGRDFDroitsAcces,
+  GRDFEnvironment,
+} from "@/lib/grdf";
+
+/**
+ * Parse le refreshToken stocké en DB pour extraire env + credentials
+ * Format: "environment|clientId|clientSecret" (nouveau)
+ *      ou "clientId:clientSecret" (ancien, fallback prod)
+ */
+function parseCredentials(refreshToken: string): {
+  environment: GRDFEnvironment;
+  clientId: string;
+  clientSecret: string;
+} {
+  if (refreshToken.includes("|")) {
+    const [environment, clientId, ...rest] = refreshToken.split("|");
+    return {
+      environment: environment as GRDFEnvironment,
+      clientId,
+      clientSecret: rest.join("|"), // Le secret peut contenir |
+    };
+  }
+  // Ancien format: clientId:clientSecret
+  const [clientId, ...rest] = refreshToken.split(":");
+  return {
+    environment: "production",
+    clientId,
+    clientSecret: rest.join(":"),
+  };
+}
 
 // POST /api/energy/grdf/sync - Sync GRDF consumptions for all sites with PCE
 export async function POST(request: NextRequest) {
@@ -33,12 +65,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse credentials from refreshToken (clientId:clientSecret)
-    const [clientId, clientSecret] = provider.refreshToken.split(":");
+    const { environment, clientId, clientSecret } = parseCredentials(provider.refreshToken);
+
     if (!clientId || !clientSecret) {
       return NextResponse.json(
         { error: "Identifiants GRDF invalides" },
         { status: 400 }
+      );
+    }
+
+    // Get fresh token
+    let accessToken: string;
+    try {
+      const tokenResponse = await getGRDFAccessToken({
+        clientId,
+        clientSecret,
+        environment,
+      });
+      accessToken = tokenResponse.access_token;
+
+      // Update token in database
+      const expiresAt = new Date();
+      expiresAt.setSeconds(expiresAt.getSeconds() + tokenResponse.expires_in);
+      await prisma.energyProvider.update({
+        where: { id: provider.id },
+        data: {
+          accessToken: tokenResponse.access_token,
+          tokenExpiresAt: expiresAt,
+        },
+      });
+    } catch {
+      await prisma.energyProvider.update({
+        where: { id: provider.id },
+        data: {
+          isConnected: false,
+          lastError: "Échec de l'authentification GRDF",
+        },
+      });
+      return NextResponse.json(
+        { error: "Échec de l'authentification GRDF" },
+        { status: 401 }
       );
     }
 
@@ -62,40 +128,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get fresh token
-    let accessToken: string;
+    // Optionally verify droits d'accès
+    let droitsAcces: string[] = [];
     try {
-      const tokenResponse = await getGRDFAccessToken({ clientId, clientSecret });
-      accessToken = tokenResponse.access_token;
-
-      // Update token in database
-      const expiresAt = new Date();
-      expiresAt.setSeconds(expiresAt.getSeconds() + tokenResponse.expires_in);
-      await prisma.energyProvider.update({
-        where: { id: provider.id },
-        data: {
-          accessToken: tokenResponse.access_token,
-          tokenExpiresAt: expiresAt,
-        },
-      });
-    } catch (error) {
-      await prisma.energyProvider.update({
-        where: { id: provider.id },
-        data: {
-          isConnected: false,
-          lastError: "Échec de l'authentification GRDF",
-        },
-      });
-      return NextResponse.json(
-        { error: "Échec de l'authentification GRDF" },
-        { status: 401 }
-      );
+      const droits = await getGRDFDroitsAcces(accessToken, environment);
+      droitsAcces = droits
+        .filter((d) => d.etat_droit_acces === "Active")
+        .map((d) => d.id_pce);
+    } catch {
+      // Continue without verification
     }
 
     // Parse optional date range from body
     const body = await request.json().catch(() => ({}));
-    const endDate = body.endDate || new Date().toISOString().split("T")[0];
-    const startDate = body.startDate || (() => {
+    const dateFin = body.endDate || new Date().toISOString().split("T")[0];
+    const dateDebut = body.startDate || (() => {
       const d = new Date();
       d.setFullYear(d.getFullYear() - 1);
       return d.toISOString().split("T")[0];
@@ -112,26 +159,38 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     for (const site of sites) {
+      const pce = site.pce!;
+
+      // Check if we have an active droit d'accès for this PCE
+      if (droitsAcces.length > 0 && !droitsAcces.includes(pce)) {
+        results.push({
+          siteId: site.id,
+          siteName: site.name,
+          pce,
+          success: false,
+          imported: 0,
+          error: "Pas de droit d'accès actif pour ce PCE",
+        });
+        continue;
+      }
+
       try {
-        const consumptions = await getGRDFMonthlyConsumptions(
-          site.pce!,
-          startDate,
-          endDate,
-          accessToken
+        const consumptions = await getGRDFConsosPubliees(
+          pce,
+          accessToken,
+          { dateDebut, dateFin },
+          environment
         );
 
         let imported = 0;
 
         for (const conso of consumptions) {
           // Parse date to get the period (first day of month)
-          const period = new Date(conso.dateDebutConsommation);
-          period.setDate(1); // First day of month
+          const period = new Date(conso.date_debut_consommation);
+          period.setDate(1);
 
-          // Convert to kWh if in m³ (gaz: 1 m³ ≈ 11.2 kWh PCS)
-          const quantityKwh =
-            conso.unite === "m3" || conso.unite === "m³"
-              ? conso.energieConsommee * 11.2
-              : conso.energieConsommee;
+          // Use energie (kWh) if available, otherwise convert m³ * 11.2
+          const quantityKwh = conso.energie || conso.consommation * 11.2;
 
           // Upsert consumption
           await prisma.consumption.upsert({
@@ -139,7 +198,7 @@ export async function POST(request: NextRequest) {
               siteId_energyType_usage_period: {
                 siteId: site.id,
                 energyType: "GAZ",
-                usage: "CHAUFFAGE", // Default usage for GRDF data
+                usage: "CHAUFFAGE",
                 period: period,
               },
             },
@@ -165,7 +224,7 @@ export async function POST(request: NextRequest) {
         results.push({
           siteId: site.id,
           siteName: site.name,
-          pce: site.pce!,
+          pce,
           success: true,
           imported,
         });
@@ -173,7 +232,7 @@ export async function POST(request: NextRequest) {
         results.push({
           siteId: site.id,
           siteName: site.name,
-          pce: site.pce!,
+          pce,
           success: false,
           imported: 0,
           error: error instanceof Error ? error.message : "Erreur inconnue",
@@ -198,6 +257,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Synchronisation terminée: ${totalImported} relevés importés`,
+      environment,
       sites: {
         total: sites.length,
         success: successCount,

@@ -1,58 +1,146 @@
 /**
- * GRDF ADICT API Service
- * Documentation: https://sites.grdf.fr/web/portail-api-grdf-adict
+ * GRDF ADICT API Service — v6
+ * Conforme au Swagger GRDF_ADICT_BAS_V6 et à la collection Postman BAS v1.4
  *
- * API pour récupérer les données de consommation gaz via télérelève
+ * Environnements :
+ *   - BAS (Bac à Sable) : basePath = /adict/bas/v6, scope = /adict/bas/v6
+ *   - Production         : basePath = /adict/v6,     scope = /adict/v6
  */
 
-// Types de données disponibles
-export type GRDFDataType =
-  | "informatives"      // Données informatives du PCE
-  | "consommations"     // Consommations (journalières, mensuelles)
-  | "donnees_techniques"; // Données techniques du compteur
+// ─── Configuration ───────────────────────────────────────────────────────────
+
+export type GRDFEnvironment = "sandbox" | "production";
+
+const GRDF_TOKEN_URL =
+  "https://adict-connexion.grdf.fr/oauth2/aus5y2ta2uEHjCWIR417/v1/token";
+const GRDF_API_HOST = "https://api.grdf.fr";
+
+const ENV_CONFIG: Record<GRDFEnvironment, { basePath: string; scope: string }> = {
+  sandbox: {
+    basePath: "/adict/bas/v6",
+    scope: "/adict/bas/v6",
+  },
+  production: {
+    basePath: "/adict/v6",
+    scope: "/adict/v6",
+  },
+};
 
 export interface GRDFConfig {
   clientId: string;
   clientSecret: string;
-  apiUrl?: string;
+  environment?: GRDFEnvironment;
 }
+
+// ─── Types réponse ───────────────────────────────────────────────────────────
 
 export interface GRDFTokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
+  scope: string;
 }
 
+/** Ligne NDJSON de consommation (publiée ou informative) */
 export interface GRDFConsommation {
-  dateDebutConsommation: string;
-  dateFinConsommation: string;
-  energieConsommee: number; // kWh ou m³
-  unite: string;
-  statut: string;
+  id_pce: string;
+  date_debut_consommation: string;
+  date_fin_consommation: string;
+  consommation: number;
+  energie: number;
+  index_debut: number | null;
+  index_fin: number | null;
+  journee_gaziere: string | null;
+  type_qualif_conso: string;
+  frequence_releve: string;
+  statut_restitution?: string;
+  code_statut_restitution?: string;
 }
 
-export interface GRDFPCEInfo {
-  pce: string;
+/** Données contractuelles d'un PCE */
+export interface GRDFDonneesContractuelles {
+  id_pce: string;
+  etat_contractuel: string;
+  date_derniere_modification: string;
   adresse: {
-    numeroVoie: string;
-    nomVoie: string;
-    codePostal: string;
+    numero_voie: string;
+    nom_voie: string;
+    code_postal: string;
     commune: string;
   };
-  etatContractuel: string;
+  cja?: {
+    num_contrat: string;
+    date_debut: string;
+    date_fin: string;
+  };
+  car?: number;
 }
 
-const DEFAULT_API_URL = "https://api.grdf.fr";
+/** Données techniques d'un PCE */
+export interface GRDFDonneesTechniques {
+  id_pce: string;
+  compteur: {
+    matricule: string;
+    type_compteur: string;
+    calibre: string;
+  };
+  profil: string;
+  frequence_releve: string;
+}
+
+/** Droit d'accès */
+export interface GRDFDroitAcces {
+  id_droit_acces: string;
+  id_pce: string;
+  etat_droit_acces: string;
+  role_tiers: string;
+  raison_sociale: string;
+  date_debut_droit_acces: string;
+  date_fin_droit_acces: string;
+  perim_donnees_conso_debut: string;
+  perim_donnees_conso_fin: string;
+  perim_donnees_contractuelles: string;
+  perim_donnees_techniques: string;
+  perim_donnees_informatives: string;
+  perim_donnees_publiees: string;
+}
+
+// ─── Parsing NDJSON ──────────────────────────────────────────────────────────
 
 /**
- * Obtenir un token d'accès OAuth2 (client_credentials)
+ * Parse une réponse NDJSON (application/x-ndjson) en tableau d'objets.
+ * Chaque ligne est un JSON indépendant séparé par un saut de ligne.
  */
-export async function getGRDFAccessToken(config: GRDFConfig): Promise<GRDFTokenResponse> {
-  const { clientId, clientSecret, apiUrl = DEFAULT_API_URL } = config;
+function parseNDJSON<T>(text: string): T[] {
+  return text
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as T);
+}
 
-  const tokenUrl = `${apiUrl}/oauth2/token`;
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-  const response = await fetch(tokenUrl, {
+function getEnvConfig(env: GRDFEnvironment = "production") {
+  return ENV_CONFIG[env];
+}
+
+function buildApiUrl(env: GRDFEnvironment, path: string): string {
+  const { basePath } = getEnvConfig(env);
+  return `${GRDF_API_HOST}${basePath}${path}`;
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+/**
+ * Obtenir un access_token via OAuth2 client_credentials
+ */
+export async function getGRDFAccessToken(
+  config: GRDFConfig
+): Promise<GRDFTokenResponse> {
+  const { clientId, clientSecret, environment = "production" } = config;
+  const { scope } = getEnvConfig(environment);
+
+  const response = await fetch(GRDF_TOKEN_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -61,27 +149,110 @@ export async function getGRDFAccessToken(config: GRDFConfig): Promise<GRDFTokenR
       grant_type: "client_credentials",
       client_id: clientId,
       client_secret: clientSecret,
-      scope: "adict", // Scope pour les données individuelles de consommation
+      scope,
     }),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GRDF Auth Error: ${response.status} - ${errorText}`);
+    let errorDetail = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      errorDetail = parsed.errorSummary || parsed.error_description || errorText;
+    } catch {
+      // Keep raw text
+    }
+    throw new Error(`Erreur authentification GRDF: ${errorDetail}`);
   }
 
   return response.json();
 }
 
+// ─── Consommations ───────────────────────────────────────────────────────────
+
 /**
- * Récupérer les informations d'un PCE
+ * Consulter les consommations publiées d'un PCE (NDJSON)
  */
-export async function getGRDFPCEInfo(
+export async function getGRDFConsosPubliees(
   pce: string,
   accessToken: string,
-  apiUrl: string = DEFAULT_API_URL
-): Promise<GRDFPCEInfo> {
-  const response = await fetch(`${apiUrl}/adict/v1/pce/${pce}`, {
+  options: { dateDebut?: string; dateFin?: string; periode?: string } = {},
+  environment: GRDFEnvironment = "production"
+): Promise<GRDFConsommation[]> {
+  const params = new URLSearchParams();
+  if (options.periode) {
+    params.set("periode", options.periode);
+  } else {
+    if (options.dateDebut) params.set("date_debut", options.dateDebut);
+    if (options.dateFin) params.set("date_fin", options.dateFin);
+  }
+
+  const url = buildApiUrl(environment, `/pce/${pce}/donnees_consos_publiees?${params}`);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/x-ndjson",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GRDF Consos Publiées (${response.status}): ${errorText}`);
+  }
+
+  const text = await response.text();
+  return parseNDJSON<GRDFConsommation>(text);
+}
+
+/**
+ * Consulter les consommations informatives d'un PCE (NDJSON)
+ */
+export async function getGRDFConsosInformatives(
+  pce: string,
+  accessToken: string,
+  options: { dateDebut?: string; dateFin?: string; periode?: string } = {},
+  environment: GRDFEnvironment = "production"
+): Promise<GRDFConsommation[]> {
+  const params = new URLSearchParams();
+  if (options.periode) {
+    params.set("periode", options.periode);
+  } else {
+    if (options.dateDebut) params.set("date_debut", options.dateDebut);
+    if (options.dateFin) params.set("date_fin", options.dateFin);
+  }
+
+  const url = buildApiUrl(environment, `/pce/${pce}/donnees_consos_informatives?${params}`);
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/x-ndjson",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GRDF Consos Informatives (${response.status}): ${errorText}`);
+  }
+
+  const text = await response.text();
+  return parseNDJSON<GRDFConsommation>(text);
+}
+
+// ─── Données contractuelles & techniques ─────────────────────────────────────
+
+/**
+ * Consulter les données contractuelles d'un PCE
+ */
+export async function getGRDFDonneesContractuelles(
+  pce: string,
+  accessToken: string,
+  environment: GRDFEnvironment = "production"
+): Promise<GRDFDonneesContractuelles> {
+  const url = buildApiUrl(environment, `/pce/${pce}/donnees_contractuelles`);
+
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
@@ -90,79 +261,108 @@ export async function getGRDFPCEInfo(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GRDF PCE Info Error: ${response.status} - ${errorText}`);
+    throw new Error(`GRDF Données Contractuelles (${response.status}): ${errorText}`);
   }
 
   return response.json();
 }
 
 /**
- * Récupérer les consommations journalières d'un PCE
+ * Consulter les données techniques d'un PCE
  */
-export async function getGRDFDailyConsumptions(
+export async function getGRDFDonneesTechniques(
   pce: string,
-  dateDebut: string, // Format: YYYY-MM-DD
-  dateFin: string,   // Format: YYYY-MM-DD
   accessToken: string,
-  apiUrl: string = DEFAULT_API_URL
-): Promise<GRDFConsommation[]> {
-  const params = new URLSearchParams({
-    date_debut: dateDebut,
-    date_fin: dateFin,
-  });
+  environment: GRDFEnvironment = "production"
+): Promise<GRDFDonneesTechniques> {
+  const url = buildApiUrl(environment, `/pce/${pce}/donnees_techniques`);
 
-  const response = await fetch(
-    `${apiUrl}/adict/v1/pce/${pce}/consommations/journalieres?${params}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    }
-  );
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GRDF Daily Consumption Error: ${response.status} - ${errorText}`);
+    throw new Error(`GRDF Données Techniques (${response.status}): ${errorText}`);
   }
 
-  const data = await response.json();
-  return data.consommations || [];
+  return response.json();
+}
+
+// ─── Droits d'accès ──────────────────────────────────────────────────────────
+
+/**
+ * Consulter tous les droits d'accès (NDJSON)
+ */
+export async function getGRDFDroitsAcces(
+  accessToken: string,
+  environment: GRDFEnvironment = "production"
+): Promise<GRDFDroitAcces[]> {
+  const url = buildApiUrl(environment, "/droits_acces");
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/x-ndjson",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`GRDF Droits d'accès (${response.status}): ${errorText}`);
+  }
+
+  const text = await response.text();
+  return parseNDJSON<GRDFDroitAcces>(text);
 }
 
 /**
- * Récupérer les consommations mensuelles d'un PCE
+ * Déclarer un droit d'accès sur un PCE
  */
-export async function getGRDFMonthlyConsumptions(
+export async function declareGRDFDroitAcces(
   pce: string,
-  dateDebut: string, // Format: YYYY-MM-DD
-  dateFin: string,   // Format: YYYY-MM-DD
   accessToken: string,
-  apiUrl: string = DEFAULT_API_URL
-): Promise<GRDFConsommation[]> {
-  const params = new URLSearchParams({
-    date_debut: dateDebut,
-    date_fin: dateFin,
-  });
+  droitAcces: {
+    role_tiers: string;
+    raison_sociale: string;
+    nom_titulaire: string;
+    code_postal: string;
+    courriel_titulaire: string;
+    numero_telephone_mobile_titulaire: string;
+    date_debut_droit_acces: string;
+    date_fin_droit_acces: string;
+    perim_donnees_conso_debut: string;
+    perim_donnees_conso_fin: string;
+    perim_donnees_contractuelles: string;
+    perim_donnees_techniques: string;
+    perim_donnees_informatives: string;
+    perim_donnees_publiees: string;
+  },
+  environment: GRDFEnvironment = "production"
+): Promise<GRDFDroitAcces> {
+  const url = buildApiUrl(environment, `/pce/${pce}/droit_acces`);
 
-  const response = await fetch(
-    `${apiUrl}/adict/v1/pce/${pce}/consommations/mensuelles?${params}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: "application/json",
-      },
-    }
-  );
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(droitAcces),
+  });
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`GRDF Monthly Consumption Error: ${response.status} - ${errorText}`);
+    throw new Error(`GRDF Déclaration Droit d'accès (${response.status}): ${errorText}`);
   }
 
-  const data = await response.json();
-  return data.consommations || [];
+  return response.json();
 }
+
+// ─── Helpers haut niveau ─────────────────────────────────────────────────────
 
 /**
  * Tester la connexion GRDF avec les credentials
@@ -174,15 +374,10 @@ export async function testGRDFConnection(config: GRDFConfig): Promise<{
 }> {
   try {
     const tokenResponse = await getGRDFAccessToken(config);
-
-    // Calculer la date d'expiration
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + tokenResponse.expires_in);
 
-    return {
-      success: true,
-      expiresAt,
-    };
+    return { success: true, expiresAt };
   } catch (error) {
     return {
       success: false,
@@ -192,32 +387,27 @@ export async function testGRDFConnection(config: GRDFConfig): Promise<{
 }
 
 /**
- * Synchroniser les consommations GRDF pour un PCE
+ * Synchroniser les consommations publiées d'un PCE
  */
 export async function syncGRDFConsumptions(
   pce: string,
   config: GRDFConfig,
-  options: {
-    startDate?: string;
-    endDate?: string;
-    type?: "daily" | "monthly";
-  } = {}
+  options: { dateDebut?: string; dateFin?: string } = {}
 ): Promise<GRDFConsommation[]> {
-  // Obtenir un token
+  const env = config.environment || "production";
   const tokenResponse = await getGRDFAccessToken(config);
 
-  // Dates par défaut: 1 an en arrière
-  const endDate = options.endDate || new Date().toISOString().split("T")[0];
-  const startDate = options.startDate || (() => {
+  const dateFin = options.dateFin || new Date().toISOString().split("T")[0];
+  const dateDebut = options.dateDebut || (() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 1);
     return d.toISOString().split("T")[0];
   })();
 
-  // Récupérer les données
-  if (options.type === "daily") {
-    return getGRDFDailyConsumptions(pce, startDate, endDate, tokenResponse.access_token);
-  }
-
-  return getGRDFMonthlyConsumptions(pce, startDate, endDate, tokenResponse.access_token);
+  return getGRDFConsosPubliees(
+    pce,
+    tokenResponse.access_token,
+    { dateDebut, dateFin },
+    env
+  );
 }

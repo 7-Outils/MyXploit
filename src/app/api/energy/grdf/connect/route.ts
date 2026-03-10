@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { testGRDFConnection, getGRDFAccessToken } from "@/lib/grdf";
+import { testGRDFConnection, getGRDFAccessToken, GRDFEnvironment } from "@/lib/grdf";
 
 // POST /api/energy/grdf/connect - Connect GRDF account
 export async function POST(request: NextRequest) {
@@ -17,7 +17,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { clientId, clientSecret } = body;
+    const { clientId, clientSecret, sandbox } = body;
+    const environment: GRDFEnvironment = sandbox ? "sandbox" : "production";
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
     const testResult = await testGRDFConnection({
       clientId,
       clientSecret,
+      environment,
     });
 
     if (!testResult.success) {
@@ -43,13 +45,16 @@ export async function POST(request: NextRequest) {
     const tokenResponse = await getGRDFAccessToken({
       clientId,
       clientSecret,
+      environment,
     });
 
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + tokenResponse.expires_in);
 
-    // Upsert the provider configuration
-    // Note: In production, encrypt the tokens before storing
+    // Store credentials — encode environment in refreshToken
+    // Format: environment|clientId|clientSecret
+    const credentialPayload = `${environment}|${clientId}|${clientSecret}`;
+
     const provider = await prisma.energyProvider.upsert({
       where: {
         organizationId_provider: {
@@ -59,7 +64,7 @@ export async function POST(request: NextRequest) {
       },
       update: {
         accessToken: tokenResponse.access_token,
-        refreshToken: `${clientId}:${clientSecret}`, // Store credentials for refresh
+        refreshToken: credentialPayload,
         tokenExpiresAt: expiresAt,
         isConnected: true,
         lastError: null,
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
         organizationId: effectiveOrgId,
         provider: "GRDF",
         accessToken: tokenResponse.access_token,
-        refreshToken: `${clientId}:${clientSecret}`,
+        refreshToken: credentialPayload,
         tokenExpiresAt: expiresAt,
         isConnected: true,
       },
@@ -77,7 +82,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Connexion GRDF établie avec succès",
+      message: `Connexion GRDF établie avec succès (${environment === "sandbox" ? "Bac à Sable" : "Production"})`,
+      environment,
       expiresAt: provider.tokenExpiresAt,
     });
   } catch (error) {
