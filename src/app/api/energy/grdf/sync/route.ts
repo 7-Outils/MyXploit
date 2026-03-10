@@ -65,12 +65,30 @@ export async function POST(request: NextRequest) {
 
     // Parse optional date range from body
     const body = await request.json().catch(() => ({}));
-    const dateFin = body.endDate || new Date().toISOString().split("T")[0];
-    const dateDebut = body.startDate || (() => {
+    const defaultDateFin = new Date().toISOString().split("T")[0];
+    const defaultDateDebut = (() => {
       const d = new Date();
-      d.setFullYear(d.getFullYear() - 1);
+      d.setFullYear(d.getFullYear() - 3);
       return d.toISOString().split("T")[0];
     })();
+    const dateFin = body.endDate || defaultDateFin;
+    const dateDebut = body.startDate || defaultDateDebut;
+
+    // Build a map of PCE → droit d'accès for date range fallback
+    const droitsMap = new Map<string, { debut: string; fin: string }>();
+    try {
+      const allDroits = await getGRDFDroitsAcces(accessToken, environment);
+      for (const d of allDroits) {
+        if (d.etat_droit_acces === "Active" && d.perim_donnees_conso_debut && d.perim_donnees_conso_fin) {
+          droitsMap.set(d.id_pce, {
+            debut: d.perim_donnees_conso_debut,
+            fin: d.perim_donnees_conso_fin,
+          });
+        }
+      }
+    } catch {
+      // Continue with default dates
+    }
 
     // Sync each site
     const results: Array<{
@@ -99,10 +117,15 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        // Use droit d'accès date range if available, otherwise fallback to request dates
+        const droitDates = droitsMap.get(pce);
+        const effectiveDateDebut = droitDates?.debut || dateDebut;
+        const effectiveDateFin = droitDates?.fin || dateFin;
+
         const consumptions = await getGRDFConsosPubliees(
           pce,
           accessToken,
-          { dateDebut, dateFin },
+          { dateDebut: effectiveDateDebut, dateFin: effectiveDateFin },
           environment
         );
 
