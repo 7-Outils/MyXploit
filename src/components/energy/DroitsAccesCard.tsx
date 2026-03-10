@@ -191,7 +191,7 @@ export function DroitsAccesCard() {
                         </span>
                       </div>
                       <p className="text-xs text-text-secondary mt-0.5">
-                        {droit.nom_titulaire} &middot; {droit.role_tiers.replace(/_/g, " ").toLowerCase()}
+                        {droit.nom_titulaire || droit.raison_sociale_du_tiers || "—"} &middot; {(droit.role_tiers || "").replace(/_/g, " ").toLowerCase()}
                       </p>
                       <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400">
                         <span>
