@@ -264,6 +264,18 @@ export function DroitsAccesCard() {
 
 // ─── Modal: Déclarer un droit d'accès ──────────────────────────────────────
 
+interface SiteWithPce {
+  id: string;
+  name: string;
+  pce: string;
+  postalCode?: string;
+  clientName?: string;
+  clientContactName?: string;
+  clientContactEmail?: string;
+  clientContactPhone?: string;
+  clientPostalCode?: string;
+}
+
 function DeclarerDroitModal({
   onClose,
   onSuccess,
@@ -274,6 +286,8 @@ function DeclarerDroitModal({
   onError: (err: string) => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const [sites, setSites] = useState<SiteWithPce[]>([]);
+  const [loadingSites, setLoadingSites] = useState(true);
   const [form, setForm] = useState({
     pce: "",
     role_tiers: "AUTORISE_CONTRAT_FOURNITURE",
@@ -295,6 +309,53 @@ function DeclarerDroitModal({
     })(),
     perim_donnees_conso_fin: new Date().toISOString().split("T")[0],
   });
+
+  // Fetch sites with PCE
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/sites");
+        if (res.ok) {
+          const data = await res.json();
+          const sitesArr = Array.isArray(data) ? data : data.sites || [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const withPce = sitesArr
+            .filter((s: { pce?: string }) => s.pce)
+            .map((s: any) => ({
+              id: s.id,
+              name: s.name,
+              pce: s.pce,
+              postalCode: s.postalCode || "",
+              clientName: s.client?.name || "",
+              clientContactName: s.client?.contactName || "",
+              clientContactEmail: s.client?.contactEmail || "",
+              clientContactPhone: s.client?.contactPhone || "",
+              clientPostalCode: s.client?.postalCode || "",
+            }));
+          setSites(withPce);
+        }
+      } catch {
+        // Continue without sites
+      } finally {
+        setLoadingSites(false);
+      }
+    })();
+  }, []);
+
+  const handleSiteSelect = (siteId: string) => {
+    const site = sites.find((s) => s.id === siteId);
+    if (site) {
+      setForm((prev) => ({
+        ...prev,
+        pce: site.pce,
+        code_postal: site.clientPostalCode || site.postalCode || prev.code_postal,
+        raison_sociale: site.clientName || prev.raison_sociale,
+        nom_titulaire: site.clientContactName || prev.nom_titulaire,
+        courriel_titulaire: site.clientContactEmail || prev.courriel_titulaire,
+        numero_telephone_mobile_titulaire: site.clientContactPhone || prev.numero_telephone_mobile_titulaire,
+      }));
+    }
+  };
 
   const updateField = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -343,19 +404,40 @@ function DeclarerDroitModal({
             Le titulaire recevra un email/SMS de validation de GRDF.
           </p>
 
-          {/* PCE */}
+          {/* Site / PCE */}
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">
-              Numéro PCE *
+              Site (PCE) *
             </label>
-            <input
-              type="text"
-              required
-              value={form.pce}
-              onChange={(e) => updateField("pce", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
-              placeholder="14 chiffres ou GI + 6 chiffres"
-            />
+            {loadingSites ? (
+              <div className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400">
+                <Loader2 size={14} className="animate-spin" />
+                Chargement des sites...
+              </div>
+            ) : sites.length > 0 ? (
+              <>
+                <select
+                  required
+                  value={sites.find((s) => s.pce === form.pce)?.id || ""}
+                  onChange={(e) => handleSiteSelect(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">Sélectionner un site...</option>
+                  {sites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name} — PCE {site.pce}
+                    </option>
+                  ))}
+                </select>
+                {form.pce && (
+                  <p className="text-xs text-gray-400 mt-1">PCE : {form.pce}</p>
+                )}
+              </>
+            ) : (
+              <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+                Aucun site avec PCE configuré. Ajoutez un PCE à vos sites depuis la section Administratif.
+              </div>
+            )}
           </div>
 
           {/* Rôle */}

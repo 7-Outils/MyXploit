@@ -33,7 +33,19 @@ export async function GET() {
         annualBudget: true,
         latitude: true,
         longitude: true,
+        pce: true,
+        pdl: true,
         createdAt: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            contactName: true,
+            contactEmail: true,
+            contactPhone: true,
+            postalCode: true,
+          },
+        },
         contractSites: {
           include: {
             contract: {
