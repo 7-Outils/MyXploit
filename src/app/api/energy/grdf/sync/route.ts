@@ -117,17 +117,30 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // Use droit d'accès date range if available, otherwise fallback to request dates
+        // Determine date range from droit d'accès or defaults
         const droitDates = droitsMap.get(pce);
         const effectiveDateDebut = droitDates?.debut || dateDebut;
         const effectiveDateFin = droitDates?.fin || dateFin;
 
-        const consumptions = await getGRDFConsosPubliees(
-          pce,
-          accessToken,
-          { dateDebut: effectiveDateDebut, dateFin: effectiveDateFin },
-          environment
-        );
+        // Fetch consos for each year in the range (GRDF supports "periode" param = year)
+        const startYear = parseInt(effectiveDateDebut.substring(0, 4));
+        const endYear = parseInt(effectiveDateFin.substring(0, 4));
+
+        let allConsumptions: Awaited<ReturnType<typeof getGRDFConsosPubliees>> = [];
+        for (let year = startYear; year <= endYear; year++) {
+          try {
+            const yearConsos = await getGRDFConsosPubliees(
+              pce,
+              accessToken,
+              { periode: String(year) },
+              environment
+            );
+            allConsumptions = allConsumptions.concat(yearConsos);
+          } catch {
+            // Some years may have no data, continue
+          }
+        }
+        const consumptions = allConsumptions;
 
         let imported = 0;
 
