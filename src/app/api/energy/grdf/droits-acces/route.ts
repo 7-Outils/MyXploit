@@ -22,12 +22,6 @@ export async function GET() {
 
     const droits = await getGRDFDroitsAcces(grdf.accessToken, grdf.environment);
 
-    // Log first droit's keys to understand GRDF response structure
-    if (droits.length > 0) {
-      console.log("GRDF droit sample keys:", Object.keys(droits[0]));
-      console.log("GRDF droit sample:", JSON.stringify(droits[0], null, 2));
-    }
-
     return NextResponse.json({
       droits,
       total: droits.length,
@@ -88,8 +82,10 @@ export async function POST(request: NextRequest) {
       "nom_titulaire",
       "code_postal",
       "courriel_titulaire",
-      "date_consentement_declaree",
-      "date_fin_autorisation_demandee",
+      "date_debut_droit_acces",
+      "date_fin_droit_acces",
+      "perim_donnees_conso_debut",
+      "perim_donnees_conso_fin",
     ];
 
     const missing = requiredFields.filter((f) => !droitAccesData[f]);
@@ -100,18 +96,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build payload with GRDF ADICT field names
     const payload = {
       role_tiers: droitAccesData.role_tiers,
       raison_sociale: droitAccesData.raison_sociale,
       nom_titulaire: droitAccesData.nom_titulaire,
       code_postal: droitAccesData.code_postal,
       courriel_titulaire: droitAccesData.courriel_titulaire,
-      date_consentement_declaree: droitAccesData.date_consentement_declaree,
-      date_fin_autorisation_demandee: droitAccesData.date_fin_autorisation_demandee,
-      perim_donnees_techniques_et_contractuelles: droitAccesData.perim_donnees_techniques_et_contractuelles || "Vrai",
-      perim_historique_de_donnees: droitAccesData.perim_historique_de_donnees || "Vrai",
-      perim_flux_de_donnees: droitAccesData.perim_flux_de_donnees || "Vrai",
+      numero_telephone_mobile_titulaire: droitAccesData.numero_telephone_mobile_titulaire || "",
+      date_debut_droit_acces: droitAccesData.date_debut_droit_acces,
+      date_fin_droit_acces: droitAccesData.date_fin_droit_acces,
+      perim_donnees_conso_debut: droitAccesData.perim_donnees_conso_debut,
+      perim_donnees_conso_fin: droitAccesData.perim_donnees_conso_fin,
+      perim_donnees_contractuelles: droitAccesData.perim_donnees_contractuelles || "Vrai",
+      perim_donnees_techniques: droitAccesData.perim_donnees_techniques || "Vrai",
       perim_donnees_informatives: droitAccesData.perim_donnees_informatives || "Vrai",
       perim_donnees_publiees: droitAccesData.perim_donnees_publiees || "Vrai",
     };

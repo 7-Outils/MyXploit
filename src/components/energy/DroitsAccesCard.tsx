@@ -22,18 +22,21 @@ interface DroitAcces {
   id_droit_acces: string;
   id_pce: string;
   etat_droit_acces: string;
-  role_tiers: string;
-  raison_sociale_du_tiers: string;
-  nom_titulaire: string;
-  courriel_titulaire: string;
+  role_tiers?: string;
+  raison_sociale_du_tiers?: string;
+  nom_titulaire?: string;
+  raison_sociale_du_titulaire?: string;
+  courriel_titulaire?: string;
   code_postal: string;
-  perim_donnees_techniques_et_contractuelles: string;
-  perim_historique_de_donnees: string;
-  perim_flux_de_donnees: string;
-  perim_donnees_informatives: string;
-  perim_donnees_publiees: string;
+  perim_donnees_contractuelles?: string;
+  perim_donnees_techniques?: string;
+  perim_donnees_informatives?: string;
+  perim_donnees_publiees?: string;
+  date_debut_droit_acces?: string;
+  date_fin_droit_acces?: string;
+  perim_donnees_conso_debut?: string;
+  perim_donnees_conso_fin?: string;
   date_creation: string;
-  date_fin_autorisation: string;
   parcours: string;
   statut_controle_preuve: string | null;
   date_limite_transmission_preuve: string | null;
@@ -195,12 +198,10 @@ export function DroitsAccesCard() {
                       </p>
                       <div className="flex items-center gap-3 mt-1 text-[11px] text-gray-400">
                         <span>
-                          Créé : {droit.date_creation?.split(" ")[0]} → Fin : {droit.date_fin_autorisation?.split(" ")[0]}
+                          {droit.date_debut_droit_acces} → {droit.date_fin_droit_acces}
                         </span>
                         <span>
-                          {droit.perim_historique_de_donnees === "Vrai" ? "Historique" : ""}
-                          {droit.perim_flux_de_donnees === "Vrai" ? " + Flux" : ""}
-                          {droit.perim_donnees_publiees === "Vrai" ? " + Publiées" : ""}
+                          Consos : {droit.perim_donnees_conso_debut} → {droit.perim_donnees_conso_fin}
                         </span>
                       </div>
                       {droit.statut_controle_preuve && (
@@ -280,17 +281,19 @@ function DeclarerDroitModal({
     nom_titulaire: "",
     code_postal: "",
     courriel_titulaire: "",
-    date_consentement_declaree: new Date().toISOString().replace("Z", "").split(".")[0],
-    date_fin_autorisation_demandee: (() => {
+    numero_telephone_mobile_titulaire: "",
+    date_debut_droit_acces: new Date().toISOString().split("T")[0],
+    date_fin_droit_acces: (() => {
       const d = new Date();
       d.setFullYear(d.getFullYear() + 1);
       return d.toISOString().split("T")[0];
     })(),
-    perim_donnees_techniques_et_contractuelles: "Vrai",
-    perim_historique_de_donnees: "Vrai",
-    perim_flux_de_donnees: "Vrai",
-    perim_donnees_informatives: "Vrai",
-    perim_donnees_publiees: "Vrai",
+    perim_donnees_conso_debut: (() => {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - 3);
+      return d.toISOString().split("T")[0];
+    })(),
+    perim_donnees_conso_fin: new Date().toISOString().split("T")[0],
   });
 
   const updateField = (field: string, value: string) => {
@@ -432,40 +435,74 @@ function DeclarerDroitModal({
             </div>
           </div>
 
-          {/* Fin autorisation */}
+          {/* Téléphone */}
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">
-              Fin autorisation demandée *
+              Téléphone mobile titulaire
             </label>
             <input
-              type="date"
-              required
-              value={form.date_fin_autorisation_demandee}
-              onChange={(e) => updateField("date_fin_autorisation_demandee", e.target.value)}
+              type="tel"
+              value={form.numero_telephone_mobile_titulaire}
+              onChange={(e) => updateField("numero_telephone_mobile_titulaire", e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              placeholder="06 XX XX XX XX (optionnel)"
             />
           </div>
 
-          {/* Périmètre données */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-primary-dark">Périmètre des données</p>
-            {[
-              { key: "perim_donnees_techniques_et_contractuelles", label: "Données techniques et contractuelles" },
-              { key: "perim_historique_de_donnees", label: "Historique de données" },
-              { key: "perim_flux_de_donnees", label: "Flux de données" },
-              { key: "perim_donnees_informatives", label: "Données informatives" },
-              { key: "perim_donnees_publiees", label: "Données publiées" },
-            ].map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form[key as keyof typeof form] === "Vrai"}
-                  onChange={(e) => updateField(key, e.target.checked ? "Vrai" : "Faux")}
-                  className="rounded border-gray-300"
-                />
-                {label}
+          {/* Dates droit d'accès */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-primary-dark mb-1">
+                Début droit d&apos;accès *
               </label>
-            ))}
+              <input
+                type="date"
+                required
+                value={form.date_debut_droit_acces}
+                onChange={(e) => updateField("date_debut_droit_acces", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-primary-dark mb-1">
+                Fin droit d&apos;accès *
+              </label>
+              <input
+                type="date"
+                required
+                value={form.date_fin_droit_acces}
+                onChange={(e) => updateField("date_fin_droit_acces", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              />
+            </div>
+          </div>
+
+          {/* Périmètre consos */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-primary-dark mb-1">
+                Début périmètre consos *
+              </label>
+              <input
+                type="date"
+                required
+                value={form.perim_donnees_conso_debut}
+                onChange={(e) => updateField("perim_donnees_conso_debut", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-primary-dark mb-1">
+                Fin périmètre consos *
+              </label>
+              <input
+                type="date"
+                required
+                value={form.perim_donnees_conso_fin}
+                onChange={(e) => updateField("perim_donnees_conso_fin", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              />
+            </div>
           </div>
 
           <div className="p-3 bg-blue-50 rounded-lg">

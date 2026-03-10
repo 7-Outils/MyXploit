@@ -88,29 +88,32 @@ export interface GRDFDonneesTechniques {
   frequence_releve: string;
 }
 
-/** Droit d'accès — champs retournés par l'API GRDF ADICT */
+/** Droit d'accès — champs retournés par l'API GRDF ADICT BAS v6 */
 export interface GRDFDroitAcces {
   id_droit_acces: string;
   id_pce: string;
   etat_droit_acces: string;
   role_tiers: string;
   raison_sociale_du_tiers: string;
-  nom_titulaire: string;
+  nom_titulaire?: string;
   raison_sociale_du_titulaire?: string;
-  courriel_titulaire: string;
+  courriel_titulaire?: string;
   code_postal: string;
-  perim_donnees_techniques_et_contractuelles: string;
-  perim_historique_de_donnees: string;
-  perim_flux_de_donnees: string;
-  perim_donnees_informatives: string;
-  perim_donnees_publiees: string;
+  perim_donnees_contractuelles?: string;
+  perim_donnees_techniques?: string;
+  perim_donnees_informatives?: string;
+  perim_donnees_publiees?: string;
+  date_debut_droit_acces?: string;
+  date_fin_droit_acces?: string;
+  perim_donnees_conso_debut?: string;
+  perim_donnees_conso_fin?: string;
   date_creation: string;
-  date_fin_autorisation: string;
   parcours: string;
   statut_controle_preuve: string | null;
   date_limite_transmission_preuve: string | null;
   date_revocation?: string | null;
   source_revocation?: string | null;
+  numero_telephone_mobile_titulaire?: string | null;
 }
 
 // ─── Parsing NDJSON ──────────────────────────────────────────────────────────
@@ -118,12 +121,14 @@ export interface GRDFDroitAcces {
 /**
  * Parse une réponse NDJSON (application/x-ndjson) en tableau d'objets.
  * Chaque ligne est un JSON indépendant séparé par un saut de ligne.
+ * Filtre les lignes de statut GRDF (code_statut_traitement).
  */
 function parseNDJSON<T>(text: string): T[] {
   return text
     .split("\n")
     .filter((line) => line.trim().length > 0)
-    .map((line) => JSON.parse(line) as T);
+    .map((line) => JSON.parse(line))
+    .filter((obj) => !obj.code_statut_traitement) as T[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -323,8 +328,14 @@ export async function getGRDFDroitsAcces(
     throw new Error(`GRDF Droits d'accès (${response.status}): ${errorText}`);
   }
 
-  const text = await response.text();
-  return parseNDJSON<GRDFDroitAcces>(text);
+  // GRDF may return ISO-8859-1 encoded text — decode via arrayBuffer
+  const buffer = await response.arrayBuffer();
+  const text = new TextDecoder("utf-8").decode(buffer);
+  // If still garbled (double-encoded), try latin1 fallback
+  const fixedText = text.includes("Ã")
+    ? new TextDecoder("iso-8859-1").decode(buffer)
+    : text;
+  return parseNDJSON<GRDFDroitAcces>(fixedText);
 }
 
 /**
@@ -339,11 +350,13 @@ export async function declareGRDFDroitAcces(
     nom_titulaire: string;
     code_postal: string;
     courriel_titulaire: string;
-    date_consentement_declaree: string;
-    date_fin_autorisation_demandee: string;
-    perim_donnees_techniques_et_contractuelles: string;
-    perim_historique_de_donnees: string;
-    perim_flux_de_donnees: string;
+    numero_telephone_mobile_titulaire?: string;
+    date_debut_droit_acces: string;
+    date_fin_droit_acces: string;
+    perim_donnees_conso_debut: string;
+    perim_donnees_conso_fin: string;
+    perim_donnees_contractuelles: string;
+    perim_donnees_techniques: string;
     perim_donnees_informatives: string;
     perim_donnees_publiees: string;
   },
