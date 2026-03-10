@@ -1,10 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { getGRDFDroitsAcces } from "@/lib/grdf";
 import { getGRDFProviderAndToken } from "@/lib/grdf-helpers";
 
-// GET /api/energy/grdf/debug-conso — Debug: test raw conso calls on BAS PCEs
-export async function GET(request: NextRequest) {
+const GRDF_API_HOST = "https://api.grdf.fr";
+
+// GET /api/energy/grdf/debug-conso — Debug: test conso on all active BAS PCEs
+export async function GET() {
   try {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
@@ -15,71 +17,93 @@ export async function GET(request: NextRequest) {
     }
 
     const { accessToken, environment } = grdf;
+    const basePath = environment === "sandbox" ? "/adict/bas/v6" : "/adict/v6";
 
-    // Get active PCEs from droits d'accès
+    // Get all droits d'accès with their perimeters
     const droits = await getGRDFDroitsAcces(accessToken, environment);
-    const activePCEs = droits
-      .filter((d) => d.etat_droit_acces === "Active")
-      .map((d) => d.id_pce);
-
-    const searchParams = request.nextUrl.searchParams;
-    const testPce = searchParams.get("pce") || activePCEs[0];
-
-    if (!testPce) {
-      return NextResponse.json({ error: "Aucun PCE actif trouvé", droits }, { status: 400 });
-    }
+    const activeDroits = droits.filter((d) => d.etat_droit_acces === "Active");
 
     const results: Record<string, unknown> = {
       environment,
-      testPce,
-      activePCEs,
+      basePath,
       totalDroits: droits.length,
+      activeDroits: activeDroits.length,
     };
 
-    // Test multiple host + basePath + param combinations
-    const hostConfigs = [
-      { label: "api.grdf.fr/v6", host: "https://api.grdf.fr", basePath: "/adict/bas/v6" },
-      { label: "api.grdf.fr/v1", host: "https://api.grdf.fr", basePath: "/adict/bas/v1" },
-      { label: "mock/v1", host: "https://mock.api-digiconnect.grdf.fr", basePath: "/adict/bas/v1" },
-      { label: "mock/v6", host: "https://mock.api-digiconnect.grdf.fr", basePath: "/adict/bas/v6" },
-    ];
+    // Show perimeter details for each active droit
+    results.droitsDetails = activeDroits.map((d) => ({
+      id_pce: d.id_pce,
+      perim_donnees_publiees: d.perim_donnees_publiees,
+      perim_donnees_informatives: d.perim_donnees_informatives,
+      perim_donnees_conso_debut: d.perim_donnees_conso_debut,
+      perim_donnees_conso_fin: d.perim_donnees_conso_fin,
+      perim_donnees_contractuelles: d.perim_donnees_contractuelles,
+      perim_donnees_techniques: d.perim_donnees_techniques,
+    }));
 
-    const paramSets = [
-      { label: "periode_2024", params: "periode=2024" },
-      { label: "dates_2018_2019", params: "date_debut=2018-01-01&date_fin=2019-12-31" },
-      { label: "no_params", params: "" },
-    ];
+    // Test each active PCE with publiees + informatives
+    const pceResults: Record<string, unknown> = {};
 
-    for (const hc of hostConfigs) {
-      const hostResults: Record<string, unknown> = {};
+    for (const droit of activeDroits) {
+      const pce = droit.id_pce;
+      const pceResult: Record<string, unknown> = {};
 
-      for (const ps of paramSets) {
+      // Test publiées with periode matching perim dates
+      const consoDebut = droit.perim_donnees_conso_debut;
+      const consoFin = droit.perim_donnees_conso_fin;
+      const yearDebut = consoDebut ? consoDebut.substring(0, 4) : "2023";
+
+      const endpoints = [
+        {
+          label: "publiees_periode",
+          path: `/pce/${pce}/donnees_consos_publiees?periode=${yearDebut}`,
+        },
+        {
+          label: "publiees_dates",
+          path: `/pce/${pce}/donnees_consos_publiees?date_debut=${consoDebut || "2023-01-01"}&date_fin=${consoFin || "2024-12-31"}`,
+        },
+        {
+          label: "informatives_periode",
+          path: `/pce/${pce}/donnees_consos_informatives?periode=${yearDebut}`,
+        },
+        {
+          label: "donnees_contractuelles",
+          path: `/pce/${pce}/donnees_contractuelles`,
+        },
+        {
+          label: "donnees_techniques",
+          path: `/pce/${pce}/donnees_techniques`,
+        },
+      ];
+
+      for (const ep of endpoints) {
         try {
-          const url = `${hc.host}${hc.basePath}/pce/${testPce}/donnees_consos_publiees${ps.params ? `?${ps.params}` : ""}`;
+          const url = `${GRDF_API_HOST}${basePath}${ep.path}`;
+          const accept = ep.label.includes("consos") ? "application/x-ndjson" : "application/json";
           const response = await fetch(url, {
             headers: {
               Authorization: `Bearer ${accessToken}`,
-              Accept: "application/x-ndjson",
+              Accept: accept,
             },
           });
 
           const rawText = await response.text();
-          hostResults[ps.label] = {
-            url,
+          pceResult[ep.label] = {
             status: response.status,
-            contentType: response.headers.get("content-type"),
             rawLength: rawText.length,
-            raw: rawText.substring(0, 1500),
+            raw: rawText.substring(0, 800),
           };
         } catch (err) {
-          hostResults[ps.label] = {
-            error: err instanceof Error ? err.message : "Unknown error",
+          pceResult[ep.label] = {
+            error: err instanceof Error ? err.message : "Unknown",
           };
         }
       }
 
-      results[hc.label] = hostResults;
+      pceResults[pce] = pceResult;
     }
+
+    results.pceResults = pceResults;
 
     return NextResponse.json(results);
   } catch (error) {
