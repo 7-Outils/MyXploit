@@ -13,11 +13,16 @@ import {
   Thermometer,
   TreePine,
   Gauge,
-  Calendar,
   BarChart3,
   Loader2,
   ClipboardList,
   Plus,
+  FileText,
+  Wrench,
+  LayoutDashboard,
+  AlertTriangle,
+  TrendingUp,
+  Euro,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -117,13 +122,15 @@ const VENTILATION_LABELS: Record<string, string> = {
   DOUBLE_FLUX: "Double flux",
 };
 
-type TabKey = "general" | "energy" | "thermal" | "zones" | "meters" | "journal";
+type TabKey = "overview" | "general" | "energy" | "thermal" | "contract" | "exploitation" | "meters" | "journal";
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof Building2 }> = [
-  { key: "general", label: "Général", icon: Building2 },
-  { key: "energy", label: "Énergie", icon: BarChart3 },
+  { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
+  { key: "general", label: "Identité & Bâti", icon: Building2 },
+  { key: "energy", label: "Énergie & Compteurs", icon: BarChart3 },
   { key: "thermal", label: "Profil thermique", icon: Thermometer },
-  { key: "zones", label: "Zones", icon: Calendar },
+  { key: "contract", label: "Contrat & Finances", icon: FileText },
+  { key: "exploitation", label: "Exploitation", icon: Wrench },
   { key: "meters", label: "Compteurs", icon: Gauge },
   { key: "journal", label: "Journal", icon: ClipboardList },
 ];
@@ -138,7 +145,7 @@ export default function BuildingDetailPage({
   const { canEdit: userCanEdit } = usePermissions();
   const [site, setSite] = useState<SiteDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabKey>("general");
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -288,6 +295,9 @@ export default function BuildingDetailPage({
 
       {/* Tab content */}
       <div>
+        {activeTab === "overview" && (
+          <OverviewTab site={site} onNavigate={setActiveTab} />
+        )}
         {activeTab === "general" && (
           <GeneralTab site={site} onRefresh={fetchSite} />
         )}
@@ -297,8 +307,11 @@ export default function BuildingDetailPage({
         {activeTab === "thermal" && (
           <ThermalProfileSection siteId={site.id} />
         )}
-        {activeTab === "zones" && (
-          <ZonesPlaceholder siteId={site.id} />
+        {activeTab === "contract" && (
+          <ContractTab site={site} />
+        )}
+        {activeTab === "exploitation" && (
+          <ExploitationTab siteId={site.id} />
         )}
         {activeTab === "meters" && (
           <MetersPlaceholder siteId={site.id} siteName={site.name} />
@@ -492,48 +505,486 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 // ============================================================
-// Energy Tab - shows link to existing energy page for now
+// Overview Tab - Site 360° Dashboard
 // ============================================================
 
-function EnergyTab({ siteId }: { siteId: string }) {
+interface OverviewStats {
+  consumptions: { total: number; lastMonth: number | null; trend: number | null };
+  tickets: { open: number; inProgress: number; total: number };
+  contractInfo: { provider: string; reference: string; endDate: string | null; hasP1: boolean; hasP2: boolean; hasP3: boolean; amountP2: number | null; amountP3: number | null } | null;
+  equipmentCount: number;
+  alertCount: number;
+}
+
+function OverviewTab({ site, onNavigate }: { site: SiteDetail; onNavigate: (tab: TabKey) => void }) {
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/sites/${site.id}/overview`);
+        if (res.ok) {
+          setStats(await res.json());
+        }
+      } catch {
+        // Silent
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [site.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  const cs = site.contractSites[0];
+
   return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <BarChart3 size={40} className="text-gray-300 mb-3" />
-      <h3 className="text-lg font-medium text-gray-700 mb-1">
-        Suivi énergétique
-      </h3>
-      <p className="text-sm text-gray-500 mb-4 text-center max-w-md">
-        Consultez les consommations, les analyses P1 et le suivi climatique
-        de ce bâtiment depuis le module énergie.
-      </p>
-      <Link href={`/energy/sites/${siteId}`}>
-        <Button>
-          <BarChart3 size={16} className="mr-2" />
-          Voir le suivi énergétique
-        </Button>
-      </Link>
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <button onClick={() => onNavigate("energy")} className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-accent/40 transition-colors">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <TrendingUp size={14} />
+            Consommation
+          </div>
+          <p className="text-xl font-bold text-primary-dark">
+            {stats?.consumptions.lastMonth != null ? `${Math.round(stats.consumptions.lastMonth).toLocaleString()} kWh` : "—"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">Dernier mois</p>
+        </button>
+
+        <button onClick={() => onNavigate("exploitation")} className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-accent/40 transition-colors">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <Wrench size={14} />
+            Tickets ouverts
+          </div>
+          <p className="text-xl font-bold text-primary-dark">
+            {stats?.tickets.open ?? 0}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{stats?.tickets.inProgress ?? 0} en cours</p>
+        </button>
+
+        <button onClick={() => onNavigate("contract")} className="text-left p-4 bg-white border border-gray-200 rounded-xl hover:border-accent/40 transition-colors">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <Euro size={14} />
+            Contrat
+          </div>
+          <p className="text-xl font-bold text-primary-dark">
+            {stats?.contractInfo?.provider || cs?.contract.provider || "—"}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {cs ? [cs.hasP1 && "P1", cs.hasP2 && "P2", cs.hasP3 && "P3"].filter(Boolean).join(" · ") : "Aucun contrat"}
+          </p>
+        </button>
+
+        <div className="p-4 bg-white border border-gray-200 rounded-xl">
+          <div className="flex items-center gap-2 text-gray-500 text-xs mb-1">
+            <AlertTriangle size={14} />
+            Alertes
+          </div>
+          <p className="text-xl font-bold text-primary-dark">
+            {stats?.alertCount ?? 0}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">{stats?.equipmentCount ?? 0} équipement(s)</p>
+        </div>
+      </div>
+
+      {/* Quick Info Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Site Identity */}
+        <ChartCard title="Identité du bâtiment">
+          <div className="space-y-3">
+            <InfoRow label="Adresse" value={`${site.address}, ${site.city} ${site.postalCode}`} />
+            <InfoRow label="Surface" value={site.surface ? `${site.surface.toLocaleString()} m²` : "—"} />
+            <InfoRow label="Énergie" value={ENERGY_CONFIG[site.energyType]?.label || site.energyType} />
+            {site.pce && <InfoRow label="PCE (gaz)" value={site.pce} />}
+            {site.pdl && <InfoRow label="PDL (élec)" value={site.pdl} />}
+            {site.stationMeteo && <InfoRow label="Station météo" value={site.stationMeteo} />}
+          </div>
+        </ChartCard>
+
+        {/* Contract Summary */}
+        <ChartCard title="Contrat actif">
+          {site.contractSites.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">Aucun contrat lié</p>
+          ) : (
+            <div className="space-y-3">
+              {site.contractSites.map((cs) => (
+                <div key={cs.id} className="p-3 rounded-lg border border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{cs.contract.reference}</p>
+                      <p className="text-xs text-gray-500">{cs.contract.title} — {cs.contract.provider}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      {cs.hasP1 && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">P1</span>}
+                      {cs.hasP2 && <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">P2</span>}
+                      {cs.hasP3 && <span className="text-xs px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">P3</span>}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Type : {cs.contractType}</p>
+                </div>
+              ))}
+              <button
+                onClick={() => onNavigate("contract")}
+                className="w-full text-center text-xs text-accent hover:underline py-1"
+              >
+                Voir détail contrat & finances →
+              </button>
+            </div>
+          )}
+        </ChartCard>
+      </div>
     </div>
   );
 }
 
 // ============================================================
-// Zones placeholder - will show OccupationZones from ThermalProfileSection
+// Energy Tab - Consommations & compteurs inline
 // ============================================================
 
-function ZonesPlaceholder({ siteId }: { siteId: string }) {
+function EnergyTab({ siteId }: { siteId: string }) {
+  const [consumptions, setConsumptions] = useState<Array<{ period: string; quantity: number; unit: string; energyType: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/sites/${siteId}/consumptions?limit=24`);
+        if (res.ok) {
+          const data = await res.json();
+          setConsumptions(data.consumptions || data || []);
+        }
+      } catch {
+        // Silent
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [siteId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <Calendar size={40} className="text-gray-300 mb-3" />
-      <h3 className="text-lg font-medium text-gray-700 mb-1">
-        Zones d{"'"}occupation
-      </h3>
-      <p className="text-sm text-gray-500 mb-4 text-center max-w-md">
-        Les zones d{"'"}occupation sont gérées dans l{"'"}onglet Profil thermique.
-        Elles y sont intégrées avec les températures de consigne et les plannings hebdomadaires.
-      </p>
-      <p className="text-xs text-gray-400">
-        Rendez-vous dans l{"'"}onglet &quot;Profil thermique&quot; pour gérer les zones.
-      </p>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Compteurs */}
+        <ChartCard title="Points de livraison">
+          <div className="space-y-3">
+            <Link href={`/sites/${siteId}`} className="block">
+              <Button variant="outline" className="w-full">
+                <Gauge size={16} className="mr-2" />
+                Gérer les compteurs & relevés
+              </Button>
+            </Link>
+          </div>
+        </ChartCard>
+
+        {/* Télérelève */}
+        <ChartCard title="Télérelève">
+          <div className="space-y-3">
+            <Link href="/energy?tab=telereleve">
+              <Button variant="outline" className="w-full">
+                <BarChart3 size={16} className="mr-2" />
+                Configurer la télérelève GRDF / Enedis
+              </Button>
+            </Link>
+          </div>
+        </ChartCard>
+      </div>
+
+      {/* Consommations table */}
+      <ChartCard title={`Consommations (${consumptions.length} relevés)`}>
+        {consumptions.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-8">Aucune consommation enregistrée</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left py-2 text-xs text-gray-500 font-medium">Période</th>
+                  <th className="text-left py-2 text-xs text-gray-500 font-medium">Type</th>
+                  <th className="text-right py-2 text-xs text-gray-500 font-medium">Quantité</th>
+                  <th className="text-right py-2 text-xs text-gray-500 font-medium">Unité</th>
+                </tr>
+              </thead>
+              <tbody>
+                {consumptions.slice(0, 12).map((c, i) => (
+                  <tr key={i} className="border-b border-gray-50">
+                    <td className="py-2 text-gray-900">
+                      {new Date(c.period).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
+                    </td>
+                    <td className="py-2 text-gray-600">{c.energyType}</td>
+                    <td className="py-2 text-right font-medium text-gray-900">
+                      {Math.round(c.quantity).toLocaleString()}
+                    </td>
+                    <td className="py-2 text-right text-gray-500">{c.unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </ChartCard>
+    </div>
+  );
+}
+
+// ============================================================
+// Contract & Finances Tab
+// ============================================================
+
+interface ContractSiteDetail {
+  id: string;
+  contractType: string;
+  hasP1: boolean;
+  hasP2: boolean;
+  hasP3: boolean;
+  hasP4: boolean;
+  amountP1: number | null;
+  amountP2: number | null;
+  amountP3: number | null;
+  coefficientPCS: number | null;
+  integrationDate: string | null;
+  exitDate: string | null;
+  contract: {
+    id: string;
+    reference: string;
+    title: string;
+    provider: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+  };
+}
+
+function ContractTab({ site }: { site: SiteDetail }) {
+  const [contractSites, setContractSites] = useState<ContractSiteDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/sites/${site.id}/contracts`);
+        if (res.ok) {
+          const data = await res.json();
+          setContractSites(data.contractSites || []);
+        }
+      } catch {
+        // Silent
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [site.id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (contractSites.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <FileText size={40} className="mx-auto text-gray-300 mb-3" />
+        <h3 className="text-lg font-medium text-gray-700 mb-1">Aucun contrat</h3>
+        <p className="text-sm text-gray-500">Ce site n{"'"}est rattaché à aucun contrat d{"'"}exploitation.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {contractSites.map((cs) => (
+        <div key={cs.id} className="space-y-4">
+          {/* Contract header */}
+          <ChartCard title={`${cs.contract.reference} — ${cs.contract.provider}`}>
+            <div className="space-y-3">
+              <InfoRow label="Titre" value={cs.contract.title} />
+              <InfoRow label="Type de contrat" value={cs.contractType} />
+              <InfoRow label="Statut" value={cs.contract.status} />
+              <InfoRow
+                label="Période"
+                value={`${new Date(cs.contract.startDate).toLocaleDateString("fr-FR")} → ${new Date(cs.contract.endDate).toLocaleDateString("fr-FR")}`}
+              />
+              {cs.integrationDate && (
+                <InfoRow label="Intégration site" value={new Date(cs.integrationDate).toLocaleDateString("fr-FR")} />
+              )}
+              {cs.coefficientPCS != null && (
+                <InfoRow label="Coefficient PCS" value={`${cs.coefficientPCS} kWh/m³`} />
+              )}
+              <div className="pt-2">
+                <Link href={`/contracts/${cs.contract.id}`}>
+                  <Button variant="outline" size="sm">
+                    <FileText size={14} className="mr-1" />
+                    Voir le contrat complet
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </ChartCard>
+
+          {/* Prestations & montants */}
+          <ChartCard title="Prestations & montants annuels">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {cs.hasP1 && (
+                <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+                  <p className="text-xs text-blue-600 font-medium">P1 — Combustible</p>
+                  <p className="text-lg font-bold text-blue-800 mt-1">
+                    {cs.amountP1 != null ? `${cs.amountP1.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €` : "—"}
+                  </p>
+                </div>
+              )}
+              {cs.hasP2 && (
+                <div className="p-3 rounded-lg bg-green-50 border border-green-100">
+                  <p className="text-xs text-green-600 font-medium">P2 — Petit entretien</p>
+                  <p className="text-lg font-bold text-green-800 mt-1">
+                    {cs.amountP2 != null ? `${cs.amountP2.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €` : "—"}
+                  </p>
+                </div>
+              )}
+              {cs.hasP3 && (
+                <div className="p-3 rounded-lg bg-orange-50 border border-orange-100">
+                  <p className="text-xs text-orange-600 font-medium">P3 — Gros entretien</p>
+                  <p className="text-lg font-bold text-orange-800 mt-1">
+                    {cs.amountP3 != null ? `${cs.amountP3.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €` : "—"}
+                  </p>
+                </div>
+              )}
+              {cs.hasP4 && (
+                <div className="p-3 rounded-lg bg-purple-50 border border-purple-100">
+                  <p className="text-xs text-purple-600 font-medium">P4 — Financement</p>
+                  <p className="text-lg font-bold text-purple-800 mt-1">—</p>
+                </div>
+              )}
+            </div>
+          </ChartCard>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// Exploitation Tab - Tickets & interventions for this site
+// ============================================================
+
+interface SiteTicket {
+  id: string;
+  title: string;
+  status: string;
+  createdAt: string;
+  source: string;
+}
+
+const TICKET_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  OPEN: { label: "Ouvert", color: "bg-red-100 text-red-700" },
+  IN_PROGRESS: { label: "En cours", color: "bg-blue-100 text-blue-700" },
+  RESOLVED: { label: "Résolu", color: "bg-green-100 text-green-700" },
+  CLOSED: { label: "Fermé", color: "bg-gray-100 text-gray-600" },
+};
+
+function ExploitationTab({ siteId }: { siteId: string }) {
+  const [tickets, setTickets] = useState<SiteTicket[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/sites/${siteId}/tickets`);
+        if (res.ok) {
+          const data = await res.json();
+          setTickets(data.tickets || []);
+        }
+      } catch {
+        // Silent
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [siteId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  const open = tickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS");
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-4 bg-white border border-gray-200 rounded-xl">
+          <p className="text-xs text-gray-500">Total tickets</p>
+          <p className="text-2xl font-bold text-primary-dark">{tickets.length}</p>
+        </div>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl">
+          <p className="text-xs text-gray-500">Ouverts / En cours</p>
+          <p className="text-2xl font-bold text-red-600">{open.length}</p>
+        </div>
+        <div className="p-4 bg-white border border-gray-200 rounded-xl">
+          <p className="text-xs text-gray-500">Résolus</p>
+          <p className="text-2xl font-bold text-green-600">{tickets.filter((t) => t.status === "RESOLVED" || t.status === "CLOSED").length}</p>
+        </div>
+      </div>
+
+      {/* Tickets list */}
+      <ChartCard title={`Tickets (${tickets.length})`}>
+        {tickets.length === 0 ? (
+          <div className="text-center py-8">
+            <Wrench size={40} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-sm text-gray-500">Aucun ticket pour ce site</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {tickets.map((ticket) => {
+              const statusConf = TICKET_STATUS_CONFIG[ticket.status] || { label: ticket.status, color: "bg-gray-100 text-gray-600" };
+              return (
+                <div key={ticket.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 border border-gray-100">
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${statusConf.color}`}>
+                    {statusConf.label}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{ticket.title}</p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(ticket.createdAt).toLocaleDateString("fr-FR")} · {ticket.source}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-4">
+          <Link href="/exploitation">
+            <Button variant="outline" size="sm" className="w-full">
+              <Wrench size={14} className="mr-1" />
+              Voir toute l{"'"}exploitation
+            </Button>
+          </Link>
+        </div>
+      </ChartCard>
     </div>
   );
 }
