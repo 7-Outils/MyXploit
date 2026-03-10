@@ -29,11 +29,20 @@ export async function GET(request: Request) {
 
     const basePath = ENV_BASE_PATH[grdf.environment];
 
-    // Try both endpoints
-    const results: Record<string, unknown> = {};
+    // Try multiple parameter variants to find what works
+    const variants = [
+      { label: "no_params", qs: "" },
+      { label: "periode_no_accent", qs: `periode=${year}` },
+      { label: "periode_accent", qs: `période=${year}` },
+      { label: "date_debut_fin", qs: `date_debut=${year}-01-01&date_fin=${year}-12-31` },
+      { label: "date_debut_only", qs: `date_debut=${year}-01-01` },
+    ];
 
-    for (const endpoint of ["donnees_consos_publiees", "donnees_consos_informatives"]) {
-      const url = `${GRDF_API_HOST}${basePath}/pce/${pce}/${endpoint}?periode=${year}`;
+    const results: Record<string, unknown> = {};
+    const endpoint = "donnees_consos_publiees";
+
+    for (const v of variants) {
+      const url = `${GRDF_API_HOST}${basePath}/pce/${pce}/${endpoint}${v.qs ? `?${v.qs}` : ""}`;
 
       const response = await fetch(url, {
         headers: {
@@ -43,12 +52,10 @@ export async function GET(request: Request) {
       });
 
       const rawText = await response.text();
-      results[endpoint] = {
+      results[v.label] = {
         url,
         status: response.status,
-        contentType: response.headers.get("content-type"),
-        rawText: rawText.substring(0, 2000),
-        lines: rawText.split("\n").filter((l) => l.trim()).length,
+        rawText: rawText.substring(0, 500),
       };
     }
 
