@@ -22,6 +22,12 @@ export async function GET() {
 
     const droits = await getGRDFDroitsAcces(grdf.accessToken, grdf.environment);
 
+    // Log first droit's keys to understand GRDF response structure
+    if (droits.length > 0) {
+      console.log("GRDF droit sample keys:", Object.keys(droits[0]));
+      console.log("GRDF droit sample:", JSON.stringify(droits[0], null, 2));
+    }
+
     return NextResponse.json({
       droits,
       total: droits.length,
