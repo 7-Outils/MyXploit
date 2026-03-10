@@ -263,14 +263,51 @@ export function TelereleveCard() {
                   </Button>
                 </>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={() => setShowGRDFModal(true)}
-                  className="w-full"
-                >
-                  <Settings size={14} className="mr-1" />
-                  Configurer GRDF
-                </Button>
+                <div className="space-y-3">
+                  {/* Présentation GRDF */}
+                  <div className="text-xs text-gray-700 leading-relaxed">
+                    <p className="mb-2">
+                      <strong>GRDF</strong> gère le réseau de distribution de gaz naturel en France.
+                      Pour le suivi énergétique de vos bâtiments, connectez votre compte GRDF ADICT
+                      pour récupérer automatiquement les données de consommation gaz.
+                    </p>
+                    <p className="text-gray-500 text-[11px]">
+                      GRDF ADICT est le service d&apos;accès aux données individuelles de consommation
+                      par télérelève. Un contrat GRDF ADICT est nécessaire pour accéder aux données.
+                    </p>
+                  </div>
+
+                  {/* Texte avant le bouton */}
+                  <p className="text-xs text-gray-600 leading-relaxed bg-gray-50 p-2 rounded">
+                    Renseignez vos identifiants GRDF ADICT (Client ID et Client Secret) pour
+                    autoriser la récupération automatique des consommations gaz de vos sites.
+                  </p>
+
+                  <Button
+                    size="sm"
+                    onClick={() => setShowGRDFModal(true)}
+                    className="w-full"
+                  >
+                    <Settings size={14} className="mr-1" />
+                    Configurer GRDF ADICT
+                  </Button>
+
+                  {/* Lien portail GRDF */}
+                  <div className="text-[11px] text-gray-500 leading-relaxed">
+                    <p>
+                      Vous n&apos;avez pas de contrat GRDF ADICT ?{" "}
+                      <a
+                        href="https://sites.grdf.fr/web/portail-api-grdf-adict"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        Consultez le portail GRDF ADICT
+                      </a>
+                      {" "}pour en savoir plus et faire votre demande d&apos;accès.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           </div>
