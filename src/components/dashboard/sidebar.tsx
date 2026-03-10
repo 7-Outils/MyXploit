@@ -35,6 +35,7 @@ type NavItem = {
 
 // Navigation ADMIN (Dirigeant) — pilotage missions
 const adminNavigation: NavItem[] = [
+  { name: "Pilotage", href: "/pilotage", icon: BarChart3 },
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
   { name: "Missions", href: "/missions", icon: FolderKanban, adminOnly: true },
   { name: "Clients", href: "/clients", icon: Building2, adminOnly: true },
@@ -45,6 +46,7 @@ const adminNavigation: NavItem[] = [
 
 // Navigation par defaut (Ingenieur, Lecteur)
 const defaultNavigation: NavItem[] = [
+  { name: "Pilotage", href: "/pilotage", icon: BarChart3 },
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
   { name: "Batiments", href: "/buildings", icon: Building2 },
   { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
@@ -64,6 +66,7 @@ export function Sidebar() {
     if (href === "/buildings") return pathname === href || pathname.startsWith("/buildings/");
     if (href === "/clients") return pathname === href || pathname.startsWith("/clients/");
     if (href === "/missions") return pathname === href || pathname.startsWith("/missions/");
+    if (href === "/pilotage") return pathname === href;
     if (href === "/rapports") return pathname === href;
     if (href === "/team") return pathname === href;
     return pathname === href || pathname.startsWith(href + "?");
