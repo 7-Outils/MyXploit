@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useUserProfile, type UserProfileType } from "@/contexts/UserProfileContext";
 import {
   Building2,
   Zap,
@@ -9,509 +10,464 @@ import {
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
-  ChevronUp,
-  ChevronDown,
-  Wrench,
   TrendingUp,
   TrendingDown,
+  Wrench,
+  Clock,
+  Activity,
+  ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────
-interface PilotageData {
+interface CommandData {
+  profile: string;
   kpis: {
     buildingCount: number;
     totalSurface: number;
     totalMwh: number;
     totalCost: number;
+    costPerM2: number;
+    avgKwhPerM2: number;
+    avgDpe: string;
+    trendPercent: number;
     alertCount: number;
     criticalAlerts: number;
-    trendPercent: number;
+    ticketCount: number;
+    overdueTickets: number;
+    equipmentIssueCount: number;
+    equipmentTotal: number;
+    p3Budget: number;
   };
   buildings: BuildingRow[];
+  topCostly: BuildingRow[];
   energyBreakdown: { type: string; totalKwh: number; percentage: number }[];
   monthlyTrend: MonthlyPoint[];
   alerts: AlertItem[];
-  equipmentIssues: { id: string; name: string; status: string; siteName: string }[];
+  tickets: TicketItem[];
+  equipmentIssues: EquipmentItem[];
+  expiringContracts: { id: string; title: string; provider: string; endDate: string }[];
+  invoices: InvoiceItem[];
+  recentActivity: ActivityItem[];
 }
 
 interface BuildingRow {
-  id: string;
-  name: string;
-  type: string;
-  city: string;
-  surface: number;
-  surfaceChauffee: number;
-  kwhPerM2: number;
-  score: string;
-  trend: number;
-  contractProvider: string | null;
+  id: string; name: string; type: string; city: string;
+  surface: number; surfaceChauffee: number; kwhPerM2: number;
+  score: string; trend: number; cost: number; provider: string | null;
 }
 
 interface MonthlyPoint {
-  month: string;
-  gaz: number;
-  electricite: number;
-  fioul: number;
-  bois: number;
-  reseauChaleur: number;
-  total: number;
+  month: string; gaz: number; electricite: number; fioul: number;
+  bois: number; reseauChaleur: number; total: number;
 }
 
 interface AlertItem {
-  id: string;
-  type: string;
-  priority: string;
-  title: string;
-  siteName: string;
-  createdAt: string;
+  id: string; type: string; priority: string; title: string;
+  siteName: string; createdAt: string;
 }
 
-type SortKey = "name" | "type" | "surfaceChauffee" | "kwhPerM2" | "score" | "trend";
+interface TicketItem {
+  id: string; reference: string; title: string; status: string;
+  siteName: string; dueDate: string | null; isOverdue: boolean;
+}
 
-// ─── Score DPE ───────────────────────────────────────────────
-const SCORE_CONFIG: Record<string, { color: string; bg: string }> = {
-  A: { color: "#22c55e", bg: "bg-green-50" },
-  B: { color: "#84cc16", bg: "bg-lime-50" },
-  C: { color: "#eab308", bg: "bg-yellow-50" },
-  D: { color: "#f59e0b", bg: "bg-amber-50" },
-  E: { color: "#f97316", bg: "bg-orange-50" },
-  F: { color: "#ef4444", bg: "bg-red-50" },
-  G: { color: "#991b1b", bg: "bg-red-100" },
+interface EquipmentItem {
+  id: string; name: string; status: string; power: number | null; siteName: string;
+}
+
+interface InvoiceItem {
+  id: string; type: string; status: string; amount: number;
+  issueDate: string; siteName: string;
+}
+
+interface ActivityItem {
+  id: string; type: string; title: string; date: string;
+  siteName: string; userName: string;
+}
+
+// ─── Constants ───────────────────────────────────────────────
+const DPE_COLORS: Record<string, string> = {
+  A: "#22c55e", B: "#84cc16", C: "#eab308", D: "#f59e0b",
+  E: "#f97316", F: "#ef4444", G: "#991b1b",
 };
 
-const SCORE_ORDER = ["A", "B", "C", "D", "E", "F", "G"];
-
 const ENERGY_COLORS: Record<string, string> = {
-  GAZ: "#f59e0b",
-  ELECTRICITE: "#3b82f6",
-  FIOUL: "#78716c",
-  BOIS: "#84cc16",
-  RESEAU_CHALEUR: "#ef4444",
-  AUTRE: "#6b7280",
+  GAZ: "#f59e0b", ELECTRICITE: "#3b82f6", FIOUL: "#78716c",
+  BOIS: "#84cc16", RESEAU_CHALEUR: "#ef4444", AUTRE: "#6b7280",
 };
 
 const ENERGY_LABELS: Record<string, string> = {
-  GAZ: "Gaz",
-  ELECTRICITE: "Electricité",
-  FIOUL: "Fioul",
-  BOIS: "Bois",
-  RESEAU_CHALEUR: "Réseau chaleur",
-  AUTRE: "Autre",
+  GAZ: "Gaz", ELECTRICITE: "Électricité", FIOUL: "Fioul",
+  BOIS: "Bois", RESEAU_CHALEUR: "Réseau chaleur", AUTRE: "Autre",
 };
 
-const PRIORITY_CONFIG: Record<string, { label: string; class: string }> = {
-  CRITIQUE: { label: "Critique", class: "bg-red-100 text-red-700" },
-  HAUTE: { label: "Haute", class: "bg-orange-100 text-orange-700" },
-  MOYENNE: { label: "Moyenne", class: "bg-yellow-100 text-yellow-700" },
-  BASSE: { label: "Basse", class: "bg-gray-100 text-gray-600" },
+const PRIORITY_STYLES: Record<string, string> = {
+  CRITIQUE: "bg-red-500/10 text-red-400 border-red-500/20",
+  HAUTE: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  MOYENNE: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  BASSE: "bg-slate-500/10 text-slate-400 border-slate-500/20",
 };
 
-// ─── Helpers ─────────────────────────────────────────────────
-function formatNumber(n: number): string {
-  return n.toLocaleString("fr-FR");
-}
+const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  PANNE: { bg: "bg-red-500/10", text: "text-red-400" },
+  HORS_SERVICE: { bg: "bg-slate-500/10", text: "text-slate-400" },
+  MAINTENANCE: { bg: "bg-amber-500/10", text: "text-amber-400" },
+};
+
+function fmt(n: number): string { return n.toLocaleString("fr-FR"); }
 
 function formatMonth(m: string): string {
-  const [year, month] = m.split("-");
   const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-  return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
+  const [, month] = m.split("-");
+  return months[parseInt(month) - 1] || m;
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(diff / 3600000);
+  if (hours < 1) return "< 1h";
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}j`;
+  return `${Math.floor(days / 7)}sem`;
 }
 
 // ─── Page ────────────────────────────────────────────────────
-export default function PilotagePage() {
-  const [data, setData] = useState<PilotageData | null>(null);
+export default function PilotageCommandCenter() {
+  const [data, setData] = useState<CommandData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("kwhPerM2");
-  const [sortAsc, setSortAsc] = useState(false);
+  const { profile } = useUserProfile();
 
   useEffect(() => {
-    fetch("/api/pilotage")
+    fetch("/api/pilotage/command-center")
       .then((r) => r.json())
       .then((d) => setData(d))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  const sortedBuildings = useMemo(() => {
-    if (!data) return [];
-    const arr = [...data.buildings];
-    arr.sort((a, b) => {
-      let va: string | number = a[sortKey];
-      let vb: string | number = b[sortKey];
-      if (sortKey === "score") {
-        va = SCORE_ORDER.indexOf(a.score);
-        vb = SCORE_ORDER.indexOf(b.score);
-      }
-      if (typeof va === "string") return sortAsc ? va.localeCompare(vb as string) : (vb as string).localeCompare(va);
-      return sortAsc ? (va as number) - (vb as number) : (vb as number) - (va as number);
-    });
-    return arr;
-  }, [data, sortKey, sortAsc]);
+  if (loading) return <LoadingSkeleton />;
+  if (!data) return <ErrorState />;
 
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortKey(key);
-      setSortAsc(key === "name" || key === "type");
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 w-64 bg-gray-200 rounded" />
-          <div className="grid grid-cols-4 gap-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-100 rounded-xl" />
-            ))}
-          </div>
-          <div className="h-96 bg-gray-100 rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="p-8 text-center text-text-secondary">
-        Impossible de charger les données de pilotage.
-      </div>
-    );
-  }
-
-  const { kpis, energyBreakdown, monthlyTrend, alerts, equipmentIssues } = data;
-  const maxKwhPerM2 = Math.max(...sortedBuildings.map((b) => b.kwhPerM2), 1);
+  const { kpis } = data;
+  const effectiveProfile = profile || (data.profile as UserProfileType) || "AMO";
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary-dark">Pilotage Énergétique</h1>
-        <p className="text-text-secondary mt-1">
-          Vue d&apos;ensemble de la performance de votre patrimoine
-        </p>
+      {/* ─── KPI Strip (dark hero) ──────────────────────── */}
+      <div className="bg-gradient-to-br from-[#12161F] via-[#1a2536] to-[#12161F] rounded-2xl p-6 lg:p-8 border border-white/5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {effectiveProfile === "CLIENT" && (
+            <>
+              <HeroKpi icon={Building2} label="Patrimoine" value={`${fmt(kpis.buildingCount)}`} sub={`${fmt(kpis.totalSurface)} m² chauffés`} />
+              <HeroKpi icon={Euro} label="Budget énergie" value={`${fmt(kpis.totalCost)} €`} sub={`${kpis.costPerM2} €/m²`} />
+              <HeroKpi icon={Zap} label="Score DPE moyen" value={kpis.avgDpe} sub={`${fmt(kpis.avgKwhPerM2)} kWh/m²/an`} valueColor={DPE_COLORS[kpis.avgDpe]} />
+              <HeroKpi icon={AlertTriangle} label="Alertes" value={`${kpis.alertCount}`} sub={kpis.criticalAlerts > 0 ? `${kpis.criticalAlerts} critiques` : "Aucune critique"} alert={kpis.criticalAlerts > 0} />
+            </>
+          )}
+          {effectiveProfile === "AMO" && (
+            <>
+              <HeroKpi icon={Building2} label="Sites suivis" value={`${fmt(kpis.buildingCount)}`} sub={`${fmt(kpis.totalSurface)} m²`} />
+              <HeroKpi icon={Zap} label="Consommation" value={`${fmt(kpis.totalMwh)} MWh`} trend={kpis.trendPercent} sub="vs N-1" />
+              <HeroKpi icon={Clock} label="Tickets ouverts" value={`${kpis.ticketCount}`} sub={kpis.overdueTickets > 0 ? `${kpis.overdueTickets} en retard` : "Aucun en retard"} alert={kpis.overdueTickets > 0} />
+              <HeroKpi icon={AlertTriangle} label="Alertes" value={`${kpis.alertCount}`} sub={kpis.criticalAlerts > 0 ? `${kpis.criticalAlerts} critiques` : "RAS"} alert={kpis.criticalAlerts > 0} />
+            </>
+          )}
+          {effectiveProfile === "EXPLOITANT" && (
+            <>
+              <HeroKpi icon={Building2} label="Sites en exploitation" value={`${fmt(kpis.buildingCount)}`} sub={`${fmt(kpis.totalSurface)} m²`} />
+              <HeroKpi icon={TrendingUp} label="Consommation" value={`${fmt(kpis.totalMwh)} MWh`} trend={kpis.trendPercent} sub="Conformité P1" />
+              <HeroKpi icon={Euro} label="Budget P3" value={`${fmt(kpis.p3Budget)} €`} sub="provisionné" />
+              <HeroKpi icon={Wrench} label="Équipements" value={`${kpis.equipmentIssueCount}`} sub={`en panne / ${fmt(kpis.equipmentTotal)} total`} alert={kpis.equipmentIssueCount > 0} />
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ─── Zone A: KPI Cards ─────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          icon={Building2}
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
-          label="Patrimoine"
-          value={`${formatNumber(kpis.buildingCount)} bâtiments`}
-          sub={`${formatNumber(kpis.totalSurface)} m² chauffés`}
-        />
-        <KpiCard
-          icon={Zap}
-          iconBg="bg-amber-50"
-          iconColor="text-amber-600"
-          label="Consommation"
-          value={`${formatNumber(kpis.totalMwh)} MWh`}
-          sub={
-            kpis.trendPercent !== 0
-              ? `${kpis.trendPercent > 0 ? "+" : ""}${kpis.trendPercent}% vs N-1`
-              : "Stable vs N-1"
-          }
-          trend={kpis.trendPercent}
-        />
-        <KpiCard
-          icon={Euro}
-          iconBg="bg-emerald-50"
-          iconColor="text-emerald-600"
-          label="Budget énergie"
-          value={`${formatNumber(kpis.totalCost)} €`}
-          sub={
-            kpis.totalSurface > 0
-              ? `${(kpis.totalCost / kpis.totalSurface).toFixed(1)} €/m²`
-              : "—"
-          }
-        />
-        <KpiCard
-          icon={AlertTriangle}
-          iconBg="bg-red-50"
-          iconColor="text-red-600"
-          label="Alertes"
-          value={`${kpis.alertCount} actives`}
-          sub={kpis.criticalAlerts > 0 ? `dont ${kpis.criticalAlerts} critiques` : "Aucune critique"}
-          alert={kpis.criticalAlerts > 0}
-        />
-      </div>
+      {/* ─── Cards Grid (profile-adaptive) ─────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Column 1 */}
+        <div className="space-y-6">
+          <GlassCard title="Répartition énergie" accentColor="#3b82f6" href="/pilotage/performance">
+            <EnergyDonut data={data.energyBreakdown} />
+          </GlassCard>
 
-      {/* ─── Zone B: 2 colonnes ────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        {/* Left: Building ranking (3/5) */}
-        <div className="xl:col-span-3 bg-white rounded-xl border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-primary-dark">Classement des bâtiments</h2>
-            <p className="text-sm text-text-secondary">{sortedBuildings.length} sites · trié par {sortKey === "kwhPerM2" ? "kWh/m²" : sortKey}</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-left text-text-secondary">
-                  <SortHeader label="Bâtiment" sortKey="name" current={sortKey} asc={sortAsc} onSort={handleSort} />
-                  <SortHeader label="Type" sortKey="type" current={sortKey} asc={sortAsc} onSort={handleSort} className="hidden md:table-cell" />
-                  <SortHeader label="Surface" sortKey="surfaceChauffee" current={sortKey} asc={sortAsc} onSort={handleSort} className="hidden lg:table-cell" />
-                  <SortHeader label="kWh/m²/an" sortKey="kwhPerM2" current={sortKey} asc={sortAsc} onSort={handleSort} />
-                  <SortHeader label="DPE" sortKey="score" current={sortKey} asc={sortAsc} onSort={handleSort} />
-                  <SortHeader label="Tendance" sortKey="trend" current={sortKey} asc={sortAsc} onSort={handleSort} className="hidden sm:table-cell" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {sortedBuildings.map((b) => {
-                  const sc = SCORE_CONFIG[b.score] || SCORE_CONFIG.G;
-                  return (
-                    <tr key={b.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <Link href={`/buildings/${b.id}`} className="font-medium text-primary-dark hover:text-accent transition-colors">
-                          {b.name}
-                        </Link>
-                        <div className="text-xs text-text-secondary">{b.city}</div>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                          {b.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-text-secondary">
-                        {formatNumber(b.surfaceChauffee)} m²
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-primary-dark w-12 text-right">{b.kwhPerM2}</span>
-                          <div className="flex-1 max-w-[80px] h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{
-                                width: `${Math.min((b.kwhPerM2 / maxKwhPerM2) * 100, 100)}%`,
-                                backgroundColor: sc.color,
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm text-white"
-                          style={{ backgroundColor: sc.color }}
-                        >
-                          {b.score}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <TrendBadge value={b.trend} />
-                      </td>
-                    </tr>
-                  );
-                })}
-                {sortedBuildings.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-text-secondary">
-                      Aucun bâtiment trouvé
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {(effectiveProfile === "CLIENT" || effectiveProfile === "AMO") && data.expiringContracts.length > 0 && (
+            <GlassCard title="Contrats expirant" accentColor="#f59e0b" href="/pilotage/contrats">
+              <div className="space-y-3">
+                {data.expiringContracts.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-primary-dark truncate">{c.title}</p>
+                      <p className="text-xs text-text-secondary">{c.provider}</p>
+                    </div>
+                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full shrink-0 ml-2">
+                      {new Date(c.endDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </GlassCard>
+          )}
         </div>
 
-        {/* Right column (2/5) */}
-        <div className="xl:col-span-2 space-y-6">
-          {/* Donut: energy breakdown */}
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-primary-dark">Répartition par énergie</h3>
+        {/* Column 2 */}
+        <div className="space-y-6">
+          <GlassCard
+            title={effectiveProfile === "CLIENT" ? "Top bâtiments coûteux" : "Classement bâtiments"}
+            accentColor="#ef4444"
+            href="/pilotage/patrimoine"
+          >
+            <div className="space-y-2">
+              {(effectiveProfile === "CLIENT" ? data.topCostly : [...data.buildings].sort((a, b) => b.kwhPerM2 - a.kwhPerM2).slice(0, 6)).map((b, i) => (
+                <Link key={b.id} href={`/buildings/${b.id}`} className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                  <span className="text-xs font-bold text-text-secondary w-5 text-right">{i + 1}</span>
+                  <span
+                    className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold text-white shrink-0"
+                    style={{ backgroundColor: DPE_COLORS[b.score] || DPE_COLORS.G }}
+                  >
+                    {b.score}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-primary-dark truncate group-hover:text-accent transition-colors">{b.name}</p>
+                    <p className="text-xs text-text-secondary">
+                      {effectiveProfile === "CLIENT" ? `${fmt(b.cost)} €` : `${fmt(b.kwhPerM2)} kWh/m²`}
+                    </p>
+                  </div>
+                  <TrendBadge value={b.trend} />
+                </Link>
+              ))}
             </div>
-            <div className="p-6">
-              <EnergyDonut data={energyBreakdown} />
-            </div>
-          </div>
+          </GlassCard>
 
-          {/* Alerts */}
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-semibold text-primary-dark">Alertes récentes</h3>
-              <span className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded-full font-medium">
-                {alerts.length}
-              </span>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {alerts.slice(0, 5).map((a) => {
-                const prio = PRIORITY_CONFIG[a.priority] || PRIORITY_CONFIG.MOYENNE;
-                return (
-                  <div key={a.id} className="px-6 py-3 flex items-start gap-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5 ${prio.class}`}>
-                      {prio.label}
-                    </span>
+          {effectiveProfile === "CLIENT" ? (
+            <GlassCard title="Dernières factures" accentColor="#8b5cf6">
+              <div className="space-y-3">
+                {data.invoices.map((inv) => (
+                  <div key={inv.id} className="flex items-center justify-between">
                     <div className="min-w-0">
-                      <p className="text-sm text-primary-dark truncate">{a.title}</p>
-                      <p className="text-xs text-text-secondary">{a.siteName}</p>
+                      <p className="text-sm font-medium text-primary-dark truncate">{inv.siteName}</p>
+                      <p className="text-xs text-text-secondary">{inv.type}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-primary-dark">{fmt(inv.amount)} €</span>
+                  </div>
+                ))}
+                {data.invoices.length === 0 && <EmptyText text="Aucune facture récente" />}
+              </div>
+            </GlassCard>
+          ) : (
+            <GlassCard title="Tickets ouverts" accentColor="#f97316" href="/pilotage/alertes">
+              <div className="space-y-2">
+                {data.tickets.slice(0, 5).map((t) => (
+                  <div key={t.id} className="flex items-start gap-2">
+                    <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${t.isOverdue ? "bg-red-500" : "bg-amber-400"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm text-primary-dark truncate">{t.title}</p>
+                      <p className="text-xs text-text-secondary">{t.siteName} · {t.reference}</p>
                     </div>
                   </div>
-                );
-              })}
-              {alerts.length === 0 && (
-                <div className="px-6 py-8 text-center text-text-secondary text-sm">
-                  Aucune alerte active
-                </div>
-              )}
-            </div>
-          </div>
+                ))}
+                {data.tickets.length === 0 && <EmptyText text="Aucun ticket ouvert" />}
+              </div>
+            </GlassCard>
+          )}
+        </div>
 
-          {/* Equipment issues */}
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-semibold text-primary-dark">Équipements en panne</h3>
-              <span className="flex items-center gap-1 text-xs font-medium text-orange-600">
-                <Wrench size={14} />
-                {equipmentIssues.length}
-              </span>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {equipmentIssues.slice(0, 5).map((eq) => (
-                <div key={eq.id} className="px-6 py-3 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm text-primary-dark truncate">{eq.name}</p>
-                    <p className="text-xs text-text-secondary">{eq.siteName}</p>
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${eq.status === "PANNE" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"}`}>
-                    {eq.status === "PANNE" ? "Panne" : "Hors service"}
+        {/* Column 3 */}
+        <div className="space-y-6">
+          <GlassCard title="Alertes récentes" accentColor="#ef4444" href="/pilotage/alertes"
+            badge={data.alerts.length > 0 ? `${data.alerts.length}` : undefined}
+          >
+            <div className="space-y-2">
+              {data.alerts.slice(0, 5).map((a) => (
+                <div key={a.id} className="flex items-start gap-2">
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 mt-0.5 ${PRIORITY_STYLES[a.priority] || PRIORITY_STYLES.MOYENNE}`}>
+                    {a.priority === "CRITIQUE" ? "CRIT" : a.priority === "HAUTE" ? "HAUT" : a.priority === "BASSE" ? "BAS" : "MOY"}
                   </span>
+                  <div className="min-w-0">
+                    <p className="text-sm text-primary-dark truncate">{a.title}</p>
+                    <p className="text-xs text-text-secondary">{a.siteName} · {timeAgo(a.createdAt)}</p>
+                  </div>
                 </div>
               ))}
-              {equipmentIssues.length === 0 && (
-                <div className="px-6 py-8 text-center text-text-secondary text-sm">
-                  Tous les équipements opérationnels
-                </div>
-              )}
+              {data.alerts.length === 0 && <EmptyText text="Aucune alerte active" />}
             </div>
-          </div>
+          </GlassCard>
+
+          {(effectiveProfile === "AMO" || effectiveProfile === "EXPLOITANT") && (
+            <GlassCard title="Équipements critiques" accentColor="#f97316" href="/pilotage/equipements">
+              <div className="space-y-2">
+                {data.equipmentIssues.slice(0, 5).map((eq) => {
+                  const st = STATUS_STYLES[eq.status] || STATUS_STYLES.MAINTENANCE;
+                  return (
+                    <div key={eq.id} className="flex items-center justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm text-primary-dark truncate">{eq.name}</p>
+                        <p className="text-xs text-text-secondary">{eq.siteName}{eq.power ? ` · ${eq.power} kW` : ""}</p>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
+                        {eq.status === "PANNE" ? "Panne" : eq.status === "HORS_SERVICE" ? "HS" : "Maint."}
+                      </span>
+                    </div>
+                  );
+                })}
+                {data.equipmentIssues.length === 0 && <EmptyText text="Tous opérationnels" />}
+              </div>
+            </GlassCard>
+          )}
         </div>
       </div>
 
-      {/* ─── Zone C: Monthly bar chart ─────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-primary-dark">Consommation mensuelle</h2>
-          <p className="text-sm text-text-secondary">12 derniers mois · kWh par type d&apos;énergie</p>
-        </div>
-        <div className="p-6">
-          <StackedBarChart data={monthlyTrend} />
-        </div>
-      </div>
+      {/* ─── Monthly Chart (full width) ────────────────── */}
+      <GlassCard title="Consommation mensuelle" subtitle="12 derniers mois · kWh par énergie" accentColor="#3A7E85">
+        <StackedBarChart data={data.monthlyTrend} />
+      </GlassCard>
+
+      {/* ─── Activity Timeline ─────────────────────────── */}
+      {data.recentActivity.length > 0 && (
+        <GlassCard title="Activité récente" accentColor="#6b7280">
+          <div className="space-y-3">
+            {data.recentActivity.map((a) => (
+              <div key={a.id} className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+                  <Activity size={14} className="text-gray-500" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-primary-dark">{a.title}</p>
+                  <p className="text-xs text-text-secondary">
+                    {a.siteName} · {a.userName} · {timeAgo(a.date)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
     </div>
   );
 }
 
 // ─── Sub-components ──────────────────────────────────────────
 
-function KpiCard({
-  icon: Icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-  sub,
-  trend,
-  alert,
-}: {
-  icon: LucideIcon;
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  value: string;
-  sub: string;
-  trend?: number;
-  alert?: boolean;
+function HeroKpi({ icon: Icon, label, value, sub, trend, alert, valueColor }: {
+  icon: LucideIcon; label: string; value: string; sub: string;
+  trend?: number; alert?: boolean; valueColor?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-soft transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}>
-          <Icon size={22} className={iconColor} />
-        </div>
+    <div className="relative">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon size={16} className="text-gray-400" />
+        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">{label}</span>
+      </div>
+      <div className="flex items-baseline gap-2">
+        <AnimatedNumber value={value} color={valueColor} />
         {trend !== undefined && trend !== 0 && (
-          <span
-            className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-full ${
-              trend < 0 ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-            }`}
-          >
+          <span className={`flex items-center gap-0.5 text-xs font-semibold ${trend < 0 ? "text-emerald-400" : "text-rose-400"}`}>
             {trend < 0 ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
             {Math.abs(trend)}%
           </span>
         )}
-        {alert && (
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
-          </span>
-        )}
       </div>
-      <p className="text-sm text-text-secondary mb-0.5">{label}</p>
-      <p className="text-2xl font-bold text-primary-dark">{value}</p>
-      <p className="text-xs text-text-secondary mt-1">{sub}</p>
+      <p className="text-xs text-gray-500 mt-1">{sub}</p>
+      {alert && (
+        <span className="absolute top-0 right-0 flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+        </span>
+      )}
+    </div>
+  );
+}
+
+function AnimatedNumber({ value, color }: { value: string; color?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [displayed, setDisplayed] = useState(value);
+
+  useEffect(() => {
+    const num = parseFloat(value.replace(/[^\d.-]/g, ""));
+    if (isNaN(num) || num === 0) {
+      setDisplayed(value);
+      return;
+    }
+
+    const suffix = value.replace(/[\d.,\s-]/g, "").trim();
+    const prefix = value.match(/^[^\d]*/)?.[0] || "";
+    const duration = 600;
+    const start = performance.now();
+
+    function animate(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(num * eased);
+      setDisplayed(`${prefix}${current.toLocaleString("fr-FR")}${suffix ? " " + suffix : ""}`);
+      if (progress < 1) requestAnimationFrame(animate);
+      else setDisplayed(value);
+    }
+
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return (
+    <span ref={ref} className="text-3xl lg:text-4xl font-bold tracking-tight" style={{ color: color || "white" }}>
+      {displayed}
+    </span>
+  );
+}
+
+function GlassCard({ title, subtitle, children, accentColor, href, badge }: {
+  title: string; subtitle?: string; children: React.ReactNode;
+  accentColor?: string; href?: string; badge?: string;
+}) {
+  return (
+    <div
+      className="bg-white/90 backdrop-blur-sm rounded-xl border border-gray-100/80 overflow-hidden hover:shadow-lg transition-shadow duration-300"
+      style={{ borderLeftColor: accentColor, borderLeftWidth: accentColor ? 3 : undefined }}
+    >
+      <div className="px-5 py-4 border-b border-gray-100/60 flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-primary-dark">{title}</h3>
+          {subtitle && <p className="text-xs text-text-secondary mt-0.5">{subtitle}</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          {badge && (
+            <span className="text-[10px] font-bold bg-red-500 text-white px-1.5 py-0.5 rounded-full min-w-[20px] text-center">{badge}</span>
+          )}
+          {href && (
+            <Link href={href} className="text-text-secondary hover:text-accent transition-colors">
+              <ChevronRight size={16} />
+            </Link>
+          )}
+        </div>
+      </div>
+      <div className="px-5 py-4">{children}</div>
     </div>
   );
 }
 
 function TrendBadge({ value }: { value: number }) {
-  if (value === 0) return <span className="text-xs text-text-secondary">—</span>;
+  if (value === 0) return null;
   const isDown = value < 0;
   return (
-    <span
-      className={`inline-flex items-center gap-0.5 text-xs font-medium ${
-        isDown ? "text-green-600" : "text-red-600"
-      }`}
-    >
-      {isDown ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+    <span className={`inline-flex items-center gap-0.5 text-xs font-medium shrink-0 ${isDown ? "text-emerald-600" : "text-rose-600"}`}>
+      {isDown ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
       {Math.abs(value)}%
     </span>
   );
 }
 
-function SortHeader({
-  label,
-  sortKey: key,
-  current,
-  asc,
-  onSort,
-  className = "",
-}: {
-  label: string;
-  sortKey: SortKey;
-  current: SortKey;
-  asc: boolean;
-  onSort: (k: SortKey) => void;
-  className?: string;
-}) {
-  const active = current === key;
-  return (
-    <th
-      className={`px-4 py-3 font-medium text-xs uppercase tracking-wide cursor-pointer select-none hover:text-primary-dark transition-colors ${className}`}
-      onClick={() => onSort(key)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {active && (asc ? <ChevronUp size={14} /> : <ChevronDown size={14} />)}
-      </span>
-    </th>
-  );
+function EmptyText({ text }: { text: string }) {
+  return <p className="text-center text-text-secondary text-sm py-4">{text}</p>;
 }
 
-// ─── Donut Chart (inline SVG) ────────────────────────────────
+// ─── Energy Donut ────────────────────────────────────────────
 function EnergyDonut({ data }: { data: { type: string; totalKwh: number; percentage: number }[] }) {
   const total = data.reduce((s, d) => s + d.totalKwh, 0);
-  if (total === 0) {
-    return <p className="text-center text-text-secondary text-sm py-8">Aucune donnée de consommation</p>;
-  }
+  if (total === 0) return <EmptyText text="Aucune donnée" />;
 
-  const size = 160;
-  const strokeWidth = 24;
+  const size = 140;
+  const strokeWidth = 20;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
@@ -526,39 +482,30 @@ function EnergyDonut({ data }: { data: { type: string; totalKwh: number; percent
   });
 
   return (
-    <div className="flex flex-col lg:flex-row items-center gap-6">
-      <div className="relative" style={{ width: size, height: size }}>
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="transform -rotate-90">
-          <circle cx={center} cy={center} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
           {segments.map((seg, i) => (
-            <circle
-              key={i}
-              cx={center}
-              cy={center}
-              r={radius}
-              fill="none"
+            <circle key={i} cx={center} cy={center} r={radius} fill="none"
               stroke={ENERGY_COLORS[seg.type] || ENERGY_COLORS.AUTRE}
-              strokeWidth={strokeWidth}
-              strokeDasharray={seg.dashArray}
-              strokeDashoffset={seg.dashOffset}
-              strokeLinecap="butt"
-              className="transition-all duration-500"
+              strokeWidth={strokeWidth} strokeDasharray={seg.dashArray}
+              strokeDashoffset={seg.dashOffset} strokeLinecap="butt"
+              className="transition-all duration-700"
             />
           ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold text-primary-dark">{formatNumber(Math.round(total / 1000))}</span>
-          <span className="text-xs text-text-secondary">MWh</span>
+          <span className="text-lg font-bold text-primary-dark">{fmt(Math.round(total / 1000))}</span>
+          <span className="text-[10px] text-text-secondary">MWh</span>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5 min-w-0">
         {segments.map((seg, i) => (
           <div key={i} className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ENERGY_COLORS[seg.type] || ENERGY_COLORS.AUTRE }} />
-            <div>
-              <span className="text-sm text-primary-dark">{ENERGY_LABELS[seg.type] || seg.type}</span>
-              <span className="text-xs text-text-secondary ml-2">{seg.percentage}%</span>
-            </div>
+            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ENERGY_COLORS[seg.type] || ENERGY_COLORS.AUTRE }} />
+            <span className="text-xs text-primary-dark truncate">{ENERGY_LABELS[seg.type] || seg.type}</span>
+            <span className="text-xs text-text-secondary ml-auto">{seg.percentage}%</span>
           </div>
         ))}
       </div>
@@ -566,94 +513,91 @@ function EnergyDonut({ data }: { data: { type: string; totalKwh: number; percent
   );
 }
 
-// ─── Stacked Bar Chart (inline SVG) ─────────────────────────
+// ─── Stacked Bar Chart ───────────────────────────────────────
 function StackedBarChart({ data }: { data: MonthlyPoint[] }) {
-  if (data.length === 0) {
-    return <p className="text-center text-text-secondary text-sm py-8">Aucune donnée mensuelle</p>;
-  }
+  if (data.length === 0) return <EmptyText text="Aucune donnée mensuelle" />;
 
   const energyKeys: { key: keyof MonthlyPoint; color: string; label: string }[] = [
     { key: "gaz", color: ENERGY_COLORS.GAZ, label: "Gaz" },
-    { key: "electricite", color: ENERGY_COLORS.ELECTRICITE, label: "Electricité" },
+    { key: "electricite", color: ENERGY_COLORS.ELECTRICITE, label: "Électricité" },
     { key: "fioul", color: ENERGY_COLORS.FIOUL, label: "Fioul" },
     { key: "bois", color: ENERGY_COLORS.BOIS, label: "Bois" },
     { key: "reseauChaleur", color: ENERGY_COLORS.RESEAU_CHALEUR, label: "Réseau chaleur" },
   ];
 
   const maxTotal = Math.max(...data.map((d) => d.total), 1);
-  const chartH = 220;
-  const chartW = 700;
-  const barPadding = 6;
-  const barWidth = Math.max((chartW - barPadding * data.length) / data.length, 20);
-  const totalWidth = data.length * (barWidth + barPadding);
+  const chartH = 200;
+  const barPad = 8;
+  const barW = Math.max((680 - barPad * data.length) / data.length, 24);
+  const totalW = data.length * (barW + barPad) + 50;
 
   return (
-    <div className="space-y-4">
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 mb-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-4">
         {energyKeys.map((ek) => (
           <div key={ek.key} className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded" style={{ backgroundColor: ek.color }} />
+            <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: ek.color }} />
             <span className="text-xs text-text-secondary">{ek.label}</span>
           </div>
         ))}
       </div>
-
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${totalWidth + 40} ${chartH + 40}`} className="w-full" style={{ minWidth: 400 }}>
-          {/* Y-axis grid lines */}
+        <svg viewBox={`0 0 ${totalW} ${chartH + 35}`} className="w-full" style={{ minWidth: 380 }}>
           {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
-            const y = chartH - chartH * pct + 10;
+            const y = chartH - chartH * pct + 8;
             const val = Math.round((maxTotal * pct) / 1000);
             return (
               <g key={pct}>
-                <line x1={35} y1={y} x2={totalWidth + 35} y2={y} stroke="#f3f4f6" strokeWidth={1} />
-                <text x={30} y={y + 4} textAnchor="end" className="text-[10px] fill-gray-400">
-                  {val > 0 ? `${val}` : "0"}
-                </text>
+                <line x1={40} y1={y} x2={totalW} y2={y} stroke="#f1f5f9" strokeWidth={1} strokeDasharray="4 4" />
+                <text x={36} y={y + 3} textAnchor="end" className="text-[9px] fill-gray-400">{val > 0 ? val : "0"}</text>
               </g>
             );
           })}
-          <text x={0} y={6} className="text-[9px] fill-gray-400">MWh</text>
-
-          {/* Bars */}
+          <text x={0} y={6} className="text-[8px] fill-gray-400">MWh</text>
           {data.map((point, i) => {
-            const x = 40 + i * (barWidth + barPadding);
-            let yOffset = 0;
+            const x = 44 + i * (barW + barPad);
+            let yOff = 0;
             return (
               <g key={point.month}>
                 {energyKeys.map((ek) => {
                   const val = (point[ek.key] as number) || 0;
                   const h = (val / maxTotal) * chartH;
-                  const y = chartH - yOffset - h + 10;
-                  yOffset += h;
+                  const y = chartH - yOff - h + 8;
+                  yOff += h;
                   if (val === 0) return null;
-                  return (
-                    <rect
-                      key={ek.key}
-                      x={x}
-                      y={y}
-                      width={barWidth}
-                      height={Math.max(h, 0)}
-                      rx={2}
-                      fill={ek.color}
-                      className="transition-all duration-300"
-                    />
-                  );
+                  return <rect key={ek.key} x={x} y={y} width={barW} height={Math.max(h, 0)} rx={3} fill={ek.color} className="transition-all duration-500" />;
                 })}
-                <text
-                  x={x + barWidth / 2}
-                  y={chartH + 25}
-                  textAnchor="middle"
-                  className="text-[10px] fill-gray-500"
-                >
-                  {formatMonth(point.month)}
-                </text>
+                <text x={x + barW / 2} y={chartH + 22} textAnchor="middle" className="text-[9px] fill-gray-500">{formatMonth(point.month)}</text>
               </g>
             );
           })}
         </svg>
       </div>
+    </div>
+  );
+}
+
+// ─── Loading & Error ─────────────────────────────────────────
+function LoadingSkeleton() {
+  return (
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto animate-pulse">
+      <div className="bg-gray-900/50 rounded-2xl p-8 h-40" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => <div key={i} className="bg-gray-100 rounded-xl h-64" />)}
+      </div>
+      <div className="bg-gray-100 rounded-xl h-72" />
+    </div>
+  );
+}
+
+function ErrorState() {
+  return (
+    <div className="p-8 text-center">
+      <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+        <AlertTriangle size={24} className="text-red-500" />
+      </div>
+      <p className="text-primary-dark font-medium">Impossible de charger les données</p>
+      <p className="text-sm text-text-secondary mt-1">Vérifiez votre connexion et réessayez.</p>
     </div>
   );
 }
