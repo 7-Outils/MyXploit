@@ -145,12 +145,17 @@ export async function POST(request: NextRequest) {
         let imported = 0;
 
         for (const conso of consumptions) {
+          // Extract from nested GRDF response structure
+          const consoData = conso.consommation;
+          if (!consoData?.date_debut_consommation) continue;
+
           // Parse date to get the period (first day of month)
-          const period = new Date(conso.date_debut_consommation);
+          const period = new Date(consoData.date_debut_consommation);
           period.setDate(1);
 
-          // Use energie (kWh) if available, otherwise convert m³ * 11.2
-          const quantityKwh = conso.energie || conso.consommation * 11.2;
+          // Use energie (kWh) if available, otherwise convert volume_brut * coeff_conversion
+          const coeffConversion = consoData.coeff_calcul?.coeff_conversion || 11.2;
+          const quantityKwh = consoData.energie || (consoData.volume_brut || 0) * coeffConversion;
 
           // Upsert consumption
           await prisma.consumption.upsert({

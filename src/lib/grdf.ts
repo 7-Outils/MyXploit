@@ -41,20 +41,49 @@ export interface GRDFTokenResponse {
   scope: string;
 }
 
-/** Ligne NDJSON de consommation (publiée ou informative) */
+/** Ligne NDJSON de consommation (publiée ou informative) — structure imbriquée GRDF ADICT v6 */
 export interface GRDFConsommation {
-  id_pce: string;
-  date_debut_consommation: string;
-  date_fin_consommation: string;
-  consommation: number;
-  energie: number;
-  index_debut: number | null;
-  index_fin: number | null;
-  journee_gaziere: string | null;
-  type_qualif_conso: string;
-  frequence_releve: string;
-  statut_restitution?: string;
-  code_statut_restitution?: string;
+  pce: {
+    id_pce: string;
+  };
+  periode: {
+    valeur: string | null;
+    date_debut: string | null;
+    date_fin: string | null;
+  };
+  releve_debut: {
+    date_releve: string | null;
+    index_brut_debut: { valeur_index: number | null } | null;
+    index_brut_fin: { valeur_index: number | null } | null;
+  } | null;
+  releve_fin: {
+    date_releve: string | null;
+    index_brut_debut: { valeur_index: number | null } | null;
+    index_brut_fin: { valeur_index: number | null } | null;
+  } | null;
+  consommation: {
+    date_debut_consommation: string;
+    date_fin_consommation: string;
+    volume_brut: number | null;
+    coeff_calcul: {
+      coeff_pta: number | null;
+      valeur_pcs: number | null;
+      coeff_conversion: number | null;
+    } | null;
+    volume_converti: number | null;
+    energie: number | null;
+    type_qualif_conso: string | null;
+    sens_flux_gaz: string | null;
+    statut_conso: string | null;
+    journee_gaziere: string | null;
+    type_conso: string | null;
+  };
+  bordereau_publication: {
+    id_bordereau: string | null;
+    date_bordereau: string | null;
+    nb_jours_bordereau: number | null;
+  } | null;
+  statut_restitution: string | null;
 }
 
 /** Données contractuelles d'un PCE */
