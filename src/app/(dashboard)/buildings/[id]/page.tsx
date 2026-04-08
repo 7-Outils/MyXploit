@@ -507,6 +507,13 @@ interface ConsumptionRecord {
   quantity: number;
   unit: string;
   cost: number | null;
+  /**
+   * Set when the record was imported from an exploitant Excel sheet
+   * (IDEX, Engie, Dalkia…). Null when synced automatically from GRDF/Enedis.
+   * The Energy tab on the building detail only shows exploitant data;
+   * GRDF/Enedis raw data is shown in the Télérelève tab.
+   */
+  meterName: string | null;
 }
 
 const ENERGY_COLORS: Record<string, string> = {
@@ -558,7 +565,10 @@ function EnergyTab({ siteId }: { siteId: string }) {
       })
       .then((data: ConsumptionRecord[]) => {
         if (cancelled) return;
-        setConsumptions(data);
+        // Only keep exploitant data (manually imported with a meterName).
+        // Raw GRDF/Enedis sync data has meterName === null and lives in
+        // the Télérelève tab, not here.
+        setConsumptions(data.filter((c) => c.meterName !== null));
       })
       .catch((e) => {
         if (cancelled) return;
@@ -572,7 +582,7 @@ function EnergyTab({ siteId }: { siteId: string }) {
     };
   }, [siteId]);
 
-  // Available energy types in this site's data
+  // Available energy types in this site's exploitant data
   const availableEnergies = useMemo(() => {
     const set = new Set<string>();
     consumptions.forEach((c) => set.add(c.energyType));
@@ -664,11 +674,13 @@ function EnergyTab({ siteId }: { siteId: string }) {
       <div className="flex flex-col items-center justify-center py-16">
         <BarChart3 size={40} className="text-gray-300 mb-3" />
         <h3 className="text-lg font-medium text-gray-700 mb-1">
-          Aucune consommation enregistrée
+          Aucun relevé exploitant pour ce site
         </h3>
         <p className="text-sm text-gray-500 mb-4 text-center max-w-md">
-          Les consommations apparaîtront ici dès qu&apos;elles seront
-          synchronisées depuis GRDF, Enedis ou ajoutées manuellement.
+          Cet onglet affiche les consommations transmises par votre exploitant
+          (import Excel mensuel ou saisie manuelle). Pour la donnée brute du
+          distributeur (GRDF, Enedis), rendez-vous dans l&apos;onglet
+          <strong> Télérelève</strong> du module Énergie.
         </p>
         <Link href={`/energy/sites/${siteId}`}>
           <Button variant="outline">
@@ -826,7 +838,7 @@ function EnergyTab({ siteId }: { siteId: string }) {
         title={`Consommation ${
           selectedEnergy ? ENERGY_LABELS[selectedEnergy] || selectedEnergy : ""
         }`}
-        subtitle="Données mesurées issues de la télérelève"
+        subtitle="Relevés transmis par l'exploitant"
       >
         <ConsumptionTimeChart data={chartData} color={chartColor} height={320} />
       </ChartCard>

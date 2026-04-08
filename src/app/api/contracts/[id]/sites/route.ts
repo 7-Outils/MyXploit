@@ -53,6 +53,8 @@ export async function GET(
             surfaceChauffee: true,
             energyType: true,
             annualBudget: true,
+            pce: true,
+            pdl: true,
             latitude: true,
             longitude: true,
             _count: {
