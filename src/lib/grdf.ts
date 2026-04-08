@@ -1,10 +1,13 @@
 /**
- * GRDF ADICT API Service — v6
- * Conforme au Swagger GRDF_ADICT_BAS_V6 et à la collection Postman BAS v1.4
+ * GRDF ADICT API Service
  *
  * Environnements :
  *   - BAS (Bac à Sable) : basePath = /adict/bas/v6, scope = /adict/bas/v6
- *   - Production         : basePath = /adict/v6,     scope = /adict/v6
+ *   - Production        : basePath = /adict/v2,     scope = /adict/v2
+ *
+ * Note : la prod GRDF utilise actuellement la v2 de l'API ADICT.
+ * Les endpoints (donnees_consos_publiees, donnees_contractuelles, droits_acces…)
+ * et le format NDJSON sont identiques entre BAS v6 et Prod v2.
  */
 
 // ─── Configuration ───────────────────────────────────────────────────────────
@@ -21,8 +24,8 @@ const ENV_CONFIG: Record<GRDFEnvironment, { basePath: string; scope: string }> =
     scope: "/adict/bas/v6",
   },
   production: {
-    basePath: "/adict/v6",
-    scope: "/adict/v6",
+    basePath: "/adict/v2",
+    scope: "/adict/v2",
   },
 };
 
