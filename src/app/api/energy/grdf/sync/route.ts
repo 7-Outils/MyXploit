@@ -71,17 +71,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Optionally verify droits d'accès
-    let droitsAcces: string[] = [];
-    try {
-      const droits = await getGRDFDroitsAcces(accessToken, environment);
-      droitsAcces = droits
-        .filter((d) => d.etat_droit_acces === "Active")
-        .map((d) => d.id_pce);
-    } catch {
-      // Continue without verification
-    }
-
     // Default date range — 3 years rolling up to today
     const defaultDateFin = new Date().toISOString().split("T")[0];
     const defaultDateDebut = (() => {
@@ -92,12 +81,17 @@ export async function POST(request: NextRequest) {
     const dateFin = body.endDate || defaultDateFin;
     const dateDebut = body.startDate || defaultDateDebut;
 
-    // Build a map of PCE → droit d'accès for date range fallback
+    // Single call to /droits_acces — extract both the active PCE list AND
+    // the per-PCE date range in one pass to avoid duplicate API requests
+    // (which previously contributed to GRDF rate limiting).
+    const droitsAcces: string[] = [];
     const droitsMap = new Map<string, { debut: string; fin: string }>();
     try {
       const allDroits = await getGRDFDroitsAcces(accessToken, environment);
       for (const d of allDroits) {
-        if (d.etat_droit_acces === "Active" && d.perim_donnees_conso_debut && d.perim_donnees_conso_fin) {
+        if (d.etat_droit_acces !== "Active") continue;
+        droitsAcces.push(d.id_pce);
+        if (d.perim_donnees_conso_debut && d.perim_donnees_conso_fin) {
           droitsMap.set(d.id_pce, {
             debut: d.perim_donnees_conso_debut,
             fin: d.perim_donnees_conso_fin,
@@ -105,8 +99,38 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch {
-      // Continue with default dates
+      // Continue without verification (PCEs will all be queried)
     }
+
+    // Helper: pause between API calls to respect GRDF rate limits
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    // Helper: call informatives with retry on 429 (rate limit)
+    const fetchConsosWithRetry = async (
+      pce: string,
+      debut: string,
+      fin: string
+    ) => {
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          return await getGRDFConsosInformatives(
+            pce,
+            accessToken,
+            { dateDebut: debut, dateFin: fin },
+            environment
+          );
+        } catch (err) {
+          lastError = err;
+          const msg = err instanceof Error ? err.message : "";
+          // Only retry on 429 (rate limit)
+          if (!msg.includes("429")) throw err;
+          // Exponential backoff: 3s, 6s, 12s
+          await sleep(3000 * Math.pow(2, attempt));
+        }
+      }
+      throw lastError;
+    };
 
     // Sync each site
     const results: Array<{
@@ -118,6 +142,7 @@ export async function POST(request: NextRequest) {
       error?: string;
     }> = [];
 
+    let pceCallCount = 0;
     for (const site of sites) {
       const pce = site.pce!;
 
@@ -134,6 +159,12 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Throttle: wait 2s between PCE calls (skip the wait on the first call)
+      if (pceCallCount > 0) {
+        await sleep(2000);
+      }
+      pceCallCount++;
+
       try {
         // Determine date range from droit d'accès or defaults
         const droitDates = droitsMap.get(pce);
@@ -142,13 +173,11 @@ export async function POST(request: NextRequest) {
 
         // GRDF informatives endpoint accepts up to 3 years of date range in
         // a single call and returns daily readings for Gazpar meters.
-        // No need to loop year-by-year — one call is enough and avoids the
-        // rate limiting that previously caused silent data loss.
-        const consumptions = await getGRDFConsosInformatives(
+        // Wrapped in retry-on-429 helper to handle GRDF rate limits gracefully.
+        const consumptions = await fetchConsosWithRetry(
           pce,
-          accessToken,
-          { dateDebut: effectiveDateDebut, dateFin: effectiveDateFin },
-          environment
+          effectiveDateDebut,
+          effectiveDateFin
         );
 
         // Cleanup existing GAZ records for this site within the synced range
