@@ -204,8 +204,8 @@ export function TelereleveBuildingChart({ contractId }: Props) {
   // ─── KPIs ────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
     const total = filtered.reduce((s, r) => s + r.quantity, 0);
-    const cost = filtered.reduce((s, r) => s + (r.cost || 0), 0);
-    return { total, cost, count: filtered.length };
+    const avg = filtered.length > 0 ? total / filtered.length : 0;
+    return { total, avg, count: filtered.length };
   }, [filtered]);
 
   // YoY: same window one year before
@@ -237,7 +237,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
     const seriesName = selectedSite?.pce || selectedSite?.pdl || "Consommation";
 
     return {
-      grid: { left: 64, right: 24, top: 24, bottom: 90 },
+      grid: { left: 64, right: 24, top: 24, bottom: 60 },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -259,13 +259,6 @@ export function TelereleveBuildingChart({ contractId }: Props) {
               ${formatKwh(p.value)}
             </div>`;
         },
-      },
-      legend: {
-        data: [seriesName],
-        bottom: 60,
-        left: "center",
-        icon: "circle",
-        textStyle: { color: "#374151", fontSize: 12 },
       },
       xAxis: {
         type: "category",
@@ -307,8 +300,8 @@ export function TelereleveBuildingChart({ contractId }: Props) {
         },
         {
           type: "slider",
-          height: 28,
-          bottom: 18,
+          height: 24,
+          bottom: 8,
           borderColor: "transparent",
           backgroundColor: "#f3f4f6",
           fillerColor: "rgba(59,130,246,0.15)",
@@ -505,13 +498,9 @@ export function TelereleveBuildingChart({ contractId }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Kpi label="Conso totale" value={formatKwh(kpis.total)} />
         <Kpi
-          label="Coût estimé"
-          value={
-            kpis.cost > 0
-              ? `${Math.round(kpis.cost).toLocaleString("fr-FR")} €`
-              : "—"
-          }
-          subtle={kpis.cost > 0 ? undefined : "non renseigné"}
+          label="Moyenne / relevé"
+          value={kpis.avg > 0 ? formatKwh(kpis.avg) : "—"}
+          subtle={kpis.count > 0 ? `sur ${kpis.count} relevé(s)` : undefined}
         />
         <Kpi
           label="Évolution N-1"
