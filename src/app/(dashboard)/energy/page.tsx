@@ -38,6 +38,9 @@ import {
   Info,
   Droplets,
   Euro,
+  Settings,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -2488,11 +2491,44 @@ function ECSContent({
 }
 
 function TelereleveContent({ contractId }: { contractId?: string }) {
+  // Plumbing (GRDF/Enedis configuration + droits d'accès) is collapsed by
+  // default — the chart is what users come here for. Open the section only
+  // if they need to configure something.
+  const [plumbingOpen, setPlumbingOpen] = useState(false);
+
   return (
     <div className="space-y-6">
-      <TelereleveCard contractId={contractId} />
-      <DroitsAccesCard />
+      {/* The data — what users actually want to see */}
       {contractId && <TelereleveBuildingChart contractId={contractId} />}
+
+      {/* The plumbing — folded behind a disclosure */}
+      <div className="bg-white border border-gray-200 rounded-xl">
+        <button
+          onClick={() => setPlumbingOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 rounded-xl"
+        >
+          <div className="flex items-center gap-2">
+            <Settings size={16} className="text-gray-500" />
+            <span className="text-sm font-medium text-primary-dark">
+              Configuration & droits d&apos;accès
+            </span>
+            <span className="text-xs text-text-secondary">
+              GRDF, Enedis, mandats
+            </span>
+          </div>
+          {plumbingOpen ? (
+            <ChevronUp size={16} className="text-gray-500" />
+          ) : (
+            <ChevronDown size={16} className="text-gray-500" />
+          )}
+        </button>
+        {plumbingOpen && (
+          <div className="border-t border-gray-200 p-4 space-y-6">
+            <TelereleveCard contractId={contractId} />
+            <DroitsAccesCard />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -3,6 +3,10 @@
     {
       "path": "/api/energy-prices/sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/grdf-sync",
+      "schedule": "0 3 * * *"
     }
   ]
 }

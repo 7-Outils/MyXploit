@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 
 interface ProviderStatus {
   isConnected: boolean;
@@ -32,6 +33,10 @@ interface TelereleveCardProps {
 }
 
 export function TelereleveCard({ contractId }: TelereleveCardProps = {}) {
+  const { profile } = useUserProfile();
+  // CLIENT profile must never see the manual sync plumbing — sync runs
+  // automatically every night via Vercel Cron (vercel.json + /api/cron/grdf-sync).
+  const showSyncButton = profile !== "CLIENT";
   const [providers, setProviders] = useState<ProvidersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<"grdf" | "enedis" | null>(null);
@@ -260,28 +265,38 @@ export function TelereleveCard({ contractId }: TelereleveCardProps = {}) {
             <div className="flex gap-2">
               {providers?.grdf.isConnected ? (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleSync("grdf")}
-                    disabled={syncing === "grdf"}
-                    className="flex-1"
-                  >
-                    {syncing === "grdf" ? (
-                      <Loader2 size={14} className="mr-1 animate-spin" />
-                    ) : (
-                      <RefreshCw size={14} className="mr-1" />
-                    )}
-                    Synchroniser
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDisconnect("grdf")}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    Déconnecter
-                  </Button>
+                  {showSyncButton && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleSync("grdf")}
+                        disabled={syncing === "grdf"}
+                        className="flex-1"
+                      >
+                        {syncing === "grdf" ? (
+                          <Loader2 size={14} className="mr-1 animate-spin" />
+                        ) : (
+                          <RefreshCw size={14} className="mr-1" />
+                        )}
+                        Synchroniser
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDisconnect("grdf")}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        Déconnecter
+                      </Button>
+                    </>
+                  )}
+                  {!showSyncButton && (
+                    <p className="text-xs text-text-secondary italic">
+                      Vos données sont mises à jour automatiquement chaque
+                      nuit.
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="space-y-3">
