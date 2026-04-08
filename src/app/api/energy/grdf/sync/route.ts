@@ -177,7 +177,12 @@ export async function POST(request: NextRequest) {
         // Determine date range from droit d'accès or defaults
         const droitDates = droitsMap.get(pce);
         const effectiveDateDebut = droitDates?.debut || dateDebut;
-        const effectiveDateFin = droitDates?.fin || dateFin;
+        // GRDF rejects date_fin > today (code 1000016). Some droits d'accès
+        // have a perim_donnees_conso_fin in the future (e.g. 2027-02-28).
+        // Clamp date_fin to today.
+        const today = new Date().toISOString().split("T")[0];
+        const rawDateFin = droitDates?.fin || dateFin;
+        const effectiveDateFin = rawDateFin > today ? today : rawDateFin;
 
         // GRDF informatives endpoint accepts up to 3 years of date range in
         // a single call and returns daily readings for Gazpar meters.
