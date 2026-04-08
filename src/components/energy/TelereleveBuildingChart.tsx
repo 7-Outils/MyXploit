@@ -185,7 +185,11 @@ export function TelereleveBuildingChart({ contractId }: Props) {
   const [dateFrom, setDateFrom] = useState(daysAgoIso(90));
   const [dateTo, setDateTo] = useState(todayIso());
 
-  // ─── Filtered series ─────────────────────────────────────────────────
+  // ─── Frequency (display granularity) ─────────────────────────────────
+  type Frequency = "hour" | "day" | "week" | "month" | "year";
+  const [frequency, setFrequency] = useState<Frequency>("day");
+
+  // ─── Filtered raw records ────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (!selectedEnergy) return [];
     const fromTs = new Date(dateFrom).getTime();
@@ -201,12 +205,109 @@ export function TelereleveBuildingChart({ contractId }: Props) {
       );
   }, [records, selectedEnergy, dateFrom, dateTo]);
 
+  // Detect the natural finest granularity present in the records
+  // (used to disable frequencies that would invent data we don't have)
+  const naturalGranularity: Frequency = useMemo(() => {
+    if (records.length < 2) return "day";
+    // Pick the smallest gap between two consecutive sorted periods
+    const sorted = [...records]
+      .filter((r) => r.energyType === selectedEnergy || !selectedEnergy)
+      .sort(
+        (a, b) => new Date(a.period).getTime() - new Date(b.period).getTime()
+      );
+    let minGapMs = Infinity;
+    for (let i = 1; i < sorted.length; i++) {
+      const gap =
+        new Date(sorted[i].period).getTime() -
+        new Date(sorted[i - 1].period).getTime();
+      if (gap > 0 && gap < minGapMs) minGapMs = gap;
+    }
+    const oneHour = 60 * 60 * 1000;
+    const oneDay = 24 * oneHour;
+    if (minGapMs < 23 * oneHour) return "hour";
+    if (minGapMs < 6 * oneDay) return "day";
+    if (minGapMs < 27 * oneDay) return "week";
+    return "month";
+  }, [records, selectedEnergy]);
+
+  // If the user picked a frequency finer than what's in the data,
+  // bump them up to the finest available
+  useEffect(() => {
+    const order: Frequency[] = ["hour", "day", "week", "month", "year"];
+    if (order.indexOf(frequency) < order.indexOf(naturalGranularity)) {
+      setFrequency(naturalGranularity);
+    }
+  }, [naturalGranularity, frequency]);
+
+  // ─── Aggregate filtered records into the chosen frequency buckets ────
+  const buckets = useMemo(() => {
+    if (filtered.length === 0)
+      return [] as { date: string; total: number }[];
+
+    const map = new Map<string, { date: Date; total: number }>();
+
+    for (const r of filtered) {
+      const d = new Date(r.period);
+      if (Number.isNaN(d.getTime())) continue;
+
+      let key: string;
+      let bucketDate: Date;
+
+      switch (frequency) {
+        case "hour": {
+          bucketDate = new Date(
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate(),
+            d.getHours()
+          );
+          key = bucketDate.toISOString();
+          break;
+        }
+        case "day": {
+          bucketDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          key = bucketDate.toISOString();
+          break;
+        }
+        case "week": {
+          // ISO week starts on Monday
+          const day = d.getDay();
+          const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+          bucketDate = new Date(d.getFullYear(), d.getMonth(), diff);
+          key = bucketDate.toISOString();
+          break;
+        }
+        case "month": {
+          bucketDate = new Date(d.getFullYear(), d.getMonth(), 1);
+          key = `${bucketDate.getFullYear()}-${String(bucketDate.getMonth() + 1).padStart(2, "0")}`;
+          break;
+        }
+        case "year": {
+          bucketDate = new Date(d.getFullYear(), 0, 1);
+          key = String(bucketDate.getFullYear());
+          break;
+        }
+      }
+
+      const existing = map.get(key);
+      if (existing) {
+        existing.total += r.quantity;
+      } else {
+        map.set(key, { date: bucketDate, total: r.quantity });
+      }
+    }
+
+    return Array.from(map.values())
+      .sort((a, b) => a.date.getTime() - b.date.getTime())
+      .map((b) => ({ date: b.date.toISOString(), total: b.total }));
+  }, [filtered, frequency]);
+
   // ─── KPIs ────────────────────────────────────────────────────────────
   const kpis = useMemo(() => {
-    const total = filtered.reduce((s, r) => s + r.quantity, 0);
-    const avg = filtered.length > 0 ? total / filtered.length : 0;
-    return { total, avg, count: filtered.length };
-  }, [filtered]);
+    const total = buckets.reduce((s, b) => s + b.total, 0);
+    const avg = buckets.length > 0 ? total / buckets.length : 0;
+    return { total, avg, count: buckets.length };
+  }, [buckets]);
 
   // YoY: same window one year before
   const yoyDelta = useMemo(() => {
@@ -232,9 +333,76 @@ export function TelereleveBuildingChart({ contractId }: Props) {
     : "#6b7280";
 
   const chartOption = useMemo(() => {
-    const dates = filtered.map((r) => r.period.split("T")[0]);
-    const values = filtered.map((r) => Math.round(r.quantity));
+    const dates = buckets.map((b) => b.date);
+    const values = buckets.map((b) => Math.round(b.total));
     const seriesName = selectedSite?.pce || selectedSite?.pdl || "Consommation";
+
+    // Format an X-axis label based on the current frequency
+    const formatAxisLabel = (iso: string): string => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      switch (frequency) {
+        case "hour":
+          return d.toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+          });
+        case "day":
+          return d.toLocaleDateString("fr-FR", {
+            day: "2-digit",
+            month: "short",
+          });
+        case "week":
+          return `S. ${d.toLocaleDateString("fr-FR", {
+            day: "2-digit",
+            month: "short",
+          })}`;
+        case "month":
+          return d.toLocaleDateString("fr-FR", {
+            month: "short",
+            year: "2-digit",
+          });
+        case "year":
+          return String(d.getFullYear());
+      }
+    };
+
+    // Format the tooltip header date based on frequency
+    const formatTooltipDate = (iso: string): string => {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return iso;
+      switch (frequency) {
+        case "hour":
+          return d.toLocaleString("fr-FR", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        case "day":
+          return d.toLocaleDateString("fr-FR", {
+            day: "2-digit",
+            month: "long",
+            year: "numeric",
+          });
+        case "week": {
+          const end = new Date(d);
+          end.setDate(end.getDate() + 6);
+          const fmt = (x: Date) =>
+            x.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+          return `Semaine du ${fmt(d)} au ${fmt(end)}`;
+        }
+        case "month":
+          return d.toLocaleDateString("fr-FR", {
+            month: "long",
+            year: "numeric",
+          });
+        case "year":
+          return String(d.getFullYear());
+      }
+    };
 
     return {
       grid: { left: 64, right: 24, top: 24, bottom: 60 },
@@ -247,13 +415,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
         formatter: (params: { axisValueLabel: string; value: number }[]) => {
           if (!params || params.length === 0) return "";
           const p = params[0];
-          const date = new Date(p.axisValueLabel);
-          const dateStr = date.toLocaleDateString("fr-FR", {
-            day: "2-digit",
-            month: "long",
-            year: "numeric",
-          });
-          return `<div style="font-weight:600;margin-bottom:4px">${dateStr}</div>
+          return `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(p.axisValueLabel)}</div>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
               ${formatKwh(p.value)}
@@ -268,14 +430,8 @@ export function TelereleveBuildingChart({ contractId }: Props) {
         axisLabel: {
           color: "#6b7280",
           fontSize: 11,
-          formatter: (val: string) => {
-            const d = new Date(val);
-            if (Number.isNaN(d.getTime())) return val;
-            return d.toLocaleDateString("fr-FR", {
-              day: "2-digit",
-              month: "short",
-            });
-          },
+          hideOverlap: true,
+          formatter: formatAxisLabel,
         },
       },
       yAxis: {
@@ -327,7 +483,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
         },
       ],
     };
-  }, [filtered, chartColor, selectedSite]);
+  }, [buckets, chartColor, selectedSite, frequency]);
 
   // ─── CSV export ──────────────────────────────────────────────────────
   const handleExportCsv = () => {
@@ -436,6 +592,43 @@ export function TelereleveBuildingChart({ contractId }: Props) {
             </div>
           </div>
         )}
+
+        {/* Frequency selector */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-text-secondary">
+            Fréquence
+          </label>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value as Frequency)}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+          >
+            {(
+              [
+                { v: "hour", label: "Horaire" },
+                { v: "day", label: "Journalière" },
+                { v: "week", label: "Hebdomadaire" },
+                { v: "month", label: "Mensuelle" },
+                { v: "year", label: "Annuelle" },
+              ] as const
+            ).map((opt) => {
+              const order: Frequency[] = ["hour", "day", "week", "month", "year"];
+              const isFinerThanData =
+                order.indexOf(opt.v as Frequency) <
+                order.indexOf(naturalGranularity);
+              return (
+                <option
+                  key={opt.v}
+                  value={opt.v}
+                  disabled={isFinerThanData}
+                >
+                  {opt.label}
+                  {isFinerThanData ? " (non disponible)" : ""}
+                </option>
+              );
+            })}
+          </select>
+        </div>
 
         {/* Date range */}
         <div className="flex flex-col gap-1">
