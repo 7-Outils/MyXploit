@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
-  getGRDFConsosPubliees,
+  getGRDFConsosInformatives,
   getGRDFDroitsAcces,
 } from "@/lib/grdf";
 import { getGRDFProviderAndToken } from "@/lib/grdf-helpers";
@@ -32,12 +32,31 @@ export async function POST(request: NextRequest) {
 
     const { accessToken, environment } = grdf;
 
-    // Get all sites with PCE
+    // Parse optional filters from body
+    const body = await request.json().catch(() => ({}));
+    const filterClientId: string | undefined = body.clientId;
+    const filterContractId: string | undefined = body.contractId;
+
+    // Build site filter — restrict to a client or contract if specified
+    const siteWhere: {
+      organizationId: string;
+      pce: { not: null };
+      clientId?: string;
+      contractSites?: { some: { contractId: string } };
+    } = {
+      organizationId: effectiveOrgId,
+      pce: { not: null },
+    };
+    if (filterClientId) {
+      siteWhere.clientId = filterClientId;
+    }
+    if (filterContractId) {
+      siteWhere.contractSites = { some: { contractId: filterContractId } };
+    }
+
+    // Get sites matching the filter
     const sites = await prisma.site.findMany({
-      where: {
-        organizationId: effectiveOrgId,
-        pce: { not: null },
-      },
+      where: siteWhere,
       select: {
         id: true,
         name: true,
@@ -63,8 +82,7 @@ export async function POST(request: NextRequest) {
       // Continue without verification
     }
 
-    // Parse optional date range from body
-    const body = await request.json().catch(() => ({}));
+    // Default date range — 3 years rolling up to today
     const defaultDateFin = new Date().toISOString().split("T")[0];
     const defaultDateDebut = (() => {
       const d = new Date();
@@ -122,42 +140,44 @@ export async function POST(request: NextRequest) {
         const effectiveDateDebut = droitDates?.debut || dateDebut;
         const effectiveDateFin = droitDates?.fin || dateFin;
 
-        // Fetch consos for each year in the range (GRDF supports "periode" param = year)
-        const startYear = parseInt(effectiveDateDebut.substring(0, 4));
-        const endYear = parseInt(effectiveDateFin.substring(0, 4));
+        // GRDF informatives endpoint accepts up to 3 years of date range in
+        // a single call and returns daily readings for Gazpar meters.
+        // No need to loop year-by-year — one call is enough and avoids the
+        // rate limiting that previously caused silent data loss.
+        const consumptions = await getGRDFConsosInformatives(
+          pce,
+          accessToken,
+          { dateDebut: effectiveDateDebut, dateFin: effectiveDateFin },
+          environment
+        );
 
-        let allConsumptions: Awaited<ReturnType<typeof getGRDFConsosPubliees>> = [];
-        for (let year = startYear; year <= endYear; year++) {
-          try {
-            const yearConsos = await getGRDFConsosPubliees(
-              pce,
-              accessToken,
-              { periode: String(year) },
-              environment
-            );
-            allConsumptions = allConsumptions.concat(yearConsos);
-          } catch {
-            // Some years may have no data, continue
-          }
-        }
-        const consumptions = allConsumptions;
+        // Cleanup existing GAZ records for this site within the synced range
+        // to avoid mixing legacy monthly data with new daily data.
+        await prisma.consumption.deleteMany({
+          where: {
+            siteId: site.id,
+            energyType: "GAZ",
+            period: {
+              gte: new Date(effectiveDateDebut),
+              lte: new Date(effectiveDateFin),
+            },
+          },
+        });
 
         let imported = 0;
 
         for (const conso of consumptions) {
-          // Extract from nested GRDF response structure
           const consoData = conso.consommation;
           if (!consoData?.date_debut_consommation) continue;
 
-          // Parse date to get the period (first day of month)
+          // Daily granularity: period = exact start day (no setDate(1))
           const period = new Date(consoData.date_debut_consommation);
-          period.setDate(1);
 
-          // Use energie (kWh) if available, otherwise convert volume_brut * coeff_conversion
+          // Prefer pre-calculated energie (kWh) if available
           const coeffConversion = consoData.coeff_calcul?.coeff_conversion || 11.2;
-          const quantityKwh = consoData.energie || (consoData.volume_brut || 0) * coeffConversion;
+          const quantityKwh =
+            consoData.energie || (consoData.volume_brut || 0) * coeffConversion;
 
-          // Upsert consumption
           await prisma.consumption.upsert({
             where: {
               siteId_energyType_usage_period: {
