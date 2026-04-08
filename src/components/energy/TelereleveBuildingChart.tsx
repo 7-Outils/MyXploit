@@ -333,8 +333,16 @@ export function TelereleveBuildingChart({ contractId }: Props) {
     : "#6b7280";
 
   const chartOption = useMemo(() => {
+    // Choose Y axis unit dynamically: switch to MWh when the largest bar
+    // is ≥ 5 000 kWh, otherwise stay in kWh. Avoids ambiguous "40k" labels
+    // on monthly/yearly views where each bar is tens of MWh.
+    const maxKwh = buckets.reduce((m, b) => Math.max(m, b.total), 0);
+    const yUnit: "kWh" | "MWh" = maxKwh >= 5000 ? "MWh" : "kWh";
+
     const dates = buckets.map((b) => b.date);
-    const values = buckets.map((b) => Math.round(b.total));
+    const values = buckets.map((b) =>
+      yUnit === "MWh" ? Number((b.total / 1000).toFixed(2)) : Math.round(b.total)
+    );
     const seriesName = selectedSite?.pce || selectedSite?.pdl || "Consommation";
 
     // Format an X-axis label based on the current frequency
@@ -412,13 +420,15 @@ export function TelereleveBuildingChart({ contractId }: Props) {
         backgroundColor: "rgba(17, 24, 39, 0.95)",
         borderWidth: 0,
         textStyle: { color: "#fff", fontSize: 12 },
-        formatter: (params: { axisValueLabel: string; value: number }[]) => {
+        formatter: (params: { axisValueLabel: string; dataIndex: number }[]) => {
           if (!params || params.length === 0) return "";
           const p = params[0];
+          // Always format from the original kWh, not the scaled chart value
+          const originalKwh = buckets[p.dataIndex]?.total ?? 0;
           return `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(p.axisValueLabel)}</div>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
-              ${formatKwh(p.value)}
+              ${formatKwh(originalKwh)}
             </div>`;
         },
       },
@@ -436,7 +446,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
       },
       yAxis: {
         type: "value",
-        name: "kWh",
+        name: yUnit,
         nameTextStyle: { color: "#6b7280", fontSize: 11 },
         axisLine: { show: false },
         axisTick: { show: false },
@@ -444,8 +454,15 @@ export function TelereleveBuildingChart({ contractId }: Props) {
         axisLabel: {
           color: "#6b7280",
           fontSize: 11,
-          formatter: (v: number) =>
-            v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`,
+          formatter: (v: number) => {
+            // v is already in the chart's display unit (kWh or MWh)
+            if (yUnit === "MWh") {
+              return v.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+            }
+            return v >= 1000
+              ? `${(v / 1000).toFixed(0)}k`
+              : v.toLocaleString("fr-FR");
+          },
         },
       },
       dataZoom: [
