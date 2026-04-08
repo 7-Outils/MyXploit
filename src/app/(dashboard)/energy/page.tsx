@@ -45,7 +45,7 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { TelereleveCard } from "@/components/energy/TelereleveCard";
 import { DroitsAccesCard } from "@/components/energy/DroitsAccesCard";
-import { GrdfConsumptionsBySite } from "@/components/energy/GrdfConsumptionsBySite";
+import { TelereleveBuildingChart } from "@/components/energy/TelereleveBuildingChart";
 
 // Types
 interface Contract {
@@ -2492,7 +2492,7 @@ function TelereleveContent({ contractId }: { contractId?: string }) {
     <div className="space-y-6">
       <TelereleveCard contractId={contractId} />
       <DroitsAccesCard />
-      {contractId && <GrdfConsumptionsBySite contractId={contractId} />}
+      {contractId && <TelereleveBuildingChart contractId={contractId} />}
     </div>
   );
 }
