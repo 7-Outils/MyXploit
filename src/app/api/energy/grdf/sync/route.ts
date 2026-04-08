@@ -7,6 +7,10 @@ import {
 } from "@/lib/grdf";
 import { getGRDFProviderAndToken } from "@/lib/grdf-helpers";
 
+// Allow this route to run up to 5 minutes — GRDF rate limiting + retries
+// can take a while when syncing several PCEs at once.
+export const maxDuration = 300;
+
 // POST /api/energy/grdf/sync - Sync GRDF consumptions for all sites with PCE
 export async function POST(request: NextRequest) {
   try {
@@ -106,13 +110,15 @@ export async function POST(request: NextRequest) {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
     // Helper: call informatives with retry on 429 (rate limit)
+    // GRDF can rate-limit aggressively after a 429, so we use longer backoffs.
     const fetchConsosWithRetry = async (
       pce: string,
       debut: string,
       fin: string
     ) => {
+      const backoffs = [5000, 15000, 30000]; // 5s → 15s → 30s
       let lastError: unknown;
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt <= backoffs.length; attempt++) {
         try {
           return await getGRDFConsosInformatives(
             pce,
@@ -125,8 +131,9 @@ export async function POST(request: NextRequest) {
           const msg = err instanceof Error ? err.message : "";
           // Only retry on 429 (rate limit)
           if (!msg.includes("429")) throw err;
-          // Exponential backoff: 3s, 6s, 12s
-          await sleep(3000 * Math.pow(2, attempt));
+          if (attempt < backoffs.length) {
+            await sleep(backoffs[attempt]);
+          }
         }
       }
       throw lastError;
@@ -159,9 +166,10 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // Throttle: wait 2s between PCE calls (skip the wait on the first call)
+      // Throttle: wait 5s between PCE calls (skip the wait on the first call)
+      // GRDF rate-limits aggressively when PCEs are queried back-to-back.
       if (pceCallCount > 0) {
-        await sleep(2000);
+        await sleep(5000);
       }
       pceCallCount++;
 
