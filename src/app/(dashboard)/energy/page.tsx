@@ -800,7 +800,7 @@ function EnergyPageContent() {
       )}
 
       {!loading && activeTab === "telereleve" && (
-        <TelereleveContent />
+        <TelereleveContent contractId={selectedContract?.id} />
       )}
 
       {/* Modals */}
@@ -2486,10 +2486,10 @@ function ECSContent({
   );
 }
 
-function TelereleveContent() {
+function TelereleveContent({ contractId }: { contractId?: string }) {
   return (
     <div className="space-y-6">
-      <TelereleveCard />
+      <TelereleveCard contractId={contractId} />
       <DroitsAccesCard />
     </div>
   );

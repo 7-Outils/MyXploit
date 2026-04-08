@@ -26,7 +26,12 @@ interface ProvidersData {
   enedis: ProviderStatus;
 }
 
-export function TelereleveCard() {
+interface TelereleveCardProps {
+  /** When provided, the GRDF sync is scoped to sites belonging to this contract only */
+  contractId?: string;
+}
+
+export function TelereleveCard({ contractId }: TelereleveCardProps = {}) {
   const [providers, setProviders] = useState<ProvidersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<"grdf" | "enedis" | null>(null);
@@ -115,10 +120,14 @@ export function TelereleveCard() {
     setMessage(null);
 
     try {
+      // Scope GRDF sync to the current contract when one is selected so we
+      // don't sync sites from unrelated clients (e.g. Gonesse PCEs when on
+      // Avray contract page).
+      const body = provider === "grdf" && contractId ? { contractId } : {};
       const res = await fetch(`/api/energy/${provider}/sync`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
