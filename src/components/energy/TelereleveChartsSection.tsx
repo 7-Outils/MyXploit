@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Wifi } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import {
   TelereleveBuildingChart,
+  type Frequency,
   type SiteSummary,
 } from "@/components/energy/TelereleveBuildingChart";
 import { ClimateCorrectedChart } from "@/components/energy/ClimateCorrectedChart";
@@ -14,6 +16,15 @@ function daysAgoIso(days: number): string {
   d.setDate(d.getDate() - days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+const FREQUENCY_ORDER: Frequency[] = ["hour", "day", "week", "month", "year"];
+const FREQUENCY_LABELS: Record<Frequency, string> = {
+  hour: "Horaire",
+  day: "Journalière",
+  week: "Hebdomadaire",
+  month: "Mensuelle",
+  year: "Annuelle",
+};
 
 /**
  * TelereleveChartsSection — Wrapper that owns the *shared* state between the
@@ -72,12 +83,43 @@ export function TelereleveChartsSection({ contractId }: Props) {
     };
   }, [contractId]);
 
-  // ─── Shared state — selected site + date range ──────────────────────
-  // Default to "this month so far" — first day of the current month → today.
-  // It pairs with the monthly frequency default in TelereleveBuildingChart.
+  // ─── Shared state — selected site + date range + frequency ─────────
+  // Default to "this month so far" with monthly frequency — both charts
+  // share these so the user only ever picks them once.
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<string>(startOfCurrentMonthIso());
   const [dateTo, setDateTo] = useState<string>(todayIso());
+  const [frequency, setFrequency] = useState<Frequency>("month");
+  // Reported by the GRDF chart based on the actual data shape — used to
+  // disable frequency options finer than what's available.
+  const [naturalGranularity, setNaturalGranularity] =
+    useState<Frequency>("day");
+
+  const handleNaturalGranularity = useCallback((g: Frequency) => {
+    setNaturalGranularity(g);
+    // If the user previously picked something finer, bump it up
+    setFrequency((prev) =>
+      FREQUENCY_ORDER.indexOf(prev) < FREQUENCY_ORDER.indexOf(g) ? g : prev
+    );
+  }, []);
+
+  // ─── Date preset definitions (used for both buttons and active state) ─
+  const datePresets = useMemo(
+    () => [
+      { id: "this-month", label: "Ce mois", from: startOfCurrentMonthIso() },
+      { id: "30d", label: "30 j", from: daysAgoIso(30) },
+      { id: "90d", label: "90 j", from: daysAgoIso(90) },
+      { id: "1y", label: "1 an", from: daysAgoIso(365) },
+      { id: "3y", label: "3 ans", from: daysAgoIso(365 * 3) },
+    ],
+    []
+  );
+
+  const today = todayIso();
+  const activePresetId = useMemo(() => {
+    if (dateTo !== today) return null;
+    return datePresets.find((p) => p.from === dateFrom)?.id ?? null;
+  }, [dateFrom, dateTo, today, datePresets]);
 
   // Auto-select the first site once the list is loaded
   useEffect(() => {
@@ -121,9 +163,9 @@ export function TelereleveChartsSection({ contractId }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Shared toolbar — building + date range + presets are global to
-          both charts below. Energy / Frequency / CSV export stay inside
-          the GRDF chart because they're specific to it. */}
+      {/* Shared toolbar — building + frequency + date range + presets.
+          Everything that affects BOTH charts lives here, so the user
+          only ever picks them once. */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1 min-w-[260px]">
           <label className="text-xs font-medium text-text-secondary">
@@ -145,6 +187,29 @@ export function TelereleveChartsSection({ contractId }: Props) {
         </div>
 
         <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-text-secondary">
+            Fréquence
+          </label>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value as Frequency)}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+          >
+            {FREQUENCY_ORDER.map((f) => {
+              const isFinerThanData =
+                FREQUENCY_ORDER.indexOf(f) <
+                FREQUENCY_ORDER.indexOf(naturalGranularity);
+              return (
+                <option key={f} value={f} disabled={isFinerThanData}>
+                  {FREQUENCY_LABELS[f]}
+                  {isFinerThanData ? " (non disponible)" : ""}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-text-secondary">Du</label>
           <input
             type="date"
@@ -160,35 +225,33 @@ export function TelereleveChartsSection({ contractId }: Props) {
             type="date"
             value={dateTo}
             min={dateFrom}
-            max={todayIso()}
+            max={today}
             onChange={(e) => setDateTo(e.target.value)}
             className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
           />
         </div>
 
         <div className="flex gap-1">
-          {[
-            { label: "Ce mois", days: -1 }, // Special: 1st of current month
-            { label: "30 j", days: 30 },
-            { label: "90 j", days: 90 },
-            { label: "1 an", days: 365 },
-            { label: "3 ans", days: 365 * 3 },
-          ].map((preset) => (
-            <button
-              key={preset.label}
-              onClick={() => {
-                if (preset.days === -1) {
-                  setDateFrom(startOfCurrentMonthIso());
-                } else {
-                  setDateFrom(daysAgoIso(preset.days));
-                }
-                setDateTo(todayIso());
-              }}
-              className="px-2.5 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100"
-            >
-              {preset.label}
-            </button>
-          ))}
+          {datePresets.map((preset) => {
+            const isActive = activePresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  setDateFrom(preset.from);
+                  setDateTo(today);
+                }}
+                className={cn(
+                  "px-2.5 py-2 rounded-lg border text-xs transition-colors",
+                  isActive
+                    ? "border-accent bg-accent/10 text-accent font-medium"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -203,6 +266,8 @@ export function TelereleveChartsSection({ contractId }: Props) {
             selectedSiteId={selectedSiteId}
             dateFrom={dateFrom}
             dateTo={dateTo}
+            frequency={frequency}
+            onNaturalGranularityChange={handleNaturalGranularity}
           />
         </div>
 

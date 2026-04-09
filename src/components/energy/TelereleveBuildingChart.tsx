@@ -73,6 +73,10 @@ function formatKwh(value: number): string {
   return `${Math.round(value).toLocaleString("fr-FR")} kWh`;
 }
 
+// Display granularity for the chart bars. Hour requires Enedis CDC,
+// day/week/month/year work for both GRDF informatives and Enedis.
+export type Frequency = "hour" | "day" | "week" | "month" | "year";
+
 interface Props {
   /** Sites of the current contract — used to resolve the selected site
       label / PCE / PDL for the chart title and CSV filename */
@@ -82,6 +86,11 @@ interface Props {
   /** Date range — controlled by the parent so a sibling chart can share it */
   dateFrom: string;
   dateTo: string;
+  /** Frequency — controlled by the parent so it can be in the shared toolbar */
+  frequency: Frequency;
+  /** Notify the parent of the finest granularity available in the records,
+      so the parent can disable finer options in its frequency dropdown. */
+  onNaturalGranularityChange?: (g: Frequency) => void;
 }
 
 export function TelereleveBuildingChart({
@@ -89,6 +98,8 @@ export function TelereleveBuildingChart({
   selectedSiteId,
   dateFrom,
   dateTo,
+  frequency,
+  onNaturalGranularityChange,
 }: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
@@ -152,12 +163,6 @@ export function TelereleveBuildingChart({
 
   // ─── Date range — controlled by the parent (TelereleveChartsSection) ─
 
-  // ─── Frequency (display granularity) ─────────────────────────────────
-  // Default to monthly view because it's the most readable starting point
-  // for users coming in cold; they can drill down to weekly/daily later.
-  type Frequency = "hour" | "day" | "week" | "month" | "year";
-  const [frequency, setFrequency] = useState<Frequency>("month");
-
   // ─── Filtered raw records ────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (!selectedEnergy) return [];
@@ -199,14 +204,11 @@ export function TelereleveBuildingChart({
     return "month";
   }, [records, selectedEnergy]);
 
-  // If the user picked a frequency finer than what's in the data,
-  // bump them up to the finest available
+  // Notify the parent of the natural granularity so its frequency dropdown
+  // can disable options finer than what the data actually supports.
   useEffect(() => {
-    const order: Frequency[] = ["hour", "day", "week", "month", "year"];
-    if (order.indexOf(frequency) < order.indexOf(naturalGranularity)) {
-      setFrequency(naturalGranularity);
-    }
-  }, [naturalGranularity, frequency]);
+    onNaturalGranularityChange?.(naturalGranularity);
+  }, [naturalGranularity, onNaturalGranularityChange]);
 
   // ─── Aggregate filtered records into the chosen frequency buckets ────
   const buckets = useMemo(() => {
@@ -312,7 +314,6 @@ export function TelereleveBuildingChart({
     const values = buckets.map((b) =>
       yUnit === "MWh" ? Number((b.total / 1000).toFixed(2)) : Math.round(b.total)
     );
-    const seriesName = selectedSite?.pce || selectedSite?.pdl || "Consommation";
 
     // Format an X-axis label based on the current frequency
     const formatAxisLabel = (iso: string): string => {
@@ -381,8 +382,21 @@ export function TelereleveBuildingChart({
       }
     };
 
+    // Show the bottom dataZoom slider only when there are enough bars to
+    // make panning useful — on a monthly view of 1 quarter (~3 bars) it's
+    // just visual noise.
+    const showDataZoomSlider = buckets.length > 12;
+    const seriesLabel = "Conso réelle";
+
     return {
-      grid: { left: 64, right: 24, top: 24, bottom: 60 },
+      grid: { left: 64, right: 24, top: 32, bottom: showDataZoomSlider ? 60 : 36 },
+      legend: {
+        data: [seriesLabel],
+        bottom: showDataZoomSlider ? 40 : 4,
+        left: "center",
+        icon: "circle",
+        textStyle: { color: "#374151", fontSize: 11 },
+      },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -434,28 +448,26 @@ export function TelereleveBuildingChart({
           },
         },
       },
-      dataZoom: [
-        {
-          type: "inside",
-          start: 0,
-          end: 100,
-        },
-        {
-          type: "slider",
-          height: 24,
-          bottom: 8,
-          borderColor: "transparent",
-          backgroundColor: "#f3f4f6",
-          fillerColor: "rgba(59,130,246,0.15)",
-          handleStyle: { color: "#3b82f6" },
-          textStyle: { color: "#6b7280", fontSize: 10 },
-          start: 0,
-          end: 100,
-        },
-      ],
+      dataZoom: showDataZoomSlider
+        ? [
+            { type: "inside", start: 0, end: 100 },
+            {
+              type: "slider",
+              height: 24,
+              bottom: 8,
+              borderColor: "transparent",
+              backgroundColor: "#f3f4f6",
+              fillerColor: "rgba(59,130,246,0.15)",
+              handleStyle: { color: "#3b82f6" },
+              textStyle: { color: "#6b7280", fontSize: 10 },
+              start: 0,
+              end: 100,
+            },
+          ]
+        : [{ type: "inside", start: 0, end: 100 }],
       series: [
         {
-          name: seriesName,
+          name: seriesLabel,
           type: "bar",
           data: values,
           itemStyle: {
@@ -541,43 +553,6 @@ export function TelereleveBuildingChart({
             </div>
           </div>
         )}
-
-        {/* Frequency selector */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-text-secondary">
-            Fréquence
-          </label>
-          <select
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value as Frequency)}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
-          >
-            {(
-              [
-                { v: "hour", label: "Horaire" },
-                { v: "day", label: "Journalière" },
-                { v: "week", label: "Hebdomadaire" },
-                { v: "month", label: "Mensuelle" },
-                { v: "year", label: "Annuelle" },
-              ] as const
-            ).map((opt) => {
-              const order: Frequency[] = ["hour", "day", "week", "month", "year"];
-              const isFinerThanData =
-                order.indexOf(opt.v as Frequency) <
-                order.indexOf(naturalGranularity);
-              return (
-                <option
-                  key={opt.v}
-                  value={opt.v}
-                  disabled={isFinerThanData}
-                >
-                  {opt.label}
-                  {isFinerThanData ? " (non disponible)" : ""}
-                </option>
-              );
-            })}
-          </select>
-        </div>
 
         {/* Export */}
         <div className="ml-auto">

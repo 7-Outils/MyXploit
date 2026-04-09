@@ -261,7 +261,7 @@ export function ClimateCorrectedChart({
           return `
             <div style="font-weight:600;margin-bottom:6px">${labelStr}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3b82f6"></span>
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b"></span>
               Conso réelle :&nbsp;<strong>${formatKwh(point.nc)}</strong>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
@@ -308,7 +308,7 @@ export function ClimateCorrectedChart({
           name: "Conso réelle",
           type: "bar",
           data: ncValues,
-          itemStyle: { color: "#3b82f6", borderRadius: [2, 2, 0, 0] },
+          itemStyle: { color: "#f59e0b", borderRadius: [2, 2, 0, 0] },
           barMaxWidth: 28,
           // Grouped (side-by-side) with the target bar — ECharts groups
           // bars sharing the same xAxis category by default. The small
@@ -332,7 +332,7 @@ export function ClimateCorrectedChart({
     return (
       <ChartCard
         title="Performance vs cible climatique"
-        subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        subtitle="Conso réelle vs cible climatique"
         className="w-full h-full"
       >
         <div className="flex items-center justify-center py-16">
@@ -346,7 +346,7 @@ export function ClimateCorrectedChart({
     return (
       <ChartCard
         title="Performance vs cible climatique"
-        subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        subtitle="Conso réelle vs cible climatique"
         className="w-full h-full"
       >
         <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
@@ -366,7 +366,7 @@ export function ClimateCorrectedChart({
     return (
       <ChartCard
         title="Performance vs cible climatique"
-        subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        subtitle="Conso réelle vs cible climatique"
         className="w-full h-full"
       >
         <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -411,7 +411,7 @@ export function ClimateCorrectedChart({
     return (
       <ChartCard
         title="Performance vs cible climatique"
-        subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        subtitle="Conso réelle vs cible climatique"
         className="w-full h-full"
       >
         <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
@@ -436,7 +436,7 @@ export function ClimateCorrectedChart({
     return (
       <ChartCard
         title="Performance vs cible climatique"
-        subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        subtitle="Conso réelle vs cible climatique"
         className="w-full h-full"
       >
         <div className="flex flex-col items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
@@ -476,16 +476,20 @@ export function ClimateCorrectedChart({
   return (
     <ChartCard
       title="Performance vs cible climatique"
-      subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+      subtitle="Conso réelle vs cible climatique"
       className="w-full h-full"
     >
-      {/* KPIs */}
+      {/* KPIs — formula and source live in tooltips, not in the labels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <Kpi label="Conso réelle (NC)" value={formatKwh(kpis.totalNc)} />
+        <Kpi label="Conso réelle" value={formatKwh(kpis.totalNc)} />
         <Kpi
-          label="Cible climatique (N'B)"
+          label="Cible climatique"
           value={formatKwh(kpis.totalNbPrime)}
-          subtle="ajustée DJR / DJC"
+          tooltip={
+            site && site.djuContractuelExplicit === null && site.djuContractuel != null
+              ? `Cible = NB × (DJR / DJC). DJC = ${site.djuContractuel} DJU/an, trentenaire ${site.stationMeteo ? `de la station ${site.stationMeteo}` : "inféré du code postal"}. Vous pouvez personnaliser le DJU contractuel sur la fiche bâtiment.`
+              : "Conso théorique ajustée à la météo réelle de la période. Formule : NB × (DJR / DJC) où DJR = DJU réels, DJC = DJU contractuels."
+          }
         />
         <Kpi
           label="Écart"
@@ -501,6 +505,7 @@ export function ClimateCorrectedChart({
           }
           tone={deltaTone}
           icon={DeltaIcon}
+          tooltip="Écart entre la consommation réelle et la cible climatique. Positif (rouge) = dépassement, négatif (vert) = économie. Seuil de tolérance ±5%."
         />
       </div>
 
@@ -514,16 +519,6 @@ export function ClimateCorrectedChart({
         />
       )}
 
-      {/* Source note when DJC is auto-filled from a station trentenaire */}
-      {site && site.djuContractuelExplicit === null && site.djuContractuel != null && (
-        <p className="text-[11px] text-text-secondary text-center mt-2">
-          Cible calculée à partir du DJU trentenaire ({site.djuContractuel}{" "}
-          DJU/an, base 18°C)
-          {site.stationMeteo ? ` de la station ${site.stationMeteo}` : " inféré du code postal"}.
-          Pour utiliser un DJU contractuel personnalisé, renseignez-le sur la
-          fiche bâtiment.
-        </p>
-      )}
     </ChartCard>
   );
 }
@@ -538,9 +533,19 @@ interface KpiProps {
   subtle?: string;
   tone?: "neutral" | "success" | "danger";
   icon?: LucideIcon | null;
+  /** When provided, shows a small (i) icon next to the label that reveals
+      this text on hover via the native HTML title attribute. */
+  tooltip?: string;
 }
 
-function Kpi({ label, value, subtle, tone = "neutral", icon: Icon }: KpiProps) {
+function Kpi({
+  label,
+  value,
+  subtle,
+  tone = "neutral",
+  icon: Icon,
+  tooltip,
+}: KpiProps) {
   const valueClass =
     tone === "danger"
       ? "text-red-600"
@@ -549,9 +554,20 @@ function Kpi({ label, value, subtle, tone = "neutral", icon: Icon }: KpiProps) {
       : "text-primary-dark";
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-3">
-      <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-        {label}
-      </p>
+      <div className="flex items-center gap-1">
+        <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
+          {label}
+        </p>
+        {tooltip && (
+          <span
+            title={tooltip}
+            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
+            aria-label={tooltip}
+          >
+            i
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-1.5 mt-1">
         {Icon && <Icon size={16} className={valueClass} />}
         <p className={cn("text-xl font-semibold", valueClass)}>{value}</p>
