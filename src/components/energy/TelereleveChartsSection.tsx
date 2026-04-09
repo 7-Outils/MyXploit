@@ -119,7 +119,10 @@ export function TelereleveChartsSection({ contractId }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    // 2-column layout on desktop (≥ xl) so users can compare the raw
+    // distributor data and the climate-corrected target side by side
+    // without scrolling. Stacks back to a single column on smaller screens.
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
       <TelereleveBuildingChart
         sites={sites}
         selectedSiteId={selectedSiteId}
