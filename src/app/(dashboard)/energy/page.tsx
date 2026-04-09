@@ -230,7 +230,7 @@ const USAGE_LABELS: Record<string, string> = {
   AUTRE: "Autre",
 };
 
-type Tab = "synthese" | "sites" | "p1" | "climat" | "ecs" | "prix" | "telereleve";
+type Tab = "synthese" | "sites" | "p1" | "climat" | "ecs" | "telereleve";
 
 function EnergyPageContent() {
   const router = useRouter();
@@ -673,10 +673,9 @@ function EnergyPageContent() {
   if (!selectedContract) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Performance énergétique</h1>
-          <p className="text-text-secondary">Sélectionnez un contrat dans la barre supérieure pour analyser les consommations</p>
-        </div>
+        <p className="text-text-secondary">
+          Sélectionnez un contrat dans la barre supérieure pour analyser les consommations.
+        </p>
       </div>
     );
   }
@@ -684,32 +683,27 @@ function EnergyPageContent() {
   // Main content with tabs
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Performance énergétique</h1>
-          <p className="text-text-secondary">{selectedContract.reference} - {selectedContract.title}</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-          >
-            {availableYears.map((year) => (
-              <option key={year} value={year}>
-                Saison {year - 1}/{year}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2 text-sm"
-          >
-            <Trash2 size={16} />
-            Supprimer données
-          </button>
-        </div>
+      {/* Toolbar — page title removed (the contract is already shown in
+          the global selector above) */}
+      <div className="flex justify-end gap-2 flex-wrap">
+        <select
+          value={selectedYear}
+          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+          className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+        >
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              Saison {year - 1}/{year}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2 text-sm"
+        >
+          <Trash2 size={16} />
+          Supprimer données
+        </button>
       </div>
 
       {/* Tabs */}
@@ -721,7 +715,6 @@ function EnergyPageContent() {
             { id: "p1" as Tab, label: "P1 / Engagement", icon: Target },
             { id: "climat" as Tab, label: "Climat & DJU", icon: Thermometer },
             { id: "ecs" as Tab, label: "ECS", icon: Droplets },
-            { id: "prix" as Tab, label: "Prix de référence", icon: Euro },
             { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
           ].map((tab) => (
             <button
@@ -798,10 +791,6 @@ function EnergyPageContent() {
           selectedYear={selectedYear}
           contractId={selectedContract?.id || null}
         />
-      )}
-
-      {!loading && activeTab === "prix" && (
-        <PrixReferenceContent />
       )}
 
       {!loading && activeTab === "telereleve" && (

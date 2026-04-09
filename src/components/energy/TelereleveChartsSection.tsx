@@ -122,23 +122,30 @@ export function TelereleveChartsSection({ contractId }: Props) {
     // 2-column layout on desktop (≥ xl) so users can compare the raw
     // distributor data and the climate-corrected target side by side
     // without scrolling. Stacks back to a single column on smaller screens.
+    // The min-w-0 on each child is critical: without it, CSS grid gives
+    // each item a min-width of "auto" (= its content's intrinsic width),
+    // which lets the GRDF chart's wide toolbar push its column past 50%.
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-      <TelereleveBuildingChart
-        sites={sites}
-        selectedSiteId={selectedSiteId}
-        onSelectSite={setSelectedSiteId}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onChangeRange={handleChangeRange}
-      />
-
-      {selectedSite && (
-        <ClimateCorrectedChart
-          siteId={selectedSite.id}
-          siteName={selectedSite.name}
+      <div className="min-w-0">
+        <TelereleveBuildingChart
+          sites={sites}
+          selectedSiteId={selectedSiteId}
+          onSelectSite={setSelectedSiteId}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          onChangeRange={handleChangeRange}
         />
+      </div>
+
+      {selectedSite && (
+        <div className="min-w-0">
+          <ClimateCorrectedChart
+            siteId={selectedSite.id}
+            siteName={selectedSite.name}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+          />
+        </div>
       )}
     </div>
   );
