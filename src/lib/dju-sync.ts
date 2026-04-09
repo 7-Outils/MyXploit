@@ -348,23 +348,59 @@ export async function syncDjuForSites(
         fetchEndDate.toISOString().split("T")[0]
       );
 
-      // Calculate monthly DJU totals
-      const monthlyDju = new Map<string, number>();
+      // Index DJU by exact day for daily granularity
+      const dailyDju = new Map<string, number>();
       for (const d of djuData) {
-        const monthKey = d.date.substring(0, 7);
-        const existing = monthlyDju.get(monthKey) || 0;
-        monthlyDju.set(monthKey, existing + d.dju);
+        // d.date is "YYYY-MM-DD"
+        dailyDju.set(d.date, d.dju);
       }
 
-      // Update each consumption
-      for (const consumption of siteConsumptions) {
-        const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
-        const djuForMonth = monthlyDju.get(monthKey);
+      // Compute monthly totals so we can split them across rows of the same
+      // month — preserves backwards compatibility for sites that have only
+      // one consumption row per month (legacy Excel imports).
+      const monthlyTotal = new Map<string, number>();
+      const monthlyCount = new Map<string, number>();
+      for (const d of djuData) {
+        const mKey = d.date.substring(0, 7);
+        monthlyTotal.set(mKey, (monthlyTotal.get(mKey) || 0) + d.dju);
+      }
 
-        if (djuForMonth !== undefined) {
+      // Count how many consumption rows exist per month so we can detect
+      // daily-granularity rows and avoid the over-counting bug where the
+      // analytics endpoint would sum the monthly DJR ~30 times.
+      for (const c of siteConsumptions) {
+        const mKey = `${c.period.getFullYear()}-${String(c.period.getMonth() + 1).padStart(2, "0")}`;
+        monthlyCount.set(mKey, (monthlyCount.get(mKey) || 0) + 1);
+      }
+
+      // Update each consumption with the correct DJR.
+      for (const consumption of siteConsumptions) {
+        const dateKey = consumption.period.toISOString().split("T")[0];
+        const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
+        const rowsInMonth = monthlyCount.get(monthKey) || 1;
+
+        let djr: number | null = null;
+
+        if (rowsInMonth >= 20) {
+          // Daily granularity (≥ 20 rows in this month). Use the exact day's
+          // DJU so summing over the month gives the right total.
+          const dailyValue = dailyDju.get(dateKey);
+          if (dailyValue !== undefined) {
+            djr = dailyValue;
+          }
+        } else {
+          // Monthly (or coarser) granularity — store the full month total
+          // on the single row, same as the legacy behaviour.
+          const monthlyValue = monthlyTotal.get(monthKey);
+          if (monthlyValue !== undefined) {
+            djr = monthlyValue;
+          }
+        }
+
+        if (djr !== null) {
           await prisma.consumption.update({
             where: { id: consumption.id },
-            data: { djuReel: Math.round(djuForMonth) },
+            data: { djuReel: Math.round(djr * 10) / 10 },
           });
           result.updated++;
         }

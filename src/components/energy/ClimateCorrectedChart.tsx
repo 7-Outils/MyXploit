@@ -31,10 +31,34 @@ const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
 interface MonthlyPoint {
   month: string;       // "YYYY-MM"
-  label: string;       // "Jan", "Fév", etc.
+  label?: string;      // "Jan", "Fév", etc. — may be absent on older API responses
   nc: number;          // kWh
   nbPrime: number;     // kWh
   djr: number;         // degree-days réels
+}
+
+const MONTH_LABELS_FR = [
+  "Janv.",
+  "Févr.",
+  "Mars",
+  "Avr.",
+  "Mai",
+  "Juin",
+  "Juil.",
+  "Août",
+  "Sept.",
+  "Oct.",
+  "Nov.",
+  "Déc.",
+];
+
+/** Convert "YYYY-MM" → "Janv. 26" — locally, no Date timezone hazards */
+function monthKeyToLabel(monthKey: string): string {
+  const [yStr, mStr] = monthKey.split("-");
+  const m = parseInt(mStr, 10) - 1;
+  const yShort = yStr.slice(2);
+  if (Number.isNaN(m) || m < 0 || m > 11) return monthKey;
+  return `${MONTH_LABELS_FR[m]} ${yShort}`;
 }
 
 interface SitePerformance {
@@ -169,17 +193,17 @@ export function ClimateCorrectedChart({
   }, [siteId, dateFrom, dateTo]);
 
   // ─── Filter months to the [dateFrom, dateTo] range ──────────────────
+  // Compare via YYYY-MM strings to stay timezone-safe (mixing
+  // `new Date("2025-01-01")` which parses as UTC midnight with
+  // `new Date(2025, 0, 1)` which is local midnight produces a 1-2h offset
+  // in Paris winter and silently excludes the matching month).
   const filteredMonths = useMemo(() => {
     if (!site) return [];
-    const fromTs = new Date(dateFrom).getTime();
-    const toTs = new Date(dateTo).getTime();
-    return site.monthlyData.filter((m) => {
-      // m.month is "YYYY-MM" — first day of that month
-      const [y, mo] = m.month.split("-").map(Number);
-      const monthStart = new Date(y, mo - 1, 1).getTime();
-      // Include the month if its first day falls within the range
-      return monthStart >= fromTs && monthStart <= toTs;
-    });
+    const fromYm = dateFrom.substring(0, 7); // "YYYY-MM"
+    const toYm = dateTo.substring(0, 7);
+    return site.monthlyData.filter(
+      (m) => m.month >= fromYm && m.month <= toYm
+    );
   }, [site, dateFrom, dateTo]);
 
   // ─── KPIs ───────────────────────────────────────────────────────────
@@ -204,7 +228,7 @@ export function ClimateCorrectedChart({
     const toDisplay = (kwh: number) =>
       yUnit === "MWh" ? Number((kwh / 1000).toFixed(2)) : Math.round(kwh);
 
-    const months = filteredMonths.map((m) => m.label);
+    const months = filteredMonths.map((m) => m.label || monthKeyToLabel(m.month));
     const ncValues = filteredMonths.map((m) => toDisplay(m.nc));
     const nbPrimeValues = filteredMonths.map((m) => toDisplay(m.nbPrime));
 
@@ -233,8 +257,9 @@ export function ClimateCorrectedChart({
               ? "#22c55e"
               : "#fbbf24";
           const deltaSign = delta >= 0 ? "+" : "";
+          const labelStr = point.label || monthKeyToLabel(point.month);
           return `
-            <div style="font-weight:600;margin-bottom:6px">${point.label}</div>
+            <div style="font-weight:600;margin-bottom:6px">${labelStr}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
               Conso réelle :&nbsp;<strong>${formatKwh(point.nc)}</strong>

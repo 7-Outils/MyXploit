@@ -267,6 +267,7 @@ export async function GET(request: NextRequest) {
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([month, data]) => ({
             month,
+            label: formatMonthLabel(month),
             nc: Math.round(data.nc),
             nbPrime: Math.round(data.nbPrime),
             djr: data.djr,
