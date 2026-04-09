@@ -197,13 +197,22 @@ export function ClimateCorrectedChart({
   // `new Date("2025-01-01")` which parses as UTC midnight with
   // `new Date(2025, 0, 1)` which is local midnight produces a 1-2h offset
   // in Paris winter and silently excludes the matching month).
+  // Strict filter: only months ENTIRELY contained in [dateFrom, dateTo].
+  // This avoids the "boundary inflation" bug where the GRDF chart counts
+  // exactly 9 days of April but this chart was counting all 30 days of
+  // April because its first-of-month was within the range, producing a
+  // ~21 MWh discrepancy on the Piscine over a typical 1-year window.
   const filteredMonths = useMemo(() => {
     if (!site) return [];
-    const fromYm = dateFrom.substring(0, 7); // "YYYY-MM"
-    const toYm = dateTo.substring(0, 7);
-    return site.monthlyData.filter(
-      (m) => m.month >= fromYm && m.month <= toYm
-    );
+    return site.monthlyData.filter((m) => {
+      const [y, mo] = m.month.split("-").map(Number);
+      // Last day of the month: trick is `new Date(year, monthIndex+1, 0)`
+      // which is the day before the 1st of next month = last day of current.
+      const lastDay = new Date(y, mo, 0).getDate();
+      const monthStartIso = `${m.month}-01`;
+      const monthEndIso = `${m.month}-${String(lastDay).padStart(2, "0")}`;
+      return monthStartIso >= dateFrom && monthEndIso <= dateTo;
+    });
   }, [site, dateFrom, dateTo]);
 
   // ─── KPIs ───────────────────────────────────────────────────────────
@@ -231,9 +240,13 @@ export function ClimateCorrectedChart({
     const months = filteredMonths.map((m) => m.label || monthKeyToLabel(m.month));
     const ncValues = filteredMonths.map((m) => toDisplay(m.nc));
     const nbPrimeValues = filteredMonths.map((m) => toDisplay(m.nbPrime));
+    // DJR (degré-jour réels) for each month — used as a secondary axis
+    // line so the user can see whether consumption follows the weather.
+    const djrValues = filteredMonths.map((m) => Math.round(m.djr));
 
     return {
-      grid: { left: 64, right: 24, top: 32, bottom: 56 },
+      // right is bigger to leave room for the secondary Y axis (DJU)
+      grid: { left: 64, right: 56, top: 32, bottom: 56 },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -264,9 +277,13 @@ export function ClimateCorrectedChart({
               <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f59e0b"></span>
               Conso réelle :&nbsp;<strong>${formatKwh(point.nc)}</strong>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9ca3af"></span>
               Cible (N'B) :&nbsp;<strong>${formatKwh(point.nbPrime)}</strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="display:inline-block;width:10px;height:2px;background:#3b82f6"></span>
+              DJU réels :&nbsp;<strong>${Math.round(point.djr).toLocaleString("fr-FR")}</strong>
             </div>
             <div style="color:${deltaColor};font-size:11px">
               Écart : ${deltaSign}${formatKwh(Math.abs(delta))}${deltaPct !== null ? ` (${deltaSign}${deltaPct.toFixed(1)}%)` : ""}
@@ -275,7 +292,7 @@ export function ClimateCorrectedChart({
         },
       },
       legend: {
-        data: ["Conso réelle", "Cible climatique"],
+        data: ["Conso réelle", "Cible climatique", "DJU réels"],
         bottom: 8,
         left: "center",
         textStyle: { color: "#374151", fontSize: 11 },
@@ -287,22 +304,39 @@ export function ClimateCorrectedChart({
         axisLine: { lineStyle: { color: "#d1d5db" } },
         axisLabel: { color: "#6b7280", fontSize: 11 },
       },
-      yAxis: {
-        type: "value",
-        name: yUnit,
-        nameTextStyle: { color: "#6b7280", fontSize: 11 },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { color: "#e5e7eb", type: "dashed" } },
-        axisLabel: {
-          color: "#6b7280",
-          fontSize: 11,
-          formatter: (v: number) =>
-            yUnit === "MWh"
-              ? v.toLocaleString("fr-FR", { maximumFractionDigits: 1 })
-              : v.toLocaleString("fr-FR"),
+      yAxis: [
+        {
+          type: "value",
+          name: yUnit,
+          nameTextStyle: { color: "#6b7280", fontSize: 11 },
+          position: "left",
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { lineStyle: { color: "#e5e7eb", type: "dashed" } },
+          axisLabel: {
+            color: "#6b7280",
+            fontSize: 11,
+            formatter: (v: number) =>
+              yUnit === "MWh"
+                ? v.toLocaleString("fr-FR", { maximumFractionDigits: 1 })
+                : v.toLocaleString("fr-FR"),
+          },
         },
-      },
+        {
+          type: "value",
+          name: "DJU",
+          nameTextStyle: { color: "#6b7280", fontSize: 11 },
+          position: "right",
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { show: false },
+          axisLabel: {
+            color: "#6b7280",
+            fontSize: 11,
+            formatter: (v: number) => v.toLocaleString("fr-FR"),
+          },
+        },
+      ],
       series: [
         {
           name: "Conso réelle",
@@ -321,6 +355,18 @@ export function ClimateCorrectedChart({
           data: nbPrimeValues,
           itemStyle: { color: "#9ca3af", borderRadius: [2, 2, 0, 0] },
           barMaxWidth: 28,
+        },
+        {
+          name: "DJU réels",
+          type: "line",
+          yAxisIndex: 1, // secondary axis on the right
+          data: djrValues,
+          lineStyle: { color: "#3b82f6", width: 2 },
+          itemStyle: { color: "#3b82f6" },
+          symbol: "circle",
+          symbolSize: 5,
+          smooth: true,
+          z: 10,
         },
       ],
     };
