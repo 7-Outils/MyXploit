@@ -106,6 +106,12 @@ interface Props {
       frequency, the chart shows the climate-corrected target as a second
       bar series and the KPIs add Cible (N'B) + Écart. */
   monthlyData?: MonthlyAnalyticsPoint[];
+  /** When true, omit the surrounding ChartCard (the parent provides one).
+      Useful when this chart is rendered inside a unified dashboard card. */
+  noCard?: boolean;
+  /** When true, hide the local KPI grid because the parent renders shared
+      KPIs above the chart instead. */
+  hideKpis?: boolean;
 }
 
 export function TelereleveBuildingChart({
@@ -116,6 +122,8 @@ export function TelereleveBuildingChart({
   frequency,
   onNaturalGranularityChange,
   monthlyData,
+  noCard = false,
+  hideKpis = false,
 }: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
@@ -601,12 +609,8 @@ export function TelereleveBuildingChart({
   // parent wrapper (TelereleveChartsSection) — by the time we render here,
   // we know there's at least one site to pick from.
 
-  return (
-    <ChartCard
-      title="Suivi télérelevé"
-      subtitle="Données brutes du distributeur (GRDF / Enedis)"
-      className="w-full h-full"
-    >
+  const content = (
+    <>
       {/* Local toolbar — only Energy + Frequency + CSV export.
           Site picker and date range live in the parent toolbar
           (TelereleveChartsSection) so they are shared with the
@@ -660,7 +664,8 @@ export function TelereleveBuildingChart({
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs (hidden when the parent renders shared KPIs above) */}
+      {!hideKpis && (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Kpi label="NC totale" value={formatKwh(kpis.total)} />
         <Kpi
@@ -723,6 +728,7 @@ export function TelereleveBuildingChart({
           }
         />
       </div>
+      )}
 
       {/* Chart */}
       {loadingRecords ? (
@@ -748,6 +754,18 @@ export function TelereleveBuildingChart({
           lazyUpdate={true}
         />
       )}
+    </>
+  );
+
+  if (noCard) return content;
+
+  return (
+    <ChartCard
+      title="Suivi télérelevé"
+      subtitle="Données brutes du distributeur (GRDF / Enedis)"
+      className="w-full h-full"
+    >
+      {content}
     </ChartCard>
   );
 }

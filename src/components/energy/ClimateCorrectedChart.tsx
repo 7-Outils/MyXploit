@@ -40,6 +40,10 @@ interface Props {
       not needed in this chart since we plot kWh/DJU. */
   hasNb: boolean;
   hasDjuContractuel: boolean;
+  /** When true, omit the surrounding ChartCard. */
+  noCard?: boolean;
+  /** When true, hide the local KPI grid. */
+  hideKpis?: boolean;
 }
 
 function monthLabel(month: string): string {
@@ -55,7 +59,23 @@ export function ClimateCorrectedChart({
   monthlyData,
   hasNb,
   hasDjuContractuel,
+  noCard = false,
+  hideKpis = false,
 }: Props) {
+  // Helper: wrap content in a ChartCard unless the parent already provides
+  // its own (noCard mode).
+  const wrap = (children: React.ReactNode) =>
+    noCard ? (
+      <>{children}</>
+    ) : (
+      <ChartCard
+        title="Signature énergétique"
+        subtitle="Conso par degré-jour (kWh/DJU)"
+        className="w-full h-full"
+      >
+        {children}
+      </ChartCard>
+    );
   // Compute the ratio kWh / DJU per month. Skip months with djr === 0
   // (summer months without heating consumption — would divide by zero).
   const ratioPoints = useMemo(
@@ -103,80 +123,62 @@ export function ClimateCorrectedChart({
   // ─── Empty states ───────────────────────────────────────────────────
 
   if (!hasNb) {
-    return (
-      <ChartCard
-        title="Signature énergétique"
-        subtitle="Conso par degré-jour (kWh/DJU)"
-        className="w-full h-full"
-      >
-        <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={18} className="text-amber-600" />
-            <p className="text-sm font-semibold text-amber-900">
-              Niveau de Base manquant
-            </p>
-          </div>
-          <p className="text-xs text-amber-800">
-            Renseignez le NB (Niveau de Base annuel en MWh) sur la fiche de{" "}
-            <strong>{siteName}</strong> pour activer le suivi de la signature
-            énergétique.
+    return wrap(
+      <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+        <div className="flex items-center gap-2">
+          <AlertCircle size={18} className="text-amber-600" />
+          <p className="text-sm font-semibold text-amber-900">
+            Niveau de Base manquant
           </p>
-          <Link
-            href={`/buildings/${siteId}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:text-amber-700 underline mt-1"
-          >
-            <Settings size={14} />
-            Ouvrir la fiche bâtiment →
-          </Link>
         </div>
-      </ChartCard>
+        <p className="text-xs text-amber-800">
+          Renseignez le NB (Niveau de Base annuel en MWh) sur la fiche de{" "}
+          <strong>{siteName}</strong> pour activer le suivi de la signature
+          énergétique.
+        </p>
+        <Link
+          href={`/buildings/${siteId}`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:text-amber-700 underline mt-1"
+        >
+          <Settings size={14} />
+          Ouvrir la fiche bâtiment →
+        </Link>
+      </div>
     );
   }
 
   if (!hasDjuContractuel) {
-    return (
-      <ChartCard
-        title="Signature énergétique"
-        subtitle="Conso par degré-jour (kWh/DJU)"
-        className="w-full h-full"
-      >
-        <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <div className="flex items-center gap-2">
-            <AlertCircle size={18} className="text-amber-600" />
-            <p className="text-sm font-semibold text-amber-900">
-              Station météo introuvable
-            </p>
-          </div>
-          <p className="text-xs text-amber-800">
-            Aucune station météo ni code postal valide n&apos;est associé à{" "}
-            <strong>{siteName}</strong>. Renseignez le code postal pour activer
-            le calcul de la signature énergétique.
+    return wrap(
+      <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+        <div className="flex items-center gap-2">
+          <AlertCircle size={18} className="text-amber-600" />
+          <p className="text-sm font-semibold text-amber-900">
+            Station météo introuvable
           </p>
         </div>
-      </ChartCard>
+        <p className="text-xs text-amber-800">
+          Aucune station météo ni code postal valide n&apos;est associé à{" "}
+          <strong>{siteName}</strong>. Renseignez le code postal pour activer
+          le calcul de la signature énergétique.
+        </p>
+      </div>
     );
   }
 
   if (ratioPoints.length === 0) {
-    return (
-      <ChartCard
-        title="Signature énergétique"
-        subtitle="Conso par degré-jour (kWh/DJU)"
-        className="w-full h-full"
-      >
-        <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
-          <AlertCircle size={28} className="text-gray-300 mb-2" />
-          <p className="text-sm font-medium text-gray-700">
-            Aucun mois exploitable sur la période
-          </p>
-          <p className="text-xs text-gray-500 mt-1 text-center max-w-md">
-            La signature énergétique est calculée sur les mois entièrement
-            contenus dans la plage et qui ont à la fois de la consommation et
-            des DJU réels. Élargissez la plage ou attendez la prochaine
-            synchronisation des DJU.
-          </p>
-        </div>
-      </ChartCard>
+    return wrap(
+      <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
+        <AlertCircle size={28} className="text-gray-300 mb-2" />
+        <p className="text-sm font-medium text-gray-700">
+          Aucun mois exploitable sur la période
+        </p>
+        <p className="text-xs text-gray-500 mt-1 text-center max-w-md">
+          La signature énergétique est calculée sur les mois entièrement
+          contenus dans la plage et qui ont à la fois de la consommation et
+          des DJU réels. Élargissez la plage ou attendez la prochaine
+          synchronisation des DJU.
+        </p>
+      </div>
     );
   }
 
@@ -260,59 +262,56 @@ export function ClimateCorrectedChart({
       ? "text-green-600"
       : "text-primary-dark";
 
-  return (
-    <ChartCard
-      title="Signature énergétique"
-      subtitle="Conso par degré-jour (kWh/DJU)"
-      className="w-full h-full"
-    >
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-3">
-          <div className="flex items-center gap-1">
-            <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-              Ratio moyen
+  return wrap(
+    <>
+      {!hideKpis && (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-3">
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
+                Ratio moyen
+              </p>
+              <span
+                title="Consommation moyenne par degré-jour sur les mois affichés. Plus c'est stable d'un mois à l'autre, plus le bâtiment est sain."
+                className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
+              >
+                i
+              </span>
+            </div>
+            <p className="text-xl font-semibold text-primary-dark mt-1">
+              {stats ? `${stats.avg.toFixed(1)} kWh/DJU` : "—"}
             </p>
-            <span
-              title="Consommation moyenne par degré-jour sur les mois affichés. Plus c'est stable d'un mois à l'autre, plus le bâtiment est sain."
-              className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
-            >
-              i
-            </span>
           </div>
-          <p className="text-xl font-semibold text-primary-dark mt-1">
-            {stats ? `${stats.avg.toFixed(1)} kWh/DJU` : "—"}
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-3">
-          <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-            Min / Max
-          </p>
-          <p className="text-xl font-semibold text-primary-dark mt-1">
-            {stats
-              ? `${stats.min.toFixed(0)} – ${stats.max.toFixed(0)}`
-              : "—"}
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-3">
-          <div className="flex items-center gap-1">
+          <div className="bg-white border border-gray-200 rounded-xl p-3">
             <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-              Dérive
+              Min / Max
             </p>
-            <span
-              title="Tendance du ratio mois après mois. Positif (rouge) = dérive à la hausse, signe d'un équipement qui se dégrade ou d'un comportement à corriger. Négatif (vert) = amélioration."
-              className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
-            >
-              i
-            </span>
+            <p className="text-xl font-semibold text-primary-dark mt-1">
+              {stats
+                ? `${stats.min.toFixed(0)} – ${stats.max.toFixed(0)}`
+                : "—"}
+            </p>
           </div>
-          <p className={cn("text-xl font-semibold mt-1", driftClass)}>
-            {stats === null
-              ? "—"
-              : `${stats.driftPct > 0 ? "+" : ""}${stats.driftPct}%/mois`}
-          </p>
+          <div className="bg-white border border-gray-200 rounded-xl p-3">
+            <div className="flex items-center gap-1">
+              <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
+                Dérive
+              </p>
+              <span
+                title="Tendance du ratio mois après mois. Positif (rouge) = dérive à la hausse, signe d'un équipement qui se dégrade ou d'un comportement à corriger. Négatif (vert) = amélioration."
+                className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
+              >
+                i
+              </span>
+            </div>
+            <p className={cn("text-xl font-semibold mt-1", driftClass)}>
+              {stats === null
+                ? "—"
+                : `${stats.driftPct > 0 ? "+" : ""}${stats.driftPct}%/mois`}
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Chart */}
       <ReactECharts
@@ -321,6 +320,6 @@ export function ClimateCorrectedChart({
         notMerge={true}
         lazyUpdate={true}
       />
-    </ChartCard>
+    </>
   );
 }

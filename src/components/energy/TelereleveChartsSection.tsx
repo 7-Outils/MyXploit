@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Wifi } from "lucide-react";
+import {
+  Loader2,
+  TrendingDown,
+  TrendingUp,
+  Wifi,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import {
@@ -10,6 +15,15 @@ import {
   type SiteSummary,
 } from "@/components/energy/TelereleveBuildingChart";
 import { ClimateCorrectedChart } from "@/components/energy/ClimateCorrectedChart";
+
+function formatKwh(value: number): string {
+  if (value >= 5000) {
+    return `${(value / 1000).toLocaleString("fr-FR", {
+      maximumFractionDigits: 1,
+    })} MWh`;
+  }
+  return `${Math.round(value).toLocaleString("fr-FR")} kWh`;
+}
 
 function daysAgoIso(days: number): string {
   const d = new Date();
@@ -135,8 +149,10 @@ export function TelereleveChartsSection({ contractId }: Props) {
       d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
     const startYear = yearOf(start);
     const endYear = yearOf(end);
+    // Always fetch one extra heating season BEFORE the visible range so the
+    // KPIs can compute "vs N-1" by looking at the same months one year ago.
     const years: number[] = [];
-    for (let y = startYear; y <= endYear; y++) years.push(y);
+    for (let y = startYear - 1; y <= endYear; y++) years.push(y);
 
     Promise.all(
       years.map((y) =>
@@ -198,6 +214,55 @@ export function TelereleveChartsSection({ contractId }: Props) {
       return monthStartIso >= dateFrom && monthEndIso <= dateTo;
     });
   }, [siteContext, dateFrom, dateTo]);
+
+  // Same months but shifted exactly 12 months back — used to compute
+  // year-over-year deltas (NC vs N-1, DJU vs N-1).
+  const monthlyDataN1 = useMemo(() => {
+    if (!siteContext) return [];
+    const wantedKeys = new Set(
+      monthlyData.map((m) => {
+        const [y, mo] = m.month.split("-").map(Number);
+        return `${y - 1}-${String(mo).padStart(2, "0")}`;
+      })
+    );
+    return siteContext.months.filter((m) => wantedKeys.has(m.month));
+  }, [siteContext, monthlyData]);
+
+  // Shared KPIs computed once at the section level — passed down so the
+  // dashboard renders one row of KPIs (not duplicated per chart).
+  const sharedKpis = useMemo(() => {
+    if (monthlyData.length === 0) return null;
+    const totalNc = monthlyData.reduce((s, m) => s + m.nc, 0);
+    const totalNbPrime = monthlyData.reduce((s, m) => s + m.nbPrime, 0);
+    const totalDjr = monthlyData.reduce((s, m) => s + m.djr, 0);
+
+    const totalNcN1 = monthlyDataN1.reduce((s, m) => s + m.nc, 0);
+    const totalDjrN1 = monthlyDataN1.reduce((s, m) => s + m.djr, 0);
+
+    const ncDeltaPct =
+      totalNcN1 > 0 ? ((totalNc - totalNcN1) / totalNcN1) * 100 : null;
+    const ncDeltaAbs = totalNcN1 > 0 ? totalNc - totalNcN1 : null;
+
+    const djrDeltaPct =
+      totalDjrN1 > 0 ? ((totalDjr - totalDjrN1) / totalDjrN1) * 100 : null;
+    const djrDeltaAbs = totalDjrN1 > 0 ? totalDjr - totalDjrN1 : null;
+
+    const climateDelta = totalNbPrime > 0 ? totalNc - totalNbPrime : null;
+    const climateDeltaPct =
+      totalNbPrime > 0 ? (totalNc - totalNbPrime) / totalNbPrime * 100 : null;
+
+    return {
+      totalNc,
+      totalNbPrime,
+      totalDjr,
+      ncDeltaPct,
+      ncDeltaAbs,
+      djrDeltaPct,
+      djrDeltaAbs,
+      climateDelta,
+      climateDeltaPct,
+    };
+  }, [monthlyData, monthlyDataN1]);
 
   // ─── Date preset definitions (used for both buttons and active state) ─
   const datePresets = useMemo(
@@ -351,38 +416,216 @@ export function TelereleveChartsSection({ contractId }: Props) {
         </div>
       </div>
 
-      {/* 2-column layout on desktop (≥ xl). Stacks on smaller screens.
-          min-w-0 on each child prevents inner content from pushing one
-          column past 50%. items-stretch keeps the two cards at the
-          same height (no more visually unbalanced rows). */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-        <div className="min-w-0 flex">
-          <TelereleveBuildingChart
-            sites={sites}
-            selectedSiteId={selectedSiteId}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            frequency={frequency}
-            onNaturalGranularityChange={handleNaturalGranularity}
-            monthlyData={monthlyData}
-          />
-        </div>
-
-        {selectedSite && (
-          <div className="min-w-0 flex">
-            <ClimateCorrectedChart
-              siteId={selectedSite.id}
-              siteName={selectedSite.name}
-              monthlyData={monthlyData}
-              hasNb={siteContext?.nb != null && siteContext.nb > 0}
-              hasDjuContractuel={
-                siteContext?.djuContractuel != null &&
-                siteContext.djuContractuel > 0
+      {/* Single unified card containing the shared KPI strip and the two
+          charts side by side. Sub-components render in noCard + hideKpis
+          mode so they don't double-wrap or duplicate the KPIs. */}
+      <ChartCard
+        title="Suivi télérelevé"
+        subtitle="Données brutes du distributeur (GRDF / Enedis) et performance climatique"
+      >
+        {/* Shared KPIs */}
+        {sharedKpis && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <SharedKpi
+              label="NC totale"
+              value={formatKwh(sharedKpis.totalNc)}
+              deltaPct={sharedKpis.ncDeltaPct}
+              deltaAbs={sharedKpis.ncDeltaAbs}
+              deltaUnit="kWh"
+            />
+            <SharedKpi
+              label="N'B"
+              value={
+                sharedKpis.totalNbPrime > 0
+                  ? formatKwh(sharedKpis.totalNbPrime)
+                  : "—"
               }
+              tooltip="Cible théorique ajustée à la météo réelle. Formule : NB × (DJR / DJC) où DJR = degrés-jours réels et DJC = degrés-jours contractuels."
+            />
+            <SharedKpi
+              label="Écart NC vs N'B"
+              value={
+                sharedKpis.climateDeltaPct === null
+                  ? "—"
+                  : `${sharedKpis.climateDeltaPct > 0 ? "+" : ""}${sharedKpis.climateDeltaPct.toFixed(1)}%`
+              }
+              subtle={
+                sharedKpis.climateDelta === null
+                  ? undefined
+                  : `${sharedKpis.climateDelta >= 0 ? "+" : "−"}${formatKwh(Math.abs(sharedKpis.climateDelta))}`
+              }
+              tone={
+                sharedKpis.climateDeltaPct === null
+                  ? "neutral"
+                  : sharedKpis.climateDeltaPct > 5
+                  ? "danger"
+                  : sharedKpis.climateDeltaPct < -5
+                  ? "success"
+                  : "neutral"
+              }
+              tooltip="Écart entre la consommation réelle et la cible climatique. Positif (rouge) = dépassement, négatif (vert) = économie. Seuil de tolérance ±5%."
+            />
+            <SharedKpi
+              label="DJU réels"
+              value={
+                sharedKpis.totalDjr > 0
+                  ? `${Math.round(sharedKpis.totalDjr).toLocaleString("fr-FR")} DJU`
+                  : "—"
+              }
+              deltaPct={sharedKpis.djrDeltaPct}
+              deltaAbs={sharedKpis.djrDeltaAbs}
+              deltaUnit="DJU"
+              tooltip="Somme des degrés-jours unifiés (base 18°C) sur la période. Le DJU mesure la rigueur du climat — plus il fait froid, plus le DJU est élevé."
             />
           </div>
         )}
+
+        {/* 2-column chart layout on desktop, stacks on smaller screens.
+            min-w-0 prevents one chart from pushing the other past 50%. */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+          <div className="min-w-0">
+            <TelereleveBuildingChart
+              sites={sites}
+              selectedSiteId={selectedSiteId}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              frequency={frequency}
+              onNaturalGranularityChange={handleNaturalGranularity}
+              monthlyData={monthlyData}
+              noCard
+              hideKpis
+            />
+          </div>
+
+          {selectedSite && (
+            <div className="min-w-0">
+              <ClimateCorrectedChart
+                siteId={selectedSite.id}
+                siteName={selectedSite.name}
+                monthlyData={monthlyData}
+                hasNb={siteContext?.nb != null && siteContext.nb > 0}
+                hasDjuContractuel={
+                  siteContext?.djuContractuel != null &&
+                  siteContext.djuContractuel > 0
+                }
+                noCard
+                hideKpis
+              />
+            </div>
+          )}
+        </div>
+      </ChartCard>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Shared KPI sub-component used in the unified dashboard card.
+// ────────────────────────────────────────────────────────────────────────
+
+interface SharedKpiProps {
+  label: string;
+  value: string;
+  subtle?: string;
+  tone?: "neutral" | "success" | "danger";
+  tooltip?: string;
+  /** When set, the KPI shows a "vs N-1" line below the main value with both
+      the percentage and the absolute difference. The unit (kWh / DJU) is
+      used to format the absolute difference. */
+  deltaPct?: number | null;
+  deltaAbs?: number | null;
+  deltaUnit?: "kWh" | "DJU";
+}
+
+function SharedKpi({
+  label,
+  value,
+  subtle,
+  tone = "neutral",
+  tooltip,
+  deltaPct,
+  deltaAbs,
+  deltaUnit,
+}: SharedKpiProps) {
+  const valueClass =
+    tone === "danger"
+      ? "text-red-600"
+      : tone === "success"
+      ? "text-green-600"
+      : "text-primary-dark";
+
+  // Auto-tone for the N-1 delta if no explicit tone was passed
+  const deltaTone =
+    deltaPct === null || deltaPct === undefined
+      ? "neutral"
+      : deltaPct > 5
+      ? "danger"
+      : deltaPct < -5
+      ? "success"
+      : "neutral";
+  const deltaClass =
+    deltaTone === "danger"
+      ? "text-red-600"
+      : deltaTone === "success"
+      ? "text-green-600"
+      : "text-text-secondary";
+  const DeltaIcon =
+    deltaPct === null || deltaPct === undefined
+      ? null
+      : deltaPct > 0
+      ? TrendingUp
+      : TrendingDown;
+
+  const formatDeltaAbs = (abs: number) => {
+    if (deltaUnit === "DJU") {
+      return `${Math.round(Math.abs(abs)).toLocaleString("fr-FR")} DJU`;
+    }
+    return formatKwh(Math.abs(abs));
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-3">
+      <div className="flex items-center gap-1">
+        <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
+          {label}
+        </p>
+        {tooltip && (
+          <span
+            title={tooltip}
+            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
+            aria-label={tooltip}
+          >
+            i
+          </span>
+        )}
       </div>
+      <p className={cn("text-xl font-semibold mt-1", valueClass)}>{value}</p>
+      {subtle && (
+        <p className="text-[10px] text-text-secondary mt-0.5">{subtle}</p>
+      )}
+      {deltaPct !== undefined && deltaPct !== null && deltaAbs !== null && deltaAbs !== undefined && (
+        <div
+          className={cn(
+            "flex items-center gap-1 mt-1 text-[11px] font-medium",
+            deltaClass
+          )}
+        >
+          {DeltaIcon && <DeltaIcon size={12} />}
+          <span>
+            {deltaPct > 0 ? "+" : ""}
+            {deltaPct.toFixed(1)}% vs N-1
+          </span>
+          <span className="text-text-secondary font-normal">
+            ({deltaAbs >= 0 ? "+" : "−"}
+            {formatDeltaAbs(deltaAbs)})
+          </span>
+        </div>
+      )}
+      {deltaPct === null && (
+        <p className="text-[11px] text-text-secondary mt-1">
+          Pas de données N-1
+        </p>
+      )}
     </div>
   );
 }
