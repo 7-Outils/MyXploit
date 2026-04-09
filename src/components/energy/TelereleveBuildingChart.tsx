@@ -38,10 +38,12 @@ export interface SiteSummary {
 interface ConsumptionRecord {
   id: string;
   energyType: string;
+  usage: string;
   period: string;
   quantity: number;
   cost: number | null;
   meterName: string | null;
+  djuReel: number | null;
 }
 
 const ENERGY_LABELS: Record<string, string> = {
@@ -112,6 +114,9 @@ interface Props {
   /** When true, hide the local KPI grid because the parent renders shared
       KPIs above the chart instead. */
   hideKpis?: boolean;
+  /** Reports daily {date, nc, djr} for the CHAUFFAGE/MIXTE records in the
+      current date range — consumed by the sibling signature chart. */
+  onDailyDataChange?: (data: { date: string; nc: number; djr: number }[]) => void;
 }
 
 export function TelereleveBuildingChart({
@@ -124,6 +129,7 @@ export function TelereleveBuildingChart({
   monthlyData,
   noCard = false,
   hideKpis = false,
+  onDailyDataChange,
 }: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
@@ -233,6 +239,32 @@ export function TelereleveBuildingChart({
   useEffect(() => {
     onNaturalGranularityChange?.(naturalGranularity);
   }, [naturalGranularity, onNaturalGranularityChange]);
+
+  // Daily CHAUFFAGE/MIXTE data in the visible range — reported to the sibling
+  // signature chart so it can plot kWh/DJU at day granularity.
+  const dailySignatureData = useMemo(() => {
+    const fromTs = new Date(dateFrom).getTime();
+    const toTs = new Date(dateTo).getTime() + 24 * 60 * 60 * 1000 - 1;
+    const map = new Map<string, { nc: number; djr: number }>();
+    for (const r of records) {
+      if (r.usage !== "CHAUFFAGE" && r.usage !== "MIXTE") continue;
+      const t = new Date(r.period).getTime();
+      if (t < fromTs || t > toTs) continue;
+      const d = new Date(r.period);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const existing = map.get(key) || { nc: 0, djr: 0 };
+      existing.nc += r.quantity;
+      if (r.djuReel != null) existing.djr += r.djuReel;
+      map.set(key, existing);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({ date, nc: d.nc, djr: d.djr }));
+  }, [records, dateFrom, dateTo]);
+
+  useEffect(() => {
+    onDailyDataChange?.(dailySignatureData);
+  }, [dailySignatureData, onDailyDataChange]);
 
   // ─── Aggregate filtered records into the chosen frequency buckets ────
   const buckets = useMemo(() => {

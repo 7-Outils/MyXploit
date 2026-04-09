@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AlertCircle, Settings } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { cn } from "@/lib/utils";
+import type { Frequency } from "@/components/energy/TelereleveBuildingChart";
 
 // ECharts is canvas-based — load client-side only.
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
@@ -33,8 +34,13 @@ export interface MonthlyAnalyticsPoint {
 interface Props {
   siteId: string;
   siteName: string;
-  /** Months strictly contained in the date range, fetched by the parent */
+  /** Months overlapping the date range, fetched by the parent */
   monthlyData: MonthlyAnalyticsPoint[];
+  /** Daily {date, nc, djr} reported by the sibling chart — used when
+      frequency === "day" to plot kWh/DJU at day granularity. */
+  dailyData?: { date: string; nc: number; djr: number }[];
+  /** Current frequency — drives whether to use dailyData or monthlyData. */
+  frequency?: Frequency;
   /** Indicates whether the building has a NB and a (resolved) DJU contractuel.
       Used purely to drive empty states — the actual N'B / DJC values are
       not needed in this chart since we plot kWh/DJU. */
@@ -53,10 +59,19 @@ function monthLabel(month: string): string {
   return d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
 }
 
+function dailyLabel(date: string): string {
+  // "2026-04-09" → "09 avr."
+  const [y, mo, dd] = date.split("-").map(Number);
+  const d = new Date(y, mo - 1, dd);
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+}
+
 export function ClimateCorrectedChart({
   siteId,
   siteName,
   monthlyData,
+  dailyData,
+  frequency,
   hasNb,
   hasDjuContractuel,
   noCard = false,
@@ -76,21 +91,31 @@ export function ClimateCorrectedChart({
         {children}
       </ChartCard>
     );
-  // Compute the ratio kWh / DJU per month. Skip months with djr === 0
-  // (summer months without heating consumption — would divide by zero).
-  const ratioPoints = useMemo(
-    () =>
-      monthlyData
-        .filter((m) => m.djr > 0)
-        .map((m) => ({
-          month: m.month,
-          label: monthLabel(m.month),
-          ratio: m.nc / m.djr, // kWh / DJU
-          nc: m.nc,
-          djr: m.djr,
-        })),
-    [monthlyData]
-  );
+  // Compute the ratio kWh / DJU. When frequency is "day" and dailyData is
+  // available, plot one point per day; otherwise aggregate by month.
+  const ratioPoints = useMemo(() => {
+    const useDaily = frequency === "day" && dailyData && dailyData.length > 0;
+    if (useDaily) {
+      return dailyData!
+        .filter((d) => d.djr > 0)
+        .map((d) => ({
+          key: d.date,
+          label: dailyLabel(d.date),
+          ratio: d.nc / d.djr,
+          nc: d.nc,
+          djr: d.djr,
+        }));
+    }
+    return monthlyData
+      .filter((m) => m.djr > 0)
+      .map((m) => ({
+        key: m.month,
+        label: monthLabel(m.month),
+        ratio: m.nc / m.djr,
+        nc: m.nc,
+        djr: m.djr,
+      }));
+  }, [monthlyData, dailyData, frequency]);
 
   // KPIs
   const stats = useMemo(() => {

@@ -117,6 +117,12 @@ export function TelereleveChartsSection({ contractId }: Props) {
     );
   }, []);
 
+  // Daily CHAUFFAGE/MIXTE data reported by TelereleveBuildingChart — used by
+  // the sibling ClimateCorrectedChart when the user is in day frequency.
+  const [dailyData, setDailyData] = useState<
+    { date: string; nc: number; djr: number }[]
+  >([]);
+
   // ─── Analytics monthly data — fetched once at the section level ─────
   // Both charts (GRDF on the left, signature ratio on the right) consume
   // the same monthly aggregates: nc, nbPrime, djr per month. We fetch
@@ -492,6 +498,7 @@ export function TelereleveChartsSection({ contractId }: Props) {
               dateTo={dateTo}
               frequency={frequency}
               onNaturalGranularityChange={handleNaturalGranularity}
+              onDailyDataChange={setDailyData}
               monthlyData={monthlyData}
               noCard
               hideKpis
@@ -504,6 +511,8 @@ export function TelereleveChartsSection({ contractId }: Props) {
                 siteId={selectedSite.id}
                 siteName={selectedSite.name}
                 monthlyData={monthlyData}
+                dailyData={dailyData}
+                frequency={frequency}
                 hasNb={siteContext?.nb != null && siteContext.nb > 0}
                 hasDjuContractuel={
                   siteContext?.djuContractuel != null &&
