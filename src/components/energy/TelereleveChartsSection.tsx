@@ -103,6 +103,102 @@ export function TelereleveChartsSection({ contractId }: Props) {
     );
   }, []);
 
+  // ─── Analytics monthly data — fetched once at the section level ─────
+  // Both charts (GRDF on the left, signature ratio on the right) consume
+  // the same monthly aggregates: nc, nbPrime, djr per month. We fetch
+  // here once and pass them down so we don't double-call /api/consumptions/analytics.
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [siteContext, setSiteContext] = useState<{
+    nb: number | null;
+    djuContractuel: number | null;
+    djuContractuelExplicit: number | null;
+    stationMeteo: string | null;
+    months: { month: string; nc: number; nbPrime: number; djr: number }[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!selectedSiteId) {
+      setSiteContext(null);
+      return;
+    }
+    let cancelled = false;
+    setAnalyticsLoading(true);
+
+    // Compute the heating-season years that overlap [dateFrom, dateTo]
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      setAnalyticsLoading(false);
+      return;
+    }
+    const yearOf = (d: Date) =>
+      d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
+    const startYear = yearOf(start);
+    const endYear = yearOf(end);
+    const years: number[] = [];
+    for (let y = startYear; y <= endYear; y++) years.push(y);
+
+    Promise.all(
+      years.map((y) =>
+        fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null)
+      )
+    )
+      .then((responses) => {
+        if (cancelled) return;
+        let merged: typeof siteContext = null;
+        for (const resp of responses) {
+          if (!resp || !resp.sites || resp.sites.length === 0) continue;
+          const sitePerf = resp.sites.find(
+            (s: { siteId: string }) => s.siteId === selectedSiteId
+          );
+          if (!sitePerf) continue;
+          if (!merged) {
+            merged = {
+              nb: sitePerf.nb,
+              djuContractuel: sitePerf.djuContractuel,
+              djuContractuelExplicit: sitePerf.djuContractuelExplicit,
+              stationMeteo: sitePerf.stationMeteo,
+              months: [...sitePerf.monthlyData],
+            };
+          } else {
+            const seen = new Set(merged.months.map((m) => m.month));
+            for (const m of sitePerf.monthlyData) {
+              if (!seen.has(m.month)) {
+                merged.months.push(m);
+                seen.add(m.month);
+              }
+            }
+          }
+        }
+        if (merged) {
+          merged.months.sort((a, b) => a.month.localeCompare(b.month));
+        }
+        setSiteContext(merged);
+      })
+      .finally(() => {
+        if (!cancelled) setAnalyticsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSiteId, dateFrom, dateTo]);
+
+  // Months strictly contained within [dateFrom, dateTo]. This is what
+  // both downstream charts use — same set, same totals.
+  const monthlyData = useMemo(() => {
+    if (!siteContext) return [];
+    return siteContext.months.filter((m) => {
+      const [y, mo] = m.month.split("-").map(Number);
+      const lastDay = new Date(y, mo, 0).getDate();
+      const monthStartIso = `${m.month}-01`;
+      const monthEndIso = `${m.month}-${String(lastDay).padStart(2, "0")}`;
+      return monthStartIso >= dateFrom && monthEndIso <= dateTo;
+    });
+  }, [siteContext, dateFrom, dateTo]);
+
   // ─── Date preset definitions (used for both buttons and active state) ─
   const datePresets = useMemo(
     () => [
@@ -268,6 +364,7 @@ export function TelereleveChartsSection({ contractId }: Props) {
             dateTo={dateTo}
             frequency={frequency}
             onNaturalGranularityChange={handleNaturalGranularity}
+            monthlyData={monthlyData}
           />
         </div>
 
@@ -276,8 +373,12 @@ export function TelereleveChartsSection({ contractId }: Props) {
             <ClimateCorrectedChart
               siteId={selectedSite.id}
               siteName={selectedSite.name}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
+              monthlyData={monthlyData}
+              hasNb={siteContext?.nb != null && siteContext.nb > 0}
+              hasDjuContractuel={
+                siteContext?.djuContractuel != null &&
+                siteContext.djuContractuel > 0
+              }
             />
           </div>
         )}

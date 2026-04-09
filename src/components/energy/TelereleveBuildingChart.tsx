@@ -77,6 +77,16 @@ function formatKwh(value: number): string {
 // day/week/month/year work for both GRDF informatives and Enedis.
 export type Frequency = "hour" | "day" | "week" | "month" | "year";
 
+/** One row from /api/consumptions/analytics monthlyData per heating season,
+    already filtered down to the months strictly contained in the parent's
+    date range. */
+export interface MonthlyAnalyticsPoint {
+  month: string; // "YYYY-MM"
+  nc: number; // kWh
+  nbPrime: number; // kWh — climate-corrected target
+  djr: number; // degree-days réels
+}
+
 interface Props {
   /** Sites of the current contract — used to resolve the selected site
       label / PCE / PDL for the chart title and CSV filename */
@@ -91,6 +101,11 @@ interface Props {
   /** Notify the parent of the finest granularity available in the records,
       so the parent can disable finer options in its frequency dropdown. */
   onNaturalGranularityChange?: (g: Frequency) => void;
+  /** Monthly analytics (NC, N'B, DJR) for the selected site, fetched and
+      filtered by the parent. When provided AND the user is in monthly
+      frequency, the chart shows the climate-corrected target as a second
+      bar series and the KPIs add Cible (N'B) + Écart. */
+  monthlyData?: MonthlyAnalyticsPoint[];
 }
 
 export function TelereleveBuildingChart({
@@ -100,6 +115,7 @@ export function TelereleveBuildingChart({
   dateTo,
   frequency,
   onNaturalGranularityChange,
+  monthlyData,
 }: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
@@ -280,6 +296,21 @@ export function TelereleveBuildingChart({
     return { total, avg, count: buckets.length };
   }, [buckets]);
 
+  // ─── Climate KPIs (N'B + écart) — only when we have monthlyData ─────
+  // The climate-corrected target only makes sense at month granularity,
+  // so we only expose these KPIs when frequency === "month".
+  const climateKpis = useMemo(() => {
+    if (!monthlyData || monthlyData.length === 0 || frequency !== "month") {
+      return null;
+    }
+    const totalNc = monthlyData.reduce((s, m) => s + m.nc, 0);
+    const totalNbPrime = monthlyData.reduce((s, m) => s + m.nbPrime, 0);
+    if (totalNbPrime === 0) return null; // no target available
+    const delta = totalNc - totalNbPrime;
+    const deltaPercent = Math.round((delta / totalNbPrime) * 1000) / 10;
+    return { totalNbPrime, delta, deltaPercent };
+  }, [monthlyData, frequency]);
+
   // YoY: same window one year before
   const yoyDelta = useMemo(() => {
     if (!selectedEnergy || filtered.length === 0) return null;
@@ -309,11 +340,15 @@ export function TelereleveBuildingChart({
     // on monthly/yearly views where each bar is tens of MWh.
     const maxKwh = buckets.reduce((m, b) => Math.max(m, b.total), 0);
     const yUnit: "kWh" | "MWh" = maxKwh >= 5000 ? "MWh" : "kWh";
+    // Convert a raw kWh value to the chart's display unit (kWh or MWh).
+    // Used by both the main NC bars and the optional N'B target line.
+    const toDisplay = (kwh: number) =>
+      yUnit === "MWh"
+        ? Number((kwh / 1000).toFixed(2))
+        : Math.round(kwh);
 
     const dates = buckets.map((b) => b.date);
-    const values = buckets.map((b) =>
-      yUnit === "MWh" ? Number((b.total / 1000).toFixed(2)) : Math.round(b.total)
-    );
+    const values = buckets.map((b) => toDisplay(b.total));
 
     // Format an X-axis label based on the current frequency
     const formatAxisLabel = (iso: string): string => {
@@ -387,11 +422,32 @@ export function TelereleveBuildingChart({
     // just visual noise.
     const showDataZoomSlider = buckets.length > 12;
     const seriesLabel = "Conso réelle";
+    const showTarget =
+      frequency === "month" && !!monthlyData && monthlyData.length > 0;
+
+    // For each bucket (which is a month at frequency=month), look up the
+    // matching N'B from monthlyData by YYYY-MM key.
+    const targetByMonth = new Map<string, number>();
+    if (showTarget && monthlyData) {
+      for (const m of monthlyData) targetByMonth.set(m.month, m.nbPrime);
+    }
+    const targetValues = showTarget
+      ? buckets.map((b) => {
+          const d = new Date(b.date);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const nb = targetByMonth.get(key) ?? 0;
+          return toDisplay(nb);
+        })
+      : [];
+
+    const legendData = showTarget
+      ? [seriesLabel, "Cible climatique"]
+      : [seriesLabel];
 
     return {
       grid: { left: 64, right: 24, top: 32, bottom: showDataZoomSlider ? 60 : 36 },
       legend: {
-        data: [seriesLabel],
+        data: legendData,
         bottom: showDataZoomSlider ? 40 : 4,
         left: "center",
         icon: "circle",
@@ -405,14 +461,36 @@ export function TelereleveBuildingChart({
         textStyle: { color: "#fff", fontSize: 12 },
         formatter: (params: { axisValueLabel: string; dataIndex: number }[]) => {
           if (!params || params.length === 0) return "";
-          const p = params[0];
-          // Always format from the original kWh, not the scaled chart value
-          const originalKwh = buckets[p.dataIndex]?.total ?? 0;
-          return `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(p.axisValueLabel)}</div>
-            <div style="display:flex;align-items:center;gap:6px">
+          const idx = params[0].dataIndex;
+          const originalKwh = buckets[idx]?.total ?? 0;
+          let html = `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
-              ${formatKwh(originalKwh)}
+              Conso réelle :&nbsp;<strong>${formatKwh(originalKwh)}</strong>
             </div>`;
+          if (showTarget) {
+            const d = new Date(buckets[idx]?.date || "");
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const nb = targetByMonth.get(key) ?? 0;
+            const delta = originalKwh - nb;
+            const deltaPct = nb > 0 ? (delta / nb) * 100 : null;
+            const deltaColor =
+              deltaPct === null
+                ? "#9ca3af"
+                : deltaPct > 5
+                ? "#ef4444"
+                : deltaPct < -5
+                ? "#22c55e"
+                : "#fbbf24";
+            html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="display:inline-block;width:10px;height:2px;background:#9ca3af"></span>
+              Cible (N'B) :&nbsp;<strong>${formatKwh(nb)}</strong>
+            </div>
+            <div style="color:${deltaColor};font-size:11px">
+              Écart : ${delta >= 0 ? "+" : ""}${formatKwh(Math.abs(delta))}${deltaPct !== null ? ` (${delta >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%)` : ""}
+            </div>`;
+          }
+          return html;
         },
       },
       xAxis: {
@@ -479,9 +557,23 @@ export function TelereleveBuildingChart({
           },
           barMaxWidth: 24,
         },
+        ...(showTarget
+          ? [
+              {
+                name: "Cible climatique",
+                type: "line" as const,
+                data: targetValues,
+                lineStyle: { color: "#6b7280", width: 2, type: "dashed" as const },
+                itemStyle: { color: "#6b7280" },
+                symbol: "circle" as const,
+                symbolSize: 5,
+                z: 10,
+              },
+            ]
+          : []),
       ],
     };
-  }, [buckets, chartColor, selectedSite, frequency]);
+  }, [buckets, chartColor, selectedSite, frequency, monthlyData]);
 
   // ─── CSV export ──────────────────────────────────────────────────────
   const handleExportCsv = () => {
@@ -571,9 +663,45 @@ export function TelereleveBuildingChart({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <Kpi label="Conso totale" value={formatKwh(kpis.total)} />
         <Kpi
-          label="Moyenne / relevé"
-          value={kpis.avg > 0 ? formatKwh(kpis.avg) : "—"}
-          subtle={kpis.count > 0 ? `sur ${kpis.count} relevé(s)` : undefined}
+          label="Cible climatique"
+          value={
+            climateKpis ? formatKwh(climateKpis.totalNbPrime) : "—"
+          }
+          tooltip={
+            climateKpis
+              ? "Cible théorique ajustée à la météo réelle. Formule : NB × (DJR / DJC) où DJR = degrés-jours réels et DJC = degrés-jours contractuels."
+              : "Disponible uniquement en fréquence mensuelle, et seulement si le bâtiment a un NB renseigné."
+          }
+        />
+        <Kpi
+          label="Écart"
+          value={
+            climateKpis
+              ? `${climateKpis.deltaPercent > 0 ? "+" : ""}${climateKpis.deltaPercent}%`
+              : "—"
+          }
+          subtle={
+            climateKpis
+              ? `${climateKpis.delta >= 0 ? "+" : "−"}${formatKwh(Math.abs(climateKpis.delta))}`
+              : undefined
+          }
+          tone={
+            climateKpis === null
+              ? "neutral"
+              : climateKpis.deltaPercent > 5
+              ? "danger"
+              : climateKpis.deltaPercent < -5
+              ? "success"
+              : "neutral"
+          }
+          icon={
+            climateKpis === null
+              ? null
+              : climateKpis.deltaPercent > 0
+              ? TrendingUp
+              : TrendingDown
+          }
+          tooltip="Écart entre la consommation réelle et la cible climatique. Positif (rouge) = dépassement, négatif (vert) = économie. Seuil de tolérance ±5%."
         />
         <Kpi
           label="Évolution N-1"
@@ -592,11 +720,6 @@ export function TelereleveBuildingChart({
           icon={
             yoyDelta === null ? null : yoyDelta > 0 ? TrendingUp : TrendingDown
           }
-        />
-        <Kpi
-          label="Relevés"
-          value={kpis.count.toLocaleString("fr-FR")}
-          subtle="sur la période"
         />
       </div>
 
@@ -638,9 +761,17 @@ interface KpiProps {
   subtle?: string;
   tone?: "neutral" | "success" | "danger";
   icon?: LucideIcon | null;
+  tooltip?: string;
 }
 
-function Kpi({ label, value, subtle, tone = "neutral", icon: Icon }: KpiProps) {
+function Kpi({
+  label,
+  value,
+  subtle,
+  tone = "neutral",
+  icon: Icon,
+  tooltip,
+}: KpiProps) {
   const valueClass =
     tone === "danger"
       ? "text-red-600"
@@ -649,9 +780,20 @@ function Kpi({ label, value, subtle, tone = "neutral", icon: Icon }: KpiProps) {
       : "text-primary-dark";
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-3">
-      <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-        {label}
-      </p>
+      <div className="flex items-center gap-1">
+        <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
+          {label}
+        </p>
+        {tooltip && (
+          <span
+            title={tooltip}
+            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
+            aria-label={tooltip}
+          >
+            i
+          </span>
+        )}
+      </div>
       <div className="flex items-center gap-1.5 mt-1">
         {Icon && <Icon size={16} className={valueClass} />}
         <p className={cn("text-xl font-semibold", valueClass)}>{value}</p>
