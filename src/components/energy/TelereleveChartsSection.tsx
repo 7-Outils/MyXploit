@@ -9,6 +9,12 @@ import {
 } from "@/components/energy/TelereleveBuildingChart";
 import { ClimateCorrectedChart } from "@/components/energy/ClimateCorrectedChart";
 
+function daysAgoIso(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
  * TelereleveChartsSection — Wrapper that owns the *shared* state between the
  * raw GRDF / Enedis chart (TelereleveBuildingChart) and the climate-corrected
@@ -85,11 +91,6 @@ export function TelereleveChartsSection({ contractId }: Props) {
     [sites, selectedSiteId]
   );
 
-  const handleChangeRange = (from: string, to: string) => {
-    setDateFrom(from);
-    setDateTo(to);
-  };
-
   // ─── Loading / empty states for the contract's site list ────────────
   if (loadingSites) {
     return (
@@ -119,34 +120,103 @@ export function TelereleveChartsSection({ contractId }: Props) {
   }
 
   return (
-    // 2-column layout on desktop (≥ xl) so users can compare the raw
-    // distributor data and the climate-corrected target side by side
-    // without scrolling. Stacks back to a single column on smaller screens.
-    // The min-w-0 on each child is critical: without it, CSS grid gives
-    // each item a min-width of "auto" (= its content's intrinsic width),
-    // which lets the GRDF chart's wide toolbar push its column past 50%.
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-      <div className="min-w-0">
-        <TelereleveBuildingChart
-          sites={sites}
-          selectedSiteId={selectedSiteId}
-          onSelectSite={setSelectedSiteId}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onChangeRange={handleChangeRange}
-        />
+    <div className="space-y-6">
+      {/* Shared toolbar — building + date range + presets are global to
+          both charts below. Energy / Frequency / CSV export stay inside
+          the GRDF chart because they're specific to it. */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1 min-w-[260px]">
+          <label className="text-xs font-medium text-text-secondary">
+            Bâtiment
+          </label>
+          <select
+            value={selectedSiteId || ""}
+            onChange={(e) => setSelectedSiteId(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+          >
+            {sites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.pce ? ` · PCE ${s.pce}` : ""}
+                {s.pdl ? ` · PDL ${s.pdl}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-text-secondary">Du</label>
+          <input
+            type="date"
+            value={dateFrom}
+            max={dateTo}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-text-secondary">Au</label>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom}
+            max={todayIso()}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+          />
+        </div>
+
+        <div className="flex gap-1">
+          {[
+            { label: "Ce mois", days: -1 }, // Special: 1st of current month
+            { label: "30 j", days: 30 },
+            { label: "90 j", days: 90 },
+            { label: "1 an", days: 365 },
+            { label: "3 ans", days: 365 * 3 },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => {
+                if (preset.days === -1) {
+                  setDateFrom(startOfCurrentMonthIso());
+                } else {
+                  setDateFrom(daysAgoIso(preset.days));
+                }
+                setDateTo(todayIso());
+              }}
+              className="px-2.5 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {selectedSite && (
-        <div className="min-w-0">
-          <ClimateCorrectedChart
-            siteId={selectedSite.id}
-            siteName={selectedSite.name}
+      {/* 2-column layout on desktop (≥ xl). Stacks on smaller screens.
+          min-w-0 on each child prevents inner content from pushing one
+          column past 50%. items-stretch keeps the two cards at the
+          same height (no more visually unbalanced rows). */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+        <div className="min-w-0 flex">
+          <TelereleveBuildingChart
+            sites={sites}
+            selectedSiteId={selectedSiteId}
             dateFrom={dateFrom}
             dateTo={dateTo}
           />
         </div>
-      )}
+
+        {selectedSite && (
+          <div className="min-w-0 flex">
+            <ClimateCorrectedChart
+              siteId={selectedSite.id}
+              siteName={selectedSite.name}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

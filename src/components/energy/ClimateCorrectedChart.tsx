@@ -333,6 +333,7 @@ export function ClimateCorrectedChart({
       <ChartCard
         title="Performance vs cible climatique"
         subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        className="w-full h-full"
       >
         <div className="flex items-center justify-center py-16">
           <Loader2 size={24} className="animate-spin text-accent" />
@@ -346,6 +347,7 @@ export function ClimateCorrectedChart({
       <ChartCard
         title="Performance vs cible climatique"
         subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        className="w-full h-full"
       >
         <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
           <AlertCircle size={28} className="text-red-300 mb-2" />
@@ -365,6 +367,7 @@ export function ClimateCorrectedChart({
       <ChartCard
         title="Performance vs cible climatique"
         subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        className="w-full h-full"
       >
         <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <div className="flex items-center gap-2">
@@ -409,6 +412,7 @@ export function ClimateCorrectedChart({
       <ChartCard
         title="Performance vs cible climatique"
         subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        className="w-full h-full"
       >
         <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
           <AlertCircle size={28} className="text-gray-300 mb-2" />
@@ -433,6 +437,7 @@ export function ClimateCorrectedChart({
       <ChartCard
         title="Performance vs cible climatique"
         subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+        className="w-full h-full"
       >
         <div className="flex flex-col items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
           <div className="flex items-center gap-2">
@@ -472,6 +477,7 @@ export function ClimateCorrectedChart({
     <ChartCard
       title="Performance vs cible climatique"
       subtitle="Conso réelle (NC) vs cible corrigée (N'B = NB × DJR / DJC)"
+      className="w-full h-full"
     >
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">

@@ -64,12 +64,6 @@ function todayIso(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().split("T")[0];
-}
-
 function formatKwh(value: number): string {
   if (value >= 5000) {
     return `${(value / 1000).toLocaleString("fr-FR", {
@@ -80,24 +74,21 @@ function formatKwh(value: number): string {
 }
 
 interface Props {
-  /** Sites of the current contract that have a PCE or PDL configured */
+  /** Sites of the current contract — used to resolve the selected site
+      label / PCE / PDL for the chart title and CSV filename */
   sites: SiteSummary[];
   /** Currently selected site (controlled by the parent) */
   selectedSiteId: string | null;
-  onSelectSite: (siteId: string) => void;
-  /** Date range (controlled by the parent so a sibling chart can share it) */
+  /** Date range — controlled by the parent so a sibling chart can share it */
   dateFrom: string;
   dateTo: string;
-  onChangeRange: (from: string, to: string) => void;
 }
 
 export function TelereleveBuildingChart({
   sites,
   selectedSiteId,
-  onSelectSite,
   dateFrom,
   dateTo,
-  onChangeRange,
 }: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
@@ -506,29 +497,16 @@ export function TelereleveBuildingChart({
   // we know there's at least one site to pick from.
 
   return (
-    <ChartCard title="Suivi télérelevé" subtitle="Données brutes du distributeur (GRDF / Enedis)">
-      {/* Toolbar */}
+    <ChartCard
+      title="Suivi télérelevé"
+      subtitle="Données brutes du distributeur (GRDF / Enedis)"
+      className="w-full h-full"
+    >
+      {/* Local toolbar — only Energy + Frequency + CSV export.
+          Site picker and date range live in the parent toolbar
+          (TelereleveChartsSection) so they are shared with the
+          climate-corrected chart on the right. */}
       <div className="flex flex-wrap items-end gap-3 mb-4">
-        {/* Site selector */}
-        <div className="flex flex-col gap-1 min-w-[220px]">
-          <label className="text-xs font-medium text-text-secondary">
-            Bâtiment
-          </label>
-          <select
-            value={selectedSiteId || ""}
-            onChange={(e) => onSelectSite(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
-          >
-            {sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-                {s.pce ? ` · PCE ${s.pce}` : ""}
-                {s.pdl ? ` · PDL ${s.pdl}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Energy selector */}
         {availableEnergies.length > 1 && (
           <div className="flex flex-col gap-1">
@@ -599,47 +577,6 @@ export function TelereleveBuildingChart({
               );
             })}
           </select>
-        </div>
-
-        {/* Date range */}
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-text-secondary">Du</label>
-          <input
-            type="date"
-            value={dateFrom}
-            max={dateTo}
-            onChange={(e) => onChangeRange(e.target.value, dateTo)}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-text-secondary">Au</label>
-          <input
-            type="date"
-            value={dateTo}
-            min={dateFrom}
-            max={todayIso()}
-            onChange={(e) => onChangeRange(dateFrom, e.target.value)}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
-          />
-        </div>
-
-        {/* Date presets */}
-        <div className="flex gap-1">
-          {[
-            { label: "30 j", days: 30 },
-            { label: "90 j", days: 90 },
-            { label: "1 an", days: 365 },
-            { label: "3 ans", days: 365 * 3 },
-          ].map((preset) => (
-            <button
-              key={preset.label}
-              onClick={() => onChangeRange(daysAgoIso(preset.days), todayIso())}
-              className="px-2.5 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100"
-            >
-              {preset.label}
-            </button>
-          ))}
         </div>
 
         {/* Export */}
