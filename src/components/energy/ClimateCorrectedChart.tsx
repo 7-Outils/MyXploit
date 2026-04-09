@@ -173,10 +173,9 @@ export function ClimateCorrectedChart({
           Aucun mois exploitable sur la période
         </p>
         <p className="text-xs text-gray-500 mt-1 text-center max-w-md">
-          La signature énergétique est calculée sur les mois entièrement
-          contenus dans la plage et qui ont à la fois de la consommation et
-          des DJU réels. Élargissez la plage ou attendez la prochaine
-          synchronisation des DJU.
+          Aucune donnée avec à la fois de la consommation chauffage et des DJU
+          sur cette période. Élargissez la plage ou attendez la prochaine
+          synchronisation des données.
         </p>
       </div>
     );

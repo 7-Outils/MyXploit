@@ -202,8 +202,9 @@ export function TelereleveChartsSection({ contractId }: Props) {
     };
   }, [selectedSiteId, dateFrom, dateTo]);
 
-  // Months strictly contained within [dateFrom, dateTo]. This is what
-  // both downstream charts use — same set, same totals.
+  // Months that overlap [dateFrom, dateTo]. A month is included as soon as
+  // any of its days falls within the range — this handles partial months
+  // correctly since data is stored at day granularity anyway.
   const monthlyData = useMemo(() => {
     if (!siteContext) return [];
     return siteContext.months.filter((m) => {
@@ -211,7 +212,7 @@ export function TelereleveChartsSection({ contractId }: Props) {
       const lastDay = new Date(y, mo, 0).getDate();
       const monthStartIso = `${m.month}-01`;
       const monthEndIso = `${m.month}-${String(lastDay).padStart(2, "0")}`;
-      return monthStartIso >= dateFrom && monthEndIso <= dateTo;
+      return monthStartIso <= dateTo && monthEndIso >= dateFrom;
     });
   }, [siteContext, dateFrom, dateTo]);
 
