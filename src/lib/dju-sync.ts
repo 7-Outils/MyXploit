@@ -99,10 +99,121 @@ const DEPT_TO_STATION: Record<string, string> = {
   "84": "ORANGE", "2A": "AJACCIO", "2B": "BASTIA",
 };
 
-function getStationFromPostalCode(postalCode: string | null): string {
+export function getStationFromPostalCode(postalCode: string | null): string {
   if (!postalCode) return "PARIS-MONTSOURIS";
+
+  // Special-case Corsica (postal codes 20xxx, 2Axxx, 2Bxxx)
+  if (postalCode.startsWith("20")) {
+    const num = parseInt(postalCode.substring(0, 3));
+    if (num >= 200 && num <= 201) return "AJACCIO";
+    if (num >= 202 && num <= 206) return "BASTIA";
+    return "AJACCIO";
+  }
+
   const dept = postalCode.substring(0, 2);
   return DEPT_TO_STATION[dept] || "PARIS-MONTSOURIS";
+}
+
+// ─── DJU trentenaires (1991-2020 averages, base 18°C, source COSTIC) ──
+// Used as the contractual baseline (DJC) when a site has no djuContractuel
+// explicitly set. The user no longer has to manually fill it in — we infer
+// it from the site's stationMeteo or postalCode.
+export const DJU_TRENTENAIRES: Record<string, number> = {
+  // Île-de-France
+  "PARIS-MONTSOURIS": 2400,
+  "LE-BOURGET": 2450,
+  ORLY: 2450,
+  MELUN: 2500,
+  VILLACOUBLAY: 2480,
+  // Grandes métropoles
+  "LYON-BRON": 2250,
+  MARIGNANE: 1550,
+  LILLE: 2700,
+  BORDEAUX: 1850,
+  TOULOUSE: 1850,
+  NANTES: 2100,
+  STRASBOURG: 2800,
+  NICE: 1250,
+  RENNES: 2200,
+  // Autres stations COSTIC
+  "CLERMONT-FERRAND": 2400,
+  NANCY: 2750,
+  GRENOBLE: 2450,
+  DIJON: 2600,
+  TOURS: 2200,
+  ROUEN: 2500,
+  MONTPELLIER: 1450,
+  BREST: 2050,
+  LIMOGES: 2300,
+  POITIERS: 2200,
+  ORLEANS: 2350,
+  REIMS: 2650,
+  METZ: 2700,
+  CAEN: 2350,
+  "LE-MANS": 2250,
+  ANGERS: 2150,
+  BESANCON: 2650,
+  PAU: 1800,
+  PERPIGNAN: 1350,
+  AJACCIO: 1200,
+  BASTIA: 1350,
+  // Stations additionnelles
+  BEAUVAIS: 2550,
+  EVREUX: 2450,
+  CHATEAUDUN: 2400,
+  "SAINT-QUENTIN": 2750,
+  TROYES: 2650,
+  BOURGES: 2400,
+  CHATEAUROUX: 2350,
+  AUXERRE: 2550,
+  NEVERS: 2450,
+  VICHY: 2400,
+  "SAINT-ETIENNE": 2350,
+  COGNAC: 2050,
+  "LA-ROCHELLE": 1950,
+  AGEN: 1900,
+  NIMES: 1500,
+  ABBEVILLE: 2600,
+  DUNKERQUE: 2650,
+  "CHARLEVILLE-MEZIERES": 2800,
+  MULHOUSE: 2750,
+  "SAINT-BRIEUC": 2200,
+  LORIENT: 2100,
+  LAVAL: 2250,
+  NIORT: 2100,
+  BRIVE: 2150,
+  AURILLAC: 2550,
+  MONTELIMAR: 1850,
+  ORANGE: 1600,
+  TOULON: 1350,
+};
+
+/**
+ * Resolve the contractual DJU (DJC) for a site with the following priority:
+ *  1. Explicit `djuContractuel` set on the Site or HeatingSeason record
+ *  2. Trentenaire for the site's stationMeteo (if known)
+ *  3. Trentenaire for the station inferred from the postalCode
+ *  4. Fallback to PARIS-MONTSOURIS (2400)
+ *
+ * Returns null only if no postalCode AND no stationMeteo are available.
+ */
+export function resolveDjuContractuel(
+  djuContractuel: number | null,
+  stationMeteo: string | null,
+  postalCode: string | null
+): number | null {
+  if (djuContractuel != null && djuContractuel > 0) return djuContractuel;
+
+  if (stationMeteo && DJU_TRENTENAIRES[stationMeteo]) {
+    return DJU_TRENTENAIRES[stationMeteo];
+  }
+
+  if (postalCode) {
+    const station = getStationFromPostalCode(postalCode);
+    if (DJU_TRENTENAIRES[station]) return DJU_TRENTENAIRES[station];
+  }
+
+  return null;
 }
 
 function calculateDJU(tMoy: number): number {

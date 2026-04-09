@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
+import { resolveDjuContractuel } from "@/lib/dju-sync";
 
 // GET /api/consumptions/analytics - Get energy performance analytics (NC vs N'B)
 export async function GET(request: NextRequest) {
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
         name: true,
         type: true,
         city: true,
+        postalCode: true,
         nb: true,
         nbUnit: true,
         djuContractuel: true,
@@ -200,7 +202,17 @@ export async function GET(request: NextRequest) {
       // Use heating season's NB if available, otherwise fallback to site's NB
       const heatingSeason = heatingSeasonMap.get(site.id);
       const nb = heatingSeason?.nb ?? site.nb;
-      const djuContractuel = heatingSeason?.djuContractuel ?? site.djuContractuel;
+      // For djuContractuel, use the same priority chain as NB but with an
+      // additional fallback to the trentenaire of the site's stationMeteo
+      // (or the postalCode-derived station). The user no longer has to
+      // manually fill djuContractuel — we infer it from COSTIC averages
+      // when missing. See resolveDjuContractuel() in src/lib/dju-sync.ts.
+      const explicitDjuc = heatingSeason?.djuContractuel ?? site.djuContractuel;
+      const djuContractuel = resolveDjuContractuel(
+        explicitDjuc,
+        site.stationMeteo,
+        site.postalCode
+      );
 
       // NB is stored in MWh, convert to kWh (* 1000) for consistency with consumptions
       const nbKwh = nb ? nb * 1000 : 0;
@@ -262,9 +274,15 @@ export async function GET(request: NextRequest) {
             ecsHeat: Math.round(data.ecsHeat),
           }));
 
-        // Debug: get actual djuContractuel used in calculation
+        // Debug: get actual djuContractuel used in calculation (with fallback
+        // to the trentenaire of the site's stationMeteo / postalCode).
         const heatingSeason = heatingSeasonMap.get(site.id);
-        const usedDjuContractuel = heatingSeason?.djuContractuel ?? site.djuContractuel;
+        const explicitDjuc = heatingSeason?.djuContractuel ?? site.djuContractuel;
+        const resolvedDjuc = resolveDjuContractuel(
+          explicitDjuc,
+          site.stationMeteo,
+          site.postalCode
+        );
 
         return {
           siteId: site.id,
@@ -274,17 +292,21 @@ export async function GET(request: NextRequest) {
           energyType: site.energyType,
           nb: site.nb,
           nbUnit: site.nbUnit,
-          djuContractuel: site.djuContractuel,
+          // Expose the *resolved* djuContractuel so the frontend doesn't
+          // think it's missing — the resolver auto-fills from the COSTIC
+          // trentenaire of the station when no explicit value is set.
+          djuContractuel: resolvedDjuc,
+          djuContractuelExplicit: explicitDjuc, // raw value from DB, if any
           stationMeteo: site.stationMeteo,
           // Debug info
           _debug: {
             heatingSeasonNb: heatingSeason?.nb,
             heatingSeasonDjuc: heatingSeason?.djuContractuel,
             siteDjuc: site.djuContractuel,
-            usedDjuc: usedDjuContractuel,
+            usedDjuc: resolvedDjuc,
             djrTotal: Math.round(djrTotal),
             nbKwh: (heatingSeason?.nb ?? site.nb) ? (heatingSeason?.nb ?? site.nb)! * 1000 : 0,
-            calculationApplied: !!((heatingSeason?.nb ?? site.nb) && usedDjuContractuel && djrTotal > 0),
+            calculationApplied: !!((heatingSeason?.nb ?? site.nb) && resolvedDjuc && djrTotal > 0),
           },
           // Calculated values (in kWh)
           nc: Math.round(ncTotal),

@@ -42,7 +42,10 @@ interface SitePerformance {
   siteName: string;
   nb: number | null;
   nbUnit: "PCS" | "UTILE" | null;
+  /** Resolved DJU contractuel — explicit value if set, else trentenaire of stationMeteo / postalCode */
   djuContractuel: number | null;
+  /** Raw djuContractuel from DB before resolver fallback (null = auto-filled from trentenaire) */
+  djuContractuelExplicit: number | null;
   stationMeteo: string | null;
   nc: number;
   nbPrime: number;
@@ -327,7 +330,9 @@ export function ClimateCorrectedChart({
     );
   }
 
-  // Empty state: no NB or no DJU contractuel set on the building
+  // Empty state: site has no NB. We don't ask for djuContractuel anymore —
+  // the analytics endpoint auto-fills it from the COSTIC trentenaire of the
+  // site's station/postalCode. The only blocker now is a missing NB.
   const missingNb = !site || site.nb === null;
   const missingDjuc = !site || site.djuContractuel === null;
   if (missingNb || missingDjuc) {
@@ -340,25 +345,33 @@ export function ClimateCorrectedChart({
           <div className="flex items-center gap-2">
             <AlertCircle size={18} className="text-amber-600" />
             <p className="text-sm font-semibold text-amber-900">
-              Données contractuelles manquantes
+              {missingNb
+                ? "Niveau de Base manquant"
+                : "Station météo introuvable"}
             </p>
           </div>
           <p className="text-xs text-amber-800">
-            Pour comparer la consommation à la cible climatique de{" "}
-            <strong>{siteName}</strong>, vous devez renseigner :
-          </p>
-          <ul className="text-xs text-amber-800 list-disc list-inside space-y-0.5">
-            {missingNb && <li>le NB (Niveau de Base annuel en MWh)</li>}
-            {missingDjuc && (
-              <li>le DJU contractuel (trentenaire de la station météo)</li>
+            {missingNb ? (
+              <>
+                Pour comparer la consommation à la cible climatique de{" "}
+                <strong>{siteName}</strong>, vous devez renseigner le{" "}
+                <strong>NB (Niveau de Base annuel en MWh)</strong> sur la
+                fiche du bâtiment.
+              </>
+            ) : (
+              <>
+                Aucune station météo ni code postal n&apos;est associé à{" "}
+                <strong>{siteName}</strong>. Renseignez le code postal du
+                bâtiment pour activer le calcul automatique du DJU contractuel.
+              </>
             )}
-          </ul>
+          </p>
           <Link
             href={`/buildings/${siteId}`}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:text-amber-700 underline mt-1"
           >
             <Settings size={14} />
-            Compléter la fiche bâtiment →
+            Ouvrir la fiche bâtiment →
           </Link>
         </div>
       </ChartCard>
@@ -468,6 +481,17 @@ export function ClimateCorrectedChart({
           notMerge={true}
           lazyUpdate={true}
         />
+      )}
+
+      {/* Source note when DJC is auto-filled from a station trentenaire */}
+      {site && site.djuContractuelExplicit === null && site.djuContractuel != null && (
+        <p className="text-[11px] text-text-secondary text-center mt-2">
+          Cible calculée à partir du DJU trentenaire ({site.djuContractuel}{" "}
+          DJU/an, base 18°C)
+          {site.stationMeteo ? ` de la station ${site.stationMeteo}` : " inféré du code postal"}.
+          Pour utiliser un DJU contractuel personnalisé, renseignez-le sur la
+          fiche bâtiment.
+        </p>
       )}
     </ChartCard>
   );
