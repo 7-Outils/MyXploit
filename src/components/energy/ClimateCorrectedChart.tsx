@@ -261,11 +261,11 @@ export function ClimateCorrectedChart({
           return `
             <div style="font-weight:600;margin-bottom:6px">${labelStr}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3b82f6"></span>
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3b82f6"></span>
               Conso réelle :&nbsp;<strong>${formatKwh(point.nc)}</strong>
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-              <span style="display:inline-block;width:10px;height:0;border-top:2px dashed #6b7280"></span>
+              <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#9ca3af"></span>
               Cible (N'B) :&nbsp;<strong>${formatKwh(point.nbPrime)}</strong>
             </div>
             <div style="color:${deltaColor};font-size:11px">
@@ -278,7 +278,6 @@ export function ClimateCorrectedChart({
         data: ["Conso réelle", "Cible climatique"],
         bottom: 8,
         left: "center",
-        icon: "circle",
         textStyle: { color: "#374151", fontSize: 11 },
       },
       xAxis: {
@@ -310,17 +309,18 @@ export function ClimateCorrectedChart({
           type: "bar",
           data: ncValues,
           itemStyle: { color: "#3b82f6", borderRadius: [2, 2, 0, 0] },
-          barMaxWidth: 32,
+          barMaxWidth: 28,
+          // Grouped (side-by-side) with the target bar — ECharts groups
+          // bars sharing the same xAxis category by default. The small
+          // negative gap pulls the two series tighter together visually.
+          barGap: "10%",
         },
         {
           name: "Cible climatique",
-          type: "line",
+          type: "bar",
           data: nbPrimeValues,
-          lineStyle: { color: "#6b7280", width: 2, type: "dashed" },
-          itemStyle: { color: "#6b7280" },
-          symbol: "circle",
-          symbolSize: 6,
-          z: 10,
+          itemStyle: { color: "#9ca3af", borderRadius: [2, 2, 0, 0] },
+          barMaxWidth: 28,
         },
       ],
     };
