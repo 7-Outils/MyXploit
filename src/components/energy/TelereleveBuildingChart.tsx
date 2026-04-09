@@ -421,7 +421,7 @@ export function TelereleveBuildingChart({
     // make panning useful — on a monthly view of 1 quarter (~3 bars) it's
     // just visual noise.
     const showDataZoomSlider = buckets.length > 12;
-    const seriesLabel = "Conso réelle";
+    const seriesLabel = "NC";
     const showTarget =
       frequency === "month" && !!monthlyData && monthlyData.length > 0;
 
@@ -440,15 +440,16 @@ export function TelereleveBuildingChart({
         })
       : [];
 
-    const legendData = showTarget
-      ? [seriesLabel, "Cible climatique"]
-      : [seriesLabel];
+    const legendData = showTarget ? [seriesLabel, "N'B"] : [seriesLabel];
 
     return {
-      grid: { left: 64, right: 24, top: 32, bottom: showDataZoomSlider ? 60 : 36 },
+      // Bigger bottom padding so the X axis labels and the legend stop
+      // overlapping. The legend sits 8px from the bottom, the X axis labels
+      // get the rest of the space.
+      grid: { left: 64, right: 24, top: 32, bottom: showDataZoomSlider ? 88 : 64 },
       legend: {
         data: legendData,
-        bottom: showDataZoomSlider ? 40 : 4,
+        bottom: showDataZoomSlider ? 56 : 8,
         left: "center",
         icon: "circle",
         textStyle: { color: "#374151", fontSize: 11 },
@@ -466,7 +467,7 @@ export function TelereleveBuildingChart({
           let html = `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
-              Conso réelle :&nbsp;<strong>${formatKwh(originalKwh)}</strong>
+              NC :&nbsp;<strong>${formatKwh(originalKwh)}</strong>
             </div>`;
           if (showTarget) {
             const d = new Date(buckets[idx]?.date || "");
@@ -484,7 +485,7 @@ export function TelereleveBuildingChart({
                 : "#fbbf24";
             html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
               <span style="display:inline-block;width:10px;height:2px;background:#9ca3af"></span>
-              Cible (N'B) :&nbsp;<strong>${formatKwh(nb)}</strong>
+              N'B :&nbsp;<strong>${formatKwh(nb)}</strong>
             </div>
             <div style="color:${deltaColor};font-size:11px">
               Écart : ${delta >= 0 ? "+" : ""}${formatKwh(Math.abs(delta))}${deltaPct !== null ? ` (${delta >= 0 ? "+" : ""}${deltaPct.toFixed(1)}%)` : ""}
@@ -560,14 +561,14 @@ export function TelereleveBuildingChart({
         ...(showTarget
           ? [
               {
-                name: "Cible climatique",
-                type: "line" as const,
+                name: "N'B",
+                type: "bar" as const,
                 data: targetValues,
-                lineStyle: { color: "#6b7280", width: 2, type: "dashed" as const },
-                itemStyle: { color: "#6b7280" },
-                symbol: "circle" as const,
-                symbolSize: 5,
-                z: 10,
+                itemStyle: {
+                  color: "#9ca3af",
+                  borderRadius: [2, 2, 0, 0] as [number, number, number, number],
+                },
+                barMaxWidth: 24,
               },
             ]
           : []),
@@ -661,9 +662,9 @@ export function TelereleveBuildingChart({
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <Kpi label="Conso totale" value={formatKwh(kpis.total)} />
+        <Kpi label="NC totale" value={formatKwh(kpis.total)} />
         <Kpi
-          label="Cible climatique"
+          label="N'B"
           value={
             climateKpis ? formatKwh(climateKpis.totalNbPrime) : "—"
           }

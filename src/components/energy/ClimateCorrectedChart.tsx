@@ -183,10 +183,10 @@ export function ClimateCorrectedChart({
   // ─── Chart ─────────────────────────────────────────────────────────
 
   const chartOption = {
-    grid: { left: 60, right: 24, top: 32, bottom: 36 },
+    grid: { left: 60, right: 24, top: 32, bottom: 64 },
     legend: {
       data: ["kWh/DJU"],
-      bottom: 4,
+      bottom: 8,
       left: "center",
       icon: "circle",
       textStyle: { color: "#374151", fontSize: 11 },
@@ -234,10 +234,14 @@ export function ClimateCorrectedChart({
     series: [
       {
         name: "kWh/DJU",
-        type: "bar",
+        type: "line",
         data: ratioPoints.map((p) => Math.round(p.ratio * 10) / 10),
-        itemStyle: { color: "#fbbf24", borderRadius: [2, 2, 0, 0] },
-        barMaxWidth: 32,
+        lineStyle: { color: "#fbbf24", width: 2.5 },
+        itemStyle: { color: "#fbbf24" },
+        symbol: "circle",
+        symbolSize: 7,
+        smooth: true,
+        areaStyle: { color: "rgba(251, 191, 36, 0.12)" },
       },
     ],
   };
