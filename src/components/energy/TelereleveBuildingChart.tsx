@@ -28,7 +28,7 @@ const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
  * exploitant Excel imports.
  */
 
-interface SiteSummary {
+export interface SiteSummary {
   id: string;
   name: string;
   pce: string | null;
@@ -80,47 +80,25 @@ function formatKwh(value: number): string {
 }
 
 interface Props {
-  contractId: string;
+  /** Sites of the current contract that have a PCE or PDL configured */
+  sites: SiteSummary[];
+  /** Currently selected site (controlled by the parent) */
+  selectedSiteId: string | null;
+  onSelectSite: (siteId: string) => void;
+  /** Date range (controlled by the parent so a sibling chart can share it) */
+  dateFrom: string;
+  dateTo: string;
+  onChangeRange: (from: string, to: string) => void;
 }
 
-export function TelereleveBuildingChart({ contractId }: Props) {
-  // ─── Sites of the contract that have a PCE/PDL ───────────────────────
-  const [sites, setSites] = useState<SiteSummary[]>([]);
-  const [loadingSites, setLoadingSites] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingSites(true);
-    fetch(`/api/contracts/${contractId}/sites`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: SiteSummary[]) => {
-        if (cancelled) return;
-        const withMeter = (data || []).filter(
-          (s) => s.pce !== null || s.pdl !== null
-        );
-        setSites(withMeter);
-      })
-      .catch(() => {
-        if (!cancelled) setSites([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSites(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [contractId]);
-
-  // ─── Selected site ───────────────────────────────────────────────────
-  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
-
-  // Auto-select first site once loaded
-  useEffect(() => {
-    if (selectedSiteId === null && sites.length > 0) {
-      setSelectedSiteId(sites[0].id);
-    }
-  }, [sites, selectedSiteId]);
-
+export function TelereleveBuildingChart({
+  sites,
+  selectedSiteId,
+  onSelectSite,
+  dateFrom,
+  dateTo,
+  onChangeRange,
+}: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
     [sites, selectedSiteId]
@@ -181,9 +159,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
     }
   }, [availableEnergies, selectedEnergy]);
 
-  // ─── Date range ──────────────────────────────────────────────────────
-  const [dateFrom, setDateFrom] = useState(daysAgoIso(90));
-  const [dateTo, setDateTo] = useState(todayIso());
+  // ─── Date range — controlled by the parent (TelereleveChartsSection) ─
 
   // ─── Frequency (display granularity) ─────────────────────────────────
   type Frequency = "hour" | "day" | "week" | "month" | "year";
@@ -523,33 +499,9 @@ export function TelereleveBuildingChart({ contractId }: Props) {
     URL.revokeObjectURL(url);
   };
 
-  // ─── Empty / loading states ──────────────────────────────────────────
-  if (loadingSites) {
-    return (
-      <ChartCard title="Suivi télérelevé" subtitle="Données du distributeur">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-accent" />
-        </div>
-      </ChartCard>
-    );
-  }
-
-  if (sites.length === 0) {
-    return (
-      <ChartCard title="Suivi télérelevé" subtitle="Données du distributeur">
-        <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
-          <Wifi size={32} className="text-gray-300 mb-3" />
-          <p className="text-sm font-medium text-gray-700">
-            Aucun site avec un PCE ou PDL configuré sur ce contrat
-          </p>
-          <p className="text-xs text-gray-500 mt-1 text-center max-w-md">
-            Renseignez le PCE (gaz) ou le PDL (électricité) sur la fiche
-            de chaque bâtiment pour activer la télérelève.
-          </p>
-        </div>
-      </ChartCard>
-    );
-  }
+  // Loading / empty states for the contract's site list are handled by the
+  // parent wrapper (TelereleveChartsSection) — by the time we render here,
+  // we know there's at least one site to pick from.
 
   return (
     <ChartCard title="Suivi télérelevé" subtitle="Données brutes du distributeur (GRDF / Enedis)">
@@ -562,7 +514,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
           </label>
           <select
             value={selectedSiteId || ""}
-            onChange={(e) => setSelectedSiteId(e.target.value)}
+            onChange={(e) => onSelectSite(e.target.value)}
             className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
           >
             {sites.map((s) => (
@@ -654,7 +606,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
             type="date"
             value={dateFrom}
             max={dateTo}
-            onChange={(e) => setDateFrom(e.target.value)}
+            onChange={(e) => onChangeRange(e.target.value, dateTo)}
             className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
           />
         </div>
@@ -665,7 +617,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
             value={dateTo}
             min={dateFrom}
             max={todayIso()}
-            onChange={(e) => setDateTo(e.target.value)}
+            onChange={(e) => onChangeRange(dateFrom, e.target.value)}
             className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
           />
         </div>
@@ -680,10 +632,7 @@ export function TelereleveBuildingChart({ contractId }: Props) {
           ].map((preset) => (
             <button
               key={preset.label}
-              onClick={() => {
-                setDateFrom(daysAgoIso(preset.days));
-                setDateTo(todayIso());
-              }}
+              onClick={() => onChangeRange(daysAgoIso(preset.days), todayIso())}
               className="px-2.5 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100"
             >
               {preset.label}

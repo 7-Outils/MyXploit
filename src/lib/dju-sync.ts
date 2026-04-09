@@ -266,3 +266,35 @@ export async function syncDjuForSites(
 
   return result;
 }
+
+/**
+ * Synchronize DJU réels for every site of an organization that has at least
+ * one consumption record. Designed for the nightly Vercel Cron — same shape
+ * as syncGrdfForOrg() in src/lib/grdf-helpers.ts.
+ *
+ * Returns the same DjuSyncResult as syncDjuForSites().
+ */
+export async function syncDjuForOrg(
+  organizationId: string
+): Promise<DjuSyncResult> {
+  // Pick every site that has at least one consumption record. We don't sync
+  // sites with zero consumption — there's nothing to enrich, and it would
+  // waste Open-Meteo round-trips.
+  const sitesWithConso = await prisma.site.findMany({
+    where: {
+      organizationId,
+      consumptions: { some: {} },
+    },
+    select: { id: true },
+  });
+
+  if (sitesWithConso.length === 0) {
+    return { updated: 0, total: 0, errors: [] };
+  }
+
+  return syncDjuForSites(
+    sitesWithConso.map((s) => s.id),
+    organizationId,
+    true // overwrite — we want fresh DJU on every nightly run
+  );
+}

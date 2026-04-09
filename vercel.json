@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/grdf-sync",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/dju-sync",
+      "schedule": "0 4 * * *"
     }
   ]
 }

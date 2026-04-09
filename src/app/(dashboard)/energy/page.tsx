@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ReadOnlyGate } from "@/components/permissions";
 import { useContract } from "@/contexts/ContractContext";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import {
   BarChart3,
   TrendingDown,
@@ -48,7 +49,7 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { TelereleveCard } from "@/components/energy/TelereleveCard";
 import { DroitsAccesCard } from "@/components/energy/DroitsAccesCard";
-import { TelereleveBuildingChart } from "@/components/energy/TelereleveBuildingChart";
+import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 
 // Types
 interface Contract {
@@ -1720,6 +1721,10 @@ function ClimatContent({
   contractId: string | null;
   onDjuSync: () => void;
 }) {
+  const { profile } = useUserProfile();
+  // CLIENT must never see the manual sync plumbing — DJU is refreshed every
+  // night by the /api/cron/dju-sync Vercel Cron (vercel.json).
+  const showSyncButton = profile !== "CLIENT";
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ updated: number; total: number; errors?: string[] } | null>(null);
 
@@ -1787,31 +1792,37 @@ function ClimatContent({
 
   return (
     <>
-      {/* Sync DJU Button */}
+      {/* Sync DJU header — manual button only for AMO/EXPLOITANT */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-primary-dark">Synchronisation des DJU</h3>
-          <p className="text-sm text-text-secondary">Récupère les DJU réels depuis la station météo et les applique aux consommations</p>
+          <h3 className="font-semibold text-primary-dark">DJU réels</h3>
+          <p className="text-sm text-text-secondary">
+            {showSyncButton
+              ? "Récupère les DJU réels depuis la station météo et les applique aux consommations"
+              : "Vos DJU sont mis à jour automatiquement chaque nuit."}
+          </p>
         </div>
-        <ReadOnlyGate>
-          <button
-            onClick={handleSyncDju}
-            disabled={syncing || !contractId}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {syncing ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                Synchronisation...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} />
-                Synchroniser DJU
-              </>
-            )}
-          </button>
-        </ReadOnlyGate>
+        {showSyncButton && (
+          <ReadOnlyGate>
+            <button
+              onClick={handleSyncDju}
+              disabled={syncing || !contractId}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Synchronisation...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={16} />
+                  Synchroniser DJU
+                </>
+              )}
+            </button>
+          </ReadOnlyGate>
+        )}
       </div>
 
       {syncResult && (
@@ -2499,7 +2510,7 @@ function TelereleveContent({ contractId }: { contractId?: string }) {
   return (
     <div className="space-y-6">
       {/* The data — what users actually want to see */}
-      {contractId && <TelereleveBuildingChart contractId={contractId} />}
+      {contractId && <TelereleveChartsSection contractId={contractId} />}
 
       {/* The plumbing — folded behind a disclosure */}
       <div className="bg-white border border-gray-200 rounded-xl">
