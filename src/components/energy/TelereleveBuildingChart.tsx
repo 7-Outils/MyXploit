@@ -162,8 +162,10 @@ export function TelereleveBuildingChart({
   // ─── Date range — controlled by the parent (TelereleveChartsSection) ─
 
   // ─── Frequency (display granularity) ─────────────────────────────────
+  // Default to monthly view because it's the most readable starting point
+  // for users coming in cold; they can drill down to weekly/daily later.
   type Frequency = "hour" | "day" | "week" | "month" | "year";
-  const [frequency, setFrequency] = useState<Frequency>("day");
+  const [frequency, setFrequency] = useState<Frequency>("month");
 
   // ─── Filtered raw records ────────────────────────────────────────────
   const filtered = useMemo(() => {

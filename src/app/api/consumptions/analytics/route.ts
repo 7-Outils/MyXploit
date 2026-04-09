@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       consumptions: typeof consumptions;
       ncTotal: number; // Niveau de Consommation (réel chauffage)
       nbPrime: number; // N'B = NB × (DJR/DJC) - théorique ajusté
-      djrTotal: number; // DJU Réels cumulés
+      djrTotal: number; // DJU Réels cumulés (computed in a 2nd pass to dedupe legacy values)
       ecsTotal: number; // Consommation ECS (water-based, in m³)
       ecsHeatTotal: number; // Consommation ECS (heat-based, in kWh)
       mixteTotal: number; // Consommation Mixte (avant déduction ECS)
@@ -116,6 +116,15 @@ export async function GET(request: NextRequest) {
         ecs: number; // Water-based ECS (m³)
         ecsHeat: number; // Heat-based ECS (kWh)
       }>;
+      /**
+       * Per-month list of djuReel values from heating-related consumption
+       * rows. We collect them here instead of summing eagerly because of a
+       * legacy data shape: before the dju-sync fix, every daily row of a
+       * given month was written with the SAME monthly DJR total, which
+       * the analytics endpoint then over-counted ~30×. We dedupe defensively
+       * in a 2nd pass below.
+       */
+      djrByMonth: Map<string, number[]>;
     }>();
 
     // Initialize site map
@@ -130,6 +139,7 @@ export async function GET(request: NextRequest) {
         ecsHeatTotal: 0,
         mixteTotal: 0,
         months: new Map(),
+        djrByMonth: new Map(),
       });
     });
 
@@ -152,10 +162,12 @@ export async function GET(request: NextRequest) {
         siteData.ncTotal += consumption.quantity;
         monthData.nc += consumption.quantity;
 
-        // Accumulate DJU réels
+        // Collect DJR values for the post-pass dedup (handles the legacy
+        // case where every daily row of a month had the SAME monthly total).
         if (consumption.djuReel) {
-          siteData.djrTotal += consumption.djuReel;
-          monthData.djr += consumption.djuReel;
+          const arr = siteData.djrByMonth.get(monthKey) || [];
+          arr.push(consumption.djuReel);
+          siteData.djrByMonth.set(monthKey, arr);
         }
       } else if (consumption.usage === EnergyUsage.ECS) {
         // Separate water-based ECS (m³) from heat-based ECS (kWh)
@@ -187,12 +199,42 @@ export async function GET(request: NextRequest) {
         }
 
         if (consumption.djuReel) {
-          siteData.djrTotal += consumption.djuReel;
-          monthData.djr += consumption.djuReel;
+          const arr = siteData.djrByMonth.get(monthKey) || [];
+          arr.push(consumption.djuReel);
+          siteData.djrByMonth.set(monthKey, arr);
         }
       }
 
       siteData.consumptions.push(consumption);
+    });
+
+    // ─── POST-PASS: dedupe legacy DJR values ─────────────────────────
+    // For each month, look at the list of djuReel values that were
+    // attached to consumption rows. Two cases:
+    //   1) Daily granularity (post-fix): values are all different and
+    //      small (~5–80) → sum them, that gives the monthly total.
+    //   2) Legacy case (pre-fix): every daily row was written with the
+    //      SAME monthly total → all values are equal and large. Take a
+    //      single value, not the sum.
+    // We detect case 2 by checking if all values in the month are equal
+    // AND there are more than 1 row. This is robust because real daily
+    // DJU values for the same month always vary.
+    siteMap.forEach((siteData) => {
+      siteData.djrByMonth.forEach((values, monthKey) => {
+        if (values.length === 0) return;
+        let monthDjr: number;
+        const allEqual = values.every((v) => v === values[0]);
+        if (values.length > 1 && allEqual) {
+          // Legacy: a single monthly total was duplicated across rows
+          monthDjr = values[0];
+        } else {
+          // Daily values that need to be summed
+          monthDjr = values.reduce((s, v) => s + v, 0);
+        }
+        const monthData = siteData.months.get(monthKey);
+        if (monthData) monthData.djr = monthDjr;
+        siteData.djrTotal += monthDjr;
+      });
     });
 
     // Calculate N'B (theoretical adjusted) for each site

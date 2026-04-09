@@ -28,13 +28,14 @@ interface Props {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().split("T")[0];
+  // Use local date to avoid the UTC-vs-local off-by-one in Paris winter
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function daysAgoIso(days: number): string {
+function startOfCurrentMonthIso(): string {
   const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().split("T")[0];
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
 export function TelereleveChartsSection({ contractId }: Props) {
@@ -66,8 +67,10 @@ export function TelereleveChartsSection({ contractId }: Props) {
   }, [contractId]);
 
   // ─── Shared state — selected site + date range ──────────────────────
+  // Default to "this month so far" — first day of the current month → today.
+  // It pairs with the monthly frequency default in TelereleveBuildingChart.
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
-  const [dateFrom, setDateFrom] = useState<string>(daysAgoIso(90));
+  const [dateFrom, setDateFrom] = useState<string>(startOfCurrentMonthIso());
   const [dateTo, setDateTo] = useState<string>(todayIso());
 
   // Auto-select the first site once the list is loaded
