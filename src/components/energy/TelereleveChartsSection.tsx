@@ -538,7 +538,9 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
             />
           </div>
 
-          {selectedSite && (
+          {selectedSite &&
+            siteContext?.djuContractuel != null &&
+            siteContext.djuContractuel > 0 && (
             <div className="min-w-0">
               <ClimateCorrectedChart
                 siteId={selectedSite.id}
@@ -546,10 +548,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
                 monthlyData={monthlyData}
                 dailyData={dailyData}
                 frequency={frequency}
-                hasDjuContractuel={
-                  siteContext?.djuContractuel != null &&
-                  siteContext.djuContractuel > 0
-                }
+                hasDjuContractuel
                 noCard
                 hideKpis
               />
