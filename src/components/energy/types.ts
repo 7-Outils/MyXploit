@@ -44,6 +44,7 @@ export interface SitePerformance {
   siteType: string;
   city: string;
   energyType: string;
+  dataSource?: "TELERELEVE" | "MANUAL";
   nb: number | null;
   nbUnit: string | null;
   djuContractuel: number | null;
