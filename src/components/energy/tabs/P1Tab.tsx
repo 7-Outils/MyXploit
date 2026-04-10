@@ -92,8 +92,10 @@ export function P1Content({
     return hs?.nb ?? null;
   };
 
-  // Show all sites — user can fill in NB values manually even without an AE import
-  const sitesWithEngagement = sites;
+  // Only show sites that have P1 (intéressement énergétique) on this contract
+  const sitesWithEngagement = sites.filter(
+    (site) => site.contractSites?.some((cs) => cs.hasP1)
+  );
 
   // Handle inline edit
   const startEdit = (siteId: string, year: number, season: string) => {
