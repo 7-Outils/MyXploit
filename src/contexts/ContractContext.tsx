@@ -17,6 +17,7 @@ interface ContractSummary {
   status: string;
   startDate: string;
   endDate: string;
+  yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   _count?: { contractSites: number };
 }
 

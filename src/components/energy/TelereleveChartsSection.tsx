@@ -57,6 +57,10 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
 
 interface Props {
   contractId: string;
+  /** Determines how NB values are aligned to months.
+   *  CIVIL: NB for year YYYY covers Jan 1 – Dec 31 YYYY.
+   *  HEATING_SEASON (default): NB for season YYYY-YYYY+1 covers Jul 1 – Jun 30. */
+  yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
 }
 
 function todayIso(): string {
@@ -70,7 +74,7 @@ function startOfCurrentMonthIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-export function TelereleveChartsSection({ contractId }: Props) {
+export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON" }: Props) {
   // ─── Sites of the contract that have a PCE/PDL ──────────────────────
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loadingSites, setLoadingSites] = useState(true);
@@ -161,18 +165,23 @@ export function TelereleveChartsSection({ contractId }: Props) {
       setAnalyticsLoading(false);
       return;
     }
+    // CIVIL: chaque mois appartient à son année calendaire (Jan-Dec).
+    // HEATING_SEASON: la saison démarre en juillet, donc jul–déc YYYY
+    // appartient à la saison YYYY+1 (ex. jul 2023 → saison 2024).
     const yearOf = (d: Date) =>
-      d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
+      yearType === "CIVIL"
+        ? d.getFullYear()
+        : d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
     const startYear = yearOf(start);
     const endYear = yearOf(end);
-    // Always fetch one extra heating season BEFORE the visible range so the
+    // Always fetch one extra year BEFORE the visible range so the
     // KPIs can compute "vs N-1" by looking at the same months one year ago.
     const years: number[] = [];
     for (let y = startYear - 1; y <= endYear; y++) years.push(y);
 
     Promise.all(
       years.map((y) =>
-        fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}`)
+        fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}&yearType=${yearType}`)
           .then((r) => (r.ok ? r.json() : null))
           .catch(() => null)
       )

@@ -15,11 +15,18 @@ export async function GET(request: NextRequest) {
     const siteId = searchParams.get("siteId");
     const contractId = searchParams.get("contractId");
     const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : new Date().getFullYear();
+    const yearType = searchParams.get("yearType") || "HEATING_SEASON";
     const energyType = searchParams.get("energyType");
 
-    // Build date range for the year (heating season: July to June by default)
-    const startDate = new Date(year - 1, 6, 1); // July 1st of previous year
-    const endDate = new Date(year, 5, 30); // June 30th of current year
+    // Build date range based on year type:
+    // CIVIL       : Jan 1 – Dec 31 of `year`
+    // HEATING_SEASON (default): Jul 1 (year-1) – Jun 30 (year)
+    const startDate = yearType === "CIVIL"
+      ? new Date(year, 0, 1)       // 01/01/YYYY
+      : new Date(year - 1, 6, 1);  // 01/07/YYYY-1
+    const endDate = yearType === "CIVIL"
+      ? new Date(year, 11, 31)     // 31/12/YYYY
+      : new Date(year, 5, 30);     // 30/06/YYYY
 
     // Get contract site IDs if contractId is provided
     let contractSiteIds: string[] | null = null;

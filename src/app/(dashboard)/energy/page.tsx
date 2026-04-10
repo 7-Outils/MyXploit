@@ -712,7 +712,12 @@ function TelereleveContent({ contractId }: { contractId?: string }) {
   return (
     <div className="space-y-6">
       {/* The data — what users actually want to see */}
-      {contractId && <TelereleveChartsSection contractId={contractId} />}
+      {contractId && (
+        <TelereleveChartsSection
+          contractId={contractId}
+          yearType={selectedContract?.yearType ?? "HEATING_SEASON"}
+        />
+      )}
 
       {/* The plumbing — folded behind a disclosure */}
       <div className="bg-white border border-gray-200 rounded-xl">
