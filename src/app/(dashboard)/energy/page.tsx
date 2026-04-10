@@ -40,11 +40,7 @@ import type {
   Consumption,
   EnergyTab as Tab,
 } from "@/components/energy/types";
-import {
-  SITE_TYPE_LABELS,
-  ENERGY_TYPE_LABELS,
-  USAGE_LABELS,
-} from "@/components/energy/constants";
+
 
 function EnergyPageContent() {
   const router = useRouter();
@@ -567,10 +563,8 @@ function EnergyPageContent() {
         <SitesContent
           analytics={analytics}
           consumptions={consumptions}
-          sites={sites}
           setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
-          hasContract={!!selectedContract}
         />
       )}
 

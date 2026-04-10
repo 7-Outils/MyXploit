@@ -7,7 +7,9 @@ import {
   ArrowUpRight,
   BarChart3,
   Building2,
+  ExternalLink,
   Flame,
+  Info,
   Plus,
   ThermometerSun,
   TrendingDown,
@@ -202,6 +204,83 @@ export function SyntheseContent({
                 <p className="text-xs text-gray-500 mt-1">{item.count} site{item.count > 1 ? "s" : ""}</p>
               </div>
             ))}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Performance par site */}
+      {analytics.sites.length > 0 && (
+        <ChartCard title="Performance par site">
+          <div className="overflow-x-auto -mx-6 -my-6">
+            <table className="w-full">
+              <thead className="bg-background-secondary border-b border-gray-100">
+                <tr>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Type</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NC (MWh)</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">N&apos;B (MWh)</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Écart</th>
+                  <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Status</th>
+                  <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {analytics.sites.map((site) => (
+                  <tr key={site.siteId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium text-primary-dark">{site.siteName}</p>
+                        <p className="text-xs text-gray-500">{site.city}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
+                        {SITE_TYPE_LABELS[site.siteType] || site.siteType}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
+                    <td className="px-6 py-4 text-right text-gray-600">
+                      <div className="flex items-center justify-end gap-1">
+                        <span>{(site.nbPrime / 1000).toFixed(1)}</span>
+                        {site._debug && !site._debug.calculationApplied && (
+                          <span className="group relative">
+                            <Info size={14} className="text-amber-500 cursor-help" />
+                            <span className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                              N&apos;B non ajusté : DJR={site._debug.djrTotal}, DJUC={site._debug.usedDjuc || 0}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`px-6 py-4 text-right font-medium ${site.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {site.deltaPercent > 0 ? "+" : ""}{site.deltaPercent}%
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-medium ${
+                          site.status === "ECONOMIE"
+                            ? "bg-green-100 text-green-700"
+                            : site.status === "DEPASSEMENT"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {site.status === "ECONOMIE" ? "Économie" : site.status === "DEPASSEMENT" ? "Dépassement" : "Objectif"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <Link
+                        href={`/energy/sites/${site.siteId}`}
+                        className="inline-flex items-center gap-1 text-accent hover:underline text-sm"
+                      >
+                        Détail
+                        <ExternalLink size={14} />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </ChartCard>
       )}
