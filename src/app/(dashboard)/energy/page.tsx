@@ -569,7 +569,6 @@ function EnergyPageContent() {
           contract={selectedContract}
           selectedYear={selectedYear}
           sites={sites}
-          heatingSeasons={heatingSeasons}
           onNbUpdate={fetchHeatingSeasons}
         />
       )}

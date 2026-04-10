@@ -19,13 +19,11 @@ export function P1Content({
   contract,
   selectedYear,
   sites,
-  heatingSeasons,
   onNbUpdate,
 }: {
   contract: Contract;
   selectedYear: number;
   sites: Site[];
-  heatingSeasons: HeatingSeason[];
   onNbUpdate: () => void;
 }) {
   const [editingCell, setEditingCell] = useState<{ siteId: string; year: number } | null>(null);
@@ -92,9 +90,12 @@ export function P1Content({
     return hs?.nb ?? null;
   };
 
-  // Only show sites that have P1 (intéressement énergétique) on this contract
+  // Show sites with P1 or intéressement (PFI, MTI, MCI, CPI)
+  const INTERESSEMENT_TYPES = ["PFI", "MTI", "MCI", "CPI"];
   const sitesWithEngagement = sites.filter(
-    (site) => site.contractSites?.some((cs) => cs.hasP1)
+    (site) => site.contractSites?.some(
+      (cs) => cs.hasP1 || INTERESSEMENT_TYPES.includes(cs.contractType || "")
+    )
   );
 
   // Handle inline edit
@@ -153,9 +154,7 @@ export function P1Content({
     }
   };
 
-  // Current year index
   const currentSeasonKey = isCivil ? `${selectedYear}` : `${selectedYear - 1}-${selectedYear}`;
-  const currentYearIndex = contractYears.findIndex((y) => y.season === currentSeasonKey);
 
   if (loadingSeasons) {
     return (

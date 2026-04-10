@@ -26,7 +26,7 @@ export interface Site {
   type: string;
   nb: number | null;
   djuContractuel: number | null;
-  contractSites?: { hasP1?: boolean; hasP2?: boolean; hasP3?: boolean }[];
+  contractSites?: { contractType?: string; hasP1?: boolean; hasP2?: boolean; hasP3?: boolean }[];
 }
 
 export interface MonthlyData {
