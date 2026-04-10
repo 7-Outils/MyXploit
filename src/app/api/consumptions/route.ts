@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         siteId: body.siteId,
         energyType: body.energyType,
         usage: body.usage || "MIXTE",
+        source: "MANUAL",
         period: new Date(body.period),
         quantity: parseFloat(body.quantity),
         unit: body.unit,

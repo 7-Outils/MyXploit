@@ -1340,29 +1340,37 @@ model ContractSitePriceChange {
 // ============================================
 
 model Consumption {
-  id             String      @id @default(cuid())
+  id             String            @id @default(cuid())
   siteId         String
   organizationId String
   energyType     EnergyType
-  usage          EnergyUsage @default(MIXTE) // Chauffage, ECS, Mixte
-  period         DateTime    // Mois de consommation
-  quantity       Float       // kWh ou m³ ou litres
-  unit           String      // kWh, m³, L
-  cost           Float?      // Coût en €
-  djuReel        Float?      // DJU Réels de la période (pour calcul N'B)
-  meterName      String?     // Nom du compteur (ex: "CPT GAZ GrDF BESSON")
+  usage          EnergyUsage       @default(MIXTE) // Chauffage, ECS, Mixte
+  source         ConsumptionSource @default(MANUAL) // Origine de la donnée
+  period         DateTime          // Mois ou date de consommation
+  periodEnd      DateTime?         // Fin de période (relevés exploitant à dates irrégulières)
+  quantity       Float             // kWh ou m³ ou litres
+  unit           String            // kWh, m³, L
+  cost           Float?            // Coût en €
+  djuReel        Float?            // DJU Réels de la période (pour calcul N'B)
+  meterName      String?           // Nom du compteur (ex: "CPT GAZ GrDF BESSON")
   // Champs calculés (optionnel, pour cache)
-  quantityEcs    Float?      // Part ECS déduite (si MIXTE)
-  quantityChauffage Float?   // Part Chauffage (si MIXTE)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  quantityEcs    Float?            // Part ECS déduite (si MIXTE)
+  quantityChauffage Float?         // Part Chauffage (si MIXTE)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   // Relations
   site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([siteId, energyType, usage, period])
+  @@unique([siteId, energyType, usage, period, source])
   @@map("consumptions")
+}
+
+enum ConsumptionSource {
+  TELERELEVE  // Données automatiques GRDF/Enedis
+  EXPLOITANT  // Relevés manuels exploitant (import IDEX, etc.)
+  MANUAL      // Saisie manuelle par l'utilisateur
 }
 
 // ============================================

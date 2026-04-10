@@ -296,11 +296,12 @@ export async function syncGrdfForOrg(
 
         await prisma.consumption.upsert({
           where: {
-            siteId_energyType_usage_period: {
+            siteId_energyType_usage_period_source: {
               siteId: site.id,
               energyType: "GAZ",
               usage: "CHAUFFAGE",
               period,
+              source: "TELERELEVE",
             },
           },
           update: {
@@ -316,6 +317,7 @@ export async function syncGrdfForOrg(
             period,
             quantity: quantityKwh,
             unit: "kWh",
+            source: "TELERELEVE",
           },
         });
 

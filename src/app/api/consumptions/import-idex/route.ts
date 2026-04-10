@@ -533,11 +533,12 @@ export async function POST(request: NextRequest) {
       try {
         const existing = await prisma.consumption.findUnique({
           where: {
-            siteId_energyType_usage_period: {
+            siteId_energyType_usage_period_source: {
               siteId: data.siteId,
               energyType: data.energyType,
               usage: data.usage,
               period: data.period,
+              source: "EXPLOITANT",
             },
           },
         });
@@ -565,6 +566,7 @@ export async function POST(request: NextRequest) {
               quantity: data.quantity,
               unit: data.unit,
               meterName,
+              source: "EXPLOITANT",
             },
           });
           results.imported++;
