@@ -248,9 +248,9 @@ export async function GET(request: NextRequest) {
     siteMap.forEach((siteData) => {
       const { site, djrTotal } = siteData;
 
-      // Use heating season's NB if available, otherwise fallback to site's NB
+      // NB comes exclusively from the heating season (Cibles énergétiques)
       const heatingSeason = heatingSeasonMap.get(site.id);
-      const nb = heatingSeason?.nb ?? site.nb;
+      const nb = heatingSeason?.nb ?? null;
       // For djuContractuel, use the same priority chain as NB but with an
       // additional fallback to the trentenaire of the site's stationMeteo
       // (or the postalCode-derived station). The user no longer has to
@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
         if (s.consumptions.length > 0) return true;
         // Also include if has NB value (from HeatingSeason or site)
         const heatingSeason = heatingSeasonMap.get(s.site.id);
-        const hasNb = (heatingSeason?.nb ?? s.site.nb) !== null && (heatingSeason?.nb ?? s.site.nb) !== undefined;
+        const hasNb = heatingSeason?.nb != null;
         return hasNb;
       })
       .map((siteData) => {
@@ -359,8 +359,8 @@ export async function GET(request: NextRequest) {
             siteDjuc: site.djuContractuel,
             usedDjuc: resolvedDjuc,
             djrTotal: Math.round(djrTotal),
-            nbKwh: (heatingSeason?.nb ?? site.nb) ? (heatingSeason?.nb ?? site.nb)! * 1000 : 0,
-            calculationApplied: !!((heatingSeason?.nb ?? site.nb) && resolvedDjuc && djrTotal > 0),
+            nbKwh: heatingSeason?.nb ? heatingSeason.nb * 1000 : 0,
+            calculationApplied: !!(heatingSeason?.nb && resolvedDjuc && djrTotal > 0),
           },
           // Calculated values (in kWh)
           nc: Math.round(ncTotal),
