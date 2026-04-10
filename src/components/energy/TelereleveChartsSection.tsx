@@ -225,7 +225,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     return () => {
       cancelled = true;
     };
-  }, [selectedSiteId, dateFrom, dateTo]);
+  }, [selectedSiteId, dateFrom, dateTo, yearType]);
 
   // Months that overlap [dateFrom, dateTo]. A month is included as soon as
   // any of its days falls within the range — this handles partial months

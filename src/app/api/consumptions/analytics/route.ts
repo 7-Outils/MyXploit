@@ -275,11 +275,15 @@ export async function GET(request: NextRequest) {
       }
 
       // Calculate per month N'B
+      const monthCount = siteData.months.size || 1;
       siteData.months.forEach((monthData) => {
         if (nbKwh && djuContractuel && monthData.djr > 0) {
           // Monthly proportional NB based on DJU ratio (already in kWh)
-          const monthlyNbBase = nbKwh / 12; // Simplified: equal monthly distribution
+          const monthlyNbBase = nbKwh / 12;
           monthData.nbPrime = monthlyNbBase * (monthData.djr / (djuContractuel / 12));
+        } else if (nbKwh && monthData.djr === 0) {
+          // No DJR (missing station météo) — distribute NB evenly across months
+          monthData.nbPrime = nbKwh / 12;
         }
       });
     });
