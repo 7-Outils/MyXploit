@@ -41,6 +41,8 @@ export function P1Content({
   const [allSeasons, setAllSeasons] = useState<HeatingSeason[]>([]);
   const [loadingSeasons, setLoadingSeasons] = useState(true);
 
+  const isCivil = contract.yearType === "CIVIL";
+
   // Calculate contract years
   const getContractYears = () => {
     const startDate = new Date(contract.startDate);
@@ -52,17 +54,19 @@ export function P1Content({
     const durationMs = endDate.getTime() - startDate.getTime();
     const durationYears = Math.round(durationMs / (1000 * 60 * 60 * 24 * 365));
 
-    // First heating season: if contract starts before July (month < 6),
-    // season ends that year. Otherwise, season ends next year.
-    const firstSeason = startMonth >= 6 ? startYear + 1 : startYear;
+    // CIVIL: first period is the contract start year
+    // HEATING_SEASON: if contract starts before July, it's that year's season
+    const firstSeason = isCivil
+      ? startYear
+      : startMonth >= 6 ? startYear + 1 : startYear;
 
-    const years: { year: number; season: string }[] = [];
-    // Limit to actual contract duration
+    const years: { year: number; season: string; label: string }[] = [];
     for (let i = 0; i < durationYears && i < 10; i++) {
       const seasonYear = firstSeason + i;
       years.push({
         year: i + 1,
-        season: `${seasonYear - 1}-${seasonYear}`,
+        season: isCivil ? `${seasonYear}` : `${seasonYear - 1}-${seasonYear}`,
+        label: isCivil ? `${seasonYear}` : `${seasonYear - 1}-${seasonYear}`,
       });
     }
     return years;
@@ -107,7 +111,7 @@ export function P1Content({
     let sitesWithNb = 0;
 
     // Find current year's season
-    const currentSeason = `${selectedYear - 1}-${selectedYear}`;
+    const currentSeason = isCivil ? `${selectedYear}` : `${selectedYear - 1}-${selectedYear}`;
 
     sites.forEach((site) => {
       const year1Nb = getNbForSiteSeason(site.id, year1Season);
@@ -193,7 +197,8 @@ export function P1Content({
   };
 
   // Current year index
-  const currentYearIndex = contractYears.findIndex((y) => y.season === `${selectedYear - 1}-${selectedYear}`);
+  const currentSeasonKey = isCivil ? `${selectedYear}` : `${selectedYear - 1}-${selectedYear}`;
+  const currentYearIndex = contractYears.findIndex((y) => y.season === currentSeasonKey);
 
   if (loadingSeasons) {
     return (
@@ -239,7 +244,7 @@ export function P1Content({
           <p className="text-3xl font-bold text-blue-900">
             {kpis.currentYearTotal > 0 ? kpis.currentYearTotal.toLocaleString("fr-FR") : "-"}
           </p>
-          <p className="text-xs text-blue-600 mt-1">MWh PCS (saison {selectedYear - 1}/{selectedYear})</p>
+          <p className="text-xs text-blue-600 mt-1">MWh PCS ({isCivil ? `année ${selectedYear}` : `saison ${selectedYear - 1}/${selectedYear}`})</p>
         </div>
 
         <div className={`rounded-xl p-4 text-center ${kpis.apeProgress >= 0 ? "bg-green-50" : "bg-red-50"}`}>
@@ -284,7 +289,7 @@ export function P1Content({
                   <th
                     key={cy.year}
                     className={`text-center text-xs font-medium uppercase tracking-wider px-4 py-3 min-w-[100px] ${
-                      cy.season === `${selectedYear - 1}-${selectedYear}`
+                      cy.season === currentSeasonKey
                         ? "bg-primary/10 text-primary"
                         : "text-text-secondary"
                     }`}
@@ -313,7 +318,7 @@ export function P1Content({
                     {contractYears.map((cy) => {
                       const nb = getNbForSiteSeason(site.id, cy.season);
                       const isEditing = editingCell?.siteId === site.id && editingCell?.year === cy.year;
-                      const isCurrent = cy.season === `${selectedYear - 1}-${selectedYear}`;
+                      const isCurrent = cy.season === currentSeasonKey;
 
                       return (
                         <td
@@ -393,7 +398,7 @@ export function P1Content({
                     const nb = getNbForSiteSeason(site.id, cy.season);
                     return sum + (nb || 0);
                   }, 0);
-                  const isCurrent = cy.season === `${selectedYear - 1}-${selectedYear}`;
+                  const isCurrent = cy.season === currentSeasonKey;
 
                   return (
                     <td

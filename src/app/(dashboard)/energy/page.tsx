@@ -136,34 +136,38 @@ function EnergyPageContent() {
   };
 
 
-  // Calculate available seasons based on contract start date
+  const yearType = selectedContract?.yearType ?? "HEATING_SEASON";
+  const isCivil = yearType === "CIVIL";
+
+  // Calculate available years/seasons based on contract dates and yearType
   const getAvailableYears = () => {
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth(); // 0-11
 
-    // Current heating season: if we're past July, it's the next year's season
-    const currentSeason = currentMonth >= 6 ? currentYear + 1 : currentYear;
+    // For CIVIL: the period is the calendar year.
+    // For HEATING_SEASON / CONTRACTUAL: Jul-Jun, so after July we're in next year's season.
+    const currentPeriod = isCivil
+      ? currentYear
+      : currentMonth >= 6 ? currentYear + 1 : currentYear;
 
     if (!selectedContract?.startDate) {
-      // Default: just current season
-      return [currentSeason];
+      return [currentPeriod];
     }
 
     const contractStart = new Date(selectedContract.startDate);
     const contractStartYear = contractStart.getFullYear();
     const contractStartMonth = contractStart.getMonth();
 
-    // First heating season: if contract starts before July, it's that year's season
-    // If contract starts July or later, it's next year's season
-    const firstSeason = contractStartMonth >= 6 ? contractStartYear + 1 : contractStartYear;
+    const firstPeriod = isCivil
+      ? contractStartYear
+      : contractStartMonth >= 6 ? contractStartYear + 1 : contractStartYear;
 
-    // Generate years from first season to current season
     const years: number[] = [];
-    for (let year = currentSeason; year >= firstSeason; year--) {
+    for (let year = currentPeriod; year >= firstPeriod; year--) {
       years.push(year);
     }
 
-    return years.length > 0 ? years : [currentSeason];
+    return years.length > 0 ? years : [currentPeriod];
   };
 
   const availableYears = getAvailableYears();
@@ -189,12 +193,13 @@ function EnergyPageContent() {
       const params = new URLSearchParams();
       params.set("year", selectedYear.toString());
       params.set("contractId", selectedContract.id);
+      params.set("yearType", yearType);
 
       const [analyticsRes, consumptionsRes, alertsRes, djuRes] = await Promise.all([
         fetch(`/api/consumptions/analytics?${params}`),
         fetch(`/api/consumptions?contractId=${selectedContract.id}`),
         fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
-        fetch(`/api/dju?contractId=${selectedContract.id}&year=${selectedYear}`),
+        fetch(`/api/dju?contractId=${selectedContract.id}&year=${selectedYear}&yearType=${yearType}`),
       ]);
 
       const [analyticsData, consumptionsData, alertsData, djuDataRes] = await Promise.all([
@@ -225,7 +230,7 @@ function EnergyPageContent() {
   const fetchHeatingSeasons = useCallback(async () => {
     if (!selectedContract) return;
     try {
-      const season = `${selectedYear - 1}-${selectedYear}`;
+      const season = isCivil ? `${selectedYear}` : `${selectedYear - 1}-${selectedYear}`;
       const res = await fetch(`/api/heating-seasons?contractId=${selectedContract.id}&season=${season}`);
       if (res.ok) {
         const data = await res.json();
@@ -517,7 +522,7 @@ function EnergyPageContent() {
           >
             {availableYears.map((year) => (
               <option key={year} value={year}>
-                Saison {year - 1}/{year}
+                {isCivil ? `Année ${year}` : `Saison ${year - 1}/${year}`}
               </option>
             ))}
           </select>
