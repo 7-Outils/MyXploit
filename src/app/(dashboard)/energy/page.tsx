@@ -488,7 +488,7 @@ function EnergyPageContent() {
         <nav className="flex gap-8">
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
-            { id: "sites" as Tab, label: "Sites", icon: Building2 },
+            { id: "sites" as Tab, label: "Relevés", icon: Building2 },
             { id: "p1" as Tab, label: "Cibles énergétiques", icon: Target },
             { id: "climat" as Tab, label: "Climat & DJU", icon: Thermometer },
             { id: "ecs" as Tab, label: "ECS", icon: Droplets },
