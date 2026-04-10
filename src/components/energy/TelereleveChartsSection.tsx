@@ -533,7 +533,6 @@ export function TelereleveChartsSection({ contractId }: Props) {
                 monthlyData={monthlyData}
                 dailyData={dailyData}
                 frequency={frequency}
-                hasNb={siteContext?.nb != null && siteContext.nb > 0}
                 hasDjuContractuel={
                   siteContext?.djuContractuel != null &&
                   siteContext.djuContractuel > 0

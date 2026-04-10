@@ -2,8 +2,7 @@
 
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { AlertCircle, Settings } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { cn } from "@/lib/utils";
 import type { Frequency } from "@/components/energy/TelereleveBuildingChart";
@@ -41,10 +40,7 @@ interface Props {
   dailyData?: { date: string; nc: number; djr: number }[];
   /** Current frequency — drives whether to use dailyData or monthlyData. */
   frequency?: Frequency;
-  /** Indicates whether the building has a NB and a (resolved) DJU contractuel.
-      Used purely to drive empty states — the actual N'B / DJC values are
-      not needed in this chart since we plot kWh/DJU. */
-  hasNb: boolean;
+  /** When false, shows an empty state asking to configure a weather station. */
   hasDjuContractuel: boolean;
   /** When true, omit the surrounding ChartCard. */
   noCard?: boolean;
@@ -72,7 +68,6 @@ export function ClimateCorrectedChart({
   monthlyData,
   dailyData,
   frequency,
-  hasNb,
   hasDjuContractuel,
   noCard = false,
   hideKpis = false,
@@ -146,31 +141,6 @@ export function ClimateCorrectedChart({
   }, [ratioPoints]);
 
   // ─── Empty states ───────────────────────────────────────────────────
-
-  if (!hasNb) {
-    return wrap(
-      <div className="flex flex-col items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-        <div className="flex items-center gap-2">
-          <AlertCircle size={18} className="text-amber-600" />
-          <p className="text-sm font-semibold text-amber-900">
-            Niveau de Base manquant
-          </p>
-        </div>
-        <p className="text-xs text-amber-800">
-          Renseignez le NB (Niveau de Base annuel en MWh) sur la fiche de{" "}
-          <strong>{siteName}</strong> pour activer le suivi de la signature
-          énergétique.
-        </p>
-        <Link
-          href={`/buildings/${siteId}`}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-900 hover:text-amber-700 underline mt-1"
-        >
-          <Settings size={14} />
-          Ouvrir la fiche bâtiment →
-        </Link>
-      </div>
-    );
-  }
 
   if (!hasDjuContractuel) {
     return wrap(
