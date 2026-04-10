@@ -110,7 +110,20 @@ export function SyntheseContent({
               <tbody className="divide-y divide-gray-100">
                 {analytics.sites.map((site) => (
                   <tr key={site.siteId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-primary-dark">{site.siteName}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-primary-dark">{site.siteName}</span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            site.dataSource === "TELERELEVE"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {site.dataSource === "TELERELEVE" ? "Télérelève" : "Manuel"}
+                        </span>
+                      </div>
+                    </td>
 
                     <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
                     <td className="px-6 py-4 text-right text-gray-600">

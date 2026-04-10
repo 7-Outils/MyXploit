@@ -351,6 +351,7 @@ export async function GET(request: NextRequest) {
           siteType: site.type,
           city: site.city,
           energyType: site.energyType,
+          dataSource: sitesWithTelereleve.has(site.id) ? "TELERELEVE" as const : "MANUAL" as const,
           nb: site.nb,
           nbUnit: site.nbUnit,
           // Expose the *resolved* djuContractuel so the frontend doesn't
