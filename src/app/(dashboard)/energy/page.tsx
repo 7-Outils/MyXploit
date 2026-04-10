@@ -2,51 +2,20 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { ReadOnlyGate } from "@/components/permissions";
 import { useContract } from "@/contexts/ContractContext";
-import { useUserProfile } from "@/contexts/UserProfileContext";
 import {
   BarChart3,
-  TrendingDown,
-  TrendingUp,
-  AlertTriangle,
-  Plus,
   Loader2,
-  X,
-  Upload,
-  FileSpreadsheet,
-  Check,
   Flame,
-  ThermometerSun,
   Building2,
-  FileText,
-  Users,
-  Snowflake,
-  Sun,
-  CloudSnow,
   Thermometer,
-  Calendar,
-  ExternalLink,
-  ArrowUpRight,
-  ArrowDownRight,
   Trash2,
-  Save,
   Target,
-  Pencil,
-  Award,
-  RefreshCw,
-  Info,
   Droplets,
-  Euro,
   Settings,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ChartCard } from "@/components/dashboard/chart-card";
-import { StatsCard } from "@/components/dashboard/stats-card";
-import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { TelereleveCard } from "@/components/energy/TelereleveCard";
 import { DroitsAccesCard } from "@/components/energy/DroitsAccesCard";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
@@ -63,10 +32,7 @@ import { ECSContent } from "@/components/energy/tabs/EcsTab";
 // Types and constants live in their own files now — see
 // src/components/energy/types.ts and src/components/energy/constants.ts
 import type {
-  Contract,
   Site,
-  MonthlyData,
-  SitePerformance,
   AnalyticsData,
   Alert,
   DJUData,
@@ -531,31 +497,8 @@ function EnergyPageContent() {
   // Main content with tabs
   return (
     <div className="space-y-6">
-      {/* Toolbar — page title removed (the contract is already shown in
-          the global selector above) */}
-      <div className="flex justify-end gap-2 flex-wrap">
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-        >
-          {availableYears.map((year) => (
-            <option key={year} value={year}>
-              Saison {year - 1}/{year}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={() => setShowDeleteModal(true)}
-          className="px-4 py-2 text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-2 text-sm"
-        >
-          <Trash2 size={16} />
-          Supprimer données
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
+      {/* Tabs + toolbar on the same row */}
+      <div className="border-b border-gray-200 flex items-end justify-between">
         <nav className="flex gap-8">
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
@@ -579,6 +522,26 @@ function EnergyPageContent() {
             </button>
           ))}
         </nav>
+        <div className="flex items-center gap-2 pb-2">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+          >
+            {availableYears.map((year) => (
+              <option key={year} value={year}>
+                Saison {year - 1}/{year}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5"
+          >
+            <Trash2 size={14} />
+            Supprimer données
+          </button>
+        </div>
       </div>
 
       {/* Loading */}
