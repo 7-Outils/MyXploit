@@ -703,7 +703,7 @@ export default function EnergyPage() {
 // TAB COMPONENTS
 // ============================================
 
-function TelereleveContent({ contractId, yearType }: { contractId?: string; yearType?: string }) {
+function TelereleveContent({ contractId, yearType }: { contractId?: string; yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL" }) {
   // Plumbing (GRDF/Enedis configuration + droits d'accès) is collapsed by
   // default — the chart is what users come here for. Open the section only
   // if they need to configure something.
