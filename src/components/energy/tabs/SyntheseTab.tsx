@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import type { AnalyticsData, Alert } from "@/components/energy/types";
-import { SITE_TYPE_LABELS } from "@/components/energy/constants";
+
 
 export function SyntheseContent({
   analytics,
@@ -99,7 +99,7 @@ export function SyntheseContent({
               <thead className="bg-background-secondary border-b border-gray-100">
                 <tr>
                   <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Type</th>
+
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NC (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">N&apos;B (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Écart</th>
@@ -116,11 +116,7 @@ export function SyntheseContent({
                         <p className="text-xs text-gray-500">{site.city}</p>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-700">
-                        {SITE_TYPE_LABELS[site.siteType] || site.siteType}
-                      </span>
-                    </td>
+
                     <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
                     <td className="px-6 py-4 text-right text-gray-600">
                       <div className="flex items-center justify-end gap-1">
