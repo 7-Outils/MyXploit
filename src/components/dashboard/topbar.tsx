@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, User, LogOut, ChevronDown } from "lucide-react";
+import { Bell, LogOut, ChevronDown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ContractSelector } from "./ContractSelector";
@@ -81,25 +81,9 @@ export function Topbar() {
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      {/* Contract Selector + Search */}
+      {/* Contract Selector */}
       <div className="flex items-center gap-4 flex-1">
         <ContractSelector />
-      </div>
-      <div className="flex-1 max-w-md">
-        <div className="relative">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            placeholder="Rechercher un site, contrat, facture..."
-            className="w-full pl-10 pr-4 py-2 bg-background-secondary rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 border border-transparent focus:border-accent/30"
-          />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-            ⌘K
-          </kbd>
-        </div>
       </div>
 
       {/* Right side */}
