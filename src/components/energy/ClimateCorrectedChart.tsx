@@ -247,6 +247,7 @@ export function ClimateCorrectedChart({
     yAxis: {
       type: "value",
       name: "kWh/DJU",
+      min: 0,
       nameTextStyle: { color: "#6b7280", fontSize: 11 },
       axisLine: { show: false },
       axisTick: { show: false },
@@ -340,7 +341,7 @@ export function ClimateCorrectedChart({
       {/* Chart */}
       <ReactECharts
         option={chartOption}
-        style={{ height: 360, width: "100%" }}
+        style={{ height: 420, width: "100%" }}
         notMerge={true}
         lazyUpdate={true}
       />

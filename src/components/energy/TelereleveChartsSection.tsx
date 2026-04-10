@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Download,
   Loader2,
   TrendingDown,
   TrendingUp,
@@ -122,6 +123,15 @@ export function TelereleveChartsSection({ contractId }: Props) {
   const [dailyData, setDailyData] = useState<
     { date: string; nc: number; djr: number }[]
   >([]);
+
+  // Export function reported by TelereleveBuildingChart — rendered as a
+  // button in the shared toolbar so the user has one consistent action bar.
+  const exportFnRef = useRef<(() => void) | null>(null);
+  const [canExport, setCanExport] = useState(false);
+  const handleExportFnChange = useCallback((fn: (() => void) | null) => {
+    exportFnRef.current = fn;
+    setCanExport(fn !== null);
+  }, []);
 
   // ─── Analytics monthly data — fetched once at the section level ─────
   // Both charts (GRDF on the left, signature ratio on the right) consume
@@ -421,6 +431,15 @@ export function TelereleveChartsSection({ contractId }: Props) {
             );
           })}
         </div>
+
+        <button
+          onClick={() => exportFnRef.current?.()}
+          disabled={!canExport}
+          className="ml-auto px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        >
+          <Download size={14} />
+          Exporter CSV
+        </button>
       </div>
 
       {/* Single unified card containing the shared KPI strip and the two
@@ -499,6 +518,7 @@ export function TelereleveChartsSection({ contractId }: Props) {
               frequency={frequency}
               onNaturalGranularityChange={handleNaturalGranularity}
               onDailyDataChange={setDailyData}
+              onExportFnChange={handleExportFnChange}
               monthlyData={monthlyData}
               noCard
               hideKpis

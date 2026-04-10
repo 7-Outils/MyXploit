@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -8,7 +8,6 @@ import {
   Wifi,
   Flame,
   Zap,
-  Download,
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
@@ -117,6 +116,9 @@ interface Props {
   /** Reports daily {date, nc, djr} for the CHAUFFAGE/MIXTE records in the
       current date range — consumed by the sibling signature chart. */
   onDailyDataChange?: (data: { date: string; nc: number; djr: number }[]) => void;
+  /** Reports the CSV export function to the parent so it can render the
+      button in the shared toolbar. Receives null when there's nothing to export. */
+  onExportFnChange?: (fn: (() => void) | null) => void;
 }
 
 export function TelereleveBuildingChart({
@@ -130,6 +132,7 @@ export function TelereleveBuildingChart({
   noCard = false,
   hideKpis = false,
   onDailyDataChange,
+  onExportFnChange,
 }: Props) {
   const selectedSite = useMemo(
     () => sites.find((s) => s.id === selectedSiteId) || null,
@@ -463,7 +466,9 @@ export function TelereleveBuildingChart({
     const showDataZoomSlider = buckets.length > 12;
     const seriesLabel = "NC";
     const showTarget =
-      frequency === "month" && !!monthlyData && monthlyData.length > 0;
+      frequency === "month" &&
+      !!monthlyData &&
+      monthlyData.some((m) => m.nbPrime > 0);
 
     // For each bucket (which is a month at frequency=month), look up the
     // matching N'B from monthlyData by YYYY-MM key.
@@ -617,7 +622,7 @@ export function TelereleveBuildingChart({
   }, [buckets, chartColor, selectedSite, frequency, monthlyData]);
 
   // ─── CSV export ──────────────────────────────────────────────────────
-  const handleExportCsv = () => {
+  const handleExportCsv = useCallback(() => {
     if (filtered.length === 0) return;
     const lines = ["date,kwh"];
     filtered.forEach((r) => {
@@ -635,7 +640,13 @@ export function TelereleveBuildingChart({
     a.download = `conso-${meterRef}-${dateFrom}-${dateTo}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
+  }, [filtered, selectedSite, dateFrom, dateTo]);
+
+  // Notify the parent each time the export capability changes so it can
+  // enable / disable the button it renders in the shared toolbar.
+  useEffect(() => {
+    onExportFnChange?.(filtered.length > 0 ? handleExportCsv : null);
+  }, [filtered, handleExportCsv, onExportFnChange]);
 
   // Loading / empty states for the contract's site list are handled by the
   // parent wrapper (TelereleveChartsSection) — by the time we render here,
@@ -643,13 +654,11 @@ export function TelereleveBuildingChart({
 
   const content = (
     <>
-      {/* Local toolbar — only Energy + Frequency + CSV export.
-          Site picker and date range live in the parent toolbar
-          (TelereleveChartsSection) so they are shared with the
-          climate-corrected chart on the right. */}
-      <div className="flex flex-wrap items-end gap-3 mb-4">
-        {/* Energy selector */}
-        {availableEnergies.length > 1 && (
+      {/* Local toolbar — only the energy selector when multiple energies are
+          available. Site picker, date range and export live in the parent
+          toolbar (TelereleveChartsSection). */}
+      {availableEnergies.length > 1 && (
+        <div className="flex flex-wrap items-end gap-3 mb-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-text-secondary">
               Énergie
@@ -681,20 +690,8 @@ export function TelereleveBuildingChart({
               })}
             </div>
           </div>
-        )}
-
-        {/* Export */}
-        <div className="ml-auto">
-          <button
-            onClick={handleExportCsv}
-            disabled={filtered.length === 0}
-            className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-          >
-            <Download size={14} />
-            Exporter CSV
-          </button>
         </div>
-      </div>
+      )}
 
       {/* KPIs (hidden when the parent renders shared KPIs above) */}
       {!hideKpis && (
