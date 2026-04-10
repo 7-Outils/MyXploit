@@ -457,12 +457,6 @@ function EnergyPageContent() {
     }
   };
 
-  // Chart data
-  const chartData = analytics?.monthlyData?.map((m) => ({
-    label: m.label,
-    value: Math.round(m.nc / 1000),
-    target: Math.round(m.nbPrime / 1000),
-  })) || [];
 
   const activeAlerts = alerts.filter((a) => !a.isRead);
 
@@ -549,11 +543,9 @@ function EnergyPageContent() {
       {!loading && activeTab === "synthese" && (
         <SyntheseContent
           analytics={analytics}
-          chartData={chartData}
           activeAlerts={activeAlerts}
           setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
-          hasContract={!!selectedContract}
         />
       )}
 

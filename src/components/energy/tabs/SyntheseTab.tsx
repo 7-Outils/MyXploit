@@ -3,8 +3,6 @@
 import Link from "next/link";
 import {
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
   BarChart3,
   Building2,
   ExternalLink,
@@ -18,24 +16,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
-import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import type { AnalyticsData, Alert } from "@/components/energy/types";
 import { SITE_TYPE_LABELS } from "@/components/energy/constants";
 
 export function SyntheseContent({
   analytics,
-  chartData,
   activeAlerts,
   setShowIdexImportModal,
   setShowCreateModal,
-  hasContract,
 }: {
   analytics: AnalyticsData | null;
-  chartData: { label: string; value: number; target: number }[];
   activeAlerts: Alert[];
   setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
-  hasContract: boolean;
 }) {
   if (!analytics) {
     return (
@@ -57,16 +50,6 @@ export function SyntheseContent({
       </ChartCard>
     );
   }
-
-  const topEconomies = [...analytics.sites]
-    .filter(s => s.status === "ECONOMIE")
-    .sort((a, b) => a.deltaPercent - b.deltaPercent)
-    .slice(0, 5);
-
-  const topDepassements = [...analytics.sites]
-    .filter(s => s.status === "DEPASSEMENT")
-    .sort((a, b) => b.deltaPercent - a.deltaPercent)
-    .slice(0, 5);
 
   return (
     <>
@@ -107,106 +90,6 @@ export function SyntheseContent({
           iconColor="text-red-600"
         />
       </div>
-
-      {/* Charts and Top/Flop */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        <ChartCard
-          title="Consommation mensuelle"
-          subtitle="NC (Réel) vs N'B (Théorique ajusté DJU)"
-          className="lg:col-span-2"
-        >
-          {chartData.length > 0 ? (
-            <>
-              <SimpleBarChart data={chartData} height={250} />
-              <div className="flex items-center justify-center gap-6 mt-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-gradient-to-t from-accent to-accent-light rounded" />
-                  <span className="text-text-secondary">NC (Conso. réelle)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-gray-200 rounded" />
-                  <span className="text-text-secondary">N&apos;B (Théorique)</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <BarChart3 className="w-12 h-12 text-gray-300 mb-3" />
-              <p className="text-text-secondary">Aucune donnée mensuelle</p>
-            </div>
-          )}
-        </ChartCard>
-
-        {/* Top/Flop Sites */}
-        <ChartCard title="Performance sites">
-          <div className="space-y-4">
-            {topEconomies.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-green-600 mb-2 flex items-center gap-1">
-                  <ArrowDownRight size={14} />
-                  Top économies
-                </p>
-                <div className="space-y-2">
-                  {topEconomies.map((site) => (
-                    <Link
-                      key={site.siteId}
-                      href={`/energy/sites/${site.siteId}`}
-                      className="flex items-center justify-between p-2 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                    >
-                      <span className="text-sm font-medium text-primary-dark truncate">{site.siteName}</span>
-                      <span className="text-sm font-bold text-green-600">{site.deltaPercent}%</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {topDepassements.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-red-600 mb-2 flex items-center gap-1">
-                  <ArrowUpRight size={14} />
-                  Top dépassements
-                </p>
-                <div className="space-y-2">
-                  {topDepassements.map((site) => (
-                    <Link
-                      key={site.siteId}
-                      href={`/energy/sites/${site.siteId}`}
-                      className="flex items-center justify-between p-2 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                    >
-                      <span className="text-sm font-medium text-primary-dark truncate">{site.siteName}</span>
-                      <span className="text-sm font-bold text-red-600">+{site.deltaPercent}%</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {topEconomies.length === 0 && topDepassements.length === 0 && (
-              <p className="text-sm text-text-secondary text-center py-4">Pas assez de données</p>
-            )}
-          </div>
-        </ChartCard>
-      </div>
-
-      {/* Performance by type */}
-      {analytics.performanceByType.length > 0 && (
-        <ChartCard title="Performance par type de bâtiment">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {analytics.performanceByType.map((item) => (
-              <div key={item.type} className="bg-background-secondary rounded-xl p-4 text-center">
-                <p className="text-sm text-text-secondary mb-2">
-                  {SITE_TYPE_LABELS[item.type] || item.type}
-                </p>
-                <p className={`text-3xl font-bold ${item.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {item.deltaPercent > 0 ? "+" : ""}{item.deltaPercent}%
-                </p>
-                <p className="text-xs text-gray-500 mt-1">{item.count} site{item.count > 1 ? "s" : ""}</p>
-              </div>
-            ))}
-          </div>
-        </ChartCard>
-      )}
 
       {/* Performance par site */}
       {analytics.sites.length > 0 && (
