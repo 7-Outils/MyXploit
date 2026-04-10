@@ -1,117 +1,60 @@
-import { UserRole, Module } from "@/generated/prisma/client";
-
-// ============================================
-// Vérifications de rôle (sans accès DB)
-// ============================================
-
-export const isSuperAdmin = (role: UserRole): boolean => role === "SUPER_ADMIN";
-export const isAdmin = (role: UserRole): boolean => role === "ADMIN";
-export const isEditor = (role: UserRole): boolean => role === "EDITOR";
-export const isManager = (role: UserRole): boolean => role === "MANAGER"; // @deprecated
-export const isReader = (role: UserRole): boolean => role === "READER";
-
-// Peut créer/modifier/supprimer (EDITOR+)
-export const canEdit = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN" || role === "ADMIN" || role === "EDITOR" || role === "MANAGER";
-
-// Peut supprimer (EDITOR+)
-export const canDelete = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN" || role === "ADMIN" || role === "EDITOR" || role === "MANAGER";
-
-// Peut créer (EDITOR+)
-export const canCreate = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN" || role === "ADMIN" || role === "EDITOR" || role === "MANAGER";
-
-// Peut importer (EDITOR+)
-export const canImport = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN" || role === "ADMIN" || role === "EDITOR" || role === "MANAGER";
-
-// Peut exporter (tous)
-export const canExport = (role: UserRole): boolean => true;
-
-// Peut synchroniser (EDITOR+)
-export const canSync = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN" || role === "ADMIN" || role === "EDITOR" || role === "MANAGER";
-
-// Peut gérer les utilisateurs de son org (ADMIN+)
-export const canManageUsers = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN" || role === "ADMIN";
-
-// Peut gérer les organisations (SUPER_ADMIN uniquement)
-export const canManageOrganizations = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN";
-
-// Peut gérer les modules des orgs (SUPER_ADMIN uniquement)
-export const canManageModules = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN";
-
-// Peut utiliser le mode fantôme (SUPER_ADMIN uniquement)
-export const canUseGhostMode = (role: UserRole): boolean =>
-  role === "SUPER_ADMIN";
-
-// ============================================
-// Labels des rôles
-// ============================================
-
-export const ROLE_LABELS: Record<UserRole, string> = {
+// Labels lisibles pour les rôles
+export const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
-  ADMIN: "Dirigeant",
-  EDITOR: "Ingénieur",
-  MANAGER: "Ingénieur", // @deprecated - affiché pareil qu'EDITOR
+  ADMIN: "Administrateur",
+  EDITOR: "Éditeur",
+  MANAGER: "Manager",
   READER: "Lecteur",
 };
 
-export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
-  SUPER_ADMIN: "Accès complet à toutes les organisations",
-  ADMIN: "Dirige et gère les utilisateurs de son organisation",
-  EDITOR: "Peut créer, modifier et supprimer",
-  MANAGER: "Peut créer, modifier et supprimer", // @deprecated
-  READER: "Consultation et export uniquement",
-};
-
-// Couleurs des badges de rôle (centralisées)
-export const ROLE_COLORS: Record<UserRole, string> = {
-  SUPER_ADMIN: "bg-purple-100 text-purple-700",
-  ADMIN: "bg-blue-100 text-blue-700",
-  EDITOR: "bg-green-100 text-green-700",
-  MANAGER: "bg-green-100 text-green-700", // @deprecated
+// Classes CSS Tailwind pour les badges de rôle
+export const ROLE_COLORS: Record<string, string> = {
+  SUPER_ADMIN: "bg-purple-100 text-purple-800",
+  ADMIN: "bg-blue-100 text-blue-800",
+  EDITOR: "bg-green-100 text-green-800",
+  MANAGER: "bg-yellow-100 text-yellow-800",
   READER: "bg-gray-100 text-gray-700",
 };
 
-// Rôles sélectionnables dans les dropdowns (sans MANAGER deprecated, sans SUPER_ADMIN)
-export const ASSIGNABLE_ROLES: UserRole[] = ["ADMIN", "EDITOR", "READER"];
+// Rôles assignables (hors SUPER_ADMIN réservé à la plateforme)
+export const ASSIGNABLE_ROLES = ["ADMIN", "EDITOR", "READER"] as const;
 
-// ============================================
-// Labels des modules
-// ============================================
-
-export const MODULE_LABELS: Record<Module, string> = {
-  ENERGY: "Suivi énergétique",
-  FINANCIER: "Suivi financier",
-  ADMINISTRATIF: "Suivi administratif",
-  EXPLOITATION: "Suivi exploitation",
-  OUTILS: "Boîte à outils",
-  CONTRACTS: "Gestion contrats",
+// Labels lisibles pour les modules
+export const MODULE_LABELS: Record<string, string> = {
+  ENERGY: "Énergie",
+  FINANCIER: "Financier",
+  ADMINISTRATIF: "Administratif",
+  EXPLOITATION: "Exploitation",
+  OUTILS: "Outils",
+  CONTRACTS: "Contrats",
   PRICING: "Tarification",
 };
 
-export const MODULE_DESCRIPTIONS: Record<Module, string> = {
-  ENERGY: "Consommations, DJU, alertes, synchronisation Enedis",
-  FINANCIER: "Factures, devis, budget, décompte P3",
-  ADMINISTRATIF: "Contrats, réunions, documents",
-  EXPLOITATION: "Équipements, audits techniques",
-  OUTILS: "Calculateurs, dimensionnement",
-  CONTRACTS: "Gestion avancée des contrats",
-  PRICING: "Grilles tarifaires, import devis",
-};
+// Vérifications de permissions par rôle
+export function canEdit(role: string): boolean {
+  return ["SUPER_ADMIN", "ADMIN", "EDITOR", "MANAGER"].includes(role);
+}
 
-// Tous les modules disponibles
-export const ALL_MODULES: Module[] = [
-  "ENERGY",
-  "FINANCIER",
-  "ADMINISTRATIF",
-  "EXPLOITATION",
-  "OUTILS",
-  "CONTRACTS",
-  "PRICING",
-];
+export function canDelete(role: string): boolean {
+  return ["SUPER_ADMIN", "ADMIN", "EDITOR", "MANAGER"].includes(role);
+}
+
+export function canCreate(role: string): boolean {
+  return ["SUPER_ADMIN", "ADMIN", "EDITOR", "MANAGER"].includes(role);
+}
+
+export function canImport(role: string): boolean {
+  return ["SUPER_ADMIN", "ADMIN", "EDITOR", "MANAGER"].includes(role);
+}
+
+export function canSync(role: string): boolean {
+  return ["SUPER_ADMIN", "ADMIN", "EDITOR", "MANAGER"].includes(role);
+}
+
+export function canManageUsers(role: string): boolean {
+  return ["SUPER_ADMIN", "ADMIN"].includes(role);
+}
+
+export function canUseGhostMode(role: string): boolean {
+  return role === "SUPER_ADMIN";
+}

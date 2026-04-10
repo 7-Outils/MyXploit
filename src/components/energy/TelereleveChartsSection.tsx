@@ -498,7 +498,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
               tooltip="Écart entre la consommation réelle et la cible climatique. Positif (rouge) = dépassement, négatif (vert) = économie. Seuil de tolérance ±5%."
             />
             <SharedKpi
-              label="DJU réels"
+              label="Rigueur climatique"
               value={
                 sharedKpis.totalDjr > 0
                   ? `${Math.round(sharedKpis.totalDjr).toLocaleString("fr-FR")} DJU`
@@ -507,6 +507,13 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
               deltaPct={sharedKpis.djrDeltaPct}
               deltaAbs={sharedKpis.djrDeltaAbs}
               deltaUnit="DJU"
+              deltaContextLabel={
+                sharedKpis.djrDeltaPct === null || sharedKpis.djrDeltaPct === undefined
+                  ? undefined
+                  : sharedKpis.djrDeltaPct < 0
+                  ? "Hiver plus doux"
+                  : "Hiver plus rigoureux"
+              }
               tooltip="Somme des degrés-jours unifiés (base 18°C) sur la période. Le DJU mesure la rigueur du climat — plus il fait froid, plus le DJU est élevé."
             />
           </div>
@@ -570,6 +577,8 @@ interface SharedKpiProps {
   deltaPct?: number | null;
   deltaAbs?: number | null;
   deltaUnit?: "kWh" | "DJU";
+  /** When set, replaces the absolute delta with a contextual label (e.g. "Hiver plus doux"). */
+  deltaContextLabel?: string;
 }
 
 function SharedKpi({
@@ -581,6 +590,7 @@ function SharedKpi({
   deltaPct,
   deltaAbs,
   deltaUnit,
+  deltaContextLabel,
 }: SharedKpiProps) {
   const valueClass =
     tone === "danger"
@@ -651,8 +661,7 @@ function SharedKpi({
             {deltaPct.toFixed(1)}% vs N-1
           </span>
           <span className="text-text-secondary font-normal">
-            ({deltaAbs >= 0 ? "+" : "−"}
-            {formatDeltaAbs(deltaAbs)})
+            ({deltaContextLabel ?? `${deltaAbs >= 0 ? "+" : "−"}${formatDeltaAbs(deltaAbs)}`})
           </span>
         </div>
       )}
