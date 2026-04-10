@@ -2,25 +2,18 @@
 
 import { useEffect, useState } from "react";
 import {
-  AlertTriangle,
-  Award,
-  BarChart3,
-  Building2,
   Check,
   Loader2,
-  Target,
   TrendingDown,
   TrendingUp,
   X,
 } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import type {
-  AnalyticsData,
   Contract,
   HeatingSeason,
   Site,
 } from "@/components/energy/types";
-import { SITE_TYPE_LABELS } from "@/components/energy/constants";
 
 export function P1Content({
   contract,
@@ -210,74 +203,7 @@ export function P1Content({
 
   return (
     <>
-      {/* Header with Import Button */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-semibold text-primary-dark flex items-center gap-2">
-            <Award className="text-amber-500" size={24} />
-            Cibles énergétiques
-          </h2>
-          <p className="text-sm text-text-secondary mt-1">
-            Niveaux de Base (NB) par site et par année — cliquez sur une cellule pour renseigner ou modifier une valeur
-          </p>
-        </div>
-      </div>
-
-      {/* KPIs Section */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-amber-50 rounded-xl p-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Target size={20} className="text-amber-600" />
-            <span className="text-sm font-medium text-amber-700">NB Année 1</span>
-          </div>
-          <p className="text-3xl font-bold text-amber-900">
-            {kpis.year1Total > 0 ? kpis.year1Total.toLocaleString("fr-FR") : "-"}
-          </p>
-          <p className="text-xs text-amber-600 mt-1">MWh PCS (référence)</p>
-        </div>
-
-        <div className="bg-blue-50 rounded-xl p-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <BarChart3 size={20} className="text-blue-600" />
-            <span className="text-sm font-medium text-blue-700">NB Année {currentYearIndex + 1 || "-"}</span>
-          </div>
-          <p className="text-3xl font-bold text-blue-900">
-            {kpis.currentYearTotal > 0 ? kpis.currentYearTotal.toLocaleString("fr-FR") : "-"}
-          </p>
-          <p className="text-xs text-blue-600 mt-1">MWh PCS ({isCivil ? `année ${selectedYear}` : `saison ${selectedYear - 1}/${selectedYear}`})</p>
-        </div>
-
-        <div className={`rounded-xl p-4 text-center ${kpis.apeProgress >= 0 ? "bg-green-50" : "bg-red-50"}`}>
-          <div className="flex items-center justify-center gap-2 mb-2">
-            {kpis.apeProgress >= 0 ? (
-              <TrendingDown size={20} className="text-green-600" />
-            ) : (
-              <TrendingUp size={20} className="text-red-600" />
-            )}
-            <span className={`text-sm font-medium ${kpis.apeProgress >= 0 ? "text-green-700" : "text-red-700"}`}>
-              APE Cumulée
-            </span>
-          </div>
-          <p className={`text-3xl font-bold ${kpis.apeProgress >= 0 ? "text-green-900" : "text-red-900"}`}>
-            {kpis.year1Total > 0 ? `${kpis.apeProgress >= 0 ? "-" : "+"}${Math.abs(kpis.apeProgress).toFixed(1)}%` : "-"}
-          </p>
-          <p className={`text-xs mt-1 ${kpis.apeProgress >= 0 ? "text-green-600" : "text-red-600"}`}>
-            {kpis.savings > 0 ? `${kpis.savings.toLocaleString("fr-FR")} MWh économisés` : kpis.savings < 0 ? `${Math.abs(kpis.savings).toLocaleString("fr-FR")} MWh en plus` : "vs Année 1"}
-          </p>
-        </div>
-
-        <div className="bg-gray-50 rounded-xl p-4 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Building2 size={20} className="text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Sites suivis</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{kpis.sitesWithNb}</p>
-          <p className="text-xs text-gray-600 mt-1">sur {kpis.totalSites} sites du contrat</p>
-        </div>
-      </div>
-
-      {/* Multi-year NB Table */}
-      <ChartCard title="Niveaux de Base par site et par année" subtitle="Cliquez sur une cellule pour modifier la valeur">
+      <ChartCard>
         <div className="overflow-x-auto -mx-6 -my-6">
           <table className="w-full">
             <thead className="bg-background-secondary border-b border-gray-100">
@@ -433,20 +359,6 @@ export function P1Content({
           </table>
         </div>
       </ChartCard>
-
-      {/* Help Text */}
-      <div className="bg-blue-50 rounded-lg p-4 flex items-start gap-3">
-        <AlertTriangle className="text-blue-500 mt-0.5 flex-shrink-0" size={18} />
-        <div className="text-sm text-blue-800">
-          <p className="font-medium mb-1">Comment renseigner les cibles ?</p>
-          <p className="text-blue-700">
-            Cliquez directement sur une cellule du tableau pour saisir le NB (Niveau de Base) d&apos;un site pour une année donnée.
-            Les valeurs peuvent être importées depuis l&apos;AE ou renseignées manuellement. Le NB est exprimé en MWh PCS et représente
-            l&apos;objectif contractuel de consommation. La consommation réelle (NC) est comparée au NB corrigé climatiquement (N&apos;B)
-            pour évaluer la performance.
-          </p>
-        </div>
-      </div>
     </>
   );
 }
