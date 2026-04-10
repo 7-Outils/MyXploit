@@ -84,12 +84,16 @@ export async function GET(request: NextRequest) {
     // Priority: TELERELEVE > EXPLOITANT > MANUAL per site.
     // If a site has any TELERELEVE data in the period, use only that.
     // Otherwise fall back to EXPLOITANT/MANUAL.
-    const basePeriodWhere = {
+    const basePeriodWhere: Record<string, unknown> = {
       organizationId: effectiveOrgId,
       period: { gte: startDate, lte: endDate },
-      ...(siteId ? { siteId } : contractSiteIds ? { siteId: { in: contractSiteIds } } : {}),
-      ...(energyType ? { energyType } : {}),
     };
+    if (siteId) {
+      basePeriodWhere.siteId = siteId;
+    } else if (contractSiteIds) {
+      basePeriodWhere.siteId = { in: contractSiteIds };
+    }
+    if (energyType) basePeriodWhere.energyType = energyType;
 
     const allConsumptions = await prisma.consumption.findMany({
       where: basePeriodWhere,
