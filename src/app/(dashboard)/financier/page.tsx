@@ -519,14 +519,6 @@ function FinancierPageContent() {
   // Contract selected
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Suivi financier</h1>
-          <p className="text-text-secondary">{selectedContract.reference} - {selectedContract.title}</p>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-8">

@@ -138,13 +138,7 @@ function AdministratifContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Suivi administratif</h1>
-          <p className="text-text-secondary">{selectedContract.reference} - {selectedContract.title}</p>
-        </div>
-        <div className="flex gap-2">
+      <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowEditContractModal(true)}>
             <Pencil size={18} className="mr-2" />
             Modifier
@@ -158,7 +152,6 @@ function AdministratifContent() {
             Nouveau contrat
           </Button>
         </div>
-      </div>
 
       {/* Stats */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

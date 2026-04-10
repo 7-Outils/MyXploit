@@ -151,17 +151,6 @@ export default function BuildingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary-dark">Bâtiments</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          {selectedContract.reference} - {selectedContract.title}
-          <span className="text-gray-400 ml-2">
-            ({sites.length} bâtiment{sites.length > 1 ? "s" : ""})
-          </span>
-        </p>
-      </div>
-
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap">
         {/* Search */}
