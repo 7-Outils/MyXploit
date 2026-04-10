@@ -642,7 +642,7 @@ function EnergyPageContent() {
       )}
 
       {!loading && activeTab === "telereleve" && (
-        <TelereleveContent contractId={selectedContract?.id} />
+        <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
       )}
 
       {/* Modals */}
@@ -703,7 +703,7 @@ export default function EnergyPage() {
 // TAB COMPONENTS
 // ============================================
 
-function TelereleveContent({ contractId }: { contractId?: string }) {
+function TelereleveContent({ contractId, yearType }: { contractId?: string; yearType?: string }) {
   // Plumbing (GRDF/Enedis configuration + droits d'accès) is collapsed by
   // default — the chart is what users come here for. Open the section only
   // if they need to configure something.
@@ -715,7 +715,7 @@ function TelereleveContent({ contractId }: { contractId?: string }) {
       {contractId && (
         <TelereleveChartsSection
           contractId={contractId}
-          yearType={selectedContract?.yearType ?? "HEATING_SEASON"}
+          yearType={yearType ?? "HEATING_SEASON"}
         />
       )}
 
