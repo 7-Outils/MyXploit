@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { OrganizationSwitcher } from "@/components/admin/OrganizationSwitcher";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 const navigation = [
   {
@@ -40,7 +40,7 @@ const navigation = [
 
 export function PlatformSidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggle } = useSidebar();
 
   const isActive = (href: string) => {
     if (href === "/platform") return pathname === href;
@@ -63,7 +63,7 @@ export function PlatformSidebar() {
           </div>
         )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggle}
           className={cn(
             "p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all",
             collapsed && "mx-auto rotate-180"

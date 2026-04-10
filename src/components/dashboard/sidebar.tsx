@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { Module } from "@/generated/prisma/client";
 import { usePermissions } from "@/contexts/PermissionContext";
+import { useSidebar } from "@/contexts/SidebarContext";
 import { OrganizationSwitcher } from "@/components/admin/OrganizationSwitcher";
 
 type NavItem = {
@@ -56,7 +56,7 @@ const defaultNavigation: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggle } = useSidebar();
   const { hasModule, userRole, isLoading } = usePermissions();
 
   const isActive = (href: string) => {
@@ -100,7 +100,7 @@ export function Sidebar() {
           </div>
         )}
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={toggle}
           className={cn(
             "p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all",
             collapsed && "mx-auto rotate-180"

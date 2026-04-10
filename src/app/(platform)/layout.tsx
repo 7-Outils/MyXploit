@@ -3,7 +3,9 @@ import { PlatformSidebar } from "@/components/platform/platform-sidebar";
 import { PlatformTopbar } from "@/components/platform/platform-topbar";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { PermissionProvider } from "@/contexts/PermissionContext";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 import { GhostModeBar } from "@/components/admin/GhostModeBar";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 export default function PlatformLayout({
   children,
@@ -14,14 +16,16 @@ export default function PlatformLayout({
     <UserProfileProvider>
       <PermissionProvider>
         <Suspense fallback={null}>
-          <GhostModeBar />
-          <div className="min-h-screen bg-background-secondary">
-            <PlatformSidebar />
-            <div className="pl-64 transition-all duration-300">
-              <PlatformTopbar />
-              <main className="p-6">{children}</main>
+          <SidebarProvider>
+            <GhostModeBar />
+            <div className="min-h-screen bg-background-secondary">
+              <PlatformSidebar />
+              <DashboardShell>
+                <PlatformTopbar />
+                <main className="p-6">{children}</main>
+              </DashboardShell>
             </div>
-          </div>
+          </SidebarProvider>
         </Suspense>
       </PermissionProvider>
     </UserProfileProvider>

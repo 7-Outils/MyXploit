@@ -4,7 +4,9 @@ import { Topbar } from "@/components/dashboard/topbar";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { PermissionProvider } from "@/contexts/PermissionContext";
 import { ContractProvider } from "@/contexts/ContractContext";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 import { GhostModeBar } from "@/components/admin/GhostModeBar";
+import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 
 export default function DashboardLayout({
   children,
@@ -16,14 +18,16 @@ export default function DashboardLayout({
       <PermissionProvider>
         <Suspense fallback={null}>
           <ContractProvider>
-            <GhostModeBar />
-            <div className="min-h-screen bg-background-secondary">
-              <Sidebar />
-              <div className="pl-64 transition-all duration-300">
-                <Topbar />
-                <main className="p-6">{children}</main>
+            <SidebarProvider>
+              <GhostModeBar />
+              <div className="min-h-screen bg-background-secondary">
+                <Sidebar />
+                <DashboardShell>
+                  <Topbar />
+                  <main className="p-6">{children}</main>
+                </DashboardShell>
               </div>
-            </div>
+            </SidebarProvider>
           </ContractProvider>
         </Suspense>
       </PermissionProvider>
