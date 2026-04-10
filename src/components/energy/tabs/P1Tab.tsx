@@ -95,10 +95,8 @@ export function P1Content({
     return hs?.nb ?? null;
   };
 
-  // Filter sites that have at least one NB value
-  const sitesWithEngagement = sites.filter((site) =>
-    contractYears.some((cy) => getNbForSiteSeason(site.id, cy.season) !== null)
-  );
+  // Show all sites — user can fill in NB values manually even without an AE import
+  const sitesWithEngagement = sites;
 
   // Calculate KPIs
   const calculateKpis = () => {
@@ -212,10 +210,10 @@ export function P1Content({
         <div>
           <h2 className="text-lg font-semibold text-primary-dark flex items-center gap-2">
             <Award className="text-amber-500" size={24} />
-            Engagement Énergétique (P1)
+            Cibles énergétiques
           </h2>
           <p className="text-sm text-text-secondary mt-1">
-            Suivi des Niveaux de Base (NB) et de l&apos;Amélioration de la Performance Énergétique (APE)
+            Niveaux de Base (NB) par site et par année — cliquez sur une cellule pour renseigner ou modifier une valeur
           </p>
         </div>
       </div>
@@ -435,12 +433,12 @@ export function P1Content({
       <div className="bg-blue-50 rounded-lg p-4 flex items-start gap-3">
         <AlertTriangle className="text-blue-500 mt-0.5 flex-shrink-0" size={18} />
         <div className="text-sm text-blue-800">
-          <p className="font-medium mb-1">Qu&apos;est-ce que le NB (Niveau de Base) ?</p>
+          <p className="font-medium mb-1">Comment renseigner les cibles ?</p>
           <p className="text-blue-700">
-            Le NB représente l&apos;engagement contractuel de consommation énergétique pour chaque site.
-            Il est exprimé en MWh PCS et diminue chaque année selon le coefficient APE (Amélioration de la Performance Énergétique)
-            défini dans le contrat P1. La consommation réelle (NC) est comparée au NB corrigé climatiquement (N&apos;B) pour
-            déterminer si les objectifs sont atteints.
+            Cliquez directement sur une cellule du tableau pour saisir le NB (Niveau de Base) d&apos;un site pour une année donnée.
+            Les valeurs peuvent être importées depuis l&apos;AE ou renseignées manuellement. Le NB est exprimé en MWh PCS et représente
+            l&apos;objectif contractuel de consommation. La consommation réelle (NC) est comparée au NB corrigé climatiquement (N&apos;B)
+            pour évaluer la performance.
           </p>
         </div>
       </div>

@@ -503,7 +503,7 @@ function EnergyPageContent() {
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
             { id: "sites" as Tab, label: "Sites", icon: Building2 },
-            { id: "p1" as Tab, label: "P1 / Engagement", icon: Target },
+            { id: "p1" as Tab, label: "Cibles énergétiques", icon: Target },
             { id: "climat" as Tab, label: "Climat & DJU", icon: Thermometer },
             { id: "ecs" as Tab, label: "ECS", icon: Droplets },
             { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
