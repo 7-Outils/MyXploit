@@ -377,8 +377,11 @@ export async function GET(request: NextRequest) {
       });
 
     // Global summary (values in kWh)
-    const totalNc = sitePerformances.reduce((sum, s) => sum + s.nc, 0);
-    const totalNbPrime = sitePerformances.reduce((sum, s) => sum + s.nbPrime, 0);
+    // Only include sites that have a N'B target for the NC/N'B comparison,
+    // otherwise sites without NB drag the totals and make the écart misleading.
+    const sitesWithTarget = sitePerformances.filter((s) => s.nbPrime > 0);
+    const totalNc = sitesWithTarget.reduce((sum, s) => sum + s.nc, 0);
+    const totalNbPrime = sitesWithTarget.reduce((sum, s) => sum + s.nbPrime, 0);
     const totalDelta = totalNc - totalNbPrime;
     const globalDeltaPercent = totalNbPrime > 0 ? (totalDelta / totalNbPrime) * 100 : 0;
 
