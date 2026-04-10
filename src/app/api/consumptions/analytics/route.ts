@@ -108,13 +108,18 @@ export async function GET(request: NextRequest) {
         .map((c) => c.siteId)
     );
 
-    // For sites with TELERELEVE: keep only TELERELEVE.
-    // For sites without: keep EXPLOITANT/MANUAL.
-    const consumptions = allConsumptions.filter((c) =>
-      sitesWithTelereleve.has(c.siteId)
-        ? c.source === "TELERELEVE"
-        : c.source !== "TELERELEVE"
-    );
+    // For sites with TELERELEVE:
+    //   - Keep TELERELEVE records (total gaz from GRDF = chauffage + ECS)
+    //   - Also keep ECS records from EXPLOITANT (needed to deduct from NC)
+    // For sites without TELERELEVE: keep EXPLOITANT/MANUAL only.
+    const consumptions = allConsumptions.filter((c) => {
+      const src = c.source as string;
+      if (sitesWithTelereleve.has(c.siteId)) {
+        // Keep GRDF data + ECS from exploitant (to deduct from NC)
+        return src === "TELERELEVE" || c.usage === "ECS";
+      }
+      return src !== "TELERELEVE";
+    });
 
     // Calculate performance metrics by site
     const siteMap = new Map<string, {
@@ -252,6 +257,24 @@ export async function GET(request: NextRequest) {
         const monthData = siteData.months.get(monthKey);
         if (monthData) monthData.djr = monthDjr;
         siteData.djrTotal += monthDjr;
+      });
+    });
+
+    // ─── Deduct ECS from NC for TELERELEVE sites ─────────────────────
+    // GRDF gives total gas (chauffage + ECS + other). For sites with
+    // telereleve, subtract the heat-based ECS (kWh) reported by the
+    // exploitant to get the true NC chauffage.
+    siteMap.forEach((siteData) => {
+      if (!sitesWithTelereleve.has(siteData.site.id)) return;
+      if (siteData.ecsHeatTotal <= 0) return;
+
+      siteData.ncTotal = Math.max(0, siteData.ncTotal - siteData.ecsHeatTotal);
+
+      // Also deduct per month
+      siteData.months.forEach((monthData) => {
+        if (monthData.ecsHeat > 0) {
+          monthData.nc = Math.max(0, monthData.nc - monthData.ecsHeat);
+        }
       });
     });
 
