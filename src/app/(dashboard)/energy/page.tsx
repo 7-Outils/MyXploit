@@ -515,17 +515,19 @@ function EnergyPageContent() {
           ))}
         </nav>
         <div className="flex items-center gap-2 pb-2">
-          <select
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-          >
-            {availableYears.map((year) => (
-              <option key={year} value={year}>
-                {isCivil ? `Année ${year}` : `Saison ${year - 1}/${year}`}
-              </option>
-            ))}
-          </select>
+          {activeTab !== "p1" && activeTab !== "telereleve" && (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+            >
+              {availableYears.map((year) => (
+                <option key={year} value={year}>
+                  {isCivil ? `Année ${year}` : `Saison ${year - 1}/${year}`}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             onClick={() => setShowDeleteModal(true)}
             className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5"
