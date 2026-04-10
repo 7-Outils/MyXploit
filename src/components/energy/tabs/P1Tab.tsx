@@ -95,44 +95,6 @@ export function P1Content({
   // Show all sites — user can fill in NB values manually even without an AE import
   const sitesWithEngagement = sites;
 
-  // Calculate KPIs
-  const calculateKpis = () => {
-    // Get year 1 NB total (reference)
-    const year1Season = contractYears[0]?.season;
-    let year1Total = 0;
-    let currentYearTotal = 0;
-    let sitesWithNb = 0;
-
-    // Find current year's season
-    const currentSeason = isCivil ? `${selectedYear}` : `${selectedYear - 1}-${selectedYear}`;
-
-    sites.forEach((site) => {
-      const year1Nb = getNbForSiteSeason(site.id, year1Season);
-      const currentNb = getNbForSiteSeason(site.id, currentSeason);
-
-      if (year1Nb) year1Total += year1Nb;
-      if (currentNb) {
-        currentYearTotal += currentNb;
-        sitesWithNb++;
-      }
-    });
-
-    // APE = (NB Année 1 - NB Année N) / NB Année 1 * 100
-    const apeProgress = year1Total > 0 ? ((year1Total - currentYearTotal) / year1Total) * 100 : 0;
-    const savings = year1Total - currentYearTotal;
-
-    return {
-      year1Total,
-      currentYearTotal,
-      apeProgress,
-      savings,
-      sitesWithNb,
-      totalSites: sites.length,
-    };
-  };
-
-  const kpis = calculateKpis();
-
   // Handle inline edit
   const startEdit = (siteId: string, year: number, season: string) => {
     const currentValue = getNbForSiteSeason(siteId, season);
@@ -338,21 +300,34 @@ export function P1Content({
                   );
                 })}
                 <td className="px-4 py-3 text-center">
-                  {kpis.apeProgress !== 0 && kpis.year1Total > 0 ? (
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${
-                        kpis.apeProgress >= 0
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {kpis.apeProgress >= 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
-                      {kpis.apeProgress >= 0 ? "-" : "+"}
-                      {Math.abs(kpis.apeProgress).toFixed(1)}%
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-xs">-</span>
-                  )}
+                  {(() => {
+                    const year1Total = sites.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, contractYears[0]?.season) || 0), 0);
+                    const lastYearWithTotal = [...contractYears].reverse().find((cy) =>
+                      sites.some((site) => getNbForSiteSeason(site.id, cy.season) !== null)
+                    );
+                    const lastTotal = lastYearWithTotal
+                      ? sites.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, lastYearWithTotal.season) || 0), 0)
+                      : 0;
+                    const evolution = year1Total > 0 && lastTotal > 0
+                      ? ((year1Total - lastTotal) / year1Total) * 100
+                      : null;
+
+                    return evolution !== null ? (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${
+                          evolution >= 0
+                            ? "bg-green-100 text-green-700"
+                            : "bg-red-100 text-red-700"
+                        }`}
+                      >
+                        {evolution >= 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
+                        {evolution >= 0 ? "-" : "+"}
+                        {Math.abs(evolution).toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">-</span>
+                    );
+                  })()}
                 </td>
               </tr>
             </tfoot>
