@@ -80,30 +80,37 @@ export async function GET(request: NextRequest) {
       heatingSeasons.map((hs) => [hs.siteId, hs])
     );
 
-    // Get consumptions for the period
-    const consumptionsWhere: Record<string, unknown> = {
+    // Get consumptions for the period.
+    // Priority: TELERELEVE > EXPLOITANT > MANUAL per site.
+    // If a site has any TELERELEVE data in the period, use only that.
+    // Otherwise fall back to EXPLOITANT/MANUAL.
+    const basePeriodWhere = {
       organizationId: effectiveOrgId,
-      period: {
-        gte: startDate,
-        lte: endDate,
-      },
+      period: { gte: startDate, lte: endDate },
+      ...(siteId ? { siteId } : contractSiteIds ? { siteId: { in: contractSiteIds } } : {}),
+      ...(energyType ? { energyType } : {}),
     };
-    if (siteId) {
-      consumptionsWhere.siteId = siteId;
-    } else if (contractSiteIds) {
-      consumptionsWhere.siteId = { in: contractSiteIds };
-    }
-    if (energyType) consumptionsWhere.energyType = energyType;
 
-    const consumptions = await prisma.consumption.findMany({
-      where: consumptionsWhere,
-      include: {
-        site: {
-          select: { id: true, name: true },
-        },
-      },
+    const allConsumptions = await prisma.consumption.findMany({
+      where: basePeriodWhere,
+      include: { site: { select: { id: true, name: true } } },
       orderBy: { period: "asc" },
     });
+
+    // Find which sites have TELERELEVE data in this period
+    const sitesWithTelereleve = new Set(
+      allConsumptions
+        .filter((c) => c.source === "TELERELEVE")
+        .map((c) => c.siteId)
+    );
+
+    // For sites with TELERELEVE: keep only TELERELEVE.
+    // For sites without: keep EXPLOITANT/MANUAL.
+    const consumptions = allConsumptions.filter((c) =>
+      sitesWithTelereleve.has(c.siteId)
+        ? c.source === "TELERELEVE"
+        : c.source !== "TELERELEVE"
+    );
 
     // Calculate performance metrics by site
     const siteMap = new Map<string, {
