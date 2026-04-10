@@ -454,10 +454,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
       {/* Single unified card containing the shared KPI strip and the two
           charts side by side. Sub-components render in noCard + hideKpis
           mode so they don't double-wrap or duplicate the KPIs. */}
-      <ChartCard
-        title="Suivi télérelevé"
-        subtitle="Données brutes du distributeur (GRDF / Enedis) et performance climatique"
-      >
+      <ChartCard>
         {/* Shared KPIs */}
         {sharedKpis && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
