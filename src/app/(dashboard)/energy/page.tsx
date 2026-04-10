@@ -12,12 +12,7 @@ import {
   Trash2,
   Target,
   Droplets,
-  Settings,
-  ChevronUp,
-  ChevronDown,
 } from "lucide-react";
-import { TelereleveCard } from "@/components/energy/TelereleveCard";
-import { DroitsAccesCard } from "@/components/energy/DroitsAccesCard";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateConsumptionModal } from "@/components/energy/modals/CreateConsumptionModal";
 import { HeatingSeasonModal } from "@/components/energy/modals/HeatingSeasonModal";
@@ -657,49 +652,14 @@ export default function EnergyPage() {
 // ============================================
 
 function TelereleveContent({ contractId, yearType }: { contractId?: string; yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL" }) {
-  // Plumbing (GRDF/Enedis configuration + droits d'accès) is collapsed by
-  // default — the chart is what users come here for. Open the section only
-  // if they need to configure something.
-  const [plumbingOpen, setPlumbingOpen] = useState(false);
-
   return (
     <div className="space-y-6">
-      {/* The data — what users actually want to see */}
       {contractId && (
         <TelereleveChartsSection
           contractId={contractId}
           yearType={yearType ?? "HEATING_SEASON"}
         />
       )}
-
-      {/* The plumbing — folded behind a disclosure */}
-      <div className="bg-white border border-gray-200 rounded-xl">
-        <button
-          onClick={() => setPlumbingOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 rounded-xl"
-        >
-          <div className="flex items-center gap-2">
-            <Settings size={16} className="text-gray-500" />
-            <span className="text-sm font-medium text-primary-dark">
-              Configuration & droits d&apos;accès
-            </span>
-            <span className="text-xs text-text-secondary">
-              GRDF, Enedis, mandats
-            </span>
-          </div>
-          {plumbingOpen ? (
-            <ChevronUp size={16} className="text-gray-500" />
-          ) : (
-            <ChevronDown size={16} className="text-gray-500" />
-          )}
-        </button>
-        {plumbingOpen && (
-          <div className="border-t border-gray-200 p-4 space-y-6">
-            <TelereleveCard contractId={contractId} />
-            <DroitsAccesCard />
-          </div>
-        )}
-      </div>
     </div>
   );
 }
