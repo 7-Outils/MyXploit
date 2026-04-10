@@ -134,7 +134,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
   const [siteFormData, setSiteFormData] = useState({
     name: "", type: "LYCEE", address: "", city: "", postalCode: "",
     surface: "", surfaceChauffee: "", energyType: "GAZ",
-    nb: "", nbUnit: "PCS", pce: "", pdl: "",
+    pce: "", pdl: "",
     contractType: "MC", hasP1: false, hasP2: false, hasP3: false, hasP4: false,
     amountP1: "", amountP2: "", amountP3: "",
   });
@@ -146,7 +146,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
   const [editSiteFormData, setEditSiteFormData] = useState({
     name: "", type: "LYCEE", address: "", city: "", postalCode: "",
     surface: "", surfaceChauffee: "", energyType: "GAZ",
-    nb: "", nbUnit: "PCS", pce: "", pdl: "",
+    pce: "", pdl: "",
   });
 
   // ContractSite edit modal
@@ -195,8 +195,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
           postalCode: siteFormData.postalCode, energyType: siteFormData.energyType,
           surface: siteFormData.surface ? parseFloat(siteFormData.surface) : null,
           surfaceChauffee: siteFormData.surfaceChauffee ? parseFloat(siteFormData.surfaceChauffee) : null,
-          nb: siteFormData.nb ? parseFloat(siteFormData.nb) : null,
-          nbUnit: siteFormData.nbUnit, pce: siteFormData.pce, pdl: siteFormData.pdl,
+          pce: siteFormData.pce, pdl: siteFormData.pdl,
         }),
       });
       if (siteResponse.ok) {
@@ -217,7 +216,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
         setSiteFormData({
           name: "", type: "LYCEE", address: "", city: "", postalCode: "",
           surface: "", surfaceChauffee: "", energyType: "GAZ",
-          nb: "", nbUnit: "PCS", pce: "", pdl: "",
+          pce: "", pdl: "",
           contractType: "MC", hasP1: false, hasP2: false, hasP3: false, hasP4: false,
           amountP1: "", amountP2: "", amountP3: "",
         });
@@ -235,8 +234,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
       name: site.name, type: site.type, address: site.address,
       city: site.city, postalCode: site.postalCode,
       surface: site.surface?.toString() || "", surfaceChauffee: site.surfaceChauffee?.toString() || "",
-      energyType: site.energyType, nb: site.nb?.toString() || "",
-      nbUnit: site.nbUnit || "PCS", pce: site.pce || "", pdl: site.pdl || "",
+      energyType: site.energyType, pce: site.pce || "", pdl: site.pdl || "",
     });
     setShowEditSiteModal(true);
   };
@@ -253,7 +251,6 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
           ...editSiteFormData,
           surface: editSiteFormData.surface ? parseFloat(editSiteFormData.surface) : null,
           surfaceChauffee: editSiteFormData.surfaceChauffee ? parseFloat(editSiteFormData.surfaceChauffee) : null,
-          nb: editSiteFormData.nb ? parseFloat(editSiteFormData.nb) : null,
         }),
       });
       if (response.ok) {
@@ -577,21 +574,8 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                 </div>
               </div>
               <div className="border-t border-gray-100 pt-4 mt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Données énergétiques (P1)</p>
+                <p className="text-sm font-medium text-primary-dark mb-3">Compteurs</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">NB - Cible énergétique (MWh)</label>
-                    <input type="number" step="0.01" value={siteFormData.nb} onChange={(e) => setSiteFormData({ ...siteFormData, nb: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="150" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">Unité NB</label>
-                    <select value={siteFormData.nbUnit} onChange={(e) => setSiteFormData({ ...siteFormData, nbUnit: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
-                      <option value="PCS">PCS (Pouvoir Calorifique Supérieur)</option>
-                      <option value="UTILE">Utile</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <label className="block text-sm font-medium text-primary-dark mb-1">PCE (compteur gaz)</label>
                     <input type="text" value={siteFormData.pce} onChange={(e) => setSiteFormData({ ...siteFormData, pce: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="GI123456" />
@@ -715,21 +699,8 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                 </div>
               </div>
               <div className="border-t border-gray-100 pt-4 mt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Données énergétiques (P1)</p>
+                <p className="text-sm font-medium text-primary-dark mb-3">Compteurs</p>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">NB - Cible énergétique (MWh)</label>
-                    <input type="number" step="0.01" value={editSiteFormData.nb} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, nb: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">Unité NB</label>
-                    <select value={editSiteFormData.nbUnit} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, nbUnit: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
-                      <option value="PCS">PCS (Pouvoir Calorifique Supérieur)</option>
-                      <option value="UTILE">Utile</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
                     <label className="block text-sm font-medium text-primary-dark mb-1">PCE (compteur gaz)</label>
                     <input type="text" value={editSiteFormData.pce} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, pce: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
