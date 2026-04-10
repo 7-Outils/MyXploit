@@ -460,10 +460,6 @@ export function TelereleveBuildingChart({
       }
     };
 
-    // Show the bottom dataZoom slider only when there are enough bars to
-    // make panning useful — on a monthly view of 1 quarter (~3 bars) it's
-    // just visual noise.
-    const showDataZoomSlider = buckets.length > 12;
     const seriesLabel = "NC";
     const showTarget =
       frequency === "month" &&
@@ -488,13 +484,10 @@ export function TelereleveBuildingChart({
     const legendData = showTarget ? [seriesLabel, "N'B"] : [seriesLabel];
 
     return {
-      // Bigger bottom padding so the X axis labels and the legend stop
-      // overlapping. The legend sits 8px from the bottom, the X axis labels
-      // get the rest of the space.
-      grid: { left: 64, right: 24, top: 32, bottom: showDataZoomSlider ? 88 : 64 },
+      grid: { left: 64, right: 24, top: 48, bottom: 48 },
       legend: {
         data: legendData,
-        bottom: showDataZoomSlider ? 56 : 8,
+        top: 4,
         left: "center",
         icon: "circle",
         textStyle: { color: "#374151", fontSize: 11 },
@@ -572,23 +565,7 @@ export function TelereleveBuildingChart({
           },
         },
       },
-      dataZoom: showDataZoomSlider
-        ? [
-            { type: "inside", start: 0, end: 100 },
-            {
-              type: "slider",
-              height: 24,
-              bottom: 8,
-              borderColor: "transparent",
-              backgroundColor: "#f3f4f6",
-              fillerColor: "rgba(59,130,246,0.15)",
-              handleStyle: { color: "#3b82f6" },
-              textStyle: { color: "#6b7280", fontSize: 10 },
-              start: 0,
-              end: 100,
-            },
-          ]
-        : [{ type: "inside", start: 0, end: 100 }],
+      dataZoom: [{ type: "inside", start: 0, end: 100 }],
       series: [
         {
           name: seriesLabel,
