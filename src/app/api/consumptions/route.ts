@@ -13,6 +13,13 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = { organizationId: effectiveOrgId };
 
+    // Filter by source (e.g. source=EXPLOITANT,MANUAL)
+    const sourceParam = searchParams.get("source");
+    if (sourceParam) {
+      const sources = sourceParam.split(",").map((s) => s.trim());
+      where.source = sources.length === 1 ? sources[0] : { in: sources };
+    }
+
     if (siteId) {
       where.siteId = siteId;
     } else if (contractId) {

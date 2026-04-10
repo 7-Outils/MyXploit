@@ -197,7 +197,7 @@ function EnergyPageContent() {
 
       const [analyticsRes, consumptionsRes, alertsRes, djuRes] = await Promise.all([
         fetch(`/api/consumptions/analytics?${params}`),
-        fetch(`/api/consumptions?contractId=${selectedContract.id}`),
+        fetch(`/api/consumptions?contractId=${selectedContract.id}&source=EXPLOITANT,MANUAL`),
         fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
         fetch(`/api/dju?contractId=${selectedContract.id}&year=${selectedYear}&yearType=${yearType}`),
       ]);
