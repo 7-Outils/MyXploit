@@ -475,7 +475,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
               tooltip="Cible théorique ajustée à la météo réelle. Formule : NB × (DJR / DJC) où DJR = degrés-jours réels et DJC = degrés-jours contractuels."
             />
             <SharedKpi
-              label="Écart NC vs N'B"
+              label="Écart NC/N'B"
               value={
                 sharedKpis.climateDeltaPct === null
                   ? "—"
@@ -484,7 +484,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
               subtle={
                 sharedKpis.climateDelta === null
                   ? undefined
-                  : `${sharedKpis.climateDelta >= 0 ? "+" : "−"}${formatKwh(Math.abs(sharedKpis.climateDelta))}`
+                  : `${sharedKpis.climateDelta >= 0 ? "↗" : "↘"} ${sharedKpis.climateDelta >= 0 ? "+" : "−"}${formatKwh(Math.abs(sharedKpis.climateDelta))} ${sharedKpis.climateDelta >= 0 ? "surconsommés" : "économisés"}`
               }
               tone={
                 sharedKpis.climateDeltaPct === null
