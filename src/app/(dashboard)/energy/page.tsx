@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useContract } from "@/contexts/ContractContext";
 import {
   BarChart3,
@@ -43,7 +43,6 @@ import type {
 
 
 function EnergyPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as Tab) || "synthese";
 
@@ -133,15 +132,12 @@ function EnergyPageContent() {
   });
 
 
-  // Tab change handler
+  // Tab change handler — update state + URL without triggering a navigation
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(window.location.search);
     params.set("tab", tab);
-    if (selectedContract) {
-      params.set("contractId", selectedContract.id);
-    }
-    router.push(`/energy?${params.toString()}`, { scroll: false });
+    window.history.replaceState(null, "", `/energy?${params.toString()}`);
   };
 
 
