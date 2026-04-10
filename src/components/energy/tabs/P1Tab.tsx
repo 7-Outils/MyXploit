@@ -283,7 +283,7 @@ export function P1Content({
                   TOTAL
                 </td>
                 {contractYears.map((cy) => {
-                  const total = sites.reduce((sum, site) => {
+                  const total = sitesWithEngagement.reduce((sum, site) => {
                     const nb = getNbForSiteSeason(site.id, cy.season);
                     return sum + (nb || 0);
                   }, 0);
@@ -302,12 +302,12 @@ export function P1Content({
                 })}
                 <td className="px-4 py-3 text-center">
                   {(() => {
-                    const year1Total = sites.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, contractYears[0]?.season) || 0), 0);
+                    const year1Total = sitesWithEngagement.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, contractYears[0]?.season) || 0), 0);
                     const lastYearWithTotal = [...contractYears].reverse().find((cy) =>
-                      sites.some((site) => getNbForSiteSeason(site.id, cy.season) !== null)
+                      sitesWithEngagement.some((site) => getNbForSiteSeason(site.id, cy.season) !== null)
                     );
                     const lastTotal = lastYearWithTotal
-                      ? sites.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, lastYearWithTotal.season) || 0), 0)
+                      ? sitesWithEngagement.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, lastYearWithTotal.season) || 0), 0)
                       : 0;
                     const evolution = year1Total > 0 && lastTotal > 0
                       ? ((year1Total - lastTotal) / year1Total) * 100
