@@ -179,10 +179,10 @@ export function ClimateCorrectedChart({
   // ─── Chart ─────────────────────────────────────────────────────────
 
   const chartOption = {
-    grid: { left: 60, right: 24, top: 32, bottom: 64 },
+    grid: { left: 60, right: 24, top: 48, bottom: 48 },
     legend: {
       data: ["kWh/DJU"],
-      bottom: 8,
+      top: 4,
       left: "center",
       icon: "circle",
       textStyle: { color: "#374151", fontSize: 11 },
@@ -202,7 +202,7 @@ export function ClimateCorrectedChart({
           <div style="font-size:11px;line-height:1.5">
             Conso : <strong>${Math.round(p.nc).toLocaleString("fr-FR")} kWh</strong><br/>
             DJU : <strong>${Math.round(p.djr).toLocaleString("fr-FR")}</strong><br/>
-            <span style="color:#fbbf24">Ratio : <strong>${p.ratio.toFixed(1)} kWh/DJU</strong></span>
+            <span style="color:#818cf8">Ratio : <strong>${p.ratio.toFixed(1)} kWh/DJU</strong></span>
           </div>
         `;
       },
@@ -233,12 +233,12 @@ export function ClimateCorrectedChart({
         name: "kWh/DJU",
         type: "line",
         data: ratioPoints.map((p) => Math.round(p.ratio * 10) / 10),
-        lineStyle: { color: "#fbbf24", width: 2.5 },
-        itemStyle: { color: "#fbbf24" },
+        lineStyle: { color: "#6366f1", width: 2.5 },
+        itemStyle: { color: "#6366f1" },
         symbol: "circle",
         symbolSize: 7,
         smooth: true,
-        areaStyle: { color: "rgba(251, 191, 36, 0.12)" },
+        areaStyle: { color: "rgba(99, 102, 241, 0.08)" },
       },
     ],
   };
