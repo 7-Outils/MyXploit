@@ -111,7 +111,7 @@ export function SyntheseContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {analytics.sites.map((site) => (
+                {analytics.sites.filter((site) => site.nb != null).map((site) => (
                   <tr key={site.siteId} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">

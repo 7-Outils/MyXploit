@@ -281,6 +281,8 @@ export async function GET(request: NextRequest) {
         const today = new Date();
         if (djuEnd > today) djuEnd = today;
 
+        console.log(`[DJU] site=${site.name} hs.startDate=${hs?.startDate} djuStart=${toIso(djuStart)} djuEnd=${toIso(djuEnd)}`);
+
         const monthlyDju = await getMonthlyDjuForStation(
           site.stationMeteo,
           site.postalCode,
