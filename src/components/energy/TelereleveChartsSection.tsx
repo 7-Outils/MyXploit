@@ -13,7 +13,7 @@ import {
   type Frequency,
   type SiteSummary,
 } from "@/components/energy/TelereleveBuildingChart";
-import { DivergenceChart } from "@/components/energy/DivergenceChart";
+
 
 function formatKwh(value: number): string {
   if (value >= 5000) {
@@ -437,16 +437,6 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
         />
       </ChartCard>
 
-      {/* Divergence: exploitant vs télérelève */}
-      {selectedSiteId && (
-        <ChartCard title="Écart exploitant vs télérelève" subtitle="Comparaison des relevés manuels exploitant avec les données GRDF">
-          <DivergenceChart
-            siteId={selectedSiteId}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-          />
-        </ChartCard>
-      )}
     </div>
   );
 }
