@@ -70,7 +70,7 @@ export async function DELETE(
 
     // Delete the associated Consumption record if it exists
     if (reading.periodStart) {
-      const fluidMap: Record<string, { energyType: string; usage: string }> = {
+      const fluidMap: Record<string, { energyType: "GAZ" | "ELECTRICITE" | "EAU" | "RESEAU_CHALEUR" | "FIOUL"; usage: "CHAUFFAGE" | "ECS" }> = {
         GAZ: { energyType: "GAZ", usage: "CHAUFFAGE" },
         ELECTRICITE: { energyType: "ELECTRICITE", usage: "CHAUFFAGE" },
         EAU_CHAUDE: { energyType: "GAZ", usage: "ECS" },
