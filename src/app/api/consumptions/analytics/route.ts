@@ -241,47 +241,43 @@ export async function GET(request: NextRequest) {
     });
 
     // ─── Fetch fresh DJU from weather API ──────────────────────────────
-    // For each site, use the heating season dates (allumage → arrêt) to
-    // determine the DJU period. If no endDate, use today or last consumption date.
+    // DJR = DJU between allumage and arrêt (or today if saison en cours)
+    // Dates come from HeatingSeason (Exploitation → Saisons de chauffe)
     const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    // Fetch ALL heating seasons for this contract (not just the ones matching the season key)
+    // to find startDate/endDate which may be on a different record
+    const allHeatingSeasons = await prisma.heatingSeason.findMany({
+      where: {
+        siteId: { in: sites.map((s) => s.id) },
+        startDate: { not: null },
+      },
+      orderBy: { startDate: "desc" },
+    });
+
+    // For each site, find the most recent startDate
+    const heatingDatesBySite = new Map<string, { start: Date; end: Date | null }>();
+    for (const hs of allHeatingSeasons) {
+      if (!heatingDatesBySite.has(hs.siteId) && hs.startDate) {
+        heatingDatesBySite.set(hs.siteId, {
+          start: hs.startDate,
+          end: hs.endDate,
+        });
+      }
+    }
 
     const djuBySite = new Map<string, Map<string, number>>();
     await Promise.all(
       sites.map(async (site) => {
-        const hs = heatingSeasonMap.get(site.id);
-
-        // Determine DJU period based on heating season dates
-        let djuStart: Date;
-        let djuEnd: Date;
-
-        if (hs?.startDate) {
-          djuStart = new Date(hs.startDate);
-          if (hs.endDate) {
-            // Saison terminée: allumage → arrêt
-            djuEnd = new Date(hs.endDate);
-          } else {
-            // Saison en cours: allumage → last consumption date or today
-            const siteData = siteMap.get(site.id);
-            const monthKeys = siteData ? Array.from(siteData.months.keys()).sort() : [];
-            const lastMonth = monthKeys[monthKeys.length - 1];
-            if (lastMonth) {
-              const [y, m] = lastMonth.split("-").map(Number);
-              djuEnd = new Date(y, m, 0); // Last day of the month
-            } else {
-              djuEnd = new Date(); // Today
-            }
-          }
-        } else {
-          // No heating season dates: fallback to the query period
-          djuStart = startDate;
-          djuEnd = endDate;
+        const dates = heatingDatesBySite.get(site.id);
+        if (!dates) {
+          // No allumage date → no DJR
+          djuBySite.set(site.id, new Map());
+          return;
         }
 
-        // Cap end date to today — weather APIs don't have future data
-        const today = new Date();
-        if (djuEnd > today) djuEnd = today;
-
-        console.log(`[DJU] site=${site.name} hs.startDate=${hs?.startDate} djuStart=${toIso(djuStart)} djuEnd=${toIso(djuEnd)}`);
+        const djuStart = dates.start;
+        const djuEnd = dates.end || new Date(); // arrêt or today
 
         const monthlyDju = await getMonthlyDjuForStation(
           site.stationMeteo,
