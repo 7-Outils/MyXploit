@@ -92,21 +92,21 @@ export function ClimateCorrectedChart({
     const useDaily = frequency === "day" && dailyData && dailyData.length > 0;
     if (useDaily) {
       return dailyData!
-        .filter((d) => d.djr > 0)
+        .filter((d) => d.nc > 0 || d.djr > 0)
         .map((d) => ({
           key: d.date,
           label: dailyLabel(d.date),
-          ratio: d.nc / d.djr,
+          ratio: d.djr > 0 ? d.nc / d.djr : 0,
           nc: d.nc,
           djr: d.djr,
         }));
     }
     return monthlyData
-      .filter((m) => m.djr > 0)
+      .filter((m) => m.nc > 0 || m.djr > 0)
       .map((m) => ({
         key: m.month,
         label: monthLabel(m.month),
-        ratio: m.nc / m.djr,
+        ratio: m.djr > 0 ? m.nc / m.djr : 0,
         nc: m.nc,
         djr: m.djr,
       }));
