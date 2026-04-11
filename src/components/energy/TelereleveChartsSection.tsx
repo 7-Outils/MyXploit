@@ -371,12 +371,6 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
   return (
     <div className="space-y-6">
       <ChartCard
-        title={sharedKpis ? `Consommation GRDF — ${formatKwh(sharedKpis.totalNc)}` : "Consommation GRDF"}
-        subtitle={
-          sharedKpis?.ncDeltaPct != null
-            ? `${sharedKpis.ncDeltaPct > 0 ? "+" : ""}${sharedKpis.ncDeltaPct.toFixed(1)}% vs N-1`
-            : undefined
-        }
         action={
           <div className="flex items-center gap-1.5 flex-wrap">
             <select
@@ -427,7 +421,14 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* GRDF (Gaz) */}
           <div className="min-w-0">
-            <p className="text-xs font-medium text-text-secondary mb-2">Gaz (GRDF)</p>
+            <p className="text-xs font-medium text-text-secondary mb-2">
+              Gaz (GRDF){sharedKpis ? ` — ${formatKwh(sharedKpis.totalNc)}` : ""}
+              {sharedKpis?.ncDeltaPct != null && (
+                <span className={`ml-1 ${sharedKpis.ncDeltaPct > 0 ? "text-red-500" : "text-green-600"}`}>
+                  ({sharedKpis.ncDeltaPct > 0 ? "+" : ""}{sharedKpis.ncDeltaPct.toFixed(1)}%)
+                </span>
+              )}
+            </p>
             <TelereleveBuildingChart
               sites={sites}
               selectedSiteId={selectedSiteId}
