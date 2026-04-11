@@ -491,7 +491,7 @@ function EnergyPageContent() {
         />
       )}
 
-      {!loading && activeTab === "sites" && (
+      {activeTab === "sites" && (
         <SitesContent
           contractId={selectedContract?.id || null}
           setShowIdexImportModal={setShowIdexImportModal}
@@ -519,7 +519,7 @@ function EnergyPageContent() {
         />
       )}
 
-      {!loading && activeTab === "telereleve" && (
+      {activeTab === "telereleve" && (
         <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
       )}
 
