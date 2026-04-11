@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Fetch heating seasons for this year to get season-specific NB
-    const season = `${year - 1}-${year}`;
+    const season = yearType === "CIVIL" ? `${year}` : `${year - 1}-${year}`;
     const heatingSeasons = await prisma.heatingSeason.findMany({
       where: {
         siteId: { in: sites.map((s) => s.id) },
