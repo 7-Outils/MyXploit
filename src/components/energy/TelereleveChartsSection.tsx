@@ -516,7 +516,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
                   ? "Hiver plus doux"
                   : "Hiver plus rigoureux"
               }
-              tooltip="Somme des degrés-jours unifiés (base 18°C) sur la période. Le DJU mesure la rigueur du climat — plus il fait froid, plus le DJU est élevé."
+              tooltip="Somme des degrés-jours unifiés (base 18°C) sur la période."
             />
           </div>
         )}
