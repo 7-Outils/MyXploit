@@ -277,6 +277,10 @@ export async function GET(request: NextRequest) {
           djuEnd = endDate;
         }
 
+        // Cap end date to today — weather APIs don't have future data
+        const today = new Date();
+        if (djuEnd > today) djuEnd = today;
+
         const monthlyDju = await getMonthlyDjuForStation(
           site.stationMeteo,
           site.postalCode,
