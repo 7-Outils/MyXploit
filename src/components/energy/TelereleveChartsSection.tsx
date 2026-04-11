@@ -398,6 +398,9 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
                 return <option key={f} value={f} disabled={disabled}>{FREQUENCY_LABELS[f]}</option>;
               })}
             </select>
+            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
+            <span className="text-[10px] text-gray-400">→</span>
+            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
             <select
               value={activePresetId || "custom"}
               onChange={(e) => {
