@@ -491,32 +491,13 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
       <ChartCard>
         {/* Shared KPIs */}
         {sharedKpis && (
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="mb-6">
             <SharedKpi
               label="Consommation GRDF"
               value={formatKwh(sharedKpis.totalNc)}
               deltaPct={sharedKpis.ncDeltaPct}
               deltaAbs={sharedKpis.ncDeltaAbs}
               deltaUnit="kWh"
-            />
-            <SharedKpi
-              label="Rigueur climatique"
-              value={
-                sharedKpis.totalDjr > 0
-                  ? `${Math.round(sharedKpis.totalDjr).toLocaleString("fr-FR")} DJU`
-                  : "—"
-              }
-              deltaPct={sharedKpis.djrDeltaPct}
-              deltaAbs={sharedKpis.djrDeltaAbs}
-              deltaUnit="DJU"
-              deltaContextLabel={
-                sharedKpis.djrDeltaPct === null || sharedKpis.djrDeltaPct === undefined
-                  ? undefined
-                  : sharedKpis.djrDeltaPct < 0
-                  ? "Hiver plus doux"
-                  : "Hiver plus rigoureux"
-              }
-              tooltip="Somme des degrés-jours unifiés (base 18°C) sur la période."
             />
           </div>
         )}
