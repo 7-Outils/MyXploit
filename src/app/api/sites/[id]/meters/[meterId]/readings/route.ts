@@ -128,14 +128,39 @@ export async function POST(
       unitConverted = meter.conversionUnit;
     }
 
+    const readingDate = new Date(body.readingDate);
+    const indexValue = body.indexValue ? parseFloat(body.indexValue) : null;
+
+    // Calculate consumption from index difference (index N - index N-1)
+    let consumption = body.consumption ? parseFloat(body.consumption) : null;
+    let periodStart: Date | null = body.periodStart ? new Date(body.periodStart) : null;
+
+    if (indexValue !== null && consumption === null) {
+      const previousReading = await prisma.meterReading.findFirst({
+        where: { meterId, readingDate: { lt: readingDate }, indexValue: { not: null } },
+        orderBy: { readingDate: "desc" },
+      });
+
+      if (previousReading?.indexValue !== null && previousReading?.indexValue !== undefined) {
+        consumption = indexValue - previousReading.indexValue;
+        periodStart = previousReading.readingDate;
+      }
+    }
+
+    // Recalculate conversion with computed consumption
+    if (consumption !== null && meter.conversionCoefficient) {
+      consumptionConverted = consumption * meter.conversionCoefficient;
+      unitConverted = meter.conversionUnit;
+    }
+
     const reading = await prisma.meterReading.create({
       data: {
         meterId,
-        readingDate: new Date(body.readingDate),
-        periodStart: body.periodStart ? new Date(body.periodStart) : null,
-        periodEnd: body.periodEnd ? new Date(body.periodEnd) : null,
-        indexValue: body.indexValue ? parseFloat(body.indexValue) : null,
-        consumption: body.consumption ? parseFloat(body.consumption) : null,
+        readingDate,
+        periodStart,
+        periodEnd: body.periodEnd ? new Date(body.periodEnd) : readingDate,
+        indexValue,
+        consumption,
         unit: body.unit || meter.unit,
         consumptionConverted,
         unitConverted,
@@ -144,6 +169,58 @@ export async function POST(
         notes: body.notes || null,
       },
     });
+
+    // Sync to Consumption table so analytics/ECS/Relevés tabs see the data
+    if (consumption !== null && consumption > 0 && periodStart) {
+      // Map meter fluid to energyType + usage
+      const fluidMap: Record<string, { energyType: string; usage: string }> = {
+        GAZ: { energyType: "GAZ", usage: "CHAUFFAGE" },
+        ELECTRICITE: { energyType: "ELECTRICITE", usage: "CHAUFFAGE" },
+        EAU_CHAUDE: { energyType: "GAZ", usage: "ECS" },
+        EAU_FROIDE: { energyType: "EAU", usage: "ECS" },
+        CHALEUR: { energyType: "RESEAU_CHALEUR", usage: "CHAUFFAGE" },
+        FIOUL: { energyType: "FIOUL", usage: "CHAUFFAGE" },
+      };
+
+      const mapping = fluidMap[meter.fluid] || { energyType: "GAZ", usage: "CHAUFFAGE" };
+
+      // Use the converted value (kWh/MWh) if available, otherwise raw
+      const qty = consumptionConverted ?? consumption;
+      const qtyUnit = unitConverted ?? meter.unit;
+
+      // Period = first day of the month of periodStart
+      const period = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
+
+      await prisma.consumption.upsert({
+        where: {
+          siteId_energyType_usage_period_source: {
+            siteId,
+            energyType: mapping.energyType,
+            usage: mapping.usage,
+            period,
+            source: "EXPLOITANT",
+          },
+        },
+        update: {
+          quantity: qty,
+          unit: qtyUnit,
+          periodEnd: readingDate,
+          meterName: meter.name,
+        },
+        create: {
+          siteId,
+          organizationId: site.organizationId,
+          energyType: mapping.energyType,
+          usage: mapping.usage,
+          source: "EXPLOITANT",
+          period,
+          periodEnd: readingDate,
+          quantity: qty,
+          unit: qtyUnit,
+          meterName: meter.name,
+        },
+      });
+    }
 
     return NextResponse.json(reading, { status: 201 });
   } catch (error) {
