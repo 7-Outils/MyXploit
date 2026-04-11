@@ -460,18 +460,21 @@ export function TelereleveBuildingChart({
       }
     };
 
-    const seriesLabel = "NC";
     const showTarget =
       frequency === "month" &&
       !!monthlyData &&
       monthlyData.some((m) => m.nbPrime > 0);
 
-    // For each bucket (which is a month at frequency=month), look up the
-    // matching N'B from monthlyData by YYYY-MM key.
+    // Build month lookup maps from analytics monthlyData
     const targetByMonth = new Map<string, number>();
-    if (showTarget && monthlyData) {
-      for (const m of monthlyData) targetByMonth.set(m.month, m.nbPrime);
+    const ncByMonth = new Map<string, number>();
+    if (frequency === "month" && monthlyData) {
+      for (const m of monthlyData) {
+        targetByMonth.set(m.month, m.nbPrime);
+        ncByMonth.set(m.month, m.nc);
+      }
     }
+
     const targetValues = showTarget
       ? buckets.map((b) => {
           const d = new Date(b.date);
@@ -481,7 +484,32 @@ export function TelereleveBuildingChart({
         })
       : [];
 
-    const legendData = showTarget ? [seriesLabel, "N'B"] : [seriesLabel];
+    // NC (chauffage pur = GRDF total - ECS) — only show when there's a
+    // difference between total GRDF and the analytics NC (i.e. ECS was deducted)
+    const showNc =
+      frequency === "month" &&
+      ncByMonth.size > 0 &&
+      buckets.some((b) => {
+        const d = new Date(b.date);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const nc = ncByMonth.get(key);
+        return nc !== undefined && Math.abs(b.total - nc) > 1;
+      });
+
+    const ncValues = showNc
+      ? buckets.map((b) => {
+          const d = new Date(b.date);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const nc = ncByMonth.get(key) ?? b.total;
+          return toDisplay(nc);
+        })
+      : [];
+
+    const legendData = [
+      ...(showNc ? ["Total gaz", "NC"] : ["NC"]),
+      ...(showTarget ? ["N'B"] : []),
+    ];
+    const seriesLabel = showNc ? "Total gaz" : "NC";
 
     return {
       grid: { left: 64, right: 24, top: 48, bottom: 48 },
@@ -502,16 +530,33 @@ export function TelereleveBuildingChart({
           if (!params || params.length === 0) return "";
           const idx = params[0].dataIndex;
           const originalKwh = buckets[idx]?.total ?? 0;
-          let html = `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>
+          const d = new Date(buckets[idx]?.date || "");
+          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const ncKwh = ncByMonth.get(monthKey);
+
+          let html = `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>`;
+          if (showNc && ncKwh !== undefined) {
+            html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d1d5db"></span>
+              Total gaz :&nbsp;<strong>${formatKwh(originalKwh)}</strong>
+            </div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
+              NC (chauffage) :&nbsp;<strong>${formatKwh(ncKwh)}</strong>
+            </div>
+            <div style="font-size:11px;color:#9ca3af">
+              ECS déduite : ${formatKwh(originalKwh - ncKwh)}
+            </div>`;
+          } else {
+            html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
               NC :&nbsp;<strong>${formatKwh(originalKwh)}</strong>
             </div>`;
+          }
           if (showTarget) {
-            const d = new Date(buckets[idx]?.date || "");
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            const nb = targetByMonth.get(key) ?? 0;
-            const delta = originalKwh - nb;
+            const nb = targetByMonth.get(monthKey) ?? 0;
+            const ncForDelta = ncKwh ?? originalKwh;
+            const delta = ncForDelta - nb;
             const deltaPct = nb > 0 ? (delta / nb) * 100 : null;
             const deltaColor =
               deltaPct === null
@@ -572,14 +617,28 @@ export function TelereleveBuildingChart({
           type: "bar",
           data: values,
           itemStyle: {
-            color: chartColor,
+            color: showNc ? "#d1d5db" : chartColor,
             borderRadius: [2, 2, 0, 0],
           },
           emphasis: {
-            itemStyle: { color: chartColor, opacity: 1 },
+            itemStyle: { color: showNc ? "#d1d5db" : chartColor, opacity: 1 },
           },
           barMaxWidth: 24,
         },
+        ...(showNc
+          ? [
+              {
+                name: "NC",
+                type: "bar" as const,
+                data: ncValues,
+                itemStyle: {
+                  color: chartColor,
+                  borderRadius: [2, 2, 0, 0] as [number, number, number, number],
+                },
+                barMaxWidth: 24,
+              },
+            ]
+          : []),
         ...(showTarget
           ? [
               {
