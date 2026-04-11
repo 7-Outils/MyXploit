@@ -460,45 +460,13 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
       <ChartCard>
         {/* Shared KPIs */}
         {sharedKpis && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-6">
             <SharedKpi
-              label="NC totale"
+              label="Consommation GRDF"
               value={formatKwh(sharedKpis.totalNc)}
               deltaPct={sharedKpis.ncDeltaPct}
               deltaAbs={sharedKpis.ncDeltaAbs}
               deltaUnit="kWh"
-            />
-            <SharedKpi
-              label="N'B"
-              value={
-                sharedKpis.totalNbPrime > 0
-                  ? formatKwh(sharedKpis.totalNbPrime)
-                  : "—"
-              }
-              tooltip="Cible théorique ajustée à la météo réelle. Formule : NB × (DJR / DJC) où DJR = degrés-jours réels et DJC = degrés-jours contractuels."
-            />
-            <SharedKpi
-              label="Écart NC/N'B"
-              value={
-                sharedKpis.climateDeltaPct === null
-                  ? "—"
-                  : `${sharedKpis.climateDeltaPct > 0 ? "+" : ""}${sharedKpis.climateDeltaPct.toFixed(1)}%`
-              }
-              subtle={
-                sharedKpis.climateDelta === null
-                  ? undefined
-                  : `${sharedKpis.climateDelta >= 0 ? "↗" : "↘"} ${sharedKpis.climateDelta >= 0 ? "+" : "−"}${formatKwh(Math.abs(sharedKpis.climateDelta))} ${sharedKpis.climateDelta >= 0 ? "surconsommés" : "économisés"}`
-              }
-              tone={
-                sharedKpis.climateDeltaPct === null
-                  ? "neutral"
-                  : sharedKpis.climateDeltaPct > 5
-                  ? "danger"
-                  : sharedKpis.climateDeltaPct < -5
-                  ? "success"
-                  : "neutral"
-              }
-              tooltip="Écart entre la consommation réelle et la cible climatique. Positif (rouge) = dépassement, négatif (vert) = économie. Seuil de tolérance ±5%."
             />
             <SharedKpi
               label="Rigueur climatique"
