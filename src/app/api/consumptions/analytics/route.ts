@@ -28,9 +28,16 @@ export async function GET(request: NextRequest) {
       ? new Date(year, 11, 31)     // 31/12/YYYY
       : new Date(year, 5, 30);     // 30/06/YYYY
 
-    // Get contract site IDs if contractId is provided
+    // Get contract info (including DJC) and site IDs if contractId is provided
     let contractSiteIds: string[] | null = null;
+    let contractDjc: number | null = null;
     if (contractId) {
+      const contract = await prisma.contract.findUnique({
+        where: { id: contractId },
+        select: { djuContractuel: true },
+      });
+      contractDjc = contract?.djuContractuel ?? null;
+
       const contractSites = await prisma.contractSite.findMany({
         where: { contractId },
         select: { siteId: true },
@@ -317,12 +324,8 @@ export async function GET(request: NextRequest) {
       // NB comes exclusively from the heating season (Cibles énergétiques)
       const heatingSeason = heatingSeasonMap.get(site.id);
       const nb = heatingSeason?.nb ?? null;
-      // For djuContractuel, use the same priority chain as NB but with an
-      // additional fallback to the trentenaire of the site's stationMeteo
-      // (or the postalCode-derived station). The user no longer has to
-      // manually fill djuContractuel — we infer it from COSTIC averages
-      // when missing. See resolveDjuContractuel() in src/lib/dju-sync.ts.
-      const explicitDjuc = heatingSeason?.djuContractuel ?? site.djuContractuel;
+      // DJC priority: contract → heating season → site → trentenaire COSTIC
+      const explicitDjuc = contractDjc ?? heatingSeason?.djuContractuel ?? site.djuContractuel;
       const djuContractuel = resolveDjuContractuel(
         explicitDjuc,
         site.stationMeteo,

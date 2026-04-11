@@ -1145,6 +1145,8 @@ model Contract {
   yearType         ContractYearType @default(HEATING_SEASON)
   yearStartMonth   Int              @default(7) // Mois de début (1-12), 7 = juillet
   yearStartDay     Int              @default(1) // Jour de début (1-31)
+  // DJU contractuels (paramètre global du contrat, importé depuis l'AE)
+  djuContractuel   Float?
   // Fréquence de facturation
   billingFrequency BillingFrequency @default(TRIMESTRIEL)
   organizationId   String
