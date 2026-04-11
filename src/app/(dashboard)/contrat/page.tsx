@@ -1,18 +1,20 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { Loader2, Target } from "lucide-react";
+import { Loader2, Settings, Target } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
 import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
+import { ParamsContent } from "@/components/contrat/tabs/ParamsTab";
 import type { Site } from "@/components/energy/types";
 
-type ContratTab = "cibles";
+type ContratTab = "cibles" | "params";
 
 function ContratPageContent() {
   const { selectedContract, isLoading } = useContract();
   const [activeTab, setActiveTab] = useState<ContratTab>("cibles");
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
+  const [contractDetail, setContractDetail] = useState<{ djuContractuel: number | null } | null>(null);
 
   const fetchSites = useCallback(async () => {
     if (!selectedContract) return;
@@ -28,7 +30,20 @@ function ContratPageContent() {
     }
   }, [selectedContract]);
 
-  useEffect(() => { fetchSites(); }, [fetchSites]);
+  const fetchContractDetail = useCallback(async () => {
+    if (!selectedContract) return;
+    try {
+      const res = await fetch(`/api/contracts/${selectedContract.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setContractDetail({ djuContractuel: data.djuContractuel ?? null });
+      }
+    } catch {
+      setContractDetail(null);
+    }
+  }, [selectedContract]);
+
+  useEffect(() => { fetchSites(); fetchContractDetail(); }, [fetchSites, fetchContractDetail]);
 
   if (isLoading) {
     return (
@@ -53,6 +68,7 @@ function ContratPageContent() {
         <nav className="flex gap-8">
           {[
             { id: "cibles" as ContratTab, label: "Cibles énergétiques", icon: Target },
+            { id: "params" as ContratTab, label: "Paramètres", icon: Settings },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -76,14 +92,23 @@ function ContratPageContent() {
           <Loader2 className="w-8 h-8 animate-spin text-accent" />
         </div>
       ) : (
-        activeTab === "cibles" && (
-          <CiblesContent
-            contract={selectedContract}
-            selectedYear={new Date().getFullYear()}
-            sites={sites}
-            onNbUpdate={fetchSites}
-          />
-        )
+        <>
+          {activeTab === "cibles" && (
+            <CiblesContent
+              contract={selectedContract}
+              selectedYear={new Date().getFullYear()}
+              sites={sites}
+              onNbUpdate={fetchSites}
+            />
+          )}
+          {activeTab === "params" && (
+            <ParamsContent
+              contractId={selectedContract.id}
+              djuContractuel={contractDetail?.djuContractuel ?? null}
+              onUpdated={fetchContractDetail}
+            />
+          )}
+        </>
       )}
     </div>
   );
