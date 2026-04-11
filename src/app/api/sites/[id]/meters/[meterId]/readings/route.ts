@@ -185,9 +185,13 @@ export async function POST(
 
       const mapping = fluidMap[meter.fluid] || { energyType: "GAZ" as EnergyType, usage: "CHAUFFAGE" as EnergyUsage };
 
-      // Use the converted value (kWh/MWh) if available, otherwise raw
-      const qty = consumptionConverted ?? consumption;
-      const qtyUnit = unitConverted ?? meter.unit;
+      // Normalize to kWh for consistency with analytics
+      let qty = consumptionConverted ?? consumption;
+      let qtyUnit = unitConverted ?? meter.unit;
+      if (qtyUnit === "MWh" && qty !== null) {
+        qty = qty * 1000;
+        qtyUnit = "kWh";
+      }
 
       // Period = first day of the month of periodStart
       const period = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
