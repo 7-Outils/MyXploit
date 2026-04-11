@@ -411,8 +411,8 @@ export async function GET(request: NextRequest) {
           city: site.city,
           energyType: site.energyType,
           dataSource: sitesWithTelereleve.has(site.id) ? "TELERELEVE" as const : "MANUAL" as const,
-          nb: site.nb,
-          nbUnit: site.nbUnit,
+          nb: heatingSeason?.nb ?? null,
+          nbUnit: heatingSeason?.nbUnit ?? site.nbUnit,
           // Expose the *resolved* djuContractuel so the frontend doesn't
           // think it's missing — the resolver auto-fills from the COSTIC
           // trentenaire of the station when no explicit value is set.
