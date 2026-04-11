@@ -124,15 +124,14 @@ export function CiblesContent({
           body: JSON.stringify({ nb: nbValue }),
         });
       } else if (nbValue !== null) {
-        // Create new
-        const [startYear] = season.split("-").map(Number);
+        // Create new — no startDate, that's set in Exploitation > Saisons de chauffe
+        // POST requires startDate, so we need to make it optional first
         await fetch("/api/heating-seasons", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             siteId,
             season,
-            startDate: new Date(startYear, 6, 1).toISOString(), // July 1st
             nb: nbValue,
             nbUnit: "PCS",
           }),

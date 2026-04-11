@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
 
     const { siteId, season, startDate, endDate, startIndex, startIndexUnit, endIndex, notes, nb, nbUnit, djuContractuel } = body;
 
-    if (!siteId || !season || !startDate) {
+    if (!siteId || !season) {
       return NextResponse.json(
-        { error: "siteId, season et startDate sont requis" },
+        { error: "siteId et season sont requis" },
         { status: 400 }
       );
     }
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       data: {
         siteId,
         season,
-        startDate: new Date(startDate),
+        startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         startIndex: startIndex ? parseFloat(startIndex) : null,
         startIndexUnit,
