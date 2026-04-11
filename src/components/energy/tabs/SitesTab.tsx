@@ -211,7 +211,8 @@ export function SitesContent({
                     <span className="inline-flex items-center gap-1">Date <SortIcon col="date" /></span>
                   </th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3">Index</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3">Consommation</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3">Conso</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3">Converti</th>
                   <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3 w-20"></th>
                 </tr>
               </thead>
@@ -264,20 +265,19 @@ export function SitesContent({
                           r.indexValue != null ? `${r.indexValue.toLocaleString("fr-FR")} ${r.unit}` : "—"
                         )}
                       </td>
-                      {/* Consommation */}
+                      {/* Conso brute */}
                       <td className="px-4 py-3 text-right text-sm font-medium text-primary-dark">
-                        {r.consumption != null ? (
-                          <>
-                            {r.consumption.toLocaleString("fr-FR")} {r.unit}
-                            {r.consumptionConverted != null && r.unitConverted && (
-                              <span className="text-xs text-text-secondary ml-1">
-                                ({r.consumptionConverted.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} {r.unitConverted})
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-text-secondary text-xs">1er relevé</span>
-                        )}
+                        {r.consumption != null
+                          ? `${r.consumption.toLocaleString("fr-FR")} ${r.unit}`
+                          : <span className="text-text-secondary text-xs">1er relevé</span>
+                        }
+                      </td>
+                      {/* Converti */}
+                      <td className="px-4 py-3 text-right text-sm text-text-secondary">
+                        {r.consumptionConverted != null && r.unitConverted
+                          ? `${r.consumptionConverted.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ${r.unitConverted}`
+                          : "—"
+                        }
                       </td>
                       {/* Actions */}
                       <td className="px-4 py-3 text-center">
