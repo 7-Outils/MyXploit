@@ -261,7 +261,7 @@ export async function getMonthlyDjuForStation(
   endDate: string,
 ): Promise<Map<string, number>> {
   const station = stationMeteo || getStationFromPostalCode(postalCode);
-  const coords = STATIONS[station];
+  const coords = WEATHER_STATIONS[station];
   if (!coords) return new Map();
 
   try {
