@@ -4,6 +4,11 @@ import { Building2, Calendar, Droplets } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import type { AnalyticsData } from "@/components/energy/types";
 
+function formatValue(v: number, unit: string): string {
+  if (unit === "kWh" && v >= 1000) return `${(v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} MWh`;
+  return `${Math.round(v).toLocaleString("fr-FR")} ${unit}`;
+}
+
 export function ECSContent({
   analytics,
   selectedYear,
@@ -22,31 +27,41 @@ export function ECSContent({
     );
   }
 
-  // Calculate total ECS consumption across all sites
-  // Note: ecsTotal is water-based ECS only (m³), heat-based ECS is tracked separately
-  const totalECS = analytics.sites.reduce((sum, site) => sum + site.ecsTotal, 0);
+  // Combine water-based (m³) and heat-based (kWh) ECS
+  const totalEcsWater = analytics.sites.reduce((sum, site) => sum + site.ecsTotal, 0);
+  const totalEcsHeat = analytics.sites.reduce((sum, site) => sum + (site.ecsHeatTotal || 0), 0);
+  const hasWater = totalEcsWater > 0;
+  const hasHeat = totalEcsHeat > 0;
+  const hasAny = hasWater || hasHeat;
 
-  // Filter sites that have ECS consumption
-  const sitesWithECS = analytics.sites.filter(site => site.ecsTotal > 0);
+  // Sites with any ECS
+  const sitesWithECS = analytics.sites.filter(
+    (site) => site.ecsTotal > 0 || (site.ecsHeatTotal || 0) > 0
+  );
 
-  // Calculate monthly ECS totals
-  const monthlyECS = new Map<string, number>();
-  analytics.sites.forEach(site => {
-    site.monthlyData.forEach(month => {
-      if (month.ecs > 0) {
-        const existing = monthlyECS.get(month.month) || 0;
-        monthlyECS.set(month.month, existing + month.ecs);
-      }
+  // Monthly ECS (combine both)
+  const monthlyECS = new Map<string, { water: number; heat: number }>();
+  analytics.sites.forEach((site) => {
+    site.monthlyData.forEach((month) => {
+      const existing = monthlyECS.get(month.month) || { water: 0, heat: 0 };
+      if (month.ecs > 0) existing.water += month.ecs;
+      if (month.ecsHeat > 0) existing.heat += month.ecsHeat;
+      monthlyECS.set(month.month, existing);
     });
   });
 
   const monthlyECSData = Array.from(monthlyECS.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, ecs]) => ({
+    .map(([month, data]) => ({
       month,
       label: new Date(month + "-01").toLocaleDateString("fr-FR", { month: "short" }),
-      ecs: Math.round(ecs),
+      water: Math.round(data.water),
+      heat: Math.round(data.heat),
     }));
+
+  // Primary display unit
+  const primaryTotal = hasHeat ? totalEcsHeat : totalEcsWater;
+  const primaryUnit = hasHeat ? "kWh" : "m³";
 
   return (
     <>
@@ -57,8 +72,10 @@ export function ECSContent({
             <Droplets size={20} className="text-blue-600" />
             <span className="text-sm font-medium text-blue-700">ECS Total</span>
           </div>
-          <p className="text-3xl font-bold text-blue-900">{totalECS.toLocaleString('fr-FR')}</p>
-          <p className="text-xs text-blue-600 mt-1">m³ - Saison {selectedYear - 1}/{selectedYear}</p>
+          <p className="text-3xl font-bold text-blue-900">{formatValue(primaryTotal, primaryUnit)}</p>
+          {hasWater && hasHeat && (
+            <p className="text-xs text-blue-600 mt-1">{formatValue(totalEcsWater, "m³")} (volume)</p>
+          )}
         </div>
 
         <div className="bg-cyan-50 rounded-xl p-4 text-center">
@@ -76,28 +93,29 @@ export function ECSContent({
             <span className="text-sm font-medium text-teal-700">Moyenne mensuelle</span>
           </div>
           <p className="text-3xl font-bold text-teal-900">
-            {monthlyECSData.length > 0 ? Math.round(totalECS / monthlyECSData.length).toLocaleString('fr-FR') : "0"}
+            {monthlyECSData.length > 0 ? formatValue(primaryTotal / monthlyECSData.length, primaryUnit) : "—"}
           </p>
-          <p className="text-xs text-teal-600 mt-1">m³ / mois</p>
         </div>
       </div>
 
       {/* Monthly ECS Chart */}
       {monthlyECSData.length > 0 && (
-        <ChartCard title="Consommation ECS mensuelle" subtitle={`Saison ${selectedYear - 1}/${selectedYear}`}>
+        <ChartCard title="Consommation ECS mensuelle">
           {(() => {
-            const maxEcs = Math.max(...monthlyECSData.map((d) => d.ecs), 1);
+            const values = monthlyECSData.map((d) => (hasHeat ? d.heat : d.water));
+            const maxVal = Math.max(...values, 1);
             const barAreaHeight = 120;
             return (
               <div className="flex items-end gap-2" style={{ height: barAreaHeight + 40 }}>
                 {monthlyECSData.map((m) => {
-                  const barHeight = (m.ecs / maxEcs) * barAreaHeight;
+                  const val = hasHeat ? m.heat : m.water;
+                  const barHeight = (val / maxVal) * barAreaHeight;
                   return (
                     <div key={m.month} className="flex-1 flex flex-col items-center justify-end" style={{ height: barAreaHeight + 40 }}>
-                      <span className="text-xs font-medium text-primary-dark mb-1">{Math.round(m.ecs).toLocaleString('fr-FR')}</span>
+                      <span className="text-xs font-medium text-primary-dark mb-1">{formatValue(val, primaryUnit)}</span>
                       <div
                         className="w-full max-w-12 bg-gradient-to-t from-blue-500 to-cyan-300 rounded-t"
-                        style={{ height: Math.max(barHeight, m.ecs > 0 ? 4 : 0) }}
+                        style={{ height: Math.max(barHeight, val > 0 ? 4 : 0) }}
                       />
                       <span className="text-xs text-text-secondary mt-1">{m.label}</span>
                     </div>
@@ -111,42 +129,39 @@ export function ECSContent({
 
       {/* Sites ECS Table */}
       {sitesWithECS.length > 0 && (
-        <ChartCard title="ECS par site" subtitle={`${sitesWithECS.length} sites avec consommation ECS`}>
-          <div className="overflow-x-auto">
+        <ChartCard title="ECS par site">
+          <div className="overflow-x-auto -mx-6 -my-6">
             <table className="w-full">
               <thead className="bg-background-secondary border-b border-gray-100">
                 <tr>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">Site</th>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">Ville</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">ECS (m³)</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-3 py-2">% du total</th>
+                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
+                  {hasHeat && <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">ECS (énergie)</th>}
+                  {hasWater && <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">ECS (volume)</th>}
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">% du total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {sitesWithECS
-                  .sort((a, b) => b.ecsTotal - a.ecsTotal)
+                  .sort((a, b) => ((b.ecsHeatTotal || 0) + b.ecsTotal) - ((a.ecsHeatTotal || 0) + a.ecsTotal))
                   .map((site) => {
-                    const percentOfTotal = totalECS > 0 ? (site.ecsTotal / totalECS) * 100 : 0;
+                    const siteTotal = hasHeat ? (site.ecsHeatTotal || 0) : site.ecsTotal;
+                    const pct = primaryTotal > 0 ? (siteTotal / primaryTotal) * 100 : 0;
                     return (
                       <tr key={site.siteId} className="hover:bg-gray-50">
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-primary-dark">{site.siteName}</p>
-                          <p className="text-xs text-gray-500">{site.siteType}</p>
-                        </td>
-                        <td className="px-3 py-2 text-gray-700">{site.city}</td>
-                        <td className="px-3 py-2 text-right font-medium text-blue-600">
-                          {Math.round(site.ecsTotal).toLocaleString('fr-FR')}
-                        </td>
-                        <td className="px-3 py-2 text-right text-gray-600">{percentOfTotal.toFixed(1)}%</td>
+                        <td className="px-6 py-3 font-medium text-primary-dark">{site.siteName}</td>
+                        {hasHeat && <td className="px-6 py-3 text-right font-medium text-blue-600">{formatValue(site.ecsHeatTotal || 0, "kWh")}</td>}
+                        {hasWater && <td className="px-6 py-3 text-right text-gray-600">{Math.round(site.ecsTotal).toLocaleString("fr-FR")} m³</td>}
+                        <td className="px-6 py-3 text-right text-gray-600">{pct.toFixed(1)}%</td>
                       </tr>
                     );
                   })}
               </tbody>
               <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                <tr>
-                  <td colSpan={2} className="px-3 py-2 font-semibold text-primary-dark">Total</td>
-                  <td className="px-3 py-2 text-right font-bold text-blue-700">{Math.round(totalECS).toLocaleString('fr-FR')}</td>
-                  <td className="px-3 py-2 text-right font-semibold">100%</td>
+                <tr className="font-semibold">
+                  <td className="px-6 py-3 text-primary-dark">Total</td>
+                  {hasHeat && <td className="px-6 py-3 text-right font-bold text-blue-700">{formatValue(totalEcsHeat, "kWh")}</td>}
+                  {hasWater && <td className="px-6 py-3 text-right font-bold text-blue-700">{Math.round(totalEcsWater).toLocaleString("fr-FR")} m³</td>}
+                  <td className="px-6 py-3 text-right font-semibold">100%</td>
                 </tr>
               </tfoot>
             </table>
@@ -154,11 +169,11 @@ export function ECSContent({
         </ChartCard>
       )}
 
-      {sitesWithECS.length === 0 && (
+      {!hasAny && (
         <div className="text-center py-12 text-text-secondary bg-gray-50 rounded-lg">
           <Droplets size={48} className="mx-auto mb-4 opacity-30" />
           <p className="font-medium">Aucune consommation ECS enregistrée</p>
-          <p className="text-sm mt-2">Les consommations ECS apparaîtront ici une fois saisies avec le type d'usage "ECS"</p>
+          <p className="text-sm mt-2">Saisissez des relevés sur les compteurs ECS depuis la fiche bâtiment</p>
         </div>
       )}
     </>

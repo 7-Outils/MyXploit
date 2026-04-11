@@ -53,11 +53,12 @@ export interface SitePerformance {
   nbPrime: number;
   djrTotal: number;
   ecsTotal: number;
+  ecsHeatTotal?: number;
   mixteTotal: number;
   delta: number;
   deltaPercent: number;
   status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
-  monthlyData: { month: string; nc: number; nbPrime: number; djr: number; ecs: number }[];
+  monthlyData: { month: string; nc: number; nbPrime: number; djr: number; ecs: number; ecsHeat: number }[];
   _debug?: {
     heatingSeasonNb: number | null;
     heatingSeasonDjuc: number | null;
