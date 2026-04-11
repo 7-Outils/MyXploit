@@ -101,6 +101,8 @@ export function SyntheseContent({
                   <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
 
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NB (MWh)</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">DJC</th>
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">DJR</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NC (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">N&apos;B (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Écart</th>
@@ -128,6 +130,12 @@ export function SyntheseContent({
 
                     <td className="px-6 py-4 text-right text-gray-600">
                       {site.nb ? (site.nb).toLocaleString("fr-FR") : "—"}
+                    </td>
+                    <td className="px-6 py-4 text-right text-xs text-gray-500">
+                      {site._debug?.usedDjuc ?? "—"}
+                    </td>
+                    <td className="px-6 py-4 text-right text-xs text-gray-500">
+                      {site._debug?.djrTotal ?? "—"}
                     </td>
                     <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
                     <td className="px-6 py-4 text-right text-gray-600">
