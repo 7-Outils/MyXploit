@@ -120,6 +120,25 @@ export async function POST(
 
     const body = await request.json();
 
+    // Prevent duplicate: same meter + same date
+    const readingDateParsed = new Date(body.readingDate);
+    const startOfDay = new Date(readingDateParsed.getFullYear(), readingDateParsed.getMonth(), readingDateParsed.getDate());
+    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+
+    const existingReading = await prisma.meterReading.findFirst({
+      where: {
+        meterId,
+        readingDate: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+
+    if (existingReading) {
+      return NextResponse.json(
+        { error: `Un relevé existe déjà pour ce compteur à la date du ${startOfDay.toLocaleDateString("fr-FR")}` },
+        { status: 409 }
+      );
+    }
+
     // Calculate converted value if meter has conversion coefficient
     let consumptionConverted: number | null = null;
     let unitConverted: string | null = null;
