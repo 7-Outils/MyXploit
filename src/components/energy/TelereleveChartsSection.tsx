@@ -370,107 +370,55 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
 
   return (
     <div className="space-y-6">
-      {/* Shared toolbar — building + frequency + date range + presets.
-          Everything that affects BOTH charts lives here, so the user
-          only ever picks them once. */}
-      <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
-        <select
-          value={selectedSiteId || ""}
-          onChange={(e) => setSelectedSiteId(e.target.value)}
-          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 min-w-[180px]"
-        >
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-              {s.pce ? ` · ${s.pce}` : ""}
-              {s.pdl ? ` · ${s.pdl}` : ""}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={frequency}
-          onChange={(e) => setFrequency(e.target.value as Frequency)}
-          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-        >
-          {FREQUENCY_ORDER.map((f) => {
-            const isFinerThanData =
-              FREQUENCY_ORDER.indexOf(f) <
-              FREQUENCY_ORDER.indexOf(naturalGranularity);
-            return (
-              <option key={f} value={f} disabled={isFinerThanData}>
-                {FREQUENCY_LABELS[f]}
-                {isFinerThanData ? " (non dispo)" : ""}
-              </option>
-            );
-          })}
-        </select>
-
-        <div className="h-5 w-px bg-gray-200" />
-
-        <input
-          type="date"
-          value={dateFrom}
-          max={dateTo}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-        />
-        <span className="text-xs text-text-secondary">→</span>
-        <input
-          type="date"
-          value={dateTo}
-          min={dateFrom}
-          max={today}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-        />
-
-        <div className="h-5 w-px bg-gray-200" />
-
-        <div className="flex gap-1">
-          {datePresets.map((preset) => {
-            const isActive = activePresetId === preset.id;
-            return (
-              <button
-                key={preset.id}
-                onClick={() => {
-                  setDateFrom(preset.from);
-                  setDateTo(today);
-                }}
-                className={cn(
-                  "h-9 px-2.5 rounded-lg border text-xs font-medium transition-colors",
-                  isActive
-                    ? "border-accent bg-accent/10 text-accent"
-                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex-1" />
-
-        <button
-          onClick={() => exportFnRef.current?.()}
-          disabled={!canExport}
-          className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-        >
-          <Download size={14} />
-          CSV
-        </button>
-      </div>
-
-      {/* Single unified card containing the shared KPI strip and the two
-          charts side by side. Sub-components render in noCard + hideKpis
-          mode so they don't double-wrap or duplicate the KPIs. */}
       <ChartCard
         title={sharedKpis ? `Consommation GRDF — ${formatKwh(sharedKpis.totalNc)}` : "Consommation GRDF"}
         subtitle={
           sharedKpis?.ncDeltaPct != null
             ? `${sharedKpis.ncDeltaPct > 0 ? "+" : ""}${sharedKpis.ncDeltaPct.toFixed(1)}% vs N-1`
             : undefined
+        }
+        action={
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <select
+              value={selectedSiteId || ""}
+              onChange={(e) => setSelectedSiteId(e.target.value)}
+              className="h-7 px-2 rounded border border-gray-200 text-xs bg-white"
+            >
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              value={frequency}
+              onChange={(e) => setFrequency(e.target.value as Frequency)}
+              className="h-7 px-2 rounded border border-gray-200 text-xs bg-white"
+            >
+              {FREQUENCY_ORDER.map((f) => {
+                const disabled = FREQUENCY_ORDER.indexOf(f) < FREQUENCY_ORDER.indexOf(naturalGranularity);
+                return <option key={f} value={f} disabled={disabled}>{FREQUENCY_LABELS[f]}</option>;
+              })}
+            </select>
+            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
+            <span className="text-[10px] text-gray-400">→</span>
+            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
+            {datePresets.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { setDateFrom(p.from); setDateTo(today); }}
+                className={cn(
+                  "h-7 px-2 rounded border text-[11px] font-medium",
+                  activePresetId === p.id ? "border-accent bg-accent/10 text-accent" : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                )}
+              >{p.label}</button>
+            ))}
+            <button
+              onClick={() => exportFnRef.current?.()}
+              disabled={!canExport}
+              className="h-7 px-2 rounded border border-gray-200 text-[11px] text-gray-500 hover:bg-gray-50 disabled:opacity-40 flex items-center gap-1"
+            >
+              <Download size={11} />CSV
+            </button>
+          </div>
         }
       >
         <TelereleveBuildingChart
