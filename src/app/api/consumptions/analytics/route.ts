@@ -255,6 +255,11 @@ export async function GET(request: NextRequest) {
       orderBy: { startDate: "desc" },
     });
 
+    console.log(`[DJR-DEBUG] Found ${allHeatingSeasons.length} heating seasons with startDate for ${sites.length} sites`);
+    for (const hs of allHeatingSeasons) {
+      console.log(`[DJR-DEBUG] siteId=${hs.siteId} season=${hs.season} startDate=${hs.startDate?.toISOString()} endDate=${hs.endDate?.toISOString()}`);
+    }
+
     // For each site, find the most recent startDate
     const heatingDatesBySite = new Map<string, { start: Date; end: Date | null }>();
     for (const hs of allHeatingSeasons) {
