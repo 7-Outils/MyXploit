@@ -10,7 +10,6 @@ import {
   Flame,
   Loader2,
   Calendar,
-  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ThermalProfileSection from "@/components/energy/ThermalProfileSection";
@@ -22,6 +21,7 @@ import { SITE_TYPE_LABELS, ENERGY_CONFIG, TABS } from "@/components/buildings/co
 import { GeneralTab } from "@/components/buildings/tabs/GeneralTab";
 import { EnergyTab } from "@/components/buildings/tabs/EnergyTab";
 import { ActivityLogTab } from "@/components/buildings/tabs/ActivityLogTab";
+import { MetersTab } from "@/components/buildings/tabs/MetersTab";
 
 export default function BuildingDetailPage({
   params,
@@ -198,7 +198,7 @@ export default function BuildingDetailPage({
           <ZonesPlaceholder siteId={site.id} />
         )}
         {activeTab === "meters" && (
-          <MetersPlaceholder siteId={site.id} siteName={site.name} />
+          <MetersTab siteId={site.id} />
         )}
         {activeTab === "journal" && (
           <ActivityLogTab siteId={site.id} />
@@ -230,33 +230,3 @@ function ZonesPlaceholder({ siteId }: { siteId: string }) {
   );
 }
 
-// ============================================================
-// Meters placeholder - link to existing meters page
-// ============================================================
-
-function MetersPlaceholder({
-  siteId,
-  siteName,
-}: {
-  siteId: string;
-  siteName: string;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16">
-      <Gauge size={40} className="text-gray-300 mb-3" />
-      <h3 className="text-lg font-medium text-gray-700 mb-1">
-        Compteurs & relevés
-      </h3>
-      <p className="text-sm text-gray-500 mb-4 text-center max-w-md">
-        Gérez les compteurs principaux et divisionnaires, les relevés et les
-        conversions de ce bâtiment.
-      </p>
-      <Link href={`/sites/${siteId}`}>
-        <Button>
-          <Gauge size={16} className="mr-2" />
-          Gérer les compteurs
-        </Button>
-      </Link>
-    </div>
-  );
-}
