@@ -307,7 +307,7 @@ export default function SiteEnergyPage({
             </Button>
           </Link>
 
-          <Link href={`/sites/${siteId}`}>
+          <Link href={`/buildings/${siteId}?tab=meters`}>
             <Button variant="outline">
               <GitBranch className="h-4 w-4 mr-2" />
               Schéma comptage
