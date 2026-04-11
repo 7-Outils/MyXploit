@@ -180,17 +180,38 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     const years: number[] = [];
     for (let y = startYear - 1; y <= endYear; y++) years.push(y);
 
-    Promise.all(
-      years.map((y) =>
-        fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}&yearType=${yearType}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null)
-      )
-    )
-      .then((responses) => {
+    // Fetch analytics AND DJU in parallel for each year
+    const analyticsPromises = years.map((y) =>
+      fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}&yearType=${yearType}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+    );
+    const djuPromises = years.map((y) =>
+      fetch(`/api/dju?siteId=${selectedSiteId}&year=${y}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+    );
+
+    Promise.all([Promise.all(analyticsPromises), Promise.all(djuPromises)])
+      .then(([analyticsResponses, djuResponses]) => {
         if (cancelled) return;
+
+        // Build DJU lookup: month → dju value (from API, not from consumption records)
+        const djuByMonth = new Map<string, number>();
+        for (const djuResp of djuResponses) {
+          if (!djuResp?.sites) continue;
+          const siteDju = djuResp.sites.find(
+            (s: { siteId: string }) => s.siteId === selectedSiteId
+          );
+          if (!siteDju?.monthlyData) continue;
+          for (const m of siteDju.monthlyData) {
+            if (m.dju > 0) djuByMonth.set(m.month, m.dju);
+          }
+        }
+
+        // Merge analytics responses
         let merged: typeof siteContext = null;
-        for (const resp of responses) {
+        for (const resp of analyticsResponses) {
           if (!resp || !resp.sites || resp.sites.length === 0) continue;
           const sitePerf = resp.sites.find(
             (s: { siteId: string }) => s.siteId === selectedSiteId
@@ -214,7 +235,15 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
             }
           }
         }
+
+        // Inject fresh DJU values from the DJU API into monthly data
         if (merged) {
+          for (const m of merged.months) {
+            const freshDjr = djuByMonth.get(m.month);
+            if (freshDjr !== undefined) {
+              m.djr = freshDjr;
+            }
+          }
           merged.months.sort((a, b) => a.month.localeCompare(b.month));
         }
         setSiteContext(merged);
