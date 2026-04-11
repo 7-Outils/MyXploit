@@ -474,8 +474,8 @@ function EnergyPageContent() {
         </div>
       </div>
 
-      {/* Loading */}
-      {loading && (
+      {/* Loading — only for tabs that depend on global analytics data */}
+      {loading && activeTab !== "telereleve" && activeTab !== "sites" && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-accent" />
         </div>
