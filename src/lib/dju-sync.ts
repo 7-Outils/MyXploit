@@ -229,34 +229,42 @@ export async function fetchWeatherData(
 ): Promise<Array<{ date: string; dju: number }>> {
   // Use forecast API for recent dates (covers past ~2 weeks + future),
   // archive API for older data. Try forecast first, fall back to archive.
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris&past_days=92`;
+  // Open-Meteo: archive covers old data (~5 days ago and older),
+  // forecast covers last ~3 months + 16 days ahead.
+  // We fetch from both and merge to cover the full range.
   const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris`;
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let data: any;
-  const forecastRes = await fetch(forecastUrl);
-  if (forecastRes.ok) {
-    data = await forecastRes.json();
-  } else {
-    const archiveRes = await fetch(archiveUrl);
-    if (!archiveRes.ok) {
-      throw new Error(`Weather API error: ${archiveRes.status}`);
-    }
-    data = await archiveRes.json();
-  }
-  const results: Array<{ date: string; dju: number }> = [];
+  const results: Array<{ date: string; tMoy: number }> = [];
+  const seenDates = new Set<string>();
 
-  if (data.daily?.time && data.daily?.temperature_2m_mean) {
-    for (let i = 0; i < data.daily.time.length; i++) {
-      const date = data.daily.time[i];
-      const tMoy = data.daily.temperature_2m_mean[i];
-      if (tMoy !== null) {
-        results.push({ date, dju: calculateDJU(tMoy) });
+  // Try both APIs, merge results (archive first for older data, forecast fills gaps)
+  for (const url of [archiveUrl, forecastUrl]) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const json = await res.json();
+      if (json.daily?.time && json.daily?.temperature_2m_mean) {
+        for (let i = 0; i < json.daily.time.length; i++) {
+          const date = json.daily.time[i];
+          const tMoy = json.daily.temperature_2m_mean[i];
+          if (tMoy !== null && !seenDates.has(date)) {
+            results.push({ date, tMoy });
+            seenDates.add(date);
+          }
+        }
       }
+    } catch {
+      // Continue to next API
     }
   }
 
-  return results;
+  if (results.length === 0) {
+    throw new Error("No weather data from either API");
+  }
+
+  return results.map((r) => ({ date: r.date, dju: calculateDJU(r.tMoy) }));
 }
 
 /**
