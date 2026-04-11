@@ -107,6 +107,8 @@ interface Props {
       frequency, the chart shows the climate-corrected target as a second
       bar series and the KPIs add Cible (N'B) + Écart. */
   monthlyData?: MonthlyAnalyticsPoint[];
+  /** Fresh DJU values by month from the /api/dju endpoint */
+  djuByMonth?: Map<string, number>;
   /** When true, omit the surrounding ChartCard (the parent provides one).
       Useful when this chart is rendered inside a unified dashboard card. */
   noCard?: boolean;
@@ -129,6 +131,7 @@ export function TelereleveBuildingChart({
   frequency,
   onNaturalGranularityChange,
   monthlyData,
+  djuByMonth,
   noCard = false,
   hideKpis = false,
   onDailyDataChange,
@@ -462,10 +465,23 @@ export function TelereleveBuildingChart({
 
     const seriesLabel = "Consommation";
 
+    // Compute kWh/DJU ratio line when in monthly frequency and DJU data available
+    const showRatio = frequency === "month" && djuByMonth && djuByMonth.size > 0;
+    const ratioValues = showRatio
+      ? buckets.map((b) => {
+          const d = new Date(b.date);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          const dju = djuByMonth!.get(key) || 0;
+          return dju > 0 ? Math.round((b.total / dju) * 10) / 10 : null;
+        })
+      : [];
+
+    const legendData = showRatio ? [seriesLabel, "kWh/DJU"] : [seriesLabel];
+
     return {
-      grid: { left: 64, right: 24, top: 48, bottom: 48 },
+      grid: { left: 64, right: showRatio ? 64 : 24, top: 48, bottom: 48 },
       legend: {
-        data: [seriesLabel],
+        data: legendData,
         top: 4,
         left: "center",
         icon: "circle",
@@ -481,11 +497,22 @@ export function TelereleveBuildingChart({
           if (!params || params.length === 0) return "";
           const idx = params[0].dataIndex;
           const kwh = buckets[idx]?.total ?? 0;
-          return `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>
-            <div style="display:flex;align-items:center;gap:6px">
+          let html = `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
               ${seriesLabel} :&nbsp;<strong>${formatKwh(kwh)}</strong>
             </div>`;
+          if (showRatio && ratioValues[idx] !== null && ratioValues[idx] !== undefined) {
+            const d = new Date(buckets[idx]?.date || "");
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const dju = djuByMonth!.get(key) || 0;
+            html += `<div style="display:flex;align-items:center;gap:6px">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6366f1"></span>
+              Ratio :&nbsp;<strong>${ratioValues[idx]} kWh/DJU</strong>
+              <span style="font-size:10px;color:#9ca3af">(${Math.round(dju)} DJU)</span>
+            </div>`;
+          }
+          return html;
         },
       },
       xAxis: {
@@ -500,33 +527,52 @@ export function TelereleveBuildingChart({
           formatter: formatAxisLabel,
         },
       },
-      yAxis: {
-        type: "value",
-        name: yUnit,
-        nameTextStyle: { color: "#6b7280", fontSize: 11 },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { color: "#e5e7eb", type: "dashed" } },
-        axisLabel: {
-          color: "#6b7280",
-          fontSize: 11,
-          formatter: (v: number) => {
-            // v is already in the chart's display unit (kWh or MWh)
-            if (yUnit === "MWh") {
-              return v.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-            }
-            return v >= 1000
-              ? `${(v / 1000).toFixed(0)}k`
-              : v.toLocaleString("fr-FR");
+      yAxis: [
+        {
+          type: "value",
+          name: yUnit,
+          nameTextStyle: { color: "#6b7280", fontSize: 11 },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { lineStyle: { color: "#e5e7eb", type: "dashed" } },
+          axisLabel: {
+            color: "#6b7280",
+            fontSize: 11,
+            formatter: (v: number) => {
+              if (yUnit === "MWh") {
+                return v.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
+              }
+              return v >= 1000
+                ? `${(v / 1000).toFixed(0)}k`
+                : v.toLocaleString("fr-FR");
+            },
           },
         },
-      },
+        ...(showRatio
+          ? [
+              {
+                type: "value" as const,
+                name: "kWh/DJU",
+                nameTextStyle: { color: "#6366f1", fontSize: 11 },
+                axisLine: { show: false },
+                axisTick: { show: false },
+                splitLine: { show: false },
+                axisLabel: {
+                  color: "#6366f1",
+                  fontSize: 11,
+                  formatter: (v: number) => Math.round(v).toString(),
+                },
+              },
+            ]
+          : []),
+      ],
       dataZoom: [{ type: "inside", start: 0, end: 100 }],
       series: [
         {
           name: seriesLabel,
           type: "bar",
           data: values,
+          yAxisIndex: 0,
           itemStyle: {
             color: chartColor,
             borderRadius: [2, 2, 0, 0],
@@ -536,6 +582,21 @@ export function TelereleveBuildingChart({
           },
           barMaxWidth: 32,
         },
+        ...(showRatio
+          ? [
+              {
+                name: "kWh/DJU",
+                type: "line" as const,
+                data: ratioValues,
+                yAxisIndex: 1,
+                smooth: true,
+                symbol: "circle",
+                symbolSize: 6,
+                lineStyle: { color: "#6366f1", width: 2 },
+                itemStyle: { color: "#6366f1" },
+              },
+            ]
+          : []),
       ],
     };
   }, [buckets, chartColor, selectedSite, frequency, monthlyData]);

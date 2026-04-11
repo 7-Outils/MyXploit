@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   Loader2,
-  TrendingDown,
-  TrendingUp,
   Wifi,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,7 +13,6 @@ import {
   type Frequency,
   type SiteSummary,
 } from "@/components/energy/TelereleveBuildingChart";
-import { ClimateCorrectedChart } from "@/components/energy/ClimateCorrectedChart";
 import { DivergenceChart } from "@/components/energy/DivergenceChart";
 
 function formatKwh(value: number): string {
@@ -123,11 +120,6 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     );
   }, []);
 
-  // Daily CHAUFFAGE/MIXTE data reported by TelereleveBuildingChart — used by
-  // the sibling ClimateCorrectedChart when the user is in day frequency.
-  const [dailyData, setDailyData] = useState<
-    { date: string; nc: number; djr: number }[]
-  >([]);
 
   // Export function reported by TelereleveBuildingChart — rendered as a
   // button in the shared toolbar so the user has one consistent action bar.
@@ -347,10 +339,6 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     }
   }, [sites, selectedSiteId]);
 
-  const selectedSite = useMemo(
-    () => sites.find((s) => s.id === selectedSiteId) || null,
-    [sites, selectedSiteId]
-  );
 
   // ─── Loading / empty states for the contract's site list ────────────
   if (loadingSites) {
@@ -488,57 +476,28 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
       {/* Single unified card containing the shared KPI strip and the two
           charts side by side. Sub-components render in noCard + hideKpis
           mode so they don't double-wrap or duplicate the KPIs. */}
-      <ChartCard>
-        {/* Shared KPIs */}
-        {sharedKpis && (
-          <div className="mb-6">
-            <SharedKpi
-              label="Consommation GRDF"
-              value={formatKwh(sharedKpis.totalNc)}
-              deltaPct={sharedKpis.ncDeltaPct}
-              deltaAbs={sharedKpis.ncDeltaAbs}
-              deltaUnit="kWh"
-            />
-          </div>
-        )}
+      <ChartCard
+        title={sharedKpis ? `Consommation GRDF — ${formatKwh(sharedKpis.totalNc)}` : "Consommation GRDF"}
+        subtitle={
+          sharedKpis?.ncDeltaPct != null
+            ? `${sharedKpis.ncDeltaPct > 0 ? "+" : ""}${sharedKpis.ncDeltaPct.toFixed(1)}% vs N-1`
+            : undefined
+        }
+      >
+        <TelereleveBuildingChart
+          sites={sites}
+          selectedSiteId={selectedSiteId}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          frequency={frequency}
+          onNaturalGranularityChange={handleNaturalGranularity}
 
-        {/* 2-column chart layout on desktop, stacks on smaller screens.
-            min-w-0 prevents one chart from pushing the other past 50%. */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-          <div className="min-w-0">
-            <TelereleveBuildingChart
-              sites={sites}
-              selectedSiteId={selectedSiteId}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              frequency={frequency}
-              onNaturalGranularityChange={handleNaturalGranularity}
-              onDailyDataChange={setDailyData}
-              onExportFnChange={handleExportFnChange}
-              monthlyData={monthlyData}
-              noCard
-              hideKpis
-            />
-          </div>
-
-          {selectedSite &&
-            siteContext?.djuContractuel != null &&
-            siteContext.djuContractuel > 0 && (
-            <div className="min-w-0">
-              <ClimateCorrectedChart
-                siteId={selectedSite.id}
-                siteName={selectedSite.name}
-                monthlyData={monthlyData}
-                dailyData={dailyData}
-                djuByMonth={djuMonthly}
-                frequency={frequency}
-                hasDjuContractuel
-                noCard
-                hideKpis
-              />
-            </div>
-          )}
-        </div>
+          onExportFnChange={handleExportFnChange}
+          monthlyData={monthlyData}
+          djuByMonth={djuMonthly}
+          noCard
+          hideKpis
+        />
       </ChartCard>
 
       {/* Divergence: exploitant vs télérelève */}
@@ -555,115 +514,3 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
   );
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Shared KPI sub-component used in the unified dashboard card.
-// ────────────────────────────────────────────────────────────────────────
-
-interface SharedKpiProps {
-  label: string;
-  value: string;
-  subtle?: string;
-  tone?: "neutral" | "success" | "danger";
-  tooltip?: string;
-  /** When set, the KPI shows a "vs N-1" line below the main value with both
-      the percentage and the absolute difference. The unit (kWh / DJU) is
-      used to format the absolute difference. */
-  deltaPct?: number | null;
-  deltaAbs?: number | null;
-  deltaUnit?: "kWh" | "DJU";
-  /** When set, replaces the absolute delta with a contextual label (e.g. "Hiver plus doux"). */
-  deltaContextLabel?: string;
-}
-
-function SharedKpi({
-  label,
-  value,
-  subtle,
-  tone = "neutral",
-  tooltip,
-  deltaPct,
-  deltaAbs,
-  deltaUnit,
-  deltaContextLabel,
-}: SharedKpiProps) {
-  const valueClass =
-    tone === "danger"
-      ? "text-red-600"
-      : tone === "success"
-      ? "text-green-600"
-      : "text-primary-dark";
-
-  // Auto-tone for the N-1 delta if no explicit tone was passed
-  const deltaTone =
-    deltaPct === null || deltaPct === undefined
-      ? "neutral"
-      : deltaPct > 5
-      ? "danger"
-      : deltaPct < -5
-      ? "success"
-      : "neutral";
-  const deltaClass =
-    deltaTone === "danger"
-      ? "text-red-600"
-      : deltaTone === "success"
-      ? "text-green-600"
-      : "text-text-secondary";
-  const DeltaIcon =
-    deltaPct === null || deltaPct === undefined
-      ? null
-      : deltaPct > 0
-      ? TrendingUp
-      : TrendingDown;
-
-  const formatDeltaAbs = (abs: number) => {
-    if (deltaUnit === "DJU") {
-      return `${Math.round(Math.abs(abs)).toLocaleString("fr-FR")} DJU`;
-    }
-    return formatKwh(Math.abs(abs));
-  };
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-3">
-      <div className="flex items-center gap-1">
-        <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-          {label}
-        </p>
-        {tooltip && (
-          <span
-            title={tooltip}
-            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
-            aria-label={tooltip}
-          >
-            i
-          </span>
-        )}
-      </div>
-      <p className={cn("text-xl font-semibold mt-1", valueClass)}>{value}</p>
-      {subtle && (
-        <p className="text-[10px] text-text-secondary mt-0.5">{subtle}</p>
-      )}
-      {deltaPct !== undefined && deltaPct !== null && deltaAbs !== null && deltaAbs !== undefined && (
-        <div
-          className={cn(
-            "flex items-center gap-1 mt-1 text-[11px] font-medium",
-            deltaClass
-          )}
-        >
-          {DeltaIcon && <DeltaIcon size={12} />}
-          <span>
-            {deltaPct > 0 ? "+" : ""}
-            {deltaPct.toFixed(1)}% vs N-1
-          </span>
-          <span className="text-text-secondary font-normal">
-            ({deltaContextLabel ?? `${deltaAbs >= 0 ? "+" : "−"}${formatDeltaAbs(deltaAbs)}`})
-          </span>
-        </div>
-      )}
-      {deltaPct === null && (
-        <p className="text-[11px] text-text-secondary mt-1">
-          Pas de données N-1
-        </p>
-      )}
-    </div>
-  );
-}
