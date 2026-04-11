@@ -147,7 +147,13 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
               </div>
             ) : meters.length === 0 ? (
               <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
-                Aucun compteur configuré sur ce site. Ajoutez-en un depuis la fiche bâtiment.
+                Aucun compteur configuré sur ce site.{" "}
+                <a
+                  href={`/buildings/${selectedSiteId}?tab=meters`}
+                  className="underline font-medium hover:text-amber-800"
+                >
+                  Configurer les compteurs
+                </a>
               </p>
             ) : (
               <select
