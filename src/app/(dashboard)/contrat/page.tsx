@@ -1,13 +1,16 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Target } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
-import { P1Content } from "@/components/energy/tabs/P1Tab";
+import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
 import type { Site } from "@/components/energy/types";
+
+type ContratTab = "cibles";
 
 function ContratPageContent() {
   const { selectedContract, isLoading } = useContract();
+  const [activeTab, setActiveTab] = useState<ContratTab>("cibles");
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +30,7 @@ function ContratPageContent() {
 
   useEffect(() => { fetchSites(); }, [fetchSites]);
 
-  if (isLoading || loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
@@ -45,12 +48,43 @@ function ContratPageContent() {
 
   return (
     <div className="space-y-6">
-      <P1Content
-        contract={selectedContract}
-        selectedYear={new Date().getFullYear()}
-        sites={sites}
-        onNbUpdate={fetchSites}
-      />
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="flex gap-8">
+          {[
+            { id: "cibles" as ContratTab, label: "Cibles énergétiques", icon: Target },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 py-4 border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? "border-accent text-accent font-medium"
+                  : "border-transparent text-text-secondary hover:text-primary-dark"
+              }`}
+            >
+              <tab.icon size={18} />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-accent" />
+        </div>
+      ) : (
+        activeTab === "cibles" && (
+          <CiblesContent
+            contract={selectedContract}
+            selectedYear={new Date().getFullYear()}
+            sites={sites}
+            onNbUpdate={fetchSites}
+          />
+        )
+      )}
     </div>
   );
 }

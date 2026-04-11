@@ -15,7 +15,7 @@ import type {
   Site,
 } from "@/components/energy/types";
 
-export function P1Content({
+export function CiblesContent({
   contract,
   selectedYear,
   sites,
