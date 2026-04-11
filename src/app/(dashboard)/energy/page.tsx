@@ -491,14 +491,6 @@ function EnergyPageContent() {
         />
       )}
 
-      {activeTab === "sites" && (
-        <SitesContent
-          contractId={selectedContract?.id || null}
-          setShowIdexImportModal={setShowIdexImportModal}
-          setShowCreateModal={setShowCreateModal}
-        />
-      )}
-
       {!loading && activeTab === "climat" && (
         <ClimatContent
           djuData={djuData}
@@ -519,9 +511,18 @@ function EnergyPageContent() {
         />
       )}
 
-      {activeTab === "telereleve" && (
+      {/* Relevés + Télérelève stay mounted (hidden) to avoid refetching on tab switch */}
+      <div style={{ display: activeTab === "sites" ? "block" : "none" }}>
+        <SitesContent
+          contractId={selectedContract?.id || null}
+          setShowIdexImportModal={setShowIdexImportModal}
+          setShowCreateModal={setShowCreateModal}
+        />
+      </div>
+
+      <div style={{ display: activeTab === "telereleve" ? "block" : "none" }}>
         <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
-      )}
+      </div>
 
       {/* Modals */}
       {showCreateModal && (
