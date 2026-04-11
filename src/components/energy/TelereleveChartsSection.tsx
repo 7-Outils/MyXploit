@@ -150,6 +150,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     stationMeteo: string | null;
     months: { month: string; nc: number; nbPrime: number; djr: number }[];
   } | null>(null);
+  const [djuMonthly, setDjuMonthly] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!selectedSiteId) {
@@ -247,6 +248,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
           merged.months.sort((a, b) => a.month.localeCompare(b.month));
         }
         setSiteContext(merged);
+        setDjuMonthly(djuByMonth);
       })
       .finally(() => {
         if (!cancelled) setAnalyticsLoading(false);
@@ -547,6 +549,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
                 siteName={selectedSite.name}
                 monthlyData={monthlyData}
                 dailyData={dailyData}
+                djuByMonth={djuMonthly}
                 frequency={frequency}
                 hasDjuContractuel
                 noCard

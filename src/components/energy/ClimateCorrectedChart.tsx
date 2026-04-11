@@ -38,6 +38,8 @@ interface Props {
   /** Daily {date, nc, djr} reported by the sibling chart — used when
       frequency === "day" to plot kWh/DJU at day granularity. */
   dailyData?: { date: string; nc: number; djr: number }[];
+  /** Fresh DJU values from the /api/dju endpoint, keyed by "YYYY-MM" */
+  djuByMonth?: Map<string, number>;
   /** Current frequency — drives whether to use dailyData or monthlyData. */
   frequency?: Frequency;
   /** When false, shows an empty state asking to configure a weather station. */
@@ -67,6 +69,7 @@ export function ClimateCorrectedChart({
   siteName,
   monthlyData,
   dailyData,
+  djuByMonth,
   frequency,
   hasDjuContractuel,
   noCard = false,
@@ -86,12 +89,13 @@ export function ClimateCorrectedChart({
         {children}
       </ChartCard>
     );
-  // Compute the ratio kWh / DJU. When frequency is "day" and dailyData is
-  // available, plot one point per day; otherwise aggregate by month.
+  // Compute the ratio kWh / DJU.
+  // Uses raw GRDF data (dailyData from the bar chart) aggregated by month,
+  // combined with fresh DJU values from the /api/dju endpoint.
   const ratioPoints = useMemo(() => {
-    const useDaily = frequency === "day" && dailyData && dailyData.length > 0;
-    if (useDaily) {
-      return dailyData!
+    // Daily mode: one point per day
+    if (frequency === "day" && dailyData && dailyData.length > 0) {
+      return dailyData
         .filter((d) => d.nc > 0 || d.djr > 0)
         .map((d) => ({
           key: d.date,
@@ -101,6 +105,32 @@ export function ClimateCorrectedChart({
           djr: d.djr,
         }));
     }
+
+    // Monthly mode: aggregate dailyData by month for raw GRDF totals,
+    // then use djuByMonth for fresh DJU values
+    if (dailyData && dailyData.length > 0 && djuByMonth && djuByMonth.size > 0) {
+      const monthMap = new Map<string, number>();
+      for (const d of dailyData) {
+        const [y, mo] = d.date.split("-");
+        const key = `${y}-${mo}`;
+        monthMap.set(key, (monthMap.get(key) || 0) + d.nc);
+      }
+      return Array.from(monthMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, nc]) => {
+          const djr = djuByMonth.get(month) || 0;
+          return {
+            key: month,
+            label: monthLabel(month),
+            ratio: djr > 0 ? nc / djr : 0,
+            nc,
+            djr,
+          };
+        })
+        .filter((m) => m.nc > 0 || m.djr > 0);
+    }
+
+    // Fallback: use analytics monthlyData
     return monthlyData
       .filter((m) => m.nc > 0 || m.djr > 0)
       .map((m) => ({
@@ -110,7 +140,7 @@ export function ClimateCorrectedChart({
         nc: m.nc,
         djr: m.djr,
       }));
-  }, [monthlyData, dailyData, frequency]);
+  }, [monthlyData, dailyData, djuByMonth, frequency]);
 
   // KPIs
   const stats = useMemo(() => {
