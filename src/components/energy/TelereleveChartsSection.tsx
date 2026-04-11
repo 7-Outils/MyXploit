@@ -424,20 +424,33 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
           </div>
         }
       >
-        <TelereleveBuildingChart
-          sites={sites}
-          selectedSiteId={selectedSiteId}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          frequency={frequency}
-          onNaturalGranularityChange={handleNaturalGranularity}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {/* GRDF (Gaz) */}
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-text-secondary mb-2">Gaz (GRDF)</p>
+            <TelereleveBuildingChart
+              sites={sites}
+              selectedSiteId={selectedSiteId}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              frequency={frequency}
+              onNaturalGranularityChange={handleNaturalGranularity}
+              onExportFnChange={handleExportFnChange}
+              monthlyData={monthlyData}
+              djuByMonth={djuMonthly}
+              noCard
+              hideKpis
+            />
+          </div>
 
-          onExportFnChange={handleExportFnChange}
-          monthlyData={monthlyData}
-          djuByMonth={djuMonthly}
-          noCard
-          hideKpis
-        />
+          {/* Enedis (Électricité) — placeholder */}
+          <div className="min-w-0 flex flex-col">
+            <p className="text-xs font-medium text-text-secondary mb-2">Électricité (Enedis)</p>
+            <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200 min-h-[200px]">
+              <p className="text-sm text-gray-400">Bientôt disponible</p>
+            </div>
+          </div>
+        </div>
       </ChartCard>
 
     </div>
