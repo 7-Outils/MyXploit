@@ -74,6 +74,8 @@ export async function GET(request: NextRequest) {
         nb: true,
         nbUnit: true,
         djuContractuel: true,
+        startDate: true,
+        endDate: true,
       },
     });
     const heatingSeasonMap = new Map(
@@ -232,33 +234,49 @@ export async function GET(request: NextRequest) {
     });
 
     // ─── Fetch fresh DJU from weather API ──────────────────────────────
-    // Instead of relying on djuReel stored on Consumption records (which
-    // depends on a nightly cron), fetch DJU directly from Open-Meteo.
-    const startIso = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(startDate.getDate()).padStart(2, "0")}`;
-    const endIso = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
-
-    // Fetch DJU for each unique station (group sites by station to avoid duplicate API calls)
-    const stationToSites = new Map<string, typeof sites>();
-    for (const site of sites) {
-      const station = site.stationMeteo || (site.postalCode ? `postal:${site.postalCode}` : "default");
-      const list = stationToSites.get(station) || [];
-      list.push(site);
-      stationToSites.set(station, list);
-    }
+    // For each site, use the heating season dates (allumage → arrêt) to
+    // determine the DJU period. If no endDate, use today or last consumption date.
+    const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     const djuBySite = new Map<string, Map<string, number>>();
     await Promise.all(
-      Array.from(stationToSites.entries()).map(async ([, stationSites]) => {
-        const refSite = stationSites[0];
-        const monthlyDju = await getMonthlyDjuForStation(
-          refSite.stationMeteo,
-          refSite.postalCode,
-          startIso,
-          endIso,
-        );
-        for (const s of stationSites) {
-          djuBySite.set(s.id, monthlyDju);
+      sites.map(async (site) => {
+        const hs = heatingSeasonMap.get(site.id);
+
+        // Determine DJU period based on heating season dates
+        let djuStart: Date;
+        let djuEnd: Date;
+
+        if (hs?.startDate) {
+          djuStart = new Date(hs.startDate);
+          if (hs.endDate) {
+            // Saison terminée: allumage → arrêt
+            djuEnd = new Date(hs.endDate);
+          } else {
+            // Saison en cours: allumage → last consumption date or today
+            const siteData = siteMap.get(site.id);
+            const monthKeys = siteData ? Array.from(siteData.months.keys()).sort() : [];
+            const lastMonth = monthKeys[monthKeys.length - 1];
+            if (lastMonth) {
+              const [y, m] = lastMonth.split("-").map(Number);
+              djuEnd = new Date(y, m, 0); // Last day of the month
+            } else {
+              djuEnd = new Date(); // Today
+            }
+          }
+        } else {
+          // No heating season dates: fallback to the query period
+          djuStart = startDate;
+          djuEnd = endDate;
         }
+
+        const monthlyDju = await getMonthlyDjuForStation(
+          site.stationMeteo,
+          site.postalCode,
+          toIso(djuStart),
+          toIso(djuEnd),
+        );
+        djuBySite.set(site.id, monthlyDju);
       })
     );
 
