@@ -227,14 +227,22 @@ export async function fetchWeatherData(
   startDate: string,
   endDate: string
 ): Promise<Array<{ date: string; dju: number }>> {
-  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris`;
+  // Use forecast API for recent dates (covers past ~2 weeks + future),
+  // archive API for older data. Try forecast first, fall back to archive.
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris&past_days=92`;
+  const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Weather API error: ${response.status}`);
+  let data: Record<string, unknown>;
+  const forecastRes = await fetch(forecastUrl);
+  if (forecastRes.ok) {
+    data = await forecastRes.json();
+  } else {
+    const archiveRes = await fetch(archiveUrl);
+    if (!archiveRes.ok) {
+      throw new Error(`Weather API error: ${archiveRes.status}`);
+    }
+    data = await archiveRes.json();
   }
-
-  const data = await response.json();
   const results: Array<{ date: string; dju: number }> = [];
 
   if (data.daily?.time && data.daily?.temperature_2m_mean) {
@@ -272,7 +280,8 @@ export async function getMonthlyDjuForStation(
       byMonth.set(key, (byMonth.get(key) || 0) + d.dju);
     }
     return byMonth;
-  } catch {
+  } catch (err) {
+    console.error(`DJU fetch failed for station ${station}:`, err);
     return new Map();
   }
 }
