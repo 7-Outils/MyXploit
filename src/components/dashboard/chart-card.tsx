@@ -24,10 +24,10 @@ export function ChartCard({
         className
       )}
     >
-      {title && (
+      {(title || action) && (
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
-            <h3 className="font-semibold text-primary-dark">{title}</h3>
+            {title && <h3 className="font-semibold text-primary-dark">{title}</h3>}
             {subtitle && (
               <p className="text-sm text-text-secondary">{subtitle}</p>
             )}
