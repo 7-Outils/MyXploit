@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Download,
   Loader2,
   Wifi,
 } from "lucide-react";
@@ -24,11 +23,7 @@ function formatKwh(value: number): string {
   return `${Math.round(value).toLocaleString("fr-FR")} kWh`;
 }
 
-function daysAgoIso(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+
 
 const FREQUENCY_ORDER: Frequency[] = ["hour", "day", "week", "month", "year"];
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -121,14 +116,6 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
   }, []);
 
 
-  // Export function reported by TelereleveBuildingChart — rendered as a
-  // button in the shared toolbar so the user has one consistent action bar.
-  const exportFnRef = useRef<(() => void) | null>(null);
-  const [canExport, setCanExport] = useState(false);
-  const handleExportFnChange = useCallback((fn: (() => void) | null) => {
-    exportFnRef.current = fn;
-    setCanExport(fn !== null);
-  }, []);
 
   // ─── Analytics monthly data — fetched once at the section level ─────
   // Both charts (GRDF on the left, signature ratio on the right) consume
@@ -314,23 +301,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     };
   }, [monthlyData, monthlyDataN1]);
 
-  // ─── Date preset definitions (used for both buttons and active state) ─
-  const datePresets = useMemo(
-    () => [
-      { id: "this-month", label: "Ce mois", from: startOfCurrentMonthIso() },
-      { id: "30d", label: "30 j", from: daysAgoIso(30) },
-      { id: "90d", label: "90 j", from: daysAgoIso(90) },
-      { id: "1y", label: "1 an", from: daysAgoIso(365) },
-      { id: "3y", label: "3 ans", from: daysAgoIso(365 * 3) },
-    ],
-    []
-  );
-
   const today = todayIso();
-  const activePresetId = useMemo(() => {
-    if (dateTo !== today) return null;
-    return datePresets.find((p) => p.from === dateFrom)?.id ?? null;
-  }, [dateFrom, dateTo, today, datePresets]);
 
   // Auto-select the first site once the list is loaded
   useEffect(() => {
@@ -372,49 +343,31 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     <div className="space-y-6">
       <ChartCard
         action={
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-3 w-full">
             <select
               value={selectedSiteId || ""}
               onChange={(e) => setSelectedSiteId(e.target.value)}
-              className="h-7 px-2 rounded border border-gray-200 text-xs bg-white"
+              className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
             >
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
+            <div className="flex-1" />
+            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-8 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <span className="text-xs text-text-secondary">→</span>
+            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-8 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <div className="flex-1" />
             <select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as Frequency)}
-              className="h-7 px-2 rounded border border-gray-200 text-xs bg-white"
+              className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
             >
               {FREQUENCY_ORDER.map((f) => {
                 const disabled = FREQUENCY_ORDER.indexOf(f) < FREQUENCY_ORDER.indexOf(naturalGranularity);
                 return <option key={f} value={f} disabled={disabled}>{FREQUENCY_LABELS[f]}</option>;
               })}
             </select>
-            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
-            <span className="text-[10px] text-gray-400">→</span>
-            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
-            <select
-              value={activePresetId || "custom"}
-              onChange={(e) => {
-                const preset = datePresets.find((p) => p.id === e.target.value);
-                if (preset) { setDateFrom(preset.from); setDateTo(today); }
-              }}
-              className="h-7 px-2 rounded border border-gray-200 text-xs bg-white"
-            >
-              {datePresets.map((p) => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
-              {!activePresetId && <option value="custom">Personnalisé</option>}
-            </select>
-            <button
-              onClick={() => exportFnRef.current?.()}
-              disabled={!canExport}
-              className="h-7 px-2 rounded border border-gray-200 text-[11px] text-gray-500 hover:bg-gray-50 disabled:opacity-40 flex items-center gap-1"
-            >
-              <Download size={11} />CSV
-            </button>
           </div>
         }
       >
@@ -436,7 +389,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
               dateTo={dateTo}
               frequency={frequency}
               onNaturalGranularityChange={handleNaturalGranularity}
-              onExportFnChange={handleExportFnChange}
+    
               monthlyData={monthlyData}
               djuByMonth={djuMonthly}
               noCard
