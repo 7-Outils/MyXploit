@@ -227,8 +227,13 @@ export async function fetchWeatherData(
   startDate: string,
   endDate: string
 ): Promise<Array<{ date: string; dju: number }>> {
-  // Use forecast API for recent dates (covers past ~2 weeks + future),
-  // archive API for older data. Try forecast first, fall back to archive.
+  // Cap endDate to yesterday — weather APIs don't have today or future data
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayIso = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+  if (endDate > yesterdayIso) endDate = yesterdayIso;
+  if (startDate > endDate) return [];
+
   // Open-Meteo: archive covers old data (~5 days ago and older),
   // forecast covers last ~3 months + 16 days ahead.
   // We fetch from both and merge to cover the full range.
