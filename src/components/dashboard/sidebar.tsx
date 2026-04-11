@@ -47,6 +47,7 @@ const adminNavigation: NavItem[] = [
 const defaultNavigation: NavItem[] = [
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
   { name: "Batiments", href: "/buildings", icon: Building2 },
+  { name: "Contrat", href: "/contrat", icon: FileText, module: "ENERGY" },
   { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
   { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
   { name: "Suivi administratif", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
@@ -66,7 +67,7 @@ export function Sidebar() {
     if (href === "/missions") return pathname === href || pathname.startsWith("/missions/");
     if (href === "/rapports") return pathname === href;
     if (href === "/team") return pathname === href;
-    return pathname === href || pathname.startsWith(href + "?");
+    return pathname === href || pathname.startsWith(href + "?") || pathname.startsWith(href + "/");
   };
 
   const isAdmin = userRole === "ADMIN";

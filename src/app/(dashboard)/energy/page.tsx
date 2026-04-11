@@ -10,7 +10,6 @@ import {
   Building2,
   Thermometer,
   Trash2,
-  Target,
   Droplets,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
@@ -20,7 +19,7 @@ import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
 import { DeleteConsumptionsModal } from "@/components/energy/modals/DeleteConsumptionsModal";
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
 import { SitesContent } from "@/components/energy/tabs/SitesTab";
-import { P1Content } from "@/components/energy/tabs/P1Tab";
+
 import { ClimatContent } from "@/components/energy/tabs/ClimatTab";
 import { ECSContent } from "@/components/energy/tabs/EcsTab";
 
@@ -433,7 +432,6 @@ function EnergyPageContent() {
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
             { id: "sites" as Tab, label: "Relevés", icon: Building2 },
-            { id: "p1" as Tab, label: "Cibles énergétiques", icon: Target },
             { id: "climat" as Tab, label: "Climat & DJU", icon: Thermometer },
             { id: "ecs" as Tab, label: "ECS", icon: Droplets },
             { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
@@ -453,7 +451,7 @@ function EnergyPageContent() {
           ))}
         </nav>
         <div className="flex items-center gap-2 pb-2">
-          {activeTab !== "p1" && activeTab !== "telereleve" && (
+          {activeTab !== "telereleve" && (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -498,15 +496,6 @@ function EnergyPageContent() {
           contractId={selectedContract?.id || null}
           setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
-        />
-      )}
-
-      {!loading && activeTab === "p1" && selectedContract && (
-        <P1Content
-          contract={selectedContract}
-          selectedYear={selectedYear}
-          sites={sites}
-          onNbUpdate={fetchHeatingSeasons}
         />
       )}
 
