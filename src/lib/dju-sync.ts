@@ -221,7 +221,7 @@ function calculateDJU(tMoy: number): number {
   return tMoy < base ? base - tMoy : 0;
 }
 
-async function fetchWeatherData(
+export async function fetchWeatherData(
   lat: number,
   lon: number,
   startDate: string,
@@ -248,6 +248,33 @@ async function fetchWeatherData(
   }
 
   return results;
+}
+
+/**
+ * Fetch monthly DJU totals for a station over a date range.
+ * Uses Open-Meteo archive API directly.
+ */
+export async function getMonthlyDjuForStation(
+  stationMeteo: string | null,
+  postalCode: string | null,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, number>> {
+  const station = stationMeteo || getStationFromPostalCode(postalCode);
+  const coords = STATIONS[station];
+  if (!coords) return new Map();
+
+  try {
+    const dailyData = await fetchWeatherData(coords.lat, coords.lon, startDate, endDate);
+    const byMonth = new Map<string, number>();
+    for (const d of dailyData) {
+      const key = d.date.substring(0, 7); // "YYYY-MM"
+      byMonth.set(key, (byMonth.get(key) || 0) + d.dju);
+    }
+    return byMonth;
+  } catch {
+    return new Map();
+  }
 }
 
 export interface DjuSyncResult {

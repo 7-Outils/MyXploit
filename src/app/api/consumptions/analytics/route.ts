@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
-import { resolveDjuContractuel } from "@/lib/dju-sync";
+import { resolveDjuContractuel, getMonthlyDjuForStation } from "@/lib/dju-sync";
 
 // GET /api/consumptions/analytics - Get energy performance analytics (NC vs N'B)
 export async function GET(request: NextRequest) {
@@ -231,33 +231,47 @@ export async function GET(request: NextRequest) {
       siteData.consumptions.push(consumption);
     });
 
-    // ─── POST-PASS: dedupe legacy DJR values ─────────────────────────
-    // For each month, look at the list of djuReel values that were
-    // attached to consumption rows. Two cases:
-    //   1) Daily granularity (post-fix): values are all different and
-    //      small (~5–80) → sum them, that gives the monthly total.
-    //   2) Legacy case (pre-fix): every daily row was written with the
-    //      SAME monthly total → all values are equal and large. Take a
-    //      single value, not the sum.
-    // We detect case 2 by checking if all values in the month are equal
-    // AND there are more than 1 row. This is robust because real daily
-    // DJU values for the same month always vary.
-    siteMap.forEach((siteData) => {
-      siteData.djrByMonth.forEach((values, monthKey) => {
-        if (values.length === 0) return;
-        let monthDjr: number;
-        const allEqual = values.every((v) => v === values[0]);
-        if (values.length > 1 && allEqual) {
-          // Legacy: a single monthly total was duplicated across rows
-          monthDjr = values[0];
-        } else {
-          // Daily values that need to be summed
-          monthDjr = values.reduce((s, v) => s + v, 0);
+    // ─── Fetch fresh DJU from weather API ──────────────────────────────
+    // Instead of relying on djuReel stored on Consumption records (which
+    // depends on a nightly cron), fetch DJU directly from Open-Meteo.
+    const startIso = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(startDate.getDate()).padStart(2, "0")}`;
+    const endIso = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
+
+    // Fetch DJU for each unique station (group sites by station to avoid duplicate API calls)
+    const stationToSites = new Map<string, typeof sites>();
+    for (const site of sites) {
+      const station = site.stationMeteo || (site.postalCode ? `postal:${site.postalCode}` : "default");
+      const list = stationToSites.get(station) || [];
+      list.push(site);
+      stationToSites.set(station, list);
+    }
+
+    const djuBySite = new Map<string, Map<string, number>>();
+    await Promise.all(
+      Array.from(stationToSites.entries()).map(async ([, stationSites]) => {
+        const refSite = stationSites[0];
+        const monthlyDju = await getMonthlyDjuForStation(
+          refSite.stationMeteo,
+          refSite.postalCode,
+          startIso,
+          endIso,
+        );
+        for (const s of stationSites) {
+          djuBySite.set(s.id, monthlyDju);
         }
-        const monthData = siteData.months.get(monthKey);
-        if (monthData) monthData.djr = monthDjr;
-        siteData.djrTotal += monthDjr;
+      })
+    );
+
+    // Inject fresh DJU into site monthly data
+    siteMap.forEach((siteData) => {
+      const monthlyDju = djuBySite.get(siteData.site.id);
+      if (!monthlyDju) return;
+
+      siteData.months.forEach((monthData, monthKey) => {
+        const dju = monthlyDju.get(monthKey) || 0;
+        monthData.djr = dju;
       });
+      siteData.djrTotal = Array.from(siteData.months.values()).reduce((s, m) => s + m.djr, 0);
     });
 
     // ─── Deduct ECS from NC for TELERELEVE sites ─────────────────────
