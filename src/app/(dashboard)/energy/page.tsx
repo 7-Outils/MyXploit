@@ -32,7 +32,6 @@ import type {
   Alert,
   DJUData,
   HeatingSeason,
-  Consumption,
   EnergyTab as Tab,
 } from "@/components/energy/types";
 
@@ -50,7 +49,7 @@ function EnergyPageContent() {
   // Data states
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [djuData, setDjuData] = useState<DJUData | null>(null);
-  const [consumptions, setConsumptions] = useState<Consumption[]>([]);
+
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [heatingSeasons, setHeatingSeasons] = useState<HeatingSeason[]>([]);
@@ -182,23 +181,20 @@ function EnergyPageContent() {
       params.set("contractId", selectedContract.id);
       params.set("yearType", yearType);
 
-      const [analyticsRes, consumptionsRes, alertsRes, djuRes] = await Promise.all([
+      const [analyticsRes, alertsRes, djuRes] = await Promise.all([
         fetch(`/api/consumptions/analytics?${params}`),
-        fetch(`/api/consumptions?contractId=${selectedContract.id}&source=EXPLOITANT,MANUAL`),
         fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
         fetch(`/api/dju?contractId=${selectedContract.id}&year=${selectedYear}&yearType=${yearType}`),
       ]);
 
-      const [analyticsData, consumptionsData, alertsData, djuDataRes] = await Promise.all([
+      const [analyticsData, alertsData, djuDataRes] = await Promise.all([
         analyticsRes.json(),
-        consumptionsRes.json(),
         alertsRes.json(),
         djuRes.json(),
       ]);
 
       if (analyticsRes.ok) setAnalytics(analyticsData);
       if (djuRes.ok) setDjuData(djuDataRes);
-      setConsumptions(Array.isArray(consumptionsData) ? consumptionsData : []);
       setAlerts(Array.isArray(alertsData) ? alertsData : []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -499,8 +495,7 @@ function EnergyPageContent() {
 
       {!loading && activeTab === "sites" && (
         <SitesContent
-          analytics={analytics}
-          consumptions={consumptions}
+          contractId={selectedContract?.id || null}
           setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
         />
