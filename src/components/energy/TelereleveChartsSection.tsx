@@ -6,7 +6,7 @@ import {
   Loader2,
   Wifi,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
 import { ChartCard } from "@/components/dashboard/chart-card";
 import {
   TelereleveBuildingChart,
@@ -398,19 +398,19 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
                 return <option key={f} value={f} disabled={disabled}>{FREQUENCY_LABELS[f]}</option>;
               })}
             </select>
-            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
-            <span className="text-[10px] text-gray-400">→</span>
-            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-7 px-1.5 rounded border border-gray-200 text-xs bg-white" />
-            {datePresets.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => { setDateFrom(p.from); setDateTo(today); }}
-                className={cn(
-                  "h-7 px-2 rounded border text-[11px] font-medium",
-                  activePresetId === p.id ? "border-accent bg-accent/10 text-accent" : "border-gray-200 text-gray-500 hover:bg-gray-50"
-                )}
-              >{p.label}</button>
-            ))}
+            <select
+              value={activePresetId || "custom"}
+              onChange={(e) => {
+                const preset = datePresets.find((p) => p.id === e.target.value);
+                if (preset) { setDateFrom(preset.from); setDateTo(today); }
+              }}
+              className="h-7 px-2 rounded border border-gray-200 text-xs bg-white"
+            >
+              {datePresets.map((p) => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+              {!activePresetId && <option value="custom">Personnalisé</option>}
+            </select>
             <button
               onClick={() => exportFnRef.current?.()}
               disabled={!canExport}
