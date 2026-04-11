@@ -373,104 +373,93 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
       {/* Shared toolbar — building + frequency + date range + presets.
           Everything that affects BOTH charts lives here, so the user
           only ever picks them once. */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-        {/* Row 1: selectors */}
-        <div className="grid grid-cols-[1fr_auto] gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-secondary">Bâtiment</label>
-            <select
-              value={selectedSiteId || ""}
-              onChange={(e) => setSelectedSiteId(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-            >
-              {sites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.pce ? ` · PCE ${s.pce}` : ""}
-                  {s.pdl ? ` · PDL ${s.pdl}` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-secondary">Fréquence</label>
-            <select
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value as Frequency)}
-              className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-            >
-              {FREQUENCY_ORDER.map((f) => {
-                const isFinerThanData =
-                  FREQUENCY_ORDER.indexOf(f) <
-                  FREQUENCY_ORDER.indexOf(naturalGranularity);
-                return (
-                  <option key={f} value={f} disabled={isFinerThanData}>
-                    {FREQUENCY_LABELS[f]}
-                    {isFinerThanData ? " (non disponible)" : ""}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
+      <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+        <select
+          value={selectedSiteId || ""}
+          onChange={(e) => setSelectedSiteId(e.target.value)}
+          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 min-w-[180px]"
+        >
+          {sites.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+              {s.pce ? ` · ${s.pce}` : ""}
+              {s.pdl ? ` · ${s.pdl}` : ""}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={frequency}
+          onChange={(e) => setFrequency(e.target.value as Frequency)}
+          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
+        >
+          {FREQUENCY_ORDER.map((f) => {
+            const isFinerThanData =
+              FREQUENCY_ORDER.indexOf(f) <
+              FREQUENCY_ORDER.indexOf(naturalGranularity);
+            return (
+              <option key={f} value={f} disabled={isFinerThanData}>
+                {FREQUENCY_LABELS[f]}
+                {isFinerThanData ? " (non dispo)" : ""}
+              </option>
+            );
+          })}
+        </select>
+
+        <div className="h-5 w-px bg-gray-200" />
+
+        <input
+          type="date"
+          value={dateFrom}
+          max={dateTo}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
+        />
+        <span className="text-xs text-text-secondary">→</span>
+        <input
+          type="date"
+          value={dateTo}
+          min={dateFrom}
+          max={today}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
+        />
+
+        <div className="h-5 w-px bg-gray-200" />
+
+        <div className="flex gap-1">
+          {datePresets.map((preset) => {
+            const isActive = activePresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  setDateFrom(preset.from);
+                  setDateTo(today);
+                }}
+                className={cn(
+                  "h-9 px-2.5 rounded-lg border text-xs font-medium transition-colors",
+                  isActive
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                )}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Row 2: dates + presets + export */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={dateFrom}
-              max={dateTo}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-            />
-            <span className="text-xs text-text-secondary">→</span>
-            <input
-              type="date"
-              value={dateTo}
-              min={dateFrom}
-              max={today}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-            />
-          </div>
+        <div className="flex-1" />
 
-          <div className="h-5 w-px bg-gray-200" />
-
-          <div className="flex gap-1">
-            {datePresets.map((preset) => {
-              const isActive = activePresetId === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  onClick={() => {
-                    setDateFrom(preset.from);
-                    setDateTo(today);
-                  }}
-                  className={cn(
-                    "h-9 px-3 rounded-lg border text-xs font-medium transition-colors",
-                    isActive
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                  )}
-                >
-                  {preset.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex-1" />
-
-          <button
-            onClick={() => exportFnRef.current?.()}
-            disabled={!canExport}
-            className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-          >
-            <Download size={14} />
-            Exporter CSV
-          </button>
-        </div>
+        <button
+          onClick={() => exportFnRef.current?.()}
+          disabled={!canExport}
+          className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+        >
+          <Download size={14} />
+          CSV
+        </button>
       </div>
 
       {/* Single unified card containing the shared KPI strip and the two
