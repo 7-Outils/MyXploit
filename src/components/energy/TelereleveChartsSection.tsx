@@ -314,28 +314,23 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
   // ─── Loading / empty states for the contract's site list ────────────
   if (loadingSites) {
     return (
-      <ChartCard title="Suivi télérelevé" subtitle="Données du distributeur">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 size={24} className="animate-spin text-accent" />
-        </div>
-      </ChartCard>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 size={24} className="animate-spin text-accent" />
+      </div>
     );
   }
 
   if (sites.length === 0) {
     return (
-      <ChartCard title="Suivi télérelevé" subtitle="Données du distributeur">
-        <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
-          <Wifi size={32} className="text-gray-300 mb-3" />
-          <p className="text-sm font-medium text-gray-700">
-            Aucun site avec un PCE ou PDL configuré sur ce contrat
-          </p>
-          <p className="text-xs text-gray-500 mt-1 text-center max-w-md">
-            Renseignez le PCE (gaz) ou le PDL (électricité) sur la fiche
-            de chaque bâtiment pour activer la télérelève.
-          </p>
-        </div>
-      </ChartCard>
+      <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
+        <Wifi size={32} className="text-gray-300 mb-3" />
+        <p className="text-sm font-medium text-gray-700">
+          Aucun site avec un PCE ou PDL configuré
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Renseignez le PCE ou PDL sur la fiche bâtiment.
+        </p>
+      </div>
     );
   }
 
