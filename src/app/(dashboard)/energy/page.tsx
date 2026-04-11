@@ -9,14 +9,13 @@ import {
   Flame,
   Building2,
   Thermometer,
-  Trash2,
   Droplets,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
 import { HeatingSeasonModal } from "@/components/energy/modals/HeatingSeasonModal";
 import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
-import { DeleteConsumptionsModal } from "@/components/energy/modals/DeleteConsumptionsModal";
+
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
 import { SitesContent } from "@/components/energy/tabs/SitesTab";
 
@@ -58,7 +57,7 @@ function EnergyPageContent() {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showIdexImportModal, setShowIdexImportModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
 
   const [importingIdex, setImportingIdex] = useState(false);
@@ -379,27 +378,6 @@ function EnergyPageContent() {
   };
 
 
-  const handleDeleteConsumptions = async (): Promise<void> => {
-    if (!selectedContract) return;
-
-    try {
-      const response = await fetch(`/api/consumptions?contractId=${selectedContract.id}`, {
-        method: "DELETE",
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        await fetchData();
-      } else {
-        alert(result.error || "Erreur lors de la suppression");
-      }
-    } catch (error) {
-      console.error("Error deleting consumptions:", error);
-      alert("Erreur lors de la suppression des consommations");
-    }
-  };
-
 
   const activeAlerts = alerts.filter((a) => !a.isRead);
 
@@ -464,13 +442,6 @@ function EnergyPageContent() {
               ))}
             </select>
           )}
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 flex items-center gap-1.5"
-          >
-            <Trash2 size={14} />
-            Supprimer données
-          </button>
         </div>
       </div>
 
@@ -557,15 +528,6 @@ function EnergyPageContent() {
         />
       )}
 
-
-      {/* Delete Consumptions Modal */}
-      {showDeleteModal && (
-        <DeleteConsumptionsModal
-          contractName={selectedContract?.title || ""}
-          onDelete={handleDeleteConsumptions}
-          onClose={() => setShowDeleteModal(false)}
-        />
-      )}
     </div>
   );
 }
