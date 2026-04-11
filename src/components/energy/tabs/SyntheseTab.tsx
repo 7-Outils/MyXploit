@@ -100,6 +100,7 @@ export function SyntheseContent({
                 <tr>
                   <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
 
+                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NB (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NC (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">N&apos;B (MWh)</th>
                   <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Écart</th>
@@ -125,6 +126,9 @@ export function SyntheseContent({
                       </div>
                     </td>
 
+                    <td className="px-6 py-4 text-right text-gray-600">
+                      {site.nb ? (site.nb).toLocaleString("fr-FR") : "—"}
+                    </td>
                     <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
                     <td className="px-6 py-4 text-right text-gray-600">
                       <div className="flex items-center justify-end gap-1">
