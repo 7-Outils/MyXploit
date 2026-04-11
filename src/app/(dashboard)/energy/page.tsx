@@ -14,7 +14,7 @@ import {
   Droplets,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
-import { CreateConsumptionModal } from "@/components/energy/modals/CreateConsumptionModal";
+import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
 import { HeatingSeasonModal } from "@/components/energy/modals/HeatingSeasonModal";
 import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
 import { DeleteConsumptionsModal } from "@/components/energy/modals/DeleteConsumptionsModal";
@@ -62,7 +62,7 @@ function EnergyPageContent() {
   const [showIdexImportModal, setShowIdexImportModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
-  const [creating, setCreating] = useState(false);
+
   const [importingIdex, setImportingIdex] = useState(false);
   const [savingHeatingSeason, setSavingHeatingSeason] = useState(false);
   const [idexImportResult, setIdexImportResult] = useState<{
@@ -113,19 +113,6 @@ function EnergyPageContent() {
     nbUnit: "PCS" as "PCS" | "UTILE",
     djuContractuel: "",
   });
-
-  // Create form
-  const [formData, setFormData] = useState({
-    siteId: "",
-    energyType: "GAZ",
-    usage: "CHAUFFAGE",
-    period: "",
-    quantity: "",
-    unit: "kWh",
-    cost: "",
-    djuReel: "",
-  });
-
 
   // Tab change handler — update state + URL without triggering a navigation
   const handleTabChange = (tab: Tab) => {
@@ -247,45 +234,6 @@ function EnergyPageContent() {
     }
   }, [fetchHeatingSeasons, selectedContract]);
 
-  // Handlers
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreating(true);
-    try {
-      const response = await fetch("/api/consumptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          siteId: formData.siteId,
-          energyType: formData.energyType,
-          usage: formData.usage,
-          period: formData.period,
-          quantity: formData.quantity,
-          unit: formData.unit,
-          cost: formData.cost || null,
-          djuReel: formData.djuReel || null,
-        }),
-      });
-      if (response.ok) {
-        await fetchData();
-        setShowCreateModal(false);
-        setFormData({
-          siteId: "",
-          energyType: "GAZ",
-          usage: "CHAUFFAGE",
-          period: "",
-          quantity: "",
-          unit: "kWh",
-          cost: "",
-          djuReel: "",
-        });
-      }
-    } catch (error) {
-      console.error("Error creating consumption:", error);
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const openHeatingSeasonModal = (siteId: string, siteName: string, existingStartDate?: string, existingEndDate?: string) => {
     const season = `${selectedYear - 1}-${selectedYear}`;
@@ -593,13 +541,13 @@ function EnergyPageContent() {
 
       {/* Modals */}
       {showCreateModal && (
-        <CreateConsumptionModal
-          formData={formData}
-          setFormData={setFormData}
+        <CreateReadingModal
           sites={sites}
-          creating={creating}
-          handleCreate={handleCreate}
           onClose={() => setShowCreateModal(false)}
+          onSaved={() => {
+            setShowCreateModal(false);
+            fetchData();
+          }}
         />
       )}
 
