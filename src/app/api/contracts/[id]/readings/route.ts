@@ -4,6 +4,7 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 /**
  * GET /api/contracts/[id]/readings - List recent meter readings for all sites of a contract
+ * Each reading includes its previous reading (for context: previous index + date).
  */
 export async function GET(
   request: NextRequest,
@@ -16,7 +17,6 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
 
-    // Get site IDs for this contract
     const contractSites = await prisma.contractSite.findMany({
       where: { contractId },
       select: { siteId: true },
@@ -28,7 +28,6 @@ export async function GET(
 
     const siteIds = contractSites.map((cs) => cs.siteId);
 
-    // Fetch meter readings with meter + site info
     const readings = await prisma.meterReading.findMany({
       where: {
         source: "MANUEL",
@@ -40,9 +39,11 @@ export async function GET(
       include: {
         meter: {
           select: {
+            id: true,
             name: true,
             fluid: true,
             unit: true,
+            siteId: true,
             site: { select: { name: true } },
           },
         },
@@ -51,7 +52,27 @@ export async function GET(
       take: limit,
     });
 
-    return NextResponse.json(readings);
+    // For each reading, find its previous reading on the same meter
+    const enriched = await Promise.all(
+      readings.map(async (r) => {
+        const prev = await prisma.meterReading.findFirst({
+          where: {
+            meterId: r.meterId,
+            readingDate: { lt: r.readingDate },
+            indexValue: { not: null },
+          },
+          orderBy: { readingDate: "desc" },
+          select: { readingDate: true, indexValue: true },
+        });
+
+        return {
+          ...r,
+          previous: prev ? { readingDate: prev.readingDate, indexValue: prev.indexValue } : null,
+        };
+      })
+    );
+
+    return NextResponse.json(enriched);
   } catch (error) {
     console.error("Error fetching contract readings:", error);
     return NextResponse.json(
