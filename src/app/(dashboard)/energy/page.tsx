@@ -8,18 +8,12 @@ import {
   Loader2,
   Flame,
   Building2,
-  Droplets,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
-
 import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
-
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
-import { SitesContent } from "@/components/energy/tabs/SitesTab";
-
-
-import { ECSContent } from "@/components/energy/tabs/EcsTab";
+import { RelevesContent } from "@/components/energy/tabs/RelevesTab";
 
 // Types and constants live in their own files now — see
 // src/components/energy/types.ts and src/components/energy/constants.ts
@@ -299,7 +293,6 @@ function EnergyPageContent() {
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
             { id: "sites" as Tab, label: "Relevés", icon: Building2 },
-            { id: "ecs" as Tab, label: "ECS", icon: Droplets },
             { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
           ].map((tab) => (
             <button
@@ -350,17 +343,9 @@ function EnergyPageContent() {
         />
       )}
 
-      {!loading && activeTab === "ecs" && (
-        <ECSContent
-          analytics={analytics}
-          selectedYear={selectedYear}
-          contractId={selectedContract?.id || null}
-        />
-      )}
-
       {/* Relevés + Télérelève stay mounted (hidden) to avoid refetching on tab switch */}
       <div style={{ display: activeTab === "sites" ? "block" : "none" }}>
-        <SitesContent
+        <RelevesContent
           contractId={selectedContract?.id || null}
           setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
