@@ -92,13 +92,10 @@ export async function GET(request: NextRequest) {
       heatingSeasons.map((hs) => [hs.siteId, hs])
     );
 
-    // Fetch ALL heating seasons (any season key) to catch all heating periods
-    // that overlap the query range — needed for CIVIL years that cover 2 seasons.
-    const allHeatingPeriods = await prisma.heatingSeason.findMany({
-      where: {
-        siteId: { in: sites.map((s) => s.id) },
-        startDate: { not: null },
-      },
+    // Fetch ALL heating periods (allumage/arrêt) for the contract sites.
+    // A site can have multiple periods per calendar year (CIVIL contract).
+    const allHeatingPeriods = await prisma.heatingPeriod.findMany({
+      where: { siteId: { in: sites.map((s) => s.id) } },
       select: { siteId: true, startDate: true, endDate: true },
     });
 
@@ -112,7 +109,6 @@ export async function GET(request: NextRequest) {
     interface Interval { start: Date; end: Date }
     const intervalsBySite = new Map<string, Interval[]>();
     for (const hp of allHeatingPeriods) {
-      if (!hp.startDate) continue;
       const hpStart = hp.startDate;
       const hpEnd = hp.endDate ?? todayDate;
       const iStart = hpStart > qStart ? hpStart : qStart;
@@ -128,6 +124,17 @@ export async function GET(request: NextRequest) {
       const intervals = intervalsBySite.get(siteId);
       if (!intervals || intervals.length === 0) return false;
       return intervals.some((i) => date >= i.start && date <= i.end);
+    };
+
+    // Helper: does a consumption's month overlap with any heating interval?
+    // GRDF/manual consumptions are stored with period = 1st of month representing
+    // the whole month, so we check month-level overlap instead of day-level.
+    const monthOverlapsHeating = (siteId: string, period: Date): boolean => {
+      const intervals = intervalsBySite.get(siteId);
+      if (!intervals || intervals.length === 0) return false;
+      const monthStart = new Date(period.getFullYear(), period.getMonth(), 1);
+      const monthEnd = new Date(period.getFullYear(), period.getMonth() + 1, 0);
+      return intervals.some((i) => i.start <= monthEnd && i.end >= monthStart);
     };
 
     // Get consumptions covering the query period + the year before
@@ -224,9 +231,10 @@ export async function GET(request: NextRequest) {
       const siteData = siteMap.get(consumption.siteId);
       if (!siteData) return;
 
-      // Filter: only count consumption that falls within a heating interval
-      // (so pauses between heating seasons are excluded from NC, matching DJR).
-      if (intervalsBySite.has(consumption.siteId) && !isHeatingDay(consumption.siteId, consumption.period)) {
+      // Filter: only count consumption whose month overlaps a heating interval.
+      // Using month-level overlap because GRDF/manual records store period as
+      // the 1st of the month to represent the entire month's consumption.
+      if (intervalsBySite.has(consumption.siteId) && !monthOverlapsHeating(consumption.siteId, consumption.period)) {
         return;
       }
 

@@ -488,7 +488,8 @@ model Site {
   meetings        Meeting[]
   quotes          Quote[]
   poolBasins      PoolBasin[]     // Bassins de piscine pour ce site
-  heatingSeasons  HeatingSeason[] // Saisons de chauffage (dates allumage/arrêt)
+  heatingSeasons  HeatingSeason[] // Saisons de chauffage (contiennent le NB)
+  heatingPeriods  HeatingPeriod[] // Périodes de chauffe (dates allumage/arrêt)
   aliases          SiteAlias[]      // Alias pour l'import de données
   technicalAudits  TechnicalAudit[] // Audits techniques du site
   occupationZones     OccupationZone[]    // Zones d'occupation thermique
@@ -1407,6 +1408,25 @@ model HeatingSeason {
   @@index([siteId])
   @@index([season])
   @@map("heating_seasons")
+}
+
+// Période de chauffe (allumage / arrêt)
+// Modèle dédié aux dates d'exploitation, séparé de HeatingSeason (qui garde le NB).
+// Un site peut avoir plusieurs périodes par an (ex: CIVIL 2025 = fin saison 24-25 + début saison 25-26).
+model HeatingPeriod {
+  id         String    @id @default(cuid())
+  siteId     String
+  startDate  DateTime  // Date d'allumage du chauffage
+  endDate    DateTime? // Date d'arrêt (null si saison en cours)
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([startDate])
+  @@map("heating_periods")
 }
 
 // ============================================
