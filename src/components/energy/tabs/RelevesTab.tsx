@@ -404,7 +404,7 @@ export function RelevesContent({
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">Gaz / Chaleur</p>
           <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.gas, "kWh")}</p>
@@ -416,10 +416,6 @@ export function RelevesContent({
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">Électricité</p>
           <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.elec, "kWh")}</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-4">
-          <p className="text-xs text-text-secondary mb-1">Relevés</p>
-          <p className="text-2xl font-semibold text-primary-dark">{kpis.total}</p>
         </div>
       </div>
 
