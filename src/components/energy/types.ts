@@ -158,10 +158,4 @@ export interface Consumption {
   site: { id: string; name: string };
 }
 
-export type EnergyTab =
-  | "synthese"
-  | "sites"
-  | "p1"
-  | "climat"
-  | "ecs"
-  | "telereleve";
+export type EnergyTab = "synthese" | "sites" | "telereleve";

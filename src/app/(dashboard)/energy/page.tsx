@@ -83,7 +83,7 @@ function EnergyPageContent() {
     }>;
   } | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
-
+  const [pendingImportType, setPendingImportType] = useState<"ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET">("RELEVE_MENSUEL");
 
   // Tab change handler — update state + URL without triggering a navigation
   const handleTabChange = (tab: Tab) => {
@@ -170,7 +170,7 @@ function EnergyPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, selectedContract]);
+  }, [selectedYear, selectedContract, yearType, readingsVersion]);
 
   useEffect(() => {
     if (selectedContract) {
@@ -216,8 +216,6 @@ function EnergyPageContent() {
   };
 
   // Second step: confirm and execute the import
-  const [pendingImportType, setPendingImportType] = useState<"ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET">("RELEVE_MENSUEL");
-
   const handleConfirmIdexImport = async () => {
     if (!selectedContract || !pendingImportFile) return;
 
