@@ -52,7 +52,8 @@ export async function GET(
       take: limit,
     });
 
-    // For each reading, find its previous reading on the same meter
+    // For each reading, find its previous reading and recalculate consumption
+    // on-the-fly so insertions of older readings update the chain automatically.
     const enriched = await Promise.all(
       readings.map(async (r) => {
         const prev = await prisma.meterReading.findFirst({
@@ -65,8 +66,29 @@ export async function GET(
           select: { readingDate: true, indexValue: true },
         });
 
+        // Recalculate consumption live from index difference
+        let consumption = r.consumption;
+        let consumptionConverted = r.consumptionConverted;
+        if (r.indexValue != null && prev?.indexValue != null) {
+          consumption = r.indexValue - prev.indexValue;
+          // Fetch meter coefficient for conversion
+          const meter = await prisma.meter.findUnique({
+            where: { id: r.meterId },
+            select: { conversionCoefficient: true, conversionUnit: true },
+          });
+          if (meter?.conversionCoefficient) {
+            consumptionConverted = consumption * meter.conversionCoefficient;
+          }
+        } else if (r.indexValue != null && !prev) {
+          // No previous reading → first reading, no consumption
+          consumption = null;
+          consumptionConverted = null;
+        }
+
         return {
           ...r,
+          consumption,
+          consumptionConverted,
           previous: prev ? { readingDate: prev.readingDate, indexValue: prev.indexValue } : null,
         };
       })
