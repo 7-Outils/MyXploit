@@ -92,13 +92,16 @@ export async function GET(request: NextRequest) {
       heatingSeasons.map((hs) => [hs.siteId, hs])
     );
 
-    // Get consumptions for the period.
-    // Priority: TELERELEVE > EXPLOITANT > MANUAL per site.
-    // If a site has any TELERELEVE data in the period, use only that.
-    // Otherwise fall back to EXPLOITANT/MANUAL.
+    // Get consumptions covering the query period + the year before
+    // so we can catch heating seasons that span year boundaries
+    // (e.g. allumage Sept 2025 → arrêt Mar 2026 for CIVIL year 2026).
+    // Final filtering by heating season dates happens in the processing loop.
+    const extendedStart = new Date(startDate);
+    extendedStart.setFullYear(extendedStart.getFullYear() - 1);
+
     const basePeriodWhere: Record<string, unknown> = {
       organizationId: effectiveOrgId,
-      period: { gte: startDate, lte: endDate },
+      period: { gte: extendedStart, lte: endDate },
     };
     if (siteId) {
       basePeriodWhere.siteId = siteId;
