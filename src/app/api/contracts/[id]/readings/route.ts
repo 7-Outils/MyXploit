@@ -69,6 +69,7 @@ export async function GET(
         // Recalculate consumption live from index difference
         let consumption = r.consumption;
         let consumptionConverted = r.consumptionConverted;
+        let unitConverted = r.unitConverted;
         if (r.indexValue != null && prev?.indexValue != null) {
           consumption = r.indexValue - prev.indexValue;
           // Fetch meter coefficient for conversion
@@ -78,17 +79,20 @@ export async function GET(
           });
           if (meter?.conversionCoefficient) {
             consumptionConverted = consumption * meter.conversionCoefficient;
+            unitConverted = meter.conversionUnit;
           }
         } else if (r.indexValue != null && !prev) {
           // No previous reading → first reading, no consumption
           consumption = null;
           consumptionConverted = null;
+          unitConverted = null;
         }
 
         return {
           ...r,
           consumption,
           consumptionConverted,
+          unitConverted,
           previous: prev ? { readingDate: prev.readingDate, indexValue: prev.indexValue } : null,
         };
       })
