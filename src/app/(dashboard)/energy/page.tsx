@@ -45,6 +45,7 @@ function EnergyPageContent() {
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showIdexImportModal, setShowIdexImportModal] = useState(false);
+  const [readingsVersion, setReadingsVersion] = useState(0);
 
   const [importingIdex, setImportingIdex] = useState(false);
   const [idexImportResult, setIdexImportResult] = useState<{
@@ -349,6 +350,7 @@ function EnergyPageContent() {
           contractId={selectedContract?.id || null}
           setShowIdexImportModal={setShowIdexImportModal}
           setShowCreateModal={setShowCreateModal}
+          refreshKey={readingsVersion}
         />
       </div>
 
@@ -364,6 +366,7 @@ function EnergyPageContent() {
           onSaved={() => {
             setShowCreateModal(false);
             fetchData();
+            setReadingsVersion((v) => v + 1);
           }}
         />
       )}

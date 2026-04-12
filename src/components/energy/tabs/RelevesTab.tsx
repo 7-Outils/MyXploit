@@ -62,10 +62,12 @@ export function RelevesContent({
   contractId,
   setShowIdexImportModal,
   setShowCreateModal,
+  refreshKey = 0,
 }: {
   contractId: string | null;
   setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
+  refreshKey?: number;
 }) {
   const [readings, setReadings] = useState<MeterReadingRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ export function RelevesContent({
       .finally(() => setLoading(false));
   }, [contractId]);
 
-  useEffect(() => { fetchReadings(); }, [fetchReadings]);
+  useEffect(() => { fetchReadings(); }, [fetchReadings, refreshKey]);
 
   // Unique lists for filter dropdowns
   const fluids = useMemo(() => Array.from(new Set(readings.map((r) => r.meter.fluid))), [readings]);
