@@ -54,17 +54,37 @@ export async function GET(
 
     // For each reading, find its previous reading and recalculate consumption
     // on-the-fly so insertions of older readings update the chain automatically.
+    // If the current reading is marked as "reset" (new meter), skip the previous.
+    // Also, never look past a reset in the history — each "reset" starts a fresh chain.
     const enriched = await Promise.all(
       readings.map(async (r) => {
-        const prev = await prisma.meterReading.findFirst({
-          where: {
-            meterId: r.meterId,
-            readingDate: { lt: r.readingDate },
-            indexValue: { not: null },
-          },
-          orderBy: { readingDate: "desc" },
-          select: { readingDate: true, indexValue: true },
-        });
+        let prev: { readingDate: Date; indexValue: number | null } | null = null;
+
+        if (!r.isReset) {
+          // Find the most recent reset on or before this reading (excluding self)
+          const lastReset = await prisma.meterReading.findFirst({
+            where: {
+              meterId: r.meterId,
+              readingDate: { lte: r.readingDate },
+              isReset: true,
+              NOT: { id: r.id },
+            },
+            orderBy: { readingDate: "desc" },
+            select: { readingDate: true },
+          });
+
+          prev = await prisma.meterReading.findFirst({
+            where: {
+              meterId: r.meterId,
+              readingDate: lastReset
+                ? { lt: r.readingDate, gte: lastReset.readingDate }
+                : { lt: r.readingDate },
+              indexValue: { not: null },
+            },
+            orderBy: { readingDate: "desc" },
+            select: { readingDate: true, indexValue: true },
+          });
+        }
 
         // Recalculate consumption live from index difference
         let consumption = r.consumption;

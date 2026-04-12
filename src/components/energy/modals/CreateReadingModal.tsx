@@ -39,6 +39,7 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
   );
   const [indexValue, setIndexValue] = useState("");
   const [notes, setNotes] = useState("");
+  const [isReset, setIsReset] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Fetch meters when site changes
@@ -85,6 +86,7 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
             readingDate,
             indexValue: parseFloat(indexValue),
             source: "MANUEL",
+            isReset,
             notes: notes || null,
           }),
         }
@@ -214,6 +216,21 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
                   placeholder="Optionnel"
                 />
               </div>
+
+              <label className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isReset}
+                  onChange={(e) => setIsReset(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-amber-600"
+                />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-900">Nouveau compteur (réinitialisation)</p>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Cochez si le compteur a été remplacé. Ce relevé sera traité comme le premier d&apos;un nouveau compteur.
+                  </p>
+                </div>
+              </label>
             </>
           )}
 

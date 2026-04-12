@@ -150,18 +150,28 @@ export async function POST(
 
     const readingDate = new Date(body.readingDate);
     const indexValue = body.indexValue ? parseFloat(body.indexValue) : null;
+    const isReset = body.isReset === true;
 
     // Calculate consumption from index difference (index N - index N-1)
     let consumption = body.consumption ? parseFloat(body.consumption) : null;
     let periodStart: Date | null = body.periodStart ? new Date(body.periodStart) : null;
 
-    if (indexValue !== null && consumption === null) {
+    if (indexValue !== null && consumption === null && !isReset) {
       const previousReading = await prisma.meterReading.findFirst({
         where: { meterId, readingDate: { lt: readingDate }, indexValue: { not: null } },
         orderBy: { readingDate: "desc" },
       });
 
       if (previousReading?.indexValue !== null && previousReading?.indexValue !== undefined) {
+        // Refuse decreasing index unless explicitly marked as reset
+        if (indexValue < previousReading.indexValue) {
+          return NextResponse.json(
+            {
+              error: `L'index saisi (${indexValue}) est inférieur au précédent (${previousReading.indexValue}). Si le compteur a été remplacé, cochez « Nouveau compteur ».`,
+            },
+            { status: 400 }
+          );
+        }
         consumption = indexValue - previousReading.indexValue;
         periodStart = previousReading.readingDate;
       }
@@ -186,6 +196,7 @@ export async function POST(
         unitConverted,
         source: body.source || "MANUEL",
         isValidated: false,
+        isReset,
         notes: body.notes || null,
       },
     });

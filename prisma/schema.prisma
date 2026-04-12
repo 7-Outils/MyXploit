@@ -1499,6 +1499,11 @@ model MeterReading {
   validatedAt   DateTime?
   validatedBy   String?         // Nom du validateur
 
+  // Marqueur "nouveau compteur" — quand le compteur est remplacé,
+  // ce relevé est le premier du nouveau compteur (pas de calcul de conso
+  // avec le relevé précédent du compteur remplacé)
+  isReset       Boolean         @default(false)
+
   // Notes
   notes         String?
 
