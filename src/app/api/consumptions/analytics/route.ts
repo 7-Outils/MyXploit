@@ -487,6 +487,7 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({
+      _ts: Date.now(),
       year,
       period: {
         start: startDate.toISOString(),
