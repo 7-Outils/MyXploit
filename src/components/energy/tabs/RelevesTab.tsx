@@ -89,8 +89,10 @@ function FluidChart({ fluid, readings }: { fluid: string; readings: MeterReading
       if (r.meter.fluid !== fluid || r.consumption == null) continue;
       const { value, unit: u } = getDisplayValue(r);
       if (!detectedUnit) detectedUnit = u;
-      const d = new Date(r.readingDate);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      // The consumption was done BETWEEN previous reading and current reading.
+      // Attribute it to the previous month (month when the gas was actually consumed).
+      const refDate = r.previous?.readingDate ? new Date(r.previous.readingDate) : new Date(r.readingDate);
+      const key = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, "0")}`;
       byMonth.set(key, (byMonth.get(key) || 0) + value);
     }
     const months = Array.from(byMonth.keys()).sort();
