@@ -178,10 +178,18 @@ export async function GET(request: NextRequest) {
       });
     });
 
-    // Process consumptions
+    // Process consumptions — only include those within the site's allumage → arrêt period
     consumptions.forEach((consumption) => {
       const siteData = siteMap.get(consumption.siteId);
       if (!siteData) return;
+
+      // Filter by heating season dates if available
+      const hs = heatingSeasonMap.get(consumption.siteId);
+      if (hs?.startDate) {
+        const consoDate = consumption.period;
+        if (consoDate < hs.startDate) return; // Before allumage
+        if (hs.endDate && consoDate > hs.endDate) return; // After arrêt
+      }
 
       const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
 
