@@ -1,16 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, ChevronDown, ChevronUp, Check, Flame, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import * as echarts from "echarts/core";
 import { BarChart } from "echarts/charts";
-import { GridComponent, TooltipComponent, LegendComponent } from "echarts/components";
+import { GridComponent, TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 
-echarts.use([BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+echarts.use([BarChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
 interface MeterReadingRow {
   id: string;
@@ -58,6 +57,131 @@ function formatValue(v: number, unit: string): string {
   return `${Math.round(v).toLocaleString("fr-FR")} ${unit}`;
 }
 
+// Converted-to-display value (keeps native unit for chart)
+function getDisplayValue(r: MeterReadingRow): { value: number; unit: string } {
+  if (r.consumption == null) return { value: 0, unit: r.unit };
+  if (r.consumptionConverted != null && r.unitConverted) {
+    return { value: r.consumptionConverted, unit: r.unitConverted };
+  }
+  return { value: r.consumption, unit: r.unit };
+}
+
+// Normalize to kWh for KPI totals
+function toKwh(r: MeterReadingRow): number {
+  if (r.consumption == null) return 0;
+  if (r.consumptionConverted != null && r.unitConverted === "kWh") return r.consumptionConverted;
+  if (r.consumptionConverted != null && r.unitConverted === "MWh") return r.consumptionConverted * 1000;
+  if (r.unit === "kWh") return r.consumption;
+  if (r.unit === "MWh") return r.consumption * 1000;
+  return 0; // m³ not normalizable without coefficient
+}
+
+/* ───────────────────────── FluidChart sub-component ───────────────────────── */
+
+function FluidChart({ fluid, readings }: { fluid: string; readings: MeterReadingRow[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const instance = useRef<echarts.ECharts | null>(null);
+
+  const { months, labels, values, unit } = useMemo(() => {
+    const byMonth = new Map<string, number>();
+    let detectedUnit = "";
+    for (const r of readings) {
+      if (r.meter.fluid !== fluid || r.consumption == null) continue;
+      const { value, unit: u } = getDisplayValue(r);
+      if (!detectedUnit) detectedUnit = u;
+      const d = new Date(r.readingDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      byMonth.set(key, (byMonth.get(key) || 0) + value);
+    }
+    const months = Array.from(byMonth.keys()).sort();
+    return {
+      months,
+      labels: months.map((m) => {
+        const [y, mo] = m.split("-");
+        return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+      }),
+      values: months.map((m) => Math.round((byMonth.get(m) || 0) * 10) / 10),
+      unit: detectedUnit,
+    };
+  }, [fluid, readings]);
+
+  const total = values.reduce((s, v) => s + v, 0);
+
+  useEffect(() => {
+    if (!ref.current || months.length === 0) {
+      instance.current?.dispose();
+      instance.current = null;
+      return;
+    }
+    const chart = echarts.init(ref.current);
+    instance.current = chart;
+    const color = FLUID_COLORS[fluid] || "#9ca3af";
+    chart.setOption({
+      grid: { left: 56, right: 16, top: 20, bottom: 32 },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(17,24,39,0.95)",
+        borderWidth: 0,
+        textStyle: { color: "#fff", fontSize: 12 },
+        formatter: (params: unknown) => {
+          const p = (params as { axisValueLabel: string; value: number }[])[0];
+          return `<div style="font-weight:600;margin-bottom:2px">${p.axisValueLabel}</div>
+            <div>${p.value.toLocaleString("fr-FR")} ${unit}</div>`;
+        },
+      },
+      xAxis: {
+        type: "category",
+        data: labels,
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 11, color: "#6b7280" },
+      },
+      yAxis: {
+        type: "value",
+        name: unit,
+        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: "#f3f4f6" } },
+        axisLabel: {
+          fontSize: 11,
+          color: "#6b7280",
+          formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString()),
+        },
+      },
+      series: [
+        {
+          type: "bar",
+          data: values,
+          itemStyle: { color, borderRadius: [3, 3, 0, 0] },
+          barMaxWidth: 28,
+        },
+      ],
+    });
+    const handleResize = () => chart.resize();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      chart.dispose();
+      instance.current = null;
+    };
+  }, [labels, values, unit, fluid, months.length]);
+
+  if (months.length === 0) return null;
+
+  return (
+    <ChartCard
+      title={FLUID_LABELS[fluid] || fluid}
+      subtitle={`${total.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} ${unit}`}
+    >
+      <div ref={ref} style={{ width: "100%", height: 220 }} />
+    </ChartCard>
+  );
+}
+
+/* ───────────────────────── Main component ───────────────────────── */
+
 export function RelevesContent({
   contractId,
   setShowIdexImportModal,
@@ -103,7 +227,7 @@ export function RelevesContent({
 
   useEffect(() => { fetchReadings(); }, [fetchReadings, refreshKey]);
 
-  // Unique lists for filter dropdowns
+  // Unique filter lists
   const fluids = useMemo(() => Array.from(new Set(readings.map((r) => r.meter.fluid))), [readings]);
   const sitesList = useMemo(() => {
     const map = new Map<string, string>();
@@ -111,16 +235,16 @@ export function RelevesContent({
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [readings]);
   const metersList = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; siteId: string; fluid: string }>();
+    const map = new Map<string, { id: string; name: string; siteId: string }>();
     readings.forEach((r) => {
-      if (!map.has(r.meter.id)) {
-        map.set(r.meter.id, { id: r.meter.id, name: r.meter.name, siteId: r.meter.siteId, fluid: r.meter.fluid });
-      }
+      if (!map.has(r.meter.id)) map.set(r.meter.id, { id: r.meter.id, name: r.meter.name, siteId: r.meter.siteId });
     });
     return Array.from(map.values());
   }, [readings]);
 
-  // Filtered readings
+  const availableMeters = filterSite === "all" ? metersList : metersList.filter((m) => m.siteId === filterSite);
+
+  // Filtered readings (applies to KPIs, charts and table)
   const filtered = useMemo(() => {
     let list = readings;
     if (filterFluid !== "all") list = list.filter((r) => r.meter.fluid === filterFluid);
@@ -139,108 +263,23 @@ export function RelevesContent({
     });
   }, [readings, filterFluid, filterSite, filterMeter, filterDateFrom, filterDateTo, sortKey, sortDir]);
 
-  // Dashboard: consumption by month & fluid (stacked bar chart)
-  const chartRef = useRef<HTMLDivElement>(null);
-  const chartInstance = useRef<echarts.ECharts | null>(null);
-
-  const chartData = useMemo(() => {
-    // Aggregate by month + fluid
-    const byMonth = new Map<string, Map<string, number>>();
-    for (const r of filtered) {
-      if (r.consumption == null) continue;
-      const d = new Date(r.readingDate);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const monthMap = byMonth.get(key) || new Map<string, number>();
-      // Normalize to kWh if converted
-      const qty = r.consumptionConverted && r.unitConverted === "kWh"
-        ? r.consumptionConverted
-        : r.consumptionConverted && r.unitConverted === "MWh"
-        ? r.consumptionConverted * 1000
-        : r.consumption;
-      monthMap.set(r.meter.fluid, (monthMap.get(r.meter.fluid) || 0) + qty);
-      byMonth.set(key, monthMap);
-    }
-    const months = Array.from(byMonth.keys()).sort();
-    const fluidsInData = Array.from(new Set([...byMonth.values()].flatMap((m) => [...m.keys()])));
-    return {
-      months,
-      labels: months.map((m) => {
-        const [y, mo] = m.split("-");
-        return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
-      }),
-      series: fluidsInData.map((fluid) => ({
-        name: FLUID_LABELS[fluid] || fluid,
-        type: "bar" as const,
-        stack: "total",
-        data: months.map((m) => Math.round(byMonth.get(m)?.get(fluid) || 0)),
-        itemStyle: { color: FLUID_COLORS[fluid] || "#9ca3af" },
-      })),
-    };
-  }, [filtered]);
+  // Fluids present in filtered data — one chart per fluid
+  const fluidsInFiltered = useMemo(
+    () => Array.from(new Set(filtered.map((r) => r.meter.fluid))),
+    [filtered]
+  );
 
   // KPIs
   const kpis = useMemo(() => {
-    let gasChauffage = 0;
-    let ecs = 0;
-    let elec = 0;
+    let gas = 0, ecs = 0, elec = 0;
     for (const r of filtered) {
-      if (r.consumption == null) continue;
-      const qty = r.consumptionConverted && r.unitConverted === "kWh"
-        ? r.consumptionConverted
-        : r.consumptionConverted && r.unitConverted === "MWh"
-        ? r.consumptionConverted * 1000
-        : r.consumption;
-      if (r.meter.fluid === "EAU_CHAUDE") ecs += qty;
-      else if (r.meter.fluid === "ELECTRICITE") elec += qty;
-      else if (r.meter.fluid === "GAZ" || r.meter.fluid === "CHALEUR" || r.meter.fluid === "FIOUL") gasChauffage += qty;
+      const kwh = toKwh(r);
+      if (r.meter.fluid === "EAU_CHAUDE") ecs += kwh;
+      else if (r.meter.fluid === "ELECTRICITE") elec += kwh;
+      else if (r.meter.fluid === "GAZ" || r.meter.fluid === "CHALEUR" || r.meter.fluid === "FIOUL") gas += kwh;
     }
-    return { gasChauffage, ecs, elec, total: filtered.length };
+    return { gas, ecs, elec, total: filtered.length };
   }, [filtered]);
-
-  // Render chart
-  useEffect(() => {
-    if (!chartRef.current || chartData.months.length === 0) {
-      chartInstance.current?.dispose();
-      chartInstance.current = null;
-      return;
-    }
-    const chart = echarts.init(chartRef.current);
-    chartInstance.current = chart;
-    chart.setOption({
-      grid: { left: 60, right: 20, top: 40, bottom: 40 },
-      legend: { top: 4, textStyle: { fontSize: 11 } },
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-      xAxis: {
-        type: "category",
-        data: chartData.labels,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { fontSize: 11, color: "#6b7280" },
-      },
-      yAxis: {
-        type: "value",
-        name: "kWh",
-        nameTextStyle: { color: "#6b7280", fontSize: 11 },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { color: "#f3f4f6" } },
-        axisLabel: {
-          fontSize: 11,
-          color: "#6b7280",
-          formatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString(),
-        },
-      },
-      series: chartData.series,
-    });
-
-    const handleResize = () => chart.resize();
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      chart.dispose();
-      chartInstance.current = null;
-    };
-  }, [chartData]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -278,19 +317,75 @@ export function RelevesContent({
     else { const data = await res.json(); alert(data.error || "Erreur"); }
   };
 
-  // Meters filtered by site selection
-  const availableMeters = filterSite === "all" ? metersList : metersList.filter((m) => m.siteId === filterSite);
+  const hasActiveFilter = filterFluid !== "all" || filterSite !== "all" || filterMeter !== "all" || filterDateFrom || filterDateTo;
 
   return (
     <div className="space-y-6">
-      {/* Actions */}
-      <div className="flex justify-end gap-2 flex-wrap">
+      {/* Filters + Actions — one row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <select
+          value={filterFluid}
+          onChange={(e) => setFilterFluid(e.target.value)}
+          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+        >
+          <option value="all">Tous fluides</option>
+          {fluids.map((f) => (
+            <option key={f} value={f}>{FLUID_LABELS[f] || f}</option>
+          ))}
+        </select>
+        <select
+          value={filterSite}
+          onChange={(e) => { setFilterSite(e.target.value); setFilterMeter("all"); }}
+          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+        >
+          <option value="all">Tous sites</option>
+          {sitesList.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <select
+          value={filterMeter}
+          onChange={(e) => setFilterMeter(e.target.value)}
+          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+        >
+          <option value="all">Tous compteurs</option>
+          {availableMeters.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={filterDateFrom}
+          onChange={(e) => setFilterDateFrom(e.target.value)}
+          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white"
+        />
+        <span className="text-xs text-text-secondary">→</span>
+        <input
+          type="date"
+          value={filterDateTo}
+          onChange={(e) => setFilterDateTo(e.target.value)}
+          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white"
+        />
+        {hasActiveFilter && (
+          <button
+            onClick={() => {
+              setFilterFluid("all"); setFilterSite("all"); setFilterMeter("all");
+              setFilterDateFrom(""); setFilterDateTo("");
+            }}
+            className="text-xs text-accent hover:underline"
+          >
+            Réinitialiser
+          </button>
+        )}
+
+        <div className="flex-1" />
+
         <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
-          <Flame size={18} className="mr-2" />
+          <Flame size={16} className="mr-2" />
           Import Exploitant
         </Button>
         <Button onClick={() => setShowCreateModal(true)}>
-          <Plus size={18} className="mr-2" />
+          <Plus size={16} className="mr-2" />
           Saisir relevé
         </Button>
       </div>
@@ -299,7 +394,7 @@ export function RelevesContent({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">Gaz / Chaleur</p>
-          <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.gasChauffage, "kWh")}</p>
+          <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.gas, "kWh")}</p>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <p className="text-xs text-text-secondary mb-1">ECS</p>
@@ -315,74 +410,17 @@ export function RelevesContent({
         </div>
       </div>
 
-      {/* Chart */}
-      {chartData.months.length > 0 && (
-        <ChartCard title="Consommation mensuelle par énergie">
-          <div ref={chartRef} style={{ width: "100%", height: 280 }} />
-        </ChartCard>
+      {/* One chart per fluid — 2 columns on desktop */}
+      {fluidsInFiltered.length > 0 && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {fluidsInFiltered.map((fluid) => (
+            <FluidChart key={fluid} fluid={fluid} readings={filtered} />
+          ))}
+        </div>
       )}
 
-      {/* Filters + Table */}
+      {/* Table */}
       <ChartCard title="Relevés">
-        {/* Filter bar */}
-        <div className="flex items-center gap-2 flex-wrap mb-4">
-          <select
-            value={filterFluid}
-            onChange={(e) => setFilterFluid(e.target.value)}
-            className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white"
-          >
-            <option value="all">Tous les fluides</option>
-            {fluids.map((f) => (
-              <option key={f} value={f}>{FLUID_LABELS[f] || f}</option>
-            ))}
-          </select>
-          <select
-            value={filterSite}
-            onChange={(e) => { setFilterSite(e.target.value); setFilterMeter("all"); }}
-            className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white"
-          >
-            <option value="all">Tous les sites</option>
-            {sitesList.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <select
-            value={filterMeter}
-            onChange={(e) => setFilterMeter(e.target.value)}
-            className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white"
-          >
-            <option value="all">Tous les compteurs</option>
-            {availableMeters.map((m) => (
-              <option key={m.id} value={m.id}>{m.name}</option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={filterDateFrom}
-            onChange={(e) => setFilterDateFrom(e.target.value)}
-            className="h-8 px-2 rounded-lg border border-gray-200 text-sm bg-white"
-            placeholder="Du"
-          />
-          <span className="text-xs text-text-secondary">→</span>
-          <input
-            type="date"
-            value={filterDateTo}
-            onChange={(e) => setFilterDateTo(e.target.value)}
-            className="h-8 px-2 rounded-lg border border-gray-200 text-sm bg-white"
-          />
-          {(filterFluid !== "all" || filterSite !== "all" || filterMeter !== "all" || filterDateFrom || filterDateTo) && (
-            <button
-              onClick={() => {
-                setFilterFluid("all"); setFilterSite("all"); setFilterMeter("all");
-                setFilterDateFrom(""); setFilterDateTo("");
-              }}
-              className="text-xs text-accent hover:underline ml-2"
-            >
-              Réinitialiser
-            </button>
-          )}
-        </div>
-
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-accent" />

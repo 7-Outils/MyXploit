@@ -311,7 +311,7 @@ function EnergyPageContent() {
           ))}
         </nav>
         <div className="flex items-center gap-2 pb-2">
-          {activeTab !== "telereleve" && (
+          {activeTab !== "telereleve" && activeTab !== "sites" && (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
