@@ -327,22 +327,21 @@ function EnergyPageContent() {
         </div>
       </div>
 
-      {/* Loading — only for tabs that depend on global analytics data */}
-      {loading && activeTab !== "telereleve" && activeTab !== "sites" && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-accent" />
-        </div>
-      )}
-
-      {/* Tab Content */}
-      {!loading && activeTab === "synthese" && (
-        <SyntheseContent
-          analytics={analytics}
-          activeAlerts={activeAlerts}
-          setShowIdexImportModal={setShowIdexImportModal}
-          setShowCreateModal={setShowCreateModal}
-        />
-      )}
+      {/* Synthèse — show previous data while refetching instead of unmounting */}
+      <div style={{ display: activeTab === "synthese" ? "block" : "none" }}>
+        {analytics ? (
+          <SyntheseContent
+            analytics={analytics}
+            activeAlerts={activeAlerts}
+            setShowIdexImportModal={setShowIdexImportModal}
+            setShowCreateModal={setShowCreateModal}
+          />
+        ) : loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-accent" />
+          </div>
+        ) : null}
+      </div>
 
       {/* Relevés + Télérelève stay mounted (hidden) to avoid refetching on tab switch */}
       <div style={{ display: activeTab === "sites" ? "block" : "none" }}>
