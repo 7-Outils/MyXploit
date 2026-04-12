@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
-import { getMonthlyDjuForStation } from "@/lib/dju-sync";
+import { getDailyDjuForStation } from "@/lib/dju-sync";
 
 // Force dynamic — never cache this route
 export const dynamic = "force-dynamic";
@@ -91,6 +91,44 @@ export async function GET(request: NextRequest) {
     const heatingSeasonMap = new Map(
       heatingSeasons.map((hs) => [hs.siteId, hs])
     );
+
+    // Fetch ALL heating seasons (any season key) to catch all heating periods
+    // that overlap the query range — needed for CIVIL years that cover 2 seasons.
+    const allHeatingPeriods = await prisma.heatingSeason.findMany({
+      where: {
+        siteId: { in: sites.map((s) => s.id) },
+        startDate: { not: null },
+      },
+      select: { siteId: true, startDate: true, endDate: true },
+    });
+
+    // ─── Build heating intervals per site (intersected with query range) ────
+    // Each heating season becomes an interval. For CIVIL years covering 2
+    // seasons, a site can have multiple intervals.
+    const todayDate = new Date();
+    const qStart = startDate;
+    const qEnd = endDate > todayDate ? todayDate : endDate;
+
+    interface Interval { start: Date; end: Date }
+    const intervalsBySite = new Map<string, Interval[]>();
+    for (const hp of allHeatingPeriods) {
+      if (!hp.startDate) continue;
+      const hpStart = hp.startDate;
+      const hpEnd = hp.endDate ?? todayDate;
+      const iStart = hpStart > qStart ? hpStart : qStart;
+      const iEnd = hpEnd < qEnd ? hpEnd : qEnd;
+      if (iStart >= iEnd) continue;
+      const list = intervalsBySite.get(hp.siteId) || [];
+      list.push({ start: iStart, end: iEnd });
+      intervalsBySite.set(hp.siteId, list);
+    }
+
+    // Helper: is a date within any heating interval for a site?
+    const isHeatingDay = (siteId: string, date: Date): boolean => {
+      const intervals = intervalsBySite.get(siteId);
+      if (!intervals || intervals.length === 0) return false;
+      return intervals.some((i) => date >= i.start && date <= i.end);
+    };
 
     // Get consumptions covering the query period + the year before
     // so we can catch heating seasons that span year boundaries
@@ -186,12 +224,10 @@ export async function GET(request: NextRequest) {
       const siteData = siteMap.get(consumption.siteId);
       if (!siteData) return;
 
-      // Filter by heating season dates if available
-      const hs = heatingSeasonMap.get(consumption.siteId);
-      if (hs?.startDate) {
-        const consoDate = consumption.period;
-        if (consoDate < hs.startDate) return; // Before allumage
-        if (hs.endDate && consoDate > hs.endDate) return; // After arrêt
+      // Filter: only count consumption that falls within a heating interval
+      // (so pauses between heating seasons are excluded from NC, matching DJR).
+      if (intervalsBySite.has(consumption.siteId) && !isHeatingDay(consumption.siteId, consumption.period)) {
+        return;
       }
 
       const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
@@ -254,58 +290,49 @@ export async function GET(request: NextRequest) {
       siteData.consumptions.push(consumption);
     });
 
-    // ─── Fetch fresh DJU from weather API ──────────────────────────────
-    // DJR = DJU between allumage and arrêt (or today if saison en cours)
-    // Dates come from HeatingSeason (Exploitation → Saisons de chauffe)
+    // ─── Fetch daily DJU from weather API ───────────────────────────────
     const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-    // Use startDate/endDate from the same HeatingSeason record that has the NB
-    // (matched by the season key — same record used for Cibles and Saisons de chauffe)
-    const heatingDatesBySite = new Map<string, { start: Date; end: Date | null }>();
-    for (const [siteId, hs] of heatingSeasonMap.entries()) {
-      if (hs.startDate) {
-        heatingDatesBySite.set(siteId, {
-          start: hs.startDate,
-          end: hs.endDate,
-        });
-      }
-    }
-
-    const djuBySite = new Map<string, Map<string, number>>();
+    // One call per site covering the full query period, then filter by
+    // intervals to only sum DJU on heating days.
+    const dailyDjuBySite = new Map<string, Map<string, number>>();
     await Promise.all(
       sites.map(async (site) => {
-        const dates = heatingDatesBySite.get(site.id);
-        if (!dates) {
-          // No allumage date → no DJR
-          djuBySite.set(site.id, new Map());
+        const intervals = intervalsBySite.get(site.id);
+        if (!intervals || intervals.length === 0) {
+          dailyDjuBySite.set(site.id, new Map());
           return;
         }
-
-        const djuStart = dates.start;
-        const djuEnd = dates.end || new Date(); // arrêt or today
-
-        const monthlyDju = await getMonthlyDjuForStation(
+        // Span all intervals: fetch min→max then filter
+        const spanStart = intervals.reduce((min, i) => (i.start < min ? i.start : min), intervals[0].start);
+        const spanEnd = intervals.reduce((max, i) => (i.end > max ? i.end : max), intervals[0].end);
+        const daily = await getDailyDjuForStation(
           site.stationMeteo,
           site.postalCode,
-          toIso(djuStart),
-          toIso(djuEnd),
+          toIso(spanStart),
+          toIso(spanEnd),
         );
-        djuBySite.set(site.id, monthlyDju);
+        dailyDjuBySite.set(site.id, daily);
       })
     );
 
-    // Inject fresh DJU into site data
+    // Inject DJR into site data — only days within heating intervals
     siteMap.forEach((siteData) => {
-      const monthlyDju = djuBySite.get(siteData.site.id);
-      if (!monthlyDju) return;
+      const daily = dailyDjuBySite.get(siteData.site.id);
+      if (!daily) return;
 
-      // djrTotal = sum of ALL DJU between allumage and arrêt (independent of consumption months)
-      siteData.djrTotal = Array.from(monthlyDju.values()).reduce((s, v) => s + v, 0);
+      // Reset monthly DJR and total
+      siteData.months.forEach((m) => { m.djr = 0; });
+      let total = 0;
 
-      // Also inject per-month DJR where consumption exists
-      siteData.months.forEach((monthData, monthKey) => {
-        monthData.djr = monthlyDju.get(monthKey) || 0;
-      });
+      for (const [dateIso, dju] of daily.entries()) {
+        const d = new Date(dateIso);
+        if (!isHeatingDay(siteData.site.id, d)) continue;
+        total += dju;
+        const monthKey = dateIso.substring(0, 7); // YYYY-MM
+        const monthData = siteData.months.get(monthKey);
+        if (monthData) monthData.djr += dju;
+      }
+      siteData.djrTotal = total;
     });
 
     // ─── Deduct ECS from NC for TELERELEVE sites ─────────────────────

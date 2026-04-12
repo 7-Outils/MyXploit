@@ -273,6 +273,31 @@ export async function fetchWeatherData(
 }
 
 /**
+ * Fetch daily DJU values for a station over a date range.
+ * Returns a Map<date_iso, dju> for per-day filtering.
+ */
+export async function getDailyDjuForStation(
+  stationMeteo: string | null,
+  postalCode: string | null,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, number>> {
+  const station = stationMeteo || getStationFromPostalCode(postalCode);
+  const coords = WEATHER_STATIONS[station];
+  if (!coords) return new Map();
+
+  try {
+    const daily = await fetchWeatherData(coords.lat, coords.lon, startDate, endDate);
+    const byDay = new Map<string, number>();
+    for (const d of daily) byDay.set(d.date, d.dju);
+    return byDay;
+  } catch (err) {
+    console.error(`DJU fetch failed for station ${station}:`, err);
+    return new Map();
+  }
+}
+
+/**
  * Fetch monthly DJU totals for a station over a date range.
  * Uses Open-Meteo archive API directly.
  */
