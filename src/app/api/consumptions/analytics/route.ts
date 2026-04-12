@@ -4,6 +4,9 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
 import { getMonthlyDjuForStation } from "@/lib/dju-sync";
 
+// Force dynamic — never cache this route
+export const dynamic = "force-dynamic";
+
 // GET /api/consumptions/analytics - Get energy performance analytics (NC vs N'B)
 export async function GET(request: NextRequest) {
   try {
