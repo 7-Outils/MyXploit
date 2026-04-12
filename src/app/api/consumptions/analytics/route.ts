@@ -258,11 +258,6 @@ export async function GET(request: NextRequest) {
       orderBy: { startDate: "desc" },
     });
 
-    console.log(`[DJR-DEBUG] Found ${allHeatingSeasons.length} heating seasons with startDate for ${sites.length} sites`);
-    for (const hs of allHeatingSeasons) {
-      console.log(`[DJR-DEBUG] siteId=${hs.siteId} season=${hs.season} startDate=${hs.startDate?.toISOString()} endDate=${hs.endDate?.toISOString()}`);
-    }
-
     // For each site, find the most recent startDate
     const heatingDatesBySite = new Map<string, { start: Date; end: Date | null }>();
     for (const hs of allHeatingSeasons) {
@@ -486,21 +481,7 @@ export async function GET(request: NextRequest) {
       deltaPercent: data.nbPrime > 0 ? Math.round(((data.nc - data.nbPrime) / data.nbPrime) * 1000) / 10 : 0,
     }));
 
-    // Debug: show heating dates and DJU results
-    const _djuDebug = sites.map((s) => {
-      const dates = heatingDatesBySite.get(s.id);
-      const dju = djuBySite.get(s.id);
-      return {
-        site: s.name,
-        startDate: dates?.start?.toISOString() ?? "NO_DATES",
-        endDate: dates?.end?.toISOString() ?? "ONGOING",
-        djuMonths: dju ? Object.fromEntries(dju) : "EMPTY",
-      };
-    });
-
     return NextResponse.json({
-      _ts: Date.now(),
-      _djuDebug,
       year,
       period: {
         start: startDate.toISOString(),
