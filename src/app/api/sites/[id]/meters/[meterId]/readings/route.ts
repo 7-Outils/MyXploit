@@ -174,6 +174,33 @@ export async function POST(
         }
         consumption = indexValue - previousReading.indexValue;
         periodStart = previousReading.readingDate;
+
+        // Anomaly check: compare to average of last 3 consumptions
+        if (!body.confirmAnomaly) {
+          const recentReadings = await prisma.meterReading.findMany({
+            where: {
+              meterId,
+              readingDate: { lt: readingDate },
+              consumption: { not: null, gt: 0 },
+            },
+            orderBy: { readingDate: "desc" },
+            take: 3,
+          });
+          if (recentReadings.length >= 2) {
+            const avg = recentReadings.reduce((s, r) => s + (r.consumption || 0), 0) / recentReadings.length;
+            if (avg > 0 && consumption > avg * 3) {
+              return NextResponse.json(
+                {
+                  anomaly: true,
+                  consumption,
+                  average: Math.round(avg * 10) / 10,
+                  message: `Consommation anormalement élevée : ${Math.round(consumption)} vs moyenne ${Math.round(avg)} sur les ${recentReadings.length} derniers relevés. Confirmer ?`,
+                },
+                { status: 409 }
+              );
+            }
+          }
+        }
       }
     }
 

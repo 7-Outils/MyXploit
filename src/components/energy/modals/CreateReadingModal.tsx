@@ -71,34 +71,50 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
 
   const selectedMeter = meters.find((m) => m.id === selectedMeterId);
 
+  const submitReading = async (confirmAnomaly = false) => {
+    const response = await fetch(
+      `/api/sites/${selectedSiteId}/meters/${selectedMeterId}/readings`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          readingDate,
+          indexValue: parseFloat(indexValue),
+          source: "MANUEL",
+          isReset,
+          confirmAnomaly,
+          notes: notes || null,
+        }),
+      }
+    );
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 409 && data.anomaly) {
+      if (confirm(data.message)) {
+        return submitReading(true);
+      }
+      return false;
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || "Erreur lors de l'enregistrement");
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMeterId || !indexValue) return;
 
     setSaving(true);
     try {
-      const response = await fetch(
-        `/api/sites/${selectedSiteId}/meters/${selectedMeterId}/readings`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            readingDate,
-            indexValue: parseFloat(indexValue),
-            source: "MANUEL",
-            isReset,
-            notes: notes || null,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erreur lors de l'enregistrement");
+      const ok = await submitReading(false);
+      if (ok) {
+        onSaved();
+        onClose();
       }
-
-      onSaved();
-      onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Erreur");
     } finally {
