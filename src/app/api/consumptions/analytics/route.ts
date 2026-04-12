@@ -486,8 +486,21 @@ export async function GET(request: NextRequest) {
       deltaPercent: data.nbPrime > 0 ? Math.round(((data.nc - data.nbPrime) / data.nbPrime) * 1000) / 10 : 0,
     }));
 
+    // Debug: show heating dates and DJU results
+    const _djuDebug = sites.map((s) => {
+      const dates = heatingDatesBySite.get(s.id);
+      const dju = djuBySite.get(s.id);
+      return {
+        site: s.name,
+        startDate: dates?.start?.toISOString() ?? "NO_DATES",
+        endDate: dates?.end?.toISOString() ?? "ONGOING",
+        djuMonths: dju ? Object.fromEntries(dju) : "EMPTY",
+      };
+    });
+
     return NextResponse.json({
       _ts: Date.now(),
+      _djuDebug,
       year,
       period: {
         start: startDate.toISOString(),
