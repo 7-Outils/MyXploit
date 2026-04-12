@@ -248,21 +248,12 @@ export async function GET(request: NextRequest) {
     // Dates come from HeatingSeason (Exploitation → Saisons de chauffe)
     const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    // Fetch ALL heating seasons for this contract (not just the ones matching the season key)
-    // to find startDate/endDate which may be on a different record
-    const allHeatingSeasons = await prisma.heatingSeason.findMany({
-      where: {
-        siteId: { in: sites.map((s) => s.id) },
-        startDate: { not: null },
-      },
-      orderBy: { startDate: "desc" },
-    });
-
-    // For each site, find the most recent startDate
+    // Use startDate/endDate from the same HeatingSeason record that has the NB
+    // (matched by the season key — same record used for Cibles and Saisons de chauffe)
     const heatingDatesBySite = new Map<string, { start: Date; end: Date | null }>();
-    for (const hs of allHeatingSeasons) {
-      if (!heatingDatesBySite.has(hs.siteId) && hs.startDate) {
-        heatingDatesBySite.set(hs.siteId, {
+    for (const [siteId, hs] of heatingSeasonMap.entries()) {
+      if (hs.startDate) {
+        heatingDatesBySite.set(siteId, {
           start: hs.startDate,
           end: hs.endDate,
         });
