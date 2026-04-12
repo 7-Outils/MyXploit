@@ -211,6 +211,10 @@ export function RelevesContent({
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  // Pagination
+  const PAGE_SIZE = 50;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const fetchReadings = useCallback(() => {
     if (!contractId) {
       setReadings([]);
@@ -218,7 +222,7 @@ export function RelevesContent({
       return;
     }
     setLoading(true);
-    fetch(`/api/contracts/${contractId}/readings?limit=200`)
+    fetch(`/api/contracts/${contractId}/readings?limit=1000`)
       .then((r) => (r.ok ? r.json() : []))
       .then((data) => setReadings(Array.isArray(data) ? data : []))
       .catch(() => setReadings([]))
@@ -262,6 +266,15 @@ export function RelevesContent({
       return sortDir === "desc" ? -cmp : cmp;
     });
   }, [readings, filterFluid, filterSite, filterMeter, filterDateFrom, filterDateTo, sortKey, sortDir]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterFluid, filterSite, filterMeter, filterDateFrom, filterDateTo]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageClamped = Math.min(currentPage, totalPages);
+  const pagedRows = filtered.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
 
   // Fluids present in filtered data — one chart per fluid
   const fluidsInFiltered = useMemo(
@@ -456,7 +469,7 @@ export function RelevesContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((r) => {
+                {pagedRows.map((r) => {
                   const isEditing = editingId === r.id;
                   return (
                     <tr key={r.id} className="hover:bg-gray-50">
@@ -528,6 +541,34 @@ export function RelevesContent({
                 })}
               </tbody>
             </table>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm">
+                <span className="text-text-secondary">
+                  {(pageClamped - 1) * PAGE_SIZE + 1}–{Math.min(pageClamped * PAGE_SIZE, filtered.length)} sur {filtered.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={pageClamped === 1}
+                    className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Précédent
+                  </button>
+                  <span className="text-xs text-text-secondary px-2">
+                    Page {pageClamped} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={pageClamped === totalPages}
+                    className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </ChartCard>
