@@ -292,16 +292,18 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Inject fresh DJU into site monthly data
+    // Inject fresh DJU into site data
     siteMap.forEach((siteData) => {
       const monthlyDju = djuBySite.get(siteData.site.id);
       if (!monthlyDju) return;
 
+      // djrTotal = sum of ALL DJU between allumage and arrêt (independent of consumption months)
+      siteData.djrTotal = Array.from(monthlyDju.values()).reduce((s, v) => s + v, 0);
+
+      // Also inject per-month DJR where consumption exists
       siteData.months.forEach((monthData, monthKey) => {
-        const dju = monthlyDju.get(monthKey) || 0;
-        monthData.djr = dju;
+        monthData.djr = monthlyDju.get(monthKey) || 0;
       });
-      siteData.djrTotal = Array.from(siteData.months.values()).reduce((s, m) => s + m.djr, 0);
     });
 
     // ─── Deduct ECS from NC for TELERELEVE sites ─────────────────────
