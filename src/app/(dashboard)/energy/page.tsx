@@ -8,18 +8,17 @@ import {
   Loader2,
   Flame,
   Building2,
-  Thermometer,
   Droplets,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
-import { HeatingSeasonModal } from "@/components/energy/modals/HeatingSeasonModal";
+
 import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
 
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
 import { SitesContent } from "@/components/energy/tabs/SitesTab";
 
-import { ClimatContent } from "@/components/energy/tabs/ClimatTab";
+
 import { ECSContent } from "@/components/energy/tabs/EcsTab";
 
 // Types and constants live in their own files now — see
@@ -28,8 +27,6 @@ import type {
   Site,
   AnalyticsData,
   Alert,
-  DJUData,
-  HeatingSeason,
   EnergyTab as Tab,
 } from "@/components/energy/types";
 
@@ -46,11 +43,8 @@ function EnergyPageContent() {
 
   // Data states
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [djuData, setDjuData] = useState<DJUData | null>(null);
-
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
-  const [heatingSeasons, setHeatingSeasons] = useState<HeatingSeason[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
@@ -58,10 +52,7 @@ function EnergyPageContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showIdexImportModal, setShowIdexImportModal] = useState(false);
 
-  const [showHeatingSeasonModal, setShowHeatingSeasonModal] = useState(false);
-
   const [importingIdex, setImportingIdex] = useState(false);
-  const [savingHeatingSeason, setSavingHeatingSeason] = useState(false);
   const [idexImportResult, setIdexImportResult] = useState<{
     mode: "preview" | "import";
     imported?: number;
@@ -98,18 +89,6 @@ function EnergyPageContent() {
   } | null>(null);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
-  // Heating season form
-  const [heatingSeasonForm, setHeatingSeasonForm] = useState({
-    siteId: "",
-    siteName: "",
-    season: `${new Date().getFullYear() - 1}-${new Date().getFullYear()}`,
-    startDate: "",
-    endDate: "",
-    notes: "",
-    nb: "",
-    nbUnit: "PCS" as "PCS" | "UTILE",
-    djuContractuel: "",
-  });
 
   // Tab change handler — update state + URL without triggering a navigation
   const handleTabChange = (tab: Tab) => {
@@ -179,20 +158,17 @@ function EnergyPageContent() {
       params.set("contractId", selectedContract.id);
       params.set("yearType", yearType);
 
-      const [analyticsRes, alertsRes, djuRes] = await Promise.all([
+      const [analyticsRes, alertsRes] = await Promise.all([
         fetch(`/api/consumptions/analytics?${params}`),
         fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
-        fetch(`/api/dju?contractId=${selectedContract.id}&year=${selectedYear}&yearType=${yearType}`),
       ]);
 
-      const [analyticsData, alertsData, djuDataRes] = await Promise.all([
+      const [analyticsData, alertsData] = await Promise.all([
         analyticsRes.json(),
         alertsRes.json(),
-        djuRes.json(),
       ]);
 
       if (analyticsRes.ok) setAnalytics(analyticsData);
-      if (djuRes.ok) setDjuData(djuDataRes);
       setAlerts(Array.isArray(alertsData) ? alertsData : []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -206,93 +182,6 @@ function EnergyPageContent() {
       fetchData();
     }
   }, [fetchData, selectedContract]);
-
-  // Fetch heating seasons
-  const fetchHeatingSeasons = useCallback(async () => {
-    if (!selectedContract) return;
-    try {
-      const season = isCivil ? `${selectedYear}` : `${selectedYear - 1}-${selectedYear}`;
-      const res = await fetch(`/api/heating-seasons?contractId=${selectedContract.id}&season=${season}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHeatingSeasons(data);
-      }
-    } catch (error) {
-      console.error("Error fetching heating seasons:", error);
-    }
-  }, [selectedContract, selectedYear]);
-
-  useEffect(() => {
-    if (selectedContract) {
-      fetchHeatingSeasons();
-    }
-  }, [fetchHeatingSeasons, selectedContract]);
-
-
-  const openHeatingSeasonModal = (siteId: string, siteName: string, existingStartDate?: string, existingEndDate?: string) => {
-    const season = `${selectedYear - 1}-${selectedYear}`;
-    const existingSeason = heatingSeasons.find(hs => hs.siteId === siteId);
-
-    setHeatingSeasonForm({
-      siteId,
-      siteName,
-      season,
-      startDate: existingSeason?.startDate?.split("T")[0] || existingStartDate || "",
-      endDate: existingSeason?.endDate?.split("T")[0] || existingEndDate || "",
-      notes: existingSeason?.notes || "",
-      nb: existingSeason?.nb?.toString() || "",
-      nbUnit: existingSeason?.nbUnit || "PCS",
-      djuContractuel: existingSeason?.djuContractuel?.toString() || "",
-    });
-    setShowHeatingSeasonModal(true);
-  };
-
-  const handleSaveHeatingSeason = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!heatingSeasonForm.startDate) return;
-
-    setSavingHeatingSeason(true);
-    try {
-      const existingSeason = heatingSeasons.find(hs => hs.siteId === heatingSeasonForm.siteId);
-
-      const body = {
-        siteId: heatingSeasonForm.siteId,
-        season: heatingSeasonForm.season,
-        startDate: heatingSeasonForm.startDate,
-        endDate: heatingSeasonForm.endDate || null,
-        notes: heatingSeasonForm.notes || null,
-        nb: heatingSeasonForm.nb ? parseFloat(heatingSeasonForm.nb) : null,
-        nbUnit: heatingSeasonForm.nb ? heatingSeasonForm.nbUnit : null,
-        djuContractuel: heatingSeasonForm.djuContractuel ? parseFloat(heatingSeasonForm.djuContractuel) : null,
-      };
-
-      let res;
-      if (existingSeason) {
-        res = await fetch(`/api/heating-seasons/${existingSeason.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      } else {
-        res = await fetch("/api/heating-seasons", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-      }
-
-      if (res.ok) {
-        setShowHeatingSeasonModal(false);
-        await fetchHeatingSeasons();
-        await fetchData();
-      }
-    } catch (error) {
-      console.error("Error saving heating season:", error);
-    } finally {
-      setSavingHeatingSeason(false);
-    }
-  };
-
 
   // First step: preview the import
   const handleIdexImport = async (file: File, importType: "ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET") => {
@@ -410,7 +299,6 @@ function EnergyPageContent() {
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
             { id: "sites" as Tab, label: "Relevés", icon: Building2 },
-            { id: "climat" as Tab, label: "Climat & DJU", icon: Thermometer },
             { id: "ecs" as Tab, label: "ECS", icon: Droplets },
             { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
           ].map((tab) => (
@@ -462,18 +350,6 @@ function EnergyPageContent() {
         />
       )}
 
-      {!loading && activeTab === "climat" && (
-        <ClimatContent
-          djuData={djuData}
-          analytics={analytics}
-          selectedYear={selectedYear}
-          heatingSeasons={heatingSeasons}
-          openHeatingSeasonModal={openHeatingSeasonModal}
-          contractId={selectedContract?.id || null}
-          onDjuSync={fetchData}
-        />
-      )}
-
       {!loading && activeTab === "ecs" && (
         <ECSContent
           analytics={analytics}
@@ -507,16 +383,6 @@ function EnergyPageContent() {
         />
       )}
 
-
-      {showHeatingSeasonModal && (
-        <HeatingSeasonModal
-          form={heatingSeasonForm}
-          setForm={setHeatingSeasonForm}
-          saving={savingHeatingSeason}
-          handleSave={handleSaveHeatingSeason}
-          onClose={() => setShowHeatingSeasonModal(false)}
-        />
-      )}
 
       {showIdexImportModal && (
         <IdexImportModal
