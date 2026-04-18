@@ -95,7 +95,6 @@ function FinancierPageContent() {
     amount: "",
     issueDate: "",
     description: "",
-    siteId: "",
   });
 
   // Update URL when tab changes
@@ -207,7 +206,6 @@ function FinancierPageContent() {
         body: JSON.stringify({
           ...formData,
           amount: parseFloat(formData.amount) || 0,
-          siteId: formData.siteId || null,
           contractId: selectedContract.id,
         }),
       });
@@ -221,7 +219,6 @@ function FinancierPageContent() {
           amount: "",
           issueDate: "",
           description: "",
-          siteId: "",
         });
       }
     } catch (error) {
@@ -549,8 +546,6 @@ function FinancierPageContent() {
           onClose={() => setShowInvoiceModal(false)}
           formData={formData}
           setFormData={setFormData}
-          contractSites={contractSites}
-          loadingContractSites={loadingContractSites}
           creating={creating}
           handleCreate={handleCreateInvoice}
         />

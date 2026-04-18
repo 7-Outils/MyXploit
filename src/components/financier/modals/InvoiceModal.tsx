@@ -2,8 +2,6 @@
 
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Site } from "@/components/financier/types";
-
 const P1_SUBTYPES = ["Combustible", "ECS", "Location compteur", "Abonnement", "Décompte", "Intéressement", "Autre"];
 
 interface InvoiceFormData {
@@ -13,15 +11,12 @@ interface InvoiceFormData {
   amount: string;
   issueDate: string;
   description: string;
-  siteId: string;
 }
 
 interface InvoiceModalProps {
   onClose: () => void;
   formData: InvoiceFormData;
   setFormData: (data: InvoiceFormData) => void;
-  contractSites: Site[];
-  loadingContractSites: boolean;
   creating: boolean;
   handleCreate: (e: React.FormEvent) => void;
 }
@@ -30,8 +25,6 @@ export function InvoiceModal({
   onClose,
   formData,
   setFormData,
-  contractSites,
-  loadingContractSites,
   creating,
   handleCreate,
 }: InvoiceModalProps) {
@@ -107,24 +100,6 @@ export function InvoiceModal({
               onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">
-              Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
-            </label>
-            <select
-              value={formData.siteId}
-              onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-              disabled={loadingContractSites}
-            >
-              <option value="">{loadingContractSites ? "Chargement..." : "Tous les sites"}</option>
-              {contractSites.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.name} {site.city && `(${site.city})`}
-                </option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">Description</label>
