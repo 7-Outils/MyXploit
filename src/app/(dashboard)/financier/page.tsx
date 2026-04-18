@@ -427,17 +427,6 @@ function FinancierPageContent() {
       }));
   }, [filteredInvoices]);
 
-  const invoiceStats = useMemo(() => {
-    const pending = filteredInvoices.filter((i) => i.status === "EN_ATTENTE");
-    const validated = filteredInvoices.filter((i) => i.status === "VALIDEE" || i.status === "PAYEE");
-    return {
-      pendingCount: pending.length,
-      pendingAmount: pending.reduce((sum, i) => sum + i.amount, 0),
-      validatedAmount: validated.reduce((sum, i) => sum + i.amount, 0),
-      totalAmount: filteredInvoices.reduce((sum, i) => sum + i.amount, 0),
-      totalCount: filteredInvoices.length,
-    };
-  }, [filteredInvoices]);
 
   // Loading
   if (loadingContracts) {
@@ -490,7 +479,6 @@ function FinancierPageContent() {
       {activeTab === "facturation" && (
         <FacturationTab
           loading={loadingInvoices}
-          invoiceStats={invoiceStats}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
           typeFilter={typeFilter}

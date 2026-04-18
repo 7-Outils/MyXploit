@@ -3,26 +3,21 @@
 import {
   Receipt,
   Plus,
-  Clock,
-  Euro,
   Loader2,
   Upload,
   MapPin,
   ChevronDown,
   ChevronRight,
-  Check,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
-import { StatsCard } from "@/components/dashboard/stats-card";
 import { ReadOnlyGate } from "@/components/permissions";
 import { statusConfig, typeConfig } from "@/components/financier/constants";
 import type { Invoice, StatusFilter, TypeFilter } from "@/components/financier/types";
 
 interface FacturationTabProps {
   loading: boolean;
-  invoiceStats: { pendingCount: number; pendingAmount: number; validatedAmount: number; totalAmount: number; totalCount: number };
   statusFilter: StatusFilter;
   setStatusFilter: (s: StatusFilter) => void;
   typeFilter: TypeFilter;
@@ -39,7 +34,6 @@ interface FacturationTabProps {
 
 export function FacturationTab({
   loading,
-  invoiceStats,
   statusFilter,
   setStatusFilter,
   typeFilter,
@@ -63,36 +57,6 @@ export function FacturationTab({
 
   return (
     <>
-      {/* Stats */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="En attente"
-          value={invoiceStats.pendingCount.toString()}
-          change={`${invoiceStats.pendingAmount.toLocaleString("fr-FR")} € à valider`}
-          changeType="neutral"
-          icon={Clock}
-          iconColor="text-yellow-600"
-        />
-        <StatsCard
-          title="Validées / Payées"
-          value={`${invoiceStats.validatedAmount.toLocaleString("fr-FR")} €`}
-          icon={Check}
-          iconColor="text-green-600"
-        />
-        <StatsCard
-          title="Total factures"
-          value={`${invoiceStats.totalAmount.toLocaleString("fr-FR")} €`}
-          icon={Euro}
-          iconColor="text-accent"
-        />
-        <StatsCard
-          title="Nombre"
-          value={invoiceStats.totalCount.toString()}
-          icon={Receipt}
-          iconColor="text-blue-600"
-        />
-      </div>
-
       {/* Filters & Actions */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex bg-gray-100 rounded-lg p-1">
