@@ -10,8 +10,6 @@ import {
   ChevronRight,
   Trash2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ChartCard } from "@/components/dashboard/chart-card";
 import { ReadOnlyGate } from "@/components/permissions";
 import { statusConfig, typeConfig } from "@/components/financier/constants";
 import type { Invoice, StatusFilter, TypeFilter } from "@/components/financier/types";
@@ -107,26 +105,12 @@ export function FacturationTab({
 
       {/* Invoices list */}
       {filteredInvoices.length === 0 ? (
-        <ChartCard title="">
-          <div className="flex flex-col items-center justify-center py-12">
-            <Receipt size={48} className="text-gray-300 mb-4" />
-            <p className="text-text-secondary mb-4">
-              {statusFilter !== "ALL" || typeFilter !== "ALL" ? "Aucune facture avec ces filtres" : "Aucune facture pour ce contrat"}
-            </p>
-            <ReadOnlyGate>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowImportModal(true)}>
-                  <Upload size={18} className="mr-2" />
-                  Importer PDF
-                </Button>
-                <Button onClick={() => setShowInvoiceModal(true)}>
-                  <Plus size={18} className="mr-2" />
-                  Saisir facture
-                </Button>
-              </div>
-            </ReadOnlyGate>
-          </div>
-        </ChartCard>
+        <div className="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-12">
+          <Receipt size={48} className="text-gray-300 mb-4" />
+          <p className="text-text-secondary">
+            {statusFilter !== "ALL" || typeFilter !== "ALL" ? "Aucune facture avec ces filtres" : "Aucune facture pour ce contrat"}
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {invoicesByYear.map(({ year, invoices: yearInvoices, total }) => {
