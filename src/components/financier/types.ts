@@ -121,6 +121,6 @@ export interface SiteAnalyticsData {
   };
 }
 
-export type Tab = "facturation" | "budget" | "decompte-p3" | "devis" | "analyse-sites";
+export type Tab = "facturation" | "budget" | "decompte-p3" | "devis";
 export type StatusFilter = "ALL" | "BROUILLON" | "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "PAYEE";
 export type TypeFilter = "ALL" | "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";

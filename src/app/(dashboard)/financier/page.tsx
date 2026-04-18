@@ -8,7 +8,6 @@ import {
   Loader2,
   Wallet,
   PiggyBank,
-  Building2,
   FileText,
 } from "lucide-react";
 
@@ -29,7 +28,6 @@ import type {
 import { FacturationTab } from "@/components/financier/tabs/FacturationTab";
 import { BudgetTab } from "@/components/financier/tabs/BudgetTab";
 import { DecompteP3Tab } from "@/components/financier/tabs/DecompteP3Tab";
-import { SiteAnalyticsTab } from "@/components/financier/tabs/SiteAnalyticsTab";
 import DevisP3Content from "@/components/exploitation/DevisP3Content";
 
 // Modals
@@ -131,7 +129,6 @@ function FinancierPageContent() {
         fetchFinancials(selectedContract.id);
       } else if (activeTab === "decompte-p3") {
         fetchP3Balance(selectedContract.id);
-      } else if (activeTab === "analyse-sites") {
         fetchSiteAnalytics(selectedContract.id);
       }
     }
@@ -529,7 +526,6 @@ function FinancierPageContent() {
             { id: "budget" as Tab, label: "Budget", icon: Wallet },
             { id: "decompte-p3" as Tab, label: "Décompte P3", icon: PiggyBank },
             { id: "devis" as Tab, label: "Devis", icon: FileText },
-            { id: "analyse-sites" as Tab, label: "Analyse sites", icon: Building2 },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -583,18 +579,13 @@ function FinancierPageContent() {
           p3Data={p3Data}
           expandedP3Years={expandedP3Years}
           toggleP3Year={toggleP3Year}
+          siteAnalytics={siteAnalytics}
+          loadingSiteAnalytics={loadingSiteAnalytics}
         />
       )}
 
       {activeTab === "devis" && selectedContract && (
         <DevisP3Content contractId={selectedContract.id} />
-      )}
-
-      {activeTab === "analyse-sites" && (
-        <SiteAnalyticsTab
-          loading={loadingSiteAnalytics}
-          data={siteAnalytics}
-        />
       )}
 
       {/* Modals */}
