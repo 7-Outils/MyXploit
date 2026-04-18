@@ -227,47 +227,8 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="space-y-6">
-
-      {/* Onboarding - ADMIN only */}
-      {(currentUser?.role === "ADMIN") && <Onboarding />}
-
-      {/* Stats Grid - Profile specific */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCards
-          currentUser={currentUser}
-          missionStats={missionStats}
-          profile={profile}
-          operationalEquipments={operationalEquipments.length}
-          equipmentInMaintenance={equipmentInMaintenance.length}
-          pendingQuotes={pendingQuotes.length}
-          acceptedQuotes={acceptedQuotes.length}
-          uniqueSitesCount={uniqueSitesFromActiveContracts.length}
-          activeContracts={activeContracts}
-          activeAlerts={activeAlerts.length}
-          criticalAlerts={criticalAlerts.length}
-          upcomingMeetings={upcomingMeetings.length}
-          pendingInvoices={pendingInvoices.length}
-          totalPendingAmount={totalPendingAmount}
-        />
-      </div>
-
-      {/* ADMIN Mission Dashboard Sections */}
-      {isAdmin && missionStats && (
-        <AdminDashboard
-          missionStats={missionStats}
-          expiringContracts={expiringContracts}
-          activeAlerts={activeAlerts}
-        />
-      )}
-
-      {/* Activity & Quick Actions - EDITOR only */}
-      {!isAdmin && (
-        <ActivitySection
-          recentActivities={recentActivities}
-          quickActions={quickActions}
-        />
-      )}
+    <div className="flex items-center justify-center py-20 text-text-secondary">
+      <p>À venir</p>
     </div>
   );
 }
