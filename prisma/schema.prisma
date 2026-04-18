@@ -1572,14 +1572,14 @@ model Invoice {
   description    String?
   p1SubType      String?
   documentUrl    String?
-  siteId         String
+  siteId         String?
   contractId     String?
   organizationId String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   // Relations
-  site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site         Site?        @relation(fields: [siteId], references: [id], onDelete: Cascade)
   contract     Contract?    @relation(fields: [contractId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
