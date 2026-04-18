@@ -9,6 +9,7 @@ import {
   Wallet,
   PiggyBank,
   Building2,
+  FileText,
 } from "lucide-react";
 
 // Types
@@ -29,6 +30,7 @@ import { FacturationTab } from "@/components/financier/tabs/FacturationTab";
 import { BudgetTab } from "@/components/financier/tabs/BudgetTab";
 import { DecompteP3Tab } from "@/components/financier/tabs/DecompteP3Tab";
 import { SiteAnalyticsTab } from "@/components/financier/tabs/SiteAnalyticsTab";
+import DevisP3Content from "@/components/exploitation/DevisP3Content";
 
 // Modals
 import { DeleteConfirmModal } from "@/components/financier/modals/DeleteConfirmModal";
@@ -526,6 +528,7 @@ function FinancierPageContent() {
             { id: "facturation" as Tab, label: "Facturation", icon: Receipt },
             { id: "budget" as Tab, label: "Budget", icon: Wallet },
             { id: "decompte-p3" as Tab, label: "Décompte P3", icon: PiggyBank },
+            { id: "devis" as Tab, label: "Devis", icon: FileText },
             { id: "analyse-sites" as Tab, label: "Analyse sites", icon: Building2 },
           ].map((tab) => (
             <button
@@ -582,6 +585,10 @@ function FinancierPageContent() {
           expandedP3Years={expandedP3Years}
           toggleP3Year={toggleP3Year}
         />
+      )}
+
+      {activeTab === "devis" && selectedContract && (
+        <DevisP3Content contractId={selectedContract.id} />
       )}
 
       {activeTab === "analyse-sites" && (
