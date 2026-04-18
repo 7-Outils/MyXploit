@@ -13,7 +13,7 @@ import type { Site } from "@/components/financier/types";
 
 interface ImportFormData {
   reference: string;
-  type: "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+  type: "P1" | "P2" | "P3";
   amount: string;
   issueDate: string;
   dueDate: string;
@@ -121,14 +121,12 @@ export function ImportModal({
                   <label className="block text-sm font-medium text-primary-dark mb-1">Type</label>
                   <select
                     value={importFormData.type}
-                    onChange={(e) => setImportFormData({ ...importFormData, type: e.target.value as "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE" })}
+                    onChange={(e) => setImportFormData({ ...importFormData, type: e.target.value as "P1" | "P2" | "P3" })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
                   >
-                    <option value="P1">P1 - Énergie</option>
-                    <option value="P2">P2 - Petit entretien</option>
-                    <option value="P3">P3 - Gros entretien</option>
-                    <option value="TRAVAUX">Travaux</option>
-                    <option value="AUTRE">Autre</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
                   </select>
                 </div>
                 <div>

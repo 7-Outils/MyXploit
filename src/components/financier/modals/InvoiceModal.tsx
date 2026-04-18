@@ -4,9 +4,12 @@ import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Site } from "@/components/financier/types";
 
+const P1_SUBTYPES = ["Combustible", "ECS", "Location compteur", "Abonnement", "Autre"];
+
 interface InvoiceFormData {
   reference: string;
-  type: "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+  type: "P1" | "P2" | "P3";
+  p1SubType: string;
   amount: string;
   issueDate: string;
   dueDate: string;
@@ -50,7 +53,7 @@ export function InvoiceModal({
                 type="text"
                 required
                 value={formData.reference}
-                onChange={(e) => setFormData({ ...formData, reference: e.target.value } as typeof formData)}
+                onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
             </div>
@@ -59,17 +62,32 @@ export function InvoiceModal({
               <select
                 required
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE" })}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as "P1" | "P2" | "P3", p1SubType: "" })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               >
-                <option value="P1">P1 - Énergie</option>
-                <option value="P2">P2 - Petit entretien</option>
-                <option value="P3">P3 - Gros entretien</option>
-                <option value="TRAVAUX">Travaux</option>
-                <option value="AUTRE">Autre</option>
+                <option value="P1">P1</option>
+                <option value="P2">P2</option>
+                <option value="P3">P3</option>
               </select>
             </div>
           </div>
+
+          {formData.type === "P1" && (
+            <div>
+              <label className="block text-sm font-medium text-primary-dark mb-1">Sous-type P1</label>
+              <select
+                value={formData.p1SubType}
+                onChange={(e) => setFormData({ ...formData, p1SubType: e.target.value })}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              >
+                <option value="">— Sélectionner —</option>
+                {P1_SUBTYPES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">Montant HT (€) *</label>
             <input
@@ -77,7 +95,7 @@ export function InvoiceModal({
               required
               step="0.01"
               value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value } as typeof formData)}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
@@ -88,7 +106,7 @@ export function InvoiceModal({
                 type="date"
                 required
                 value={formData.issueDate}
-                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value } as typeof formData)}
+                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
             </div>
@@ -98,7 +116,7 @@ export function InvoiceModal({
                 type="date"
                 required
                 value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value } as typeof formData)}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
             </div>
@@ -109,7 +127,7 @@ export function InvoiceModal({
             </label>
             <select
               value={formData.siteId}
-              onChange={(e) => setFormData({ ...formData, siteId: e.target.value } as typeof formData)}
+              onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               disabled={loadingContractSites}
             >
@@ -120,13 +138,12 @@ export function InvoiceModal({
                 </option>
               ))}
             </select>
-            <p className="text-xs text-text-secondary mt-1">Laisser vide si la facture concerne tous les sites</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">Description</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value } as typeof formData)}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
               rows={2}
             />

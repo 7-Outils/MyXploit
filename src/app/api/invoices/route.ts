@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         issueDate: new Date(body.issueDate),
         dueDate: new Date(body.dueDate),
         description: body.description,
+        p1SubType: body.type === "P1" ? (body.p1SubType || null) : null,
         siteId: body.siteId,
         contractId: body.contractId,
         organizationId: effectiveOrgId,

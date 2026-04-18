@@ -21,6 +21,7 @@ export interface Invoice {
   id: string;
   reference: string;
   type: "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+  p1SubType: string | null;
   status: "BROUILLON" | "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "PAYEE";
   amount: number;
   taxAmount: number | null;
@@ -123,4 +124,4 @@ export interface SiteAnalyticsData {
 
 export type Tab = "facturation" | "budget" | "decompte-p3" | "devis";
 export type StatusFilter = "ALL" | "BROUILLON" | "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "PAYEE";
-export type TypeFilter = "ALL" | "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+export type TypeFilter = "ALL" | "P1" | "P2" | "P3";

@@ -80,7 +80,7 @@ function FinancierPageContent() {
   const [matchedSiteId, setMatchedSiteId] = useState<string | null>(null);
   const [importFormData, setImportFormData] = useState({
     reference: "",
-    type: "P1" as "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE",
+    type: "P1" as "P1" | "P2" | "P3",
     amount: "",
     issueDate: new Date().toISOString().split("T")[0],
     dueDate: "",
@@ -90,7 +90,8 @@ function FinancierPageContent() {
   });
   const [formData, setFormData] = useState({
     reference: "",
-    type: "P1" as "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE",
+    type: "P1" as "P1" | "P2" | "P3",
+    p1SubType: "",
     amount: "",
     issueDate: "",
     dueDate: "",
@@ -217,6 +218,7 @@ function FinancierPageContent() {
         setFormData({
           reference: "",
           type: "P1",
+          p1SubType: "",
           amount: "",
           issueDate: "",
           dueDate: "",

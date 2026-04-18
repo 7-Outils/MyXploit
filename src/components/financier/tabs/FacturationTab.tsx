@@ -8,7 +8,6 @@ import {
   Loader2,
   Upload,
   MapPin,
-  Filter,
   ChevronDown,
   ChevronRight,
   Check,
@@ -112,20 +111,16 @@ export function FacturationTab({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Filter size={16} className="text-text-secondary" />
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
-            >
-              <option value="ALL">Tous types</option>
-              <option value="P1">P1 - Énergie</option>
-              <option value="P2">P2 - Petit entretien</option>
-              <option value="P3">P3 - Gros entretien</option>
-              <option value="TRAVAUX">Travaux</option>
-              <option value="AUTRE">Autre</option>
-            </select>
+          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+            {(["P1", "P2", "P3"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setTypeFilter(typeFilter === t ? "ALL" : t)}
+                className={`h-9 px-3 text-xs font-medium transition-colors ${typeFilter === t ? "bg-accent text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+              >
+                {t}
+              </button>
+            ))}
           </div>
         </div>
         <ReadOnlyGate>
@@ -220,7 +215,9 @@ export function FacturationTab({
                               <p className="text-xs text-text-secondary">Éch. {new Date(invoice.dueDate).toLocaleDateString("fr-FR")}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${type.color}`}>{invoice.type}</span>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${type.color}`}>
+                                {invoice.type}{invoice.p1SubType ? ` · ${invoice.p1SubType}` : ""}
+                              </span>
                               <select
                                 value={invoice.status}
                                 onChange={(e) => handleStatusChange(invoice.id, e.target.value)}

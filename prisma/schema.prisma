@@ -1570,6 +1570,7 @@ model Invoice {
   dueDate        DateTime
   paidDate       DateTime?
   description    String?
+  p1SubType      String?
   documentUrl    String?
   siteId         String
   contractId     String?
