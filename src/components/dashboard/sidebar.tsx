@@ -10,7 +10,6 @@ import {
   Wrench,
   Settings,
   ChevronLeft,
-  Briefcase,
   Shield,
   Building2,
   Users,
@@ -46,7 +45,6 @@ const adminNavigation: NavItem[] = [
 // Navigation par defaut (Ingenieur, Lecteur)
 const defaultNavigation: NavItem[] = [
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
-  { name: "Batiments", href: "/buildings", icon: Building2 },
   { name: "Contrat", href: "/contrat", icon: FileText, module: "ADMINISTRATIF" },
   { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
   { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
