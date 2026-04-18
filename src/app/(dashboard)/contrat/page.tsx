@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useContract } from "@/contexts/ContractContext";
 import {
   FileText,
-  Plus,
   Calendar,
   Loader2,
   Building2,
@@ -23,7 +22,7 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
 import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab";
 import ContractFinancierTab from "@/components/administratif/ContractFinancierTab";
-import CreateContractModal from "@/components/administratif/modals/CreateContractModal";
+
 import EditContractModal from "@/components/administratif/modals/EditContractModal";
 import AEImportModal from "@/components/administratif/modals/AEImportModal";
 import { statusLabels } from "@/components/administratif/constants";
@@ -41,7 +40,7 @@ function AdministratifContent() {
   const [energySites, setEnergySites] = useState<Site[]>([]);
 
   // Modal visibility
-  const [showContractModal, setShowContractModal] = useState(false);
+
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [showAEImportModal, setShowAEImportModal] = useState(false);
 
@@ -111,26 +110,10 @@ function AdministratifContent() {
   if (!selectedContract) {
     return (
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-primary-dark">Contrat</h1>
-            <p className="text-text-secondary">Sélectionnez un contrat dans la barre supérieure</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowAEImportModal(true)}>
-              <FileSpreadsheet size={18} className="mr-2" />
-              Créer depuis AE
-            </Button>
-            <Button onClick={() => setShowContractModal(true)}>
-              <Plus size={18} className="mr-2" />
-              Nouveau contrat
-            </Button>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-primary-dark">Contrat</h1>
+          <p className="text-text-secondary">Sélectionnez ou créez un contrat depuis le sélecteur en haut de page</p>
         </div>
-
-        {/* Modals */}
-        {showContractModal && <CreateContractModal onClose={() => setShowContractModal(false)} />}
-        {showAEImportModal && <AEImportModal onClose={() => setShowAEImportModal(false)} />}
       </div>
     );
   }
@@ -157,10 +140,6 @@ function AdministratifContent() {
           <Button variant="outline" onClick={() => setShowAEImportModal(true)}>
             <FileSpreadsheet size={18} className="mr-2" />
             Importer AE
-          </Button>
-          <Button onClick={() => setShowContractModal(true)}>
-            <Plus size={18} className="mr-2" />
-            Nouveau contrat
           </Button>
         </div>
 
@@ -395,7 +374,7 @@ function AdministratifContent() {
       )}
 
       {/* Modals */}
-      {showContractModal && <CreateContractModal onClose={() => setShowContractModal(false)} />}
+
       {showEditContractModal && contractDetail && (
         <EditContractModal
           contractId={selectedContract.id}
