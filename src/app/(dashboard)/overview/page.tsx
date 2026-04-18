@@ -269,31 +269,6 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header with profile badge */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-dark">
-            Vue d&apos;ensemble
-          </h1>
-          <p className="text-text-secondary">
-            Bienvenue{currentUser?.firstName ? `, ${currentUser.firstName}` : ""}.{" "}
-            {selectedContract ? `Contrat : ${selectedContract.reference}` : welcomeMessage}
-          </p>
-        </div>
-        {isAdmin ? (
-          <div className="px-3 py-1.5 rounded-full text-sm font-medium bg-accent/10 text-accent">
-            Dirigeant
-          </div>
-        ) : profile ? (
-          <div className={`px-3 py-1.5 rounded-full text-sm font-medium ${
-            profile === "EXPLOITANT" ? "bg-orange-100 text-orange-700" :
-            profile === "AMO" ? "bg-purple-100 text-purple-700" :
-            "bg-blue-100 text-blue-700"
-          }`}>
-            {PROFILE_CONFIG[profile].label}
-          </div>
-        ) : null}
-      </div>
 
       {/* Onboarding - ADMIN only */}
       {(currentUser?.role === "ADMIN") && <Onboarding />}
