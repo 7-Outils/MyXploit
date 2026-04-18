@@ -92,11 +92,11 @@ export default function BuildingDetailPage({
       {/* Breadcrumb + Header */}
       <div>
         <Link
-          href="/buildings"
+          href="/contrat"
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-accent mb-3 transition-colors"
         >
           <ArrowLeft size={14} />
-          Bâtiments
+          Contrat
         </Link>
 
         <div className="flex items-start justify-between">
