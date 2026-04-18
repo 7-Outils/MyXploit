@@ -94,45 +94,49 @@ export function FacturationTab({
       </div>
 
       {/* Filters & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex flex-wrap gap-2">
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            {(["ALL", "EN_ATTENTE", "VALIDEE", "PAYEE", "BROUILLON"] as StatusFilter[]).map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                  statusFilter === status
-                    ? "bg-white shadow text-primary-dark font-medium"
-                    : "text-text-secondary hover:text-primary-dark"
-                }`}
-              >
-                {status === "ALL" ? "Toutes" : status === "EN_ATTENTE" ? "En attente" : status === "VALIDEE" ? "Validées" : status === "PAYEE" ? "Payées" : "Brouillon"}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-            {(["P1", "P2", "P3"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTypeFilter(typeFilter === t ? "ALL" : t)}
-                className={`h-9 px-3 text-xs font-medium transition-colors ${typeFilter === t ? "bg-accent text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          {(["ALL", "EN_ATTENTE", "VALIDEE", "PAYEE", "BROUILLON"] as StatusFilter[]).map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                statusFilter === status
+                  ? "bg-white shadow text-primary-dark font-medium"
+                  : "text-text-secondary hover:text-primary-dark"
+              }`}
+            >
+              {status === "ALL" ? "Toutes" : status === "EN_ATTENTE" ? "En attente" : status === "VALIDEE" ? "Validées" : status === "PAYEE" ? "Payées" : "Brouillon"}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          {(["P1", "P2", "P3"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTypeFilter(typeFilter === t ? "ALL" : t)}
+              className={`h-9 px-3 text-xs font-medium transition-colors ${typeFilter === t ? "bg-accent text-white" : "bg-white text-gray-600 hover:bg-gray-50"}`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
         <ReadOnlyGate>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowImportModal(true)}>
-              <Upload size={18} className="mr-2" />
-              Importer PDF
-            </Button>
-            <Button onClick={() => setShowInvoiceModal(true)}>
-              <Plus size={18} className="mr-2" />
-              Saisir facture
-            </Button>
+          <div className="flex items-center gap-1 ml-auto">
+            <button
+              onClick={() => setShowImportModal(true)}
+              title="Importer PDF"
+              className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Upload size={16} />
+            </button>
+            <button
+              onClick={() => setShowInvoiceModal(true)}
+              title="Saisir facture"
+              className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
+            >
+              <Plus size={16} />
+            </button>
           </div>
         </ReadOnlyGate>
       </div>

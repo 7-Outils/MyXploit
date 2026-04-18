@@ -4,7 +4,7 @@ import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Site } from "@/components/financier/types";
 
-const P1_SUBTYPES = ["Combustible", "ECS", "Location compteur", "Abonnement", "Autre"];
+const P1_SUBTYPES = ["Combustible", "ECS", "Location compteur", "Abonnement", "Décompte", "Intéressement", "Autre"];
 
 interface InvoiceFormData {
   reference: string;
@@ -12,7 +12,6 @@ interface InvoiceFormData {
   p1SubType: string;
   amount: string;
   issueDate: string;
-  dueDate: string;
   description: string;
   siteId: string;
 }
@@ -99,27 +98,15 @@ export function InvoiceModal({
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">Date émission *</label>
-              <input
-                type="date"
-                required
-                value={formData.issueDate}
-                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">Date échéance *</label>
-              <input
-                type="date"
-                required
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-primary-dark mb-1">Date émission *</label>
+            <input
+              type="date"
+              required
+              value={formData.issueDate}
+              onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-primary-dark mb-1">

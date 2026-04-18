@@ -94,7 +94,6 @@ function FinancierPageContent() {
     p1SubType: "",
     amount: "",
     issueDate: "",
-    dueDate: "",
     description: "",
     siteId: "",
   });
@@ -221,7 +220,6 @@ function FinancierPageContent() {
           p1SubType: "",
           amount: "",
           issueDate: "",
-          dueDate: "",
           description: "",
           siteId: "",
         });

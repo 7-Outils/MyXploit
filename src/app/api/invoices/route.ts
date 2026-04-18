@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         amount: parseFloat(body.amount),
         taxAmount: body.taxAmount ? parseFloat(body.taxAmount) : null,
         issueDate: new Date(body.issueDate),
-        dueDate: new Date(body.dueDate),
+        dueDate: body.dueDate ? new Date(body.dueDate) : new Date(body.issueDate),
         description: body.description,
         p1SubType: body.type === "P1" ? (body.p1SubType || null) : null,
         siteId: body.siteId,
