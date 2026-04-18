@@ -51,7 +51,6 @@ const defaultNavigation: NavItem[] = [
   { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
   { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
   { name: "Suivi exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
-  { name: "Boite a outils", href: "/outils", icon: Briefcase, module: "OUTILS" },
 ];
 
 export function Sidebar() {
