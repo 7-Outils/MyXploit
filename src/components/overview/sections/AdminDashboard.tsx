@@ -224,7 +224,7 @@ export function AdminDashboard({
           }
           subtitle={`${expiringContracts.length} contrat(s) arrivent à échéance dans les 6 prochains mois`}
           action={
-            <Link href="/administratif" className="text-sm text-accent hover:underline flex items-center gap-1">
+            <Link href="/contrat" className="text-sm text-accent hover:underline flex items-center gap-1">
               Voir tous les contrats <ChevronRight size={14} />
             </Link>
           }
@@ -267,7 +267,7 @@ export function AdminDashboard({
           </div>
           {expiringContracts.length > 5 && (
             <Link
-              href="/administratif"
+              href="/contrat"
               className="mt-4 block text-center text-sm text-accent hover:underline"
             >
               +{expiringContracts.length - 5} autre(s) contrat(s)

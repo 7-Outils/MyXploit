@@ -89,6 +89,7 @@ export interface Contract {
   yearStartMonth: number;
   yearStartDay: number;
   billingFrequency: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
+  djuContractuel: number | null;
   contractSites: ContractSite[];
   avenants: Avenant[];
   _count?: { contractSites: number };

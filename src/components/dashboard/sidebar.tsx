@@ -40,17 +40,16 @@ const adminNavigation: NavItem[] = [
   { name: "Clients", href: "/clients", icon: Building2, adminOnly: true },
   { name: "Rapports", href: "/rapports", icon: ClipboardList, adminOnly: true },
   { name: "Sites", href: "/buildings", icon: MapPin },
-  { name: "Contrats exploitation", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
+  { name: "Contrats exploitation", href: "/contrat", icon: FileText, module: "ADMINISTRATIF" },
 ];
 
 // Navigation par defaut (Ingenieur, Lecteur)
 const defaultNavigation: NavItem[] = [
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
   { name: "Batiments", href: "/buildings", icon: Building2 },
-  { name: "Contrat", href: "/contrat", icon: FileText, module: "ENERGY" },
+  { name: "Contrat", href: "/contrat", icon: FileText, module: "ADMINISTRATIF" },
   { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
   { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
-  { name: "Suivi administratif", href: "/administratif", icon: FileText, module: "ADMINISTRATIF" },
   { name: "Suivi exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
   { name: "Boite a outils", href: "/outils", icon: Briefcase, module: "OUTILS" },
 ];

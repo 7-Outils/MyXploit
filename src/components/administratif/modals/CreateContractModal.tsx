@@ -20,6 +20,7 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
     endDate: "",
     yearType: "HEATING_SEASON" as YearType,
     billingFrequency: "TRIMESTRIEL" as BillingFrequency,
+    djuContractuel: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +34,7 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
           ...formData,
           startDate: parseFrenchDate(formData.startDate),
           endDate: parseFrenchDate(formData.endDate),
+          djuContractuel: formData.djuContractuel ? parseFloat(formData.djuContractuel) : null,
         }),
       });
       if (response.ok) {
@@ -94,6 +96,11 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
                 <option value="ANNUEL">Annuel</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-primary-dark mb-1">DJU Contractuels (DJC)</label>
+            <input type="number" step="1" value={formData.djuContractuel} onChange={(e) => setFormData({ ...formData, djuContractuel: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="2350" />
+            <p className="text-xs text-text-secondary mt-1">Base de référence pour le calcul N&apos;B (importé depuis l&apos;AE si disponible)</p>
           </div>
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Annuler</Button>

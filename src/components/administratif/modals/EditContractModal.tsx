@@ -25,6 +25,7 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
     status: contractDetail.status as string,
     yearType: (contractDetail.yearType || "HEATING_SEASON") as YearType,
     billingFrequency: (contractDetail.billingFrequency || "TRIMESTRIEL") as BillingFrequency,
+    djuContractuel: contractDetail.djuContractuel?.toString() || "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +45,7 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           status: formData.status,
           yearType: formData.yearType,
           billingFrequency: formData.billingFrequency,
+          djuContractuel: formData.djuContractuel ? parseFloat(formData.djuContractuel) : null,
         }),
       });
       if (response.ok) {
@@ -118,6 +120,10 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
               <option value="EXPIRE">Expiré</option>
               <option value="RESILIE">Résilié</option>
             </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-primary-dark mb-1">DJU Contractuels (DJC)</label>
+            <input type="number" step="1" value={formData.djuContractuel} onChange={(e) => setFormData({ ...formData, djuContractuel: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="2350" />
           </div>
           <div className="flex gap-3 pt-4">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Annuler</Button>
