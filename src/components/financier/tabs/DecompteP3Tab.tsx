@@ -98,16 +98,6 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
                 </tr>
               ))}
             </tbody>
-            <tfoot>
-              <tr className="bg-gray-50 border-t border-gray-200">
-                <td className="px-4 py-3 text-sm font-semibold text-gray-900">Total ({siteAnalytics.sites.length} sites)</td>
-                <td className="px-4 py-3 text-sm text-right font-semibold text-green-600">{siteAnalytics.totals.p3Invoices.toLocaleString("fr-FR")} €</td>
-                <td className="px-4 py-3 text-sm text-right font-semibold text-red-600">{siteAnalytics.totals.p3Quotes.toLocaleString("fr-FR")} €</td>
-                <td className={`px-4 py-3 text-sm text-right font-semibold ${siteAnalytics.totals.p3Balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {siteAnalytics.totals.p3Balance >= 0 ? "+" : ""}{siteAnalytics.totals.p3Balance.toLocaleString("fr-FR")} €
-                </td>
-              </tr>
-            </tfoot>
           </table>
         </div>
       ) : (
