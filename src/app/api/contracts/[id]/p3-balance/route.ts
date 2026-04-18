@@ -182,7 +182,7 @@ export async function GET(
         reference: invoice.reference,
         issueDate: invoice.issueDate.toISOString(),
         amount: invoice.amount,
-        siteName: invoice.site.name,
+        siteName: invoice.site?.name ?? "",
       });
       yearData.totalInvoices += invoice.amount;
     }
