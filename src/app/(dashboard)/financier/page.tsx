@@ -6,7 +6,6 @@ import { useContract } from "@/contexts/ContractContext";
 import {
   Receipt,
   Loader2,
-  Wallet,
   PiggyBank,
   FileText,
 } from "lucide-react";
@@ -15,8 +14,6 @@ import {
 import type {
   Site,
   Invoice,
-  Season,
-  FinancialData,
   P3BalanceData,
   SiteAnalyticsData,
   Tab,
@@ -26,7 +23,6 @@ import type {
 
 // Tabs
 import { FacturationTab } from "@/components/financier/tabs/FacturationTab";
-import { BudgetTab } from "@/components/financier/tabs/BudgetTab";
 import { DecompteP3Tab } from "@/components/financier/tabs/DecompteP3Tab";
 import DevisP3Content from "@/components/exploitation/DevisP3Content";
 
@@ -62,11 +58,6 @@ function FinancierPageContent() {
   const [contractSites, setContractSites] = useState<Site[]>([]);
   const [loadingContractSites, setLoadingContractSites] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Budget state
-  const [financialData, setFinancialData] = useState<FinancialData | null>(null);
-  const [loadingFinancials, setLoadingFinancials] = useState(false);
-  const [expandedSeasons, setExpandedSeasons] = useState<Set<string>>(new Set());
 
   // Décompte P3 state
   const [p3Data, setP3Data] = useState<P3BalanceData | null>(null);
@@ -125,8 +116,6 @@ function FinancierPageContent() {
       fetchContractSites(selectedContract.id);
       if (activeTab === "facturation") {
         fetchInvoices(selectedContract.id);
-      } else if (activeTab === "budget") {
-        fetchFinancials(selectedContract.id);
       } else if (activeTab === "decompte-p3") {
         fetchP3Balance(selectedContract.id);
         fetchSiteAnalytics(selectedContract.id);
@@ -148,25 +137,6 @@ function FinancierPageContent() {
       console.error("Error fetching invoices:", error);
     } finally {
       setLoadingInvoices(false);
-    }
-  };
-
-  const fetchFinancials = async (contractId: string) => {
-    try {
-      setLoadingFinancials(true);
-      const response = await fetch(`/api/contracts/${contractId}/financials`);
-      if (response.ok) {
-        const data = await response.json();
-        setFinancialData(data);
-        const currentSeason = data.seasons?.find((s: Season) => s.isCurrent);
-        if (currentSeason) {
-          setExpandedSeasons(new Set([currentSeason.label]));
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching financials:", error);
-    } finally {
-      setLoadingFinancials(false);
     }
   };
 
@@ -421,15 +391,6 @@ function FinancierPageContent() {
     });
   };
 
-  const toggleSeason = (label: string) => {
-    setExpandedSeasons((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  };
-
   const toggleP3Year = (year: string) => {
     setExpandedP3Years((prev) => {
       const next = new Set(prev);
@@ -478,22 +439,6 @@ function FinancierPageContent() {
     };
   }, [filteredInvoices]);
 
-  // Computed values for budget
-  const budgetStats = useMemo(() => {
-    if (!financialData) return null;
-    const { summary, seasons } = financialData;
-    const pastSeasons = seasons.filter((s) => s.isPast).length;
-    const futureSeasons = seasons.filter((s) => s.isFuture).length;
-    return {
-      totalContract: summary.totalContract,
-      seasonCount: summary.seasonCount,
-      pastSeasons,
-      futureSeasons,
-      averagePerSeason: summary.seasonCount > 0 ? summary.totalContract / summary.seasonCount : 0,
-    };
-  }, [financialData]);
-
-
   // Loading
   if (loadingContracts) {
     return (
@@ -523,8 +468,7 @@ function FinancierPageContent() {
         <nav className="flex gap-8">
           {[
             { id: "facturation" as Tab, label: "Facturation", icon: Receipt },
-            { id: "budget" as Tab, label: "Budget", icon: Wallet },
-            { id: "decompte-p3" as Tab, label: "Décompte P3", icon: PiggyBank },
+            { id: "decompte-p3" as Tab, label: "Solde P3", icon: PiggyBank },
             { id: "devis" as Tab, label: "Devis", icon: FileText },
           ].map((tab) => (
             <button
@@ -562,16 +506,6 @@ function FinancierPageContent() {
         />
       )}
 
-      {activeTab === "budget" && (
-        <BudgetTab
-          loading={loadingFinancials}
-          financialData={financialData}
-          budgetStats={budgetStats}
-          selectedContract={selectedContract}
-          expandedSeasons={expandedSeasons}
-          toggleSeason={toggleSeason}
-        />
-      )}
 
       {activeTab === "decompte-p3" && (
         <DecompteP3Tab
