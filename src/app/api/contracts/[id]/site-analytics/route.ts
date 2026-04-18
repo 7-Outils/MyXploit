@@ -116,7 +116,7 @@ export async function GET(
 
     // Add P3 invoices
     for (const invoice of invoices) {
-      const siteData = sitesMap.get(invoice.siteId);
+      const siteData = invoice.siteId ? sitesMap.get(invoice.siteId) : undefined;
       if (siteData) {
         siteData.p3InvoiceCount++;
         siteData.p3Invoices += invoice.amount;
