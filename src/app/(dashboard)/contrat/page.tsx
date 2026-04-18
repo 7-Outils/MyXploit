@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import { useContract } from "@/contexts/ContractContext";
 import {
-  Calendar,
   Loader2,
   Building2,
   FileSpreadsheet,
@@ -13,7 +12,7 @@ import {
   Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatsCard } from "@/components/dashboard/stats-card";
+
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
 import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab";
 import ContractFinancierTab from "@/components/administratif/ContractFinancierTab";
@@ -100,17 +99,6 @@ function AdministratifContent() {
             Importer AE
           </Button>
         </div>
-
-      {/* Stats */}
-      <div className="grid sm:grid-cols-2 gap-4">
-        <StatsCard
-          title="Période"
-          value={`${new Date(selectedContract.startDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })} → ${new Date(selectedContract.endDate).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}`}
-          icon={Calendar}
-          iconColor="text-accent"
-        />
-        <StatsCard title="Sites" value={contractSites.length.toString()} icon={Building2} iconColor="text-blue-600" />
-      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200">
