@@ -16,6 +16,13 @@ import {
   AlertCircle,
   CheckCircle,
   GitBranch,
+  MapPin,
+  Flame,
+  Zap,
+  ArrowRight,
+  LayoutGrid,
+  List,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
@@ -377,150 +384,172 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
     }
   };
 
+  const [siteSearch, setSiteSearch] = useState("");
+  const [siteViewMode, setSiteViewMode] = useState<"grid" | "list">("grid");
+
+  const filteredContractSites = contract.contractSites.filter((cs: ContractSite) => {
+    if (!siteSearch) return true;
+    const s = cs.site;
+    return s.name.toLowerCase().includes(siteSearch.toLowerCase()) ||
+      (s.city && s.city.toLowerCase().includes(siteSearch.toLowerCase()));
+  });
+
   return (
     <>
-      <ChartCard
-        title={`Sites du contrat (${contract.contractSites.length})`}
-        action={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={openImportModal}>
-              <Upload size={16} className="mr-1" />
-              Importer
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap mb-6">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Rechercher un site..."
+            value={siteSearch}
+            onChange={(e) => setSiteSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+          />
+        </div>
+        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+          <button onClick={() => setSiteViewMode("grid")} className={`p-2 transition-colors ${siteViewMode === "grid" ? "bg-accent text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+            <LayoutGrid size={16} />
+          </button>
+          <button onClick={() => setSiteViewMode("list")} className={`p-2 transition-colors ${siteViewMode === "list" ? "bg-accent text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+            <List size={16} />
+          </button>
+        </div>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={openImportModal}>
+          <Upload size={16} className="mr-1" />
+          Importer
+        </Button>
+        <Button size="sm" onClick={() => setShowSiteModal(true)}>
+          <Plus size={16} className="mr-1" />
+          Ajouter
+        </Button>
+      </div>
+
+      {contract.contractSites.length === 0 ? (
+        <div className="text-center py-12">
+          <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
+          <p className="text-text-secondary mb-4">Aucun site rattaché à ce contrat</p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={openImportModal}>
+              <Upload size={18} className="mr-2" />
+              Importer des sites
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowSiteModal(true)}>
-              <Plus size={16} className="mr-1" />
-              Ajouter
+            <Button onClick={() => setShowSiteModal(true)}>
+              <Plus size={18} className="mr-2" />
+              Créer un site
             </Button>
           </div>
-        }
-      >
-        {contract.contractSites.length === 0 ? (
-          <div className="text-center py-12">
-            <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-text-secondary mb-4">Aucun site rattaché à ce contrat</p>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" onClick={openImportModal}>
-                <Upload size={18} className="mr-2" />
-                Importer des sites
-              </Button>
-              <Button onClick={() => setShowSiteModal(true)}>
-                <Plus size={18} className="mr-2" />
-                Créer un site
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {contract.contractSites.map((contractSite: ContractSite) => {
-              const site = contractSite.site;
-              const isExpanded = expandedSites.has(site.id);
-              return (
-                <div key={site.id} className="border border-gray-200 rounded-xl overflow-hidden">
-                  <div
-                    className="flex items-center justify-between p-4 bg-background-secondary cursor-pointer hover:bg-gray-100 transition-colors"
-                    onClick={() => toggleSiteExpanded(site.id)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <button className="text-text-secondary">
-                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-                      </button>
-                      <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-                        <Building2 size={20} className="text-accent" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-primary-dark">{site.name}</p>
-                          <span className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">
-                            {contractSite.contractType}
-                          </span>
-                        </div>
-                        <p className="text-sm text-text-secondary">{site.type} • {site.city}</p>
-                        <div className="flex gap-1 mt-1 flex-wrap">
-                          {contractSite.hasP1 && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">P1</span>}
-                          {contractSite.hasP2 && (
-                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                              P2{contractSite.amountP2 ? ` (${contractSite.amountP2.toLocaleString('fr-FR')} €)` : ''}
-                            </span>
-                          )}
-                          {contractSite.hasP3 && (
-                            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                              P3{contractSite.amountP3 ? ` (${contractSite.amountP3.toLocaleString('fr-FR')} €)` : ''}
-                            </span>
-                          )}
-                          {contractSite.hasP4 && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">P4</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" title="Modifier les prestations" onClick={(e) => { e.stopPropagation(); openEditContractSiteModal(contractSite); }}>
-                        <Settings size={14} />
-                      </Button>
-                      <Button variant="ghost" size="sm" title="Modifier le site" onClick={(e) => { e.stopPropagation(); openEditSiteModal(site); }}>
-                        <Pencil size={14} />
-                      </Button>
-                      <Link href={`/buildings/${site.id}`} onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" title="Fiche bâtiment">
-                          <GitBranch size={14} />
-                        </Button>
-                      </Link>
+        </div>
+      ) : siteViewMode === "grid" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredContractSites.map((contractSite: ContractSite) => {
+            const site = contractSite.site;
+            return (
+              <div key={site.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-accent/20 transition-all group">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/buildings/${site.id}`}>
+                      <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-accent transition-colors cursor-pointer">
+                        {site.name}
+                      </h3>
+                    </Link>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <MapPin size={12} className="text-gray-400 flex-shrink-0" />
+                      <span className="text-xs text-gray-500 truncate">{site.city} ({site.postalCode})</span>
                     </div>
                   </div>
-
-                  {isExpanded && (
-                    <div className="p-4 border-t border-gray-200">
-                      <div className="grid sm:grid-cols-3 gap-4 mb-4 text-sm">
-                        <div>
-                          <p className="text-text-secondary">Adresse</p>
-                          <p className="text-primary-dark">{site.address}, {site.postalCode} {site.city}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-secondary">Surface</p>
-                          <p className="text-primary-dark">{site.surface ? `${site.surface} m²` : "Non renseignée"}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-secondary">Énergie principale</p>
-                          <p className="text-primary-dark">{site.energyType}</p>
-                        </div>
-                      </div>
-
-                      {(contractSite.hasP2 || contractSite.hasP3) && (contractSite.amountP21 || contractSite.amountP22 || contractSite.amountP23 || contractSite.amountP24 || contractSite.amountP25 || contractSite.amountP26 || contractSite.amountP31 || contractSite.amountP32 || contractSite.amountP33 || contractSite.amountP34 || contractSite.amountP35 || contractSite.amountP36) && (
-                        <div className="grid sm:grid-cols-2 gap-4 mb-4">
-                          {contractSite.hasP2 && (contractSite.amountP21 || contractSite.amountP22 || contractSite.amountP23 || contractSite.amountP24 || contractSite.amountP25 || contractSite.amountP26) && (
-                            <div className="bg-blue-50 rounded-lg p-3">
-                              <p className="text-sm font-medium text-blue-800 mb-2">P2 - Petit entretien ({contractSite.amountP2?.toLocaleString('fr-FR')} € HT/an)</p>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                {contractSite.amountP21 !== null && contractSite.amountP21 > 0 && (<div className="flex justify-between"><span className="text-blue-700">Chauffage</span><span className="font-medium text-blue-900">{contractSite.amountP21.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP22 !== null && contractSite.amountP22 > 0 && (<div className="flex justify-between"><span className="text-blue-700">Ventilation</span><span className="font-medium text-blue-900">{contractSite.amountP22.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP23 !== null && contractSite.amountP23 > 0 && (<div className="flex justify-between"><span className="text-blue-700">Climatisation</span><span className="font-medium text-blue-900">{contractSite.amountP23.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP24 !== null && contractSite.amountP24 > 0 && (<div className="flex justify-between"><span className="text-blue-700">ECS</span><span className="font-medium text-blue-900">{contractSite.amountP24.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP25 !== null && contractSite.amountP25 > 0 && (<div className="flex justify-between"><span className="text-blue-700">Traitement eau</span><span className="font-medium text-blue-900">{contractSite.amountP25.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP26 !== null && contractSite.amountP26 > 0 && (<div className="flex justify-between"><span className="text-blue-700">MDE</span><span className="font-medium text-blue-900">{contractSite.amountP26.toLocaleString('fr-FR')} €</span></div>)}
-                              </div>
-                            </div>
-                          )}
-                          {contractSite.hasP3 && (contractSite.amountP31 || contractSite.amountP32 || contractSite.amountP33 || contractSite.amountP34 || contractSite.amountP35 || contractSite.amountP36) && (
-                            <div className="bg-green-50 rounded-lg p-3">
-                              <p className="text-sm font-medium text-green-800 mb-2">P3 - Gros entretien ({contractSite.amountP3?.toLocaleString('fr-FR')} € HT/an)</p>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                {contractSite.amountP31 !== null && contractSite.amountP31 > 0 && (<div className="flex justify-between"><span className="text-green-700">Chauffage</span><span className="font-medium text-green-900">{contractSite.amountP31.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP32 !== null && contractSite.amountP32 > 0 && (<div className="flex justify-between"><span className="text-green-700">Ventilation</span><span className="font-medium text-green-900">{contractSite.amountP32.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP33 !== null && contractSite.amountP33 > 0 && (<div className="flex justify-between"><span className="text-green-700">Climatisation</span><span className="font-medium text-green-900">{contractSite.amountP33.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP34 !== null && contractSite.amountP34 > 0 && (<div className="flex justify-between"><span className="text-green-700">ECS/Traitement</span><span className="font-medium text-green-900">{contractSite.amountP34.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP35 !== null && contractSite.amountP35 > 0 && (<div className="flex justify-between"><span className="text-green-700">Presta. prog.</span><span className="font-medium text-green-900">{contractSite.amountP35.toLocaleString('fr-FR')} €</span></div>)}
-                                {contractSite.amountP36 !== null && contractSite.amountP36 > 0 && (<div className="flex justify-between"><span className="text-green-700">APE</span><span className="font-medium text-green-900">{contractSite.amountP36.toLocaleString('fr-FR')} €</span></div>)}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                  {contractSite.contractType && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent font-medium ml-2">{contractSite.contractType}</span>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </ChartCard>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Flame size={14} className="text-gray-400" />
+                    <span className="text-xs text-gray-600">{site.energyType || "—"}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Building2 size={14} className="text-gray-400" />
+                    <span className="text-xs text-gray-600">{site.surfaceChauffee || site.surface ? `${(site.surfaceChauffee || site.surface)?.toLocaleString()} m²` : "—"}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                  <div className="flex gap-1">
+                    {contractSite.hasP1 && <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600 font-medium">P1</span>}
+                    {contractSite.hasP2 && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">P2</span>}
+                    {contractSite.hasP3 && <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">P3</span>}
+                    {contractSite.hasP4 && <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">P4</span>}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEditContractSiteModal(contractSite)} className="p-1 text-gray-400 hover:text-accent rounded" title="Prestations">
+                      <Settings size={14} />
+                    </button>
+                    <button onClick={() => openEditSiteModal(site)} className="p-1 text-gray-400 hover:text-accent rounded" title="Modifier">
+                      <Pencil size={14} />
+                    </button>
+                    <Link href={`/buildings/${site.id}`}>
+                      <ArrowRight size={14} className="text-gray-300 group-hover:text-accent transition-colors" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Site</th>
+                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Ville</th>
+                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Type</th>
+                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Prestations</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filteredContractSites.map((contractSite: ContractSite) => {
+                const site = contractSite.site;
+                return (
+                  <tr key={site.id} className="hover:bg-gray-50/50">
+                    <td className="px-4 py-3">
+                      <Link href={`/buildings/${site.id}`} className="text-sm font-medium text-gray-900 hover:text-accent">
+                        {site.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{site.city}</td>
+                    <td className="px-4 py-3">
+                      {contractSite.contractType && <span className="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent font-medium">{contractSite.contractType}</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {contractSite.hasP1 && <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600 font-medium">P1</span>}
+                        {contractSite.hasP2 && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">P2</span>}
+                        {contractSite.hasP3 && <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">P3</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1 justify-end">
+                        <button onClick={() => openEditContractSiteModal(contractSite)} className="p-1 text-gray-400 hover:text-accent rounded" title="Prestations">
+                          <Settings size={14} />
+                        </button>
+                        <button onClick={() => openEditSiteModal(site)} className="p-1 text-gray-400 hover:text-accent rounded" title="Modifier">
+                          <Pencil size={14} />
+                        </button>
+                        <Link href={`/buildings/${site.id}`}>
+                          <ArrowRight size={14} className="text-gray-300" />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Create Site Modal */}
       {showSiteModal && (
