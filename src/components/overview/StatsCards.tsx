@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  Building2,
-  Receipt,
   AlertTriangle,
-  FileText,
+  Building2,
   Calendar,
+  Receipt,
   Wrench,
   ClipboardCheck,
   Target,
@@ -158,32 +157,34 @@ export function StatsCards({
     return (
       <>
         <StatsCard
-          title="Sites sous contrat"
-          value={uniqueSitesCount.toString()}
-          icon={Building2}
-          iconColor="text-accent"
-        />
-        <StatsCard
-          title="Contrats actifs"
-          value={activeContracts.toString()}
-          icon={FileText}
-          iconColor="text-blue-600"
-        />
-        <StatsCard
-          title="Factures en attente"
-          value={pendingInvoices.toString()}
-          change={`${(totalPendingAmount / 1000).toFixed(0)}k€ à valider`}
-          changeType="neutral"
-          icon={Euro}
-          iconColor="text-yellow-600"
-        />
-        <StatsCard
           title="Alertes actives"
           value={activeAlerts.toString()}
           change={criticalAlerts > 0 ? `${criticalAlerts} critiques` : "Aucune critique"}
           changeType={criticalAlerts > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
           iconColor="text-red-600"
+        />
+        <StatsCard
+          title="Factures en attente"
+          value={pendingInvoices.toString()}
+          change={totalPendingAmount > 0 ? `${(totalPendingAmount / 1000).toFixed(0)}k€ à valider` : undefined}
+          changeType="neutral"
+          icon={Euro}
+          iconColor="text-yellow-600"
+        />
+        <StatsCard
+          title="Réunions à venir"
+          value={upcomingMeetings.toString()}
+          icon={Calendar}
+          iconColor="text-blue-600"
+        />
+        <StatsCard
+          title="Équipements en panne"
+          value={equipmentInMaintenance.toString()}
+          change={equipmentInMaintenance > 0 ? "À traiter" : "Tout OK"}
+          changeType={equipmentInMaintenance > 0 ? "negative" : "positive"}
+          icon={Wrench}
+          iconColor={equipmentInMaintenance > 0 ? "text-red-600" : "text-green-600"}
         />
       </>
     );

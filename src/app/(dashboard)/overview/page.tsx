@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import {
   AlertTriangle,
   Receipt,
@@ -11,8 +11,6 @@ import {
 import { useUserProfile, PROFILE_CONFIG } from "@/contexts/UserProfileContext";
 import { useContract } from "@/contexts/ContractContext";
 import { Onboarding } from "@/components/dashboard/onboarding";
-import { CHART_COLORS } from "@/components/dashboard/donut-chart";
-
 import type {
   Contract,
   Invoice,
@@ -21,19 +19,14 @@ import type {
   Equipment,
   Quote,
   ExpiringContract,
-  Site,
   MissionStats,
   CurrentUser,
   RecentActivity,
-  SiteType,
-  EnergyType,
   WorkloadEntry,
 } from "@/components/overview/types";
-import { siteTypeLabels, energyTypeLabels, WELCOME_MESSAGES, QUICK_ACTIONS } from "@/components/overview/constants";
+import { QUICK_ACTIONS } from "@/components/overview/constants";
 import { StatsCards } from "@/components/overview/StatsCards";
 import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
-import { ChartsSection } from "@/components/overview/sections/ChartsSection";
-import { PatrimoineSection } from "@/components/overview/sections/PatrimoineSection";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
 
 export default function OverviewPage() {
@@ -48,7 +41,6 @@ export default function OverviewPage() {
   const [equipments, setEquipments] = useState<Equipment[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [expiringContracts, setExpiringContracts] = useState<ExpiringContract[]>([]);
-  const [allSites, setAllSites] = useState<Site[]>([]);
   const [workload, setWorkload] = useState<WorkloadEntry[]>([]);
   const [missionStats, setMissionStats] = useState<MissionStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,7 +86,6 @@ export default function OverviewPage() {
         setEquipments(Array.isArray(equipmentsData) ? equipmentsData : []);
         setQuotes(Array.isArray(quotesData) ? quotesData : []);
         setExpiringContracts(expiringData?.contracts || []);
-        setAllSites(Array.isArray(sitesData) ? sitesData : []);
 
         // Fetch workload + mission stats si ADMIN
         if (userData?.user?.role === "ADMIN" || userData?.user?.role === "SUPER_ADMIN") {
@@ -157,34 +148,6 @@ export default function OverviewPage() {
   const pendingQuotes = quotes.filter((q) => q.status === "ENVOYE" || q.status === "BROUILLON");
   const acceptedQuotes = quotes.filter((q) => q.status === "ACCEPTE" || q.status === "COMMANDE");
 
-  // Sites stats for map and charts
-  const sitesWithCoords = allSites.filter((s) => s.latitude && s.longitude);
-
-  const siteChartData = useMemo(() => {
-    // Sites by type
-    const typeCount: Record<string, number> = {};
-    for (const site of allSites) {
-      typeCount[site.type] = (typeCount[site.type] || 0) + 1;
-    }
-    const byType = Object.entries(typeCount).map(([type, count]) => ({
-      label: siteTypeLabels[type as SiteType] || type,
-      value: count,
-      color: CHART_COLORS.siteTypes[type as keyof typeof CHART_COLORS.siteTypes] || "#6b7280",
-    }));
-
-    // Sites by energy
-    const energyCount: Record<string, number> = {};
-    for (const site of allSites) {
-      energyCount[site.energyType] = (energyCount[site.energyType] || 0) + 1;
-    }
-    const byEnergy = Object.entries(energyCount).map(([energy, count]) => ({
-      label: energyTypeLabels[energy as EnergyType] || energy,
-      value: count,
-      color: CHART_COLORS.energyTypes[energy as keyof typeof CHART_COLORS.energyTypes] || "#6b7280",
-    }));
-
-    return { byType, byEnergy };
-  }, [allSites]);
 
   // Activités récentes (basées sur les données réelles)
   const recentActivities: RecentActivity[] = [];
@@ -255,10 +218,6 @@ export default function OverviewPage() {
 
   // Get quick actions based on profile
   const quickActions = profile ? QUICK_ACTIONS[profile] : QUICK_ACTIONS.CLIENT;
-  const welcomeMessage = isAdmin
-    ? "Voici le tableau de bord de pilotage de vos missions."
-    : (profile ? WELCOME_MESSAGES[profile] : WELCOME_MESSAGES.CLIENT);
-
   if (loading || profileLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -301,23 +260,6 @@ export default function OverviewPage() {
           activeAlerts={activeAlerts}
         />
       )}
-
-      {/* Charts Row - EDITOR only (profile-specific) */}
-      {!isAdmin && (
-        <ChartsSection
-          profile={profile}
-          equipmentInMaintenance={equipmentInMaintenance}
-          uniqueSitesFromActiveContracts={uniqueSitesFromActiveContracts}
-          expiringContracts={expiringContracts}
-        />
-      )}
-
-      {/* Patrimoine - Map & Analytics */}
-      <PatrimoineSection
-        allSites={allSites}
-        sitesWithCoords={sitesWithCoords}
-        siteChartData={siteChartData}
-      />
 
       {/* Activity & Quick Actions - EDITOR only */}
       {!isAdmin && (

@@ -2,11 +2,8 @@ import {
   FileText,
   Receipt,
   BarChart3,
-  Calendar,
   Wrench,
-  Bell,
   Target,
-  Building2,
 } from "lucide-react";
 import type { SiteType, EnergyType } from "./types";
 
@@ -44,21 +41,21 @@ export const WELCOME_MESSAGES = {
 // Profile-specific quick actions
 export const QUICK_ACTIONS = {
   CLIENT: [
-    { href: "/contracts", icon: FileText, label: "Voir contrats" },
-    { href: "/invoices", icon: Receipt, label: "Factures" },
-    { href: "/energy", icon: BarChart3, label: "Performance" },
-    { href: "/meetings", icon: Calendar, label: "Réunions" },
+    { href: "/energy", icon: BarChart3, label: "Suivi énergétique" },
+    { href: "/contrat", icon: FileText, label: "Contrat" },
+    { href: "/exploitation", icon: Wrench, label: "Exploitation" },
+    { href: "/financier", icon: Receipt, label: "Suivi financier" },
   ],
   AMO: [
     { href: "/energy", icon: Target, label: "Performance NC/N'B" },
-    { href: "/contracts", icon: FileText, label: "Auditer contrats" },
-    { href: "/sites", icon: Building2, label: "Patrimoine" },
-    { href: "/meetings", icon: Calendar, label: "Planifier visite" },
+    { href: "/contrat", icon: FileText, label: "Contrat" },
+    { href: "/exploitation", icon: Wrench, label: "Exploitation" },
+    { href: "/financier", icon: Receipt, label: "Suivi financier" },
   ],
   EXPLOITANT: [
-    { href: "/renewals", icon: Bell, label: "Renouvellements" },
-    { href: "/equipments", icon: Wrench, label: "Équipements" },
-    { href: "/quotes", icon: Receipt, label: "Mes devis" },
-    { href: "/pricing", icon: FileText, label: "Chiffrage AO" },
+    { href: "/exploitation", icon: Wrench, label: "Exploitation" },
+    { href: "/energy", icon: BarChart3, label: "Suivi énergétique" },
+    { href: "/contrat", icon: FileText, label: "Contrat" },
+    { href: "/financier", icon: Receipt, label: "Suivi financier" },
   ],
 };
