@@ -26,9 +26,11 @@ interface AEImportPreview {
 
 interface AEImportModalProps {
   onClose: () => void;
+  contractId?: string;
 }
 
-export default function AEImportModal({ onClose }: AEImportModalProps) {
+export default function AEImportModal({ onClose, contractId }: AEImportModalProps) {
+  const isUpdate = !!contractId;
   const [importing, setImporting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<AEImportPreview | null>(null);
@@ -58,7 +60,9 @@ export default function AEImportModal({ onClose }: AEImportModalProps) {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("preview", "true");
-      const response = await fetch("/api/contracts/create-from-ae", { method: "POST", body: formData });
+      if (isUpdate && contractId) formData.append("contractId", contractId);
+      const url = isUpdate ? "/api/contracts/import-ae" : "/api/contracts/create-from-ae";
+      const response = await fetch(url, { method: "POST", body: formData });
       const result = await response.json();
       if (!response.ok) { setError(result.error || "Erreur lors de l'analyse"); return; }
       setPreview(result);
@@ -82,7 +86,7 @@ export default function AEImportModal({ onClose }: AEImportModalProps) {
 
   const handleSubmit = async () => {
     if (!file || !preview) return;
-    if (!contractForm.reference || !contractForm.title || !contractForm.provider || !contractForm.startDate || !contractForm.endDate) {
+    if (!isUpdate && (!contractForm.reference || !contractForm.title || !contractForm.provider || !contractForm.startDate || !contractForm.endDate)) {
       setError("Veuillez remplir tous les champs obligatoires du contrat");
       return;
     }
@@ -91,16 +95,21 @@ export default function AEImportModal({ onClose }: AEImportModalProps) {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("preview", "false");
-      formData.append("reference", contractForm.reference);
-      formData.append("title", contractForm.title);
-      formData.append("provider", contractForm.provider);
-      formData.append("startDate", parseFrenchDate(contractForm.startDate));
-      formData.append("endDate", parseFrenchDate(contractForm.endDate));
-      formData.append("yearType", contractForm.yearType);
-      formData.append("billingFrequency", contractForm.billingFrequency);
-      const response = await fetch("/api/contracts/create-from-ae", { method: "POST", body: formData });
+      if (isUpdate && contractId) {
+        formData.append("contractId", contractId);
+      } else {
+        formData.append("reference", contractForm.reference);
+        formData.append("title", contractForm.title);
+        formData.append("provider", contractForm.provider);
+        formData.append("startDate", parseFrenchDate(contractForm.startDate));
+        formData.append("endDate", parseFrenchDate(contractForm.endDate));
+        formData.append("yearType", contractForm.yearType);
+        formData.append("billingFrequency", contractForm.billingFrequency);
+      }
+      const url = isUpdate ? "/api/contracts/import-ae" : "/api/contracts/create-from-ae";
+      const response = await fetch(url, { method: "POST", body: formData });
       const result = await response.json();
-      if (!response.ok) { setError(result.error || "Erreur lors de la création"); return; }
+      if (!response.ok) { setError(result.error || (isUpdate ? "Erreur lors de la mise à jour" : "Erreur lors de la création")); return; }
       handleClose();
       window.location.reload();
     } catch (err) {
@@ -116,8 +125,12 @@ export default function AEImportModal({ onClose }: AEImportModalProps) {
       <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div>
-            <h2 className="text-xl font-bold text-primary-dark">Créer un contrat depuis l&apos;Acte d&apos;Engagement</h2>
-            <p className="text-sm text-text-secondary mt-1">Import des sites, types de contrat, NB et montants P2/P3</p>
+            <h2 className="text-xl font-bold text-primary-dark">
+              {isUpdate ? "Compléter le contrat depuis l'AE" : "Créer un contrat depuis l'AE"}
+            </h2>
+            <p className="text-sm text-text-secondary mt-1">
+              {isUpdate ? "Mise à jour des sites, NB et montants P2/P3" : "Import des sites, types de contrat, NB et montants P2/P3"}
+            </p>
           </div>
           <button onClick={handleClose} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
         </div>
@@ -147,7 +160,7 @@ export default function AEImportModal({ onClose }: AEImportModalProps) {
 
           {preview && (
             <>
-              <div>
+              {!isUpdate && <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-medium text-primary-dark">2. Informations du contrat</h3>
                   {preview.detectedMetadata && (
@@ -195,10 +208,10 @@ export default function AEImportModal({ onClose }: AEImportModalProps) {
                     </select>
                   </div>
                 </div>
-              </div>
+              </div>}
 
               <div>
-                <h3 className="font-medium text-primary-dark mb-3">3. Sites détectés dans l&apos;AE</h3>
+                <h3 className="font-medium text-primary-dark mb-3">{isUpdate ? "2" : "3"}. Sites détectés dans l&apos;AE</h3>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="bg-gray-50 p-3 rounded-lg text-center">
                     <p className="text-2xl font-bold text-primary-dark">{preview.total}</p>

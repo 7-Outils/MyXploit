@@ -156,7 +156,7 @@ function AdministratifContent() {
           </Button>
           <Button variant="outline" onClick={() => setShowAEImportModal(true)}>
             <FileSpreadsheet size={18} className="mr-2" />
-            Créer depuis AE
+            Importer AE
           </Button>
           <Button onClick={() => setShowContractModal(true)}>
             <Plus size={18} className="mr-2" />
@@ -404,7 +404,7 @@ function AdministratifContent() {
           onUpdated={fetchDetail}
         />
       )}
-      {showAEImportModal && <AEImportModal onClose={() => setShowAEImportModal(false)} />}
+      {showAEImportModal && <AEImportModal onClose={() => setShowAEImportModal(false)} contractId={selectedContract?.id} />}
     </div>
   );
 }
