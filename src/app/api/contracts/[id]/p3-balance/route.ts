@@ -136,8 +136,30 @@ export async function GET(
       }
     };
 
-    // Build year data
+    // Pre-populate all contract years/seasons so empty ones still appear
     const yearsMap = new Map<string, P3YearData>();
+    const contractStart = new Date(contract.startDate);
+    const contractEnd = new Date(contract.endDate);
+
+    if (contract.yearType === "HEATING_SEASON") {
+      // Generate all heating seasons from startDate to endDate
+      const firstSeasonStart = contractStart.getMonth() + 1 >= contract.yearStartMonth
+        ? contractStart.getFullYear()
+        : contractStart.getFullYear() - 1;
+      const lastSeasonStart = contractEnd.getMonth() + 1 >= contract.yearStartMonth
+        ? contractEnd.getFullYear()
+        : contractEnd.getFullYear() - 1;
+      for (let y = firstSeasonStart; y <= lastSeasonStart; y++) {
+        const key = `${y}-${y + 1}`;
+        yearsMap.set(key, { year: key, label: `Saison ${y}/${y + 1}`, invoices: [], quotes: [], totalInvoices: 0, totalQuotes: 0, balance: 0, cumulativeBalance: 0 });
+      }
+    } else {
+      // Generate all civil years from startDate to endDate
+      for (let y = contractStart.getFullYear(); y <= contractEnd.getFullYear(); y++) {
+        const key = y.toString();
+        yearsMap.set(key, { year: key, label: `Année ${key}`, invoices: [], quotes: [], totalInvoices: 0, totalQuotes: 0, balance: 0, cumulativeBalance: 0 });
+      }
+    }
 
     // Add invoices to years
     for (const invoice of invoices) {
