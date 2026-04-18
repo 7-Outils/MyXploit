@@ -9,6 +9,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useUserProfile, PROFILE_CONFIG } from "@/contexts/UserProfileContext";
+import { useContract } from "@/contexts/ContractContext";
 import { Onboarding } from "@/components/dashboard/onboarding";
 import { CHART_COLORS } from "@/components/dashboard/donut-chart";
 
@@ -37,6 +38,8 @@ import { ActivitySection } from "@/components/overview/sections/ActivitySection"
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
+  const { selectedContract } = useContract();
+  const contractId = selectedContract?.id;
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -54,17 +57,18 @@ export default function OverviewPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        const cq = contractId ? `contractId=${contractId}` : "";
         const [userRes, contractsRes, invoicesRes, meetingsRes, alertsRes, equipmentsRes, quotesRes, expiringRes, sitesRes] =
           await Promise.all([
             fetch("/api/auth/me"),
             fetch("/api/contracts"),
-            fetch("/api/invoices"),
-            fetch("/api/meetings"),
-            fetch("/api/alerts"),
-            fetch("/api/equipments"),
-            fetch("/api/quotes"),
+            fetch(`/api/invoices${cq ? `?${cq}` : ""}`),
+            fetch(`/api/meetings${cq ? `?${cq}` : ""}`),
+            fetch(`/api/alerts${cq ? `?${cq}` : ""}`),
+            fetch(`/api/equipments${cq ? `?${cq}` : ""}`),
+            fetch(`/api/quotes${cq ? `?${cq}` : ""}`),
             fetch("/api/contracts/expiring?months=6"),
-            fetch("/api/sites"),
+            fetch(contractId ? `/api/contracts/${contractId}/sites` : "/api/sites"),
           ]);
 
         const [userData, contractsData, invoicesData, meetingsData, alertsData, equipmentsData, quotesData, expiringData, sitesData] =
@@ -119,10 +123,12 @@ export default function OverviewPage() {
     };
 
     fetchData();
-  }, []);
+  }, [contractId]);
 
-  // Calculs
-  const activeContractsList = contracts.filter((c) => c.status === "ACTIF");
+  // Calculs — filter by selected contract if any
+  const activeContractsList = contractId
+    ? contracts.filter((c) => c.id === contractId)
+    : contracts.filter((c) => c.status === "ACTIF");
   const activeContracts = activeContractsList.length;
 
   // Sites des contrats actifs uniquement (dédupliqués par id)
@@ -270,7 +276,8 @@ export default function OverviewPage() {
             Vue d&apos;ensemble
           </h1>
           <p className="text-text-secondary">
-            Bienvenue{currentUser?.firstName ? `, ${currentUser.firstName}` : ""}. {welcomeMessage}
+            Bienvenue{currentUser?.firstName ? `, ${currentUser.firstName}` : ""}.{" "}
+            {selectedContract ? `Contrat : ${selectedContract.reference}` : welcomeMessage}
           </p>
         </div>
         {isAdmin ? (
