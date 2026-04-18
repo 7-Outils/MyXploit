@@ -540,7 +540,6 @@ function FinancierPageContent() {
                   : "border-transparent text-text-secondary hover:text-primary-dark"
               }`}
             >
-              <tab.icon size={18} />
               {tab.label}
             </button>
           ))}

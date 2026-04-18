@@ -4,12 +4,8 @@ import { useState, useEffect, Suspense } from "react";
 import { useContract } from "@/contexts/ContractContext";
 import {
   Loader2,
-  Building2,
   FileSpreadsheet,
   Pencil,
-  Euro,
-  GitBranch,
-  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -108,7 +104,6 @@ function AdministratifContent() {
             activeTab === "sites" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
         >
-          <Building2 size={16} className="inline mr-2" />
           Sites ({contractSites.length})
         </button>
         <button
@@ -117,7 +112,6 @@ function AdministratifContent() {
             activeTab === "cibles" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
         >
-          <Target size={16} className="inline mr-2" />
           Cibles
         </button>
         <button
@@ -126,7 +120,6 @@ function AdministratifContent() {
             activeTab === "avenants" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
         >
-          <GitBranch size={16} className="inline mr-2" />
           Avenants ({contractDetail?.avenants?.length || 0})
         </button>
         <button
@@ -135,7 +128,6 @@ function AdministratifContent() {
             activeTab === "financier" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
         >
-          <Euro size={16} className="inline mr-2" />
           Financier
         </button>
       </div>
