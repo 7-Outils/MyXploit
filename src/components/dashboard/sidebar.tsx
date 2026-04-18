@@ -44,11 +44,11 @@ const adminNavigation: NavItem[] = [
 
 // Navigation par defaut (Ingenieur, Lecteur)
 const defaultNavigation: NavItem[] = [
-  { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
+  { name: "Tableau de bord", href: "/overview", icon: LayoutDashboard },
   { name: "Contrat", href: "/contrat", icon: FileText, module: "ADMINISTRATIF" },
-  { name: "Suivi energetique", href: "/energy", icon: BarChart3, module: "ENERGY" },
-  { name: "Suivi financier", href: "/financier", icon: Euro, module: "FINANCIER" },
-  { name: "Suivi exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
+  { name: "Énergie", href: "/energy", icon: BarChart3, module: "ENERGY" },
+  { name: "Finances", href: "/financier", icon: Euro, module: "FINANCIER" },
+  { name: "Exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
 ];
 
 export function Sidebar() {
