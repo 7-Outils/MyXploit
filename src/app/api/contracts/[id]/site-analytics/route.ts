@@ -6,14 +6,15 @@ interface SiteP3Analytics {
   siteId: string;
   siteName: string;
   siteCity: string;
-  // P3 factures (alimentation cagnotte)
   p3Invoices: number;
   p3InvoiceCount: number;
-  // P3 devis validés (dépenses cagnotte)
   p3Quotes: number;
   p3QuoteCount: number;
-  // Solde P3 du site
   p3Balance: number;
+}
+
+interface SiteP3Internal extends SiteP3Analytics {
+  amountP3Contract: number;
 }
 
 interface SiteP3AnalyticsResponse {
@@ -59,7 +60,8 @@ export async function GET(
     // Get all sites for this contract
     const contractSites = await prisma.contractSite.findMany({
       where: { contractId },
-      include: {
+      select: {
+        amountP3: true,
         site: {
           select: {
             id: true,
@@ -98,7 +100,7 @@ export async function GET(
     });
 
     // Build analytics per site
-    const sitesMap = new Map<string, SiteP3Analytics>();
+    const sitesMap = new Map<string, SiteP3Internal>();
 
     // Initialize with contract sites
     for (const cs of contractSites) {
@@ -106,6 +108,7 @@ export async function GET(
         siteId: cs.site.id,
         siteName: cs.site.name,
         siteCity: cs.site.city,
+        amountP3Contract: cs.amountP3 ?? 0,
         p3Invoices: 0,
         p3InvoiceCount: 0,
         p3Quotes: 0,
@@ -114,12 +117,22 @@ export async function GET(
       });
     }
 
+    const totalContractP3 = [...sitesMap.values()].reduce((sum, s) => sum + s.amountP3Contract, 0);
+
     // Add P3 invoices
     for (const invoice of invoices) {
-      const siteData = invoice.siteId ? sitesMap.get(invoice.siteId) : undefined;
-      if (siteData) {
-        siteData.p3InvoiceCount++;
-        siteData.p3Invoices += invoice.amount;
+      if (invoice.siteId) {
+        const siteData = sitesMap.get(invoice.siteId);
+        if (siteData) {
+          siteData.p3InvoiceCount++;
+          siteData.p3Invoices += invoice.amount;
+        }
+      } else if (totalContractP3 > 0) {
+        for (const siteData of sitesMap.values()) {
+          const ratio = siteData.amountP3Contract / totalContractP3;
+          siteData.p3InvoiceCount++;
+          siteData.p3Invoices += invoice.amount * ratio;
+        }
       }
     }
 
@@ -137,9 +150,9 @@ export async function GET(
     const sites: SiteP3Analytics[] = [];
     for (const siteData of sitesMap.values()) {
       siteData.p3Balance = siteData.p3Invoices - siteData.p3Quotes;
-      // Only include sites with P3 activity
       if (siteData.p3Invoices > 0 || siteData.p3Quotes > 0) {
-        sites.push(siteData);
+        const { amountP3Contract: _, ...rest } = siteData;
+        sites.push(rest);
       }
     }
 
