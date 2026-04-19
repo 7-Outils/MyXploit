@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import { Loader2 } from "lucide-react";
 
 type PType = "P1" | "P2" | "P3";
@@ -36,21 +38,10 @@ function formatDelta(prev: number | null | undefined, curr: number | null | unde
 }
 
 export default function ContractMontantsTab({ contractId }: { contractId: string }) {
-  const [data, setData] = useState<TimelineData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading } = useSWR<TimelineData>(
+    `/api/contracts/${contractId}/amounts-timeline`, fetcher
+  );
   const [selectedP, setSelectedP] = useState<PType>("P3");
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/contracts/${contractId}/amounts-timeline`);
-        if (res.ok) setData(await res.json());
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [contractId]);
 
   const sitesWithP = useMemo(() => {
     if (!data) return [];
@@ -60,7 +51,7 @@ export default function ContractMontantsTab({ contractId }: { contractId: string
     });
   }, [data, selectedP]);
 
-  if (loading) {
+  if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />

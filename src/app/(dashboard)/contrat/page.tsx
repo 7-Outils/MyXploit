@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
 import {
   Loader2,
@@ -21,46 +23,22 @@ import type { Site } from "@/components/energy/types";
 
 function AdministratifContent() {
   const { selectedContract, isLoading: loadingContracts } = useContract();
+  const contractKey = selectedContract?.id;
 
-  // Contract detail state
-  const [contractDetail, setContractDetail] = useState<Contract | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+  const { data: contractDetailData, isLoading: loadingDetail, mutate: mutateDetail } = useSWR<Contract>(
+    contractKey ? `/api/contracts/${contractKey}` : null, fetcher
+  );
+  const { data: energySitesData, mutate: mutateSites } = useSWR<Site[]>(
+    contractKey ? `/api/contracts/${contractKey}/sites` : null, fetcher
+  );
+
+  const contractDetail = contractDetailData ?? null;
+  const energySites = energySitesData ?? [];
+  const fetchDetail = async () => { await Promise.all([mutateDetail(), mutateSites()]); };
+
   const [activeTab, setActiveTab] = useState<"sites" | "cibles" | "avenants" | "revision" | "montants">("sites");
-  const [energySites, setEnergySites] = useState<Site[]>([]);
-
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [showAEImportModal, setShowAEImportModal] = useState(false);
-
-  // Fetch contract detail + energy sites
-  const fetchDetail = async () => {
-    if (!selectedContract) {
-      setContractDetail(null);
-      setEnergySites([]);
-      return;
-    }
-    setLoadingDetail(true);
-    try {
-      const [contractRes, sitesRes] = await Promise.all([
-        fetch(`/api/contracts/${selectedContract.id}`),
-        fetch(`/api/contracts/${selectedContract.id}/sites`),
-      ]);
-      if (contractRes.ok) {
-        setContractDetail(await contractRes.json());
-      }
-      if (sitesRes.ok) {
-        const sitesData = await sitesRes.json();
-        setEnergySites(Array.isArray(sitesData) ? sitesData : []);
-      }
-    } catch (error) {
-      console.error("Error fetching contract detail:", error);
-    } finally {
-      setLoadingDetail(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDetail();
-  }, [selectedContract]);
 
   if (loadingContracts) {
     return (

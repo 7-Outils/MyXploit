@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import { Loader2, Plus, Trash2, Pencil, Check, X, Calculator, AlertTriangle, Clock, ArrowDown } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 
@@ -58,36 +60,35 @@ const PERIOD_LABEL: Record<Periodicity, string> = {
 };
 
 export default function ContractRevisionTab({ contractId }: { contractId: string }) {
-  const [indices, setIndices] = useState<RevisionIndex[]>([]);
-  const [formulas, setFormulas] = useState<Formula[]>([]);
-  const [pending, setPending] = useState<PendingRevision[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: indicesData, isLoading: l1, mutate: mIndices } = useSWR<RevisionIndex[]>(
+    `/api/contracts/${contractId}/revision-indices`, fetcher
+  );
+  const { data: formulasData, isLoading: l2, mutate: mFormulas } = useSWR<Formula[]>(
+    `/api/contracts/${contractId}/revision-formulas`, fetcher
+  );
+  const { data: pendingData, isLoading: l3, mutate: mPending } = useSWR<PendingRevision[]>(
+    `/api/contracts/${contractId}/revision-pending`, fetcher
+  );
+
+  const indices = useMemo(() => indicesData ?? [], [indicesData]);
+  const formulas = useMemo(() => formulasData ?? [], [formulasData]);
+  const pending = useMemo(() => pendingData ?? [], [pendingData]);
+  const loading = l1 || l2 || l3;
+
   const [selectedIndexId, setSelectedIndexId] = useState<string | null>(null);
   const [applyTarget, setApplyTarget] = useState<{ pType: PType; periodStart: string } | null>(null);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [r1, r2, r3] = await Promise.all([
-        fetch(`/api/contracts/${contractId}/revision-indices`),
-        fetch(`/api/contracts/${contractId}/revision-formulas`),
-        fetch(`/api/contracts/${contractId}/revision-pending`),
-      ]);
-      const idx: RevisionIndex[] = r1.ok ? await r1.json() : [];
-      const frm: Formula[] = r2.ok ? await r2.json() : [];
-      const pnd: PendingRevision[] = r3.ok ? await r3.json() : [];
-      setIndices(idx);
-      setFormulas(frm);
-      setPending(pnd);
-      if (idx.length > 0 && !selectedIndexId) setSelectedIndexId(idx[0].id);
-    } finally {
-      setLoading(false);
-    }
-  }, [contractId, selectedIndexId]);
+  const fetchAll = () => {
+    mIndices();
+    mFormulas();
+    mPending();
+  };
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    if (indices.length > 0 && !selectedIndexId) setSelectedIndexId(indices[0].id);
+  }, [indices, selectedIndexId]);
 
-  if (loading) {
+  if (loading && indices.length === 0 && formulas.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />

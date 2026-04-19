@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, Suspense } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useContract } from "@/contexts/ContractContext";
 import {
@@ -41,9 +43,26 @@ function FinancierPageContent() {
   // Contract from global context
   const { selectedContract, isLoading: loadingContracts } = useContract();
 
-  // Facturation state
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  // SWR-cached data (survives tab switches)
+  const contractKey = selectedContract?.id;
+  const { data: invoicesData, isLoading: loadingInvoices, mutate: mutateInvoices } = useSWR<Invoice[]>(
+    contractKey ? `/api/invoices?contractId=${contractKey}` : null, fetcher
+  );
+  const { data: p3DataRaw, isLoading: loadingP3 } = useSWR<P3BalanceData>(
+    contractKey ? `/api/contracts/${contractKey}/p3-balance` : null, fetcher
+  );
+  const { data: siteAnalyticsData, isLoading: loadingSiteAnalytics } = useSWR<SiteAnalyticsData>(
+    contractKey ? `/api/contracts/${contractKey}/site-analytics` : null, fetcher
+  );
+  const { data: contractSitesData } = useSWR<Site[]>(
+    contractKey ? `/api/contracts/${contractKey}/sites` : null, fetcher
+  );
+
+  const invoices = useMemo(() => invoicesData ?? [], [invoicesData]);
+  const p3Data = p3DataRaw ?? null;
+  const siteAnalytics = siteAnalyticsData ?? null;
+  const contractSites = useMemo(() => contractSitesData ?? [], [contractSitesData]);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [acceptingInvoiceId, setAcceptingInvoiceId] = useState<string | null>(null);
@@ -53,18 +72,9 @@ function FinancierPageContent() {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
-  const [contractSites, setContractSites] = useState<Site[]>([]);
-  const [loadingContractSites, setLoadingContractSites] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Décompte P3 state
-  const [p3Data, setP3Data] = useState<P3BalanceData | null>(null);
-  const [loadingP3, setLoadingP3] = useState(false);
   const [expandedP3Years, setExpandedP3Years] = useState<Set<string>>(new Set());
-
-  // Site analytics state
-  const [siteAnalytics, setSiteAnalytics] = useState<SiteAnalyticsData | null>(null);
-  const [loadingSiteAnalytics, setLoadingSiteAnalytics] = useState(false);
 
   // Form data
   const [importPreview, setImportPreview] = useState<{
@@ -107,88 +117,13 @@ function FinancierPageContent() {
   };
 
 
-  // Fetch data when contract selected
+  // Expand most recent P3 year by default when data arrives
   useEffect(() => {
-    if (selectedContract) {
-      fetchContractSites(selectedContract.id);
-      if (activeTab === "facturation") {
-        fetchInvoices(selectedContract.id);
-      } else if (activeTab === "decompte-p3") {
-        fetchP3Balance(selectedContract.id);
-        fetchSiteAnalytics(selectedContract.id);
-      }
+    if (p3Data?.years && p3Data.years.length > 0 && expandedP3Years.size === 0) {
+      const last = p3Data.years[p3Data.years.length - 1];
+      setExpandedP3Years(new Set([last.year]));
     }
-  }, [selectedContract, activeTab]);
-
-  const fetchInvoices = async (contractId: string) => {
-    try {
-      setLoadingInvoices(true);
-      const response = await fetch(`/api/invoices?contractId=${contractId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setInvoices(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      console.error("Error fetching invoices:", error);
-    } finally {
-      setLoadingInvoices(false);
-    }
-  };
-
-  const fetchP3Balance = async (contractId: string) => {
-    try {
-      setLoadingP3(true);
-      const response = await fetch(`/api/contracts/${contractId}/p3-balance`);
-      if (response.ok) {
-        const data = await response.json();
-        setP3Data(data);
-        // Expand the most recent year by default
-        if (data.years && data.years.length > 0) {
-          const lastYear = data.years[data.years.length - 1];
-          setExpandedP3Years(new Set([lastYear.year]));
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching P3 balance:", error);
-    } finally {
-      setLoadingP3(false);
-    }
-  };
-
-  const fetchSiteAnalytics = async (contractId: string) => {
-    try {
-      setLoadingSiteAnalytics(true);
-      const response = await fetch(`/api/contracts/${contractId}/site-analytics`);
-      if (response.ok) {
-        const data = await response.json();
-        setSiteAnalytics(data);
-      }
-    } catch (error) {
-      console.error("Error fetching site analytics:", error);
-    } finally {
-      setLoadingSiteAnalytics(false);
-    }
-  };
-
-  const fetchContractSites = async (contractId: string) => {
-    if (!contractId) {
-      setContractSites([]);
-      return;
-    }
-    setLoadingContractSites(true);
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/sites`);
-      if (res.ok) {
-        const data = await res.json();
-        setContractSites(Array.isArray(data) ? data : []);
-      }
-    } catch (error) {
-      console.error("Error fetching contract sites:", error);
-      setContractSites([]);
-    } finally {
-      setLoadingContractSites(false);
-    }
-  };
+  }, [p3Data, expandedP3Years.size]);
 
   // Invoice handlers
   const handleCreateInvoice = async (e: React.FormEvent) => {
@@ -206,7 +141,7 @@ function FinancierPageContent() {
         }),
       });
       if (response.ok) {
-        await fetchInvoices(selectedContract.id);
+        mutateInvoices();
         setShowInvoiceModal(false);
         setFormData({
           reference: "",
@@ -230,8 +165,8 @@ function FinancierPageContent() {
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/accept`, { method: "POST" });
       if (response.ok) {
-        const updated = await response.json();
-        setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated : i)));
+        const updated: Invoice = await response.json();
+        mutateInvoices((prev) => prev?.map((i) => (i.id === invoiceId ? updated : i)), false);
       }
     } catch (error) {
       console.error("Error accepting invoice:", error);
@@ -246,8 +181,8 @@ function FinancierPageContent() {
     try {
       const response = await fetch(`/api/invoices/${invoiceId}/refuse`, { method: "POST" });
       if (response.ok) {
-        const updated = await response.json();
-        setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated : i)));
+        const updated: Invoice = await response.json();
+        mutateInvoices((prev) => prev?.map((i) => (i.id === invoiceId ? updated : i)), false);
       }
     } catch (error) {
       console.error("Error refusing invoice:", error);
@@ -364,7 +299,7 @@ function FinancierPageContent() {
         siteId: "",
         contractId: "",
       });
-      fetchInvoices(selectedContract.id);
+      mutateInvoices();
     } catch (error) {
       setImportError(error instanceof Error ? error.message : "Erreur lors de la création");
     } finally {
@@ -493,7 +428,7 @@ function FinancierPageContent() {
           setImportFormData={setImportFormData}
           matchedSiteId={matchedSiteId}
           contractSites={contractSites}
-          loadingContractSites={loadingContractSites}
+          loadingContractSites={false}
           creating={creating}
           handleImportSubmit={handleImportSubmit}
         />

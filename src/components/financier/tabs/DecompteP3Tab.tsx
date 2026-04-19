@@ -76,13 +76,13 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
             {p3Data.years.map(({ year, label, totalInvoices, totalQuotes, balance, cumulativeBalance }) => (
               <tr key={year} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{label}</td>
-                <td className="px-4 py-3 text-sm text-right text-green-600">{totalInvoices.toLocaleString("fr-FR")} €</td>
-                <td className="px-4 py-3 text-sm text-right text-red-600">{totalQuotes.toLocaleString("fr-FR")} €</td>
+                <td className="px-4 py-3 text-sm text-right text-green-600">{totalInvoices.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
+                <td className="px-4 py-3 text-sm text-right text-red-600">{totalQuotes.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
                 <td className={`px-4 py-3 text-sm text-right font-medium ${balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {balance >= 0 ? "+" : ""}{balance.toLocaleString("fr-FR")} €
+                  {balance >= 0 ? "+" : ""}{balance.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
                 </td>
                 <td className={`px-4 py-3 text-sm text-right font-semibold ${cumulativeBalance >= 0 ? "text-green-700" : "text-red-700"}`}>
-                  {cumulativeBalance >= 0 ? "+" : ""}{cumulativeBalance.toLocaleString("fr-FR")} €
+                  {cumulativeBalance >= 0 ? "+" : ""}{cumulativeBalance.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
                 </td>
               </tr>
             ))}
@@ -124,10 +124,10 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
                     </div>
                     <p className="text-xs text-gray-500">{site.siteCity}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm text-right text-green-600">{site.p3Invoices.toLocaleString("fr-FR")} €</td>
-                  <td className="px-4 py-3 text-sm text-right text-red-600">{site.p3Quotes.toLocaleString("fr-FR")} €</td>
+                  <td className="px-4 py-3 text-sm text-right text-green-600">{site.p3Invoices.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
+                  <td className="px-4 py-3 text-sm text-right text-red-600">{site.p3Quotes.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
                   <td className={`px-4 py-3 text-sm text-right font-semibold ${site.p3Balance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {site.p3Balance >= 0 ? "+" : ""}{site.p3Balance.toLocaleString("fr-FR")} €
+                    {site.p3Balance >= 0 ? "+" : ""}{site.p3Balance.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
                   </td>
                 </tr>
               ))}
