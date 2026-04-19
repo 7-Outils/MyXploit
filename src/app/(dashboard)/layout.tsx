@@ -7,6 +7,7 @@ import { ContractProvider } from "@/contexts/ContractContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import { GhostModeBar } from "@/components/admin/GhostModeBar";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { SWRProvider } from "@/components/SWRProvider";
 
 export default function DashboardLayout({
   children,
@@ -14,23 +15,25 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <UserProfileProvider>
-      <PermissionProvider>
-        <Suspense fallback={null}>
-          <ContractProvider>
-            <SidebarProvider>
-              <GhostModeBar />
-              <div className="min-h-screen bg-background-secondary">
-                <Sidebar />
-                <DashboardShell>
-                  <Topbar />
-                  <main className="p-6">{children}</main>
-                </DashboardShell>
-              </div>
-            </SidebarProvider>
-          </ContractProvider>
-        </Suspense>
-      </PermissionProvider>
-    </UserProfileProvider>
+    <SWRProvider>
+      <UserProfileProvider>
+        <PermissionProvider>
+          <Suspense fallback={null}>
+            <ContractProvider>
+              <SidebarProvider>
+                <GhostModeBar />
+                <div className="min-h-screen bg-background-secondary">
+                  <Sidebar />
+                  <DashboardShell>
+                    <Topbar />
+                    <main className="p-6">{children}</main>
+                  </DashboardShell>
+                </div>
+              </SidebarProvider>
+            </ContractProvider>
+          </Suspense>
+        </PermissionProvider>
+      </UserProfileProvider>
+    </SWRProvider>
   );
 }

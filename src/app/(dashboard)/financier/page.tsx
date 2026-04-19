@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, Suspense } from "react";
-import useSWR from "swr";
+import useSWR, { preload } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useContract } from "@/contexts/ContractContext";
@@ -362,6 +362,18 @@ function FinancierPageContent() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
+              onMouseEnter={() => {
+                if (!selectedContract) return;
+                if (tab.id === "facturation") {
+                  preload(`/api/invoices?contractId=${selectedContract.id}`, fetcher);
+                } else if (tab.id === "decompte-p3") {
+                  preload(`/api/contracts/${selectedContract.id}/p3-balance`, fetcher);
+                  preload(`/api/contracts/${selectedContract.id}/site-analytics`, fetcher);
+                } else if (tab.id === "devis") {
+                  preload(`/api/quotes?contractId=${selectedContract.id}`, fetcher);
+                  preload(`/api/contracts/${selectedContract.id}/sites`, fetcher);
+                }
+              }}
               className={`flex items-center gap-2 py-4 border-b-2 transition-colors ${
                 activeTab === tab.id
                   ? "border-accent text-accent font-medium"

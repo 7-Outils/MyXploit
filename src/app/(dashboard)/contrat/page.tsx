@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import useSWR from "swr";
+import useSWR, { preload } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
 import {
@@ -87,6 +87,7 @@ function AdministratifContent() {
         </button>
         <button
           onClick={() => setActiveTab("cibles")}
+          onMouseEnter={() => selectedContract && preload(`/api/heating-seasons?contractId=${selectedContract.id}`, fetcher)}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "cibles" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
@@ -103,6 +104,12 @@ function AdministratifContent() {
         </button>
         <button
           onClick={() => setActiveTab("revision")}
+          onMouseEnter={() => {
+            if (!selectedContract) return;
+            preload(`/api/contracts/${selectedContract.id}/revision-indices`, fetcher);
+            preload(`/api/contracts/${selectedContract.id}/revision-formulas`, fetcher);
+            preload(`/api/contracts/${selectedContract.id}/revision-pending`, fetcher);
+          }}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "revision" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
@@ -111,6 +118,7 @@ function AdministratifContent() {
         </button>
         <button
           onClick={() => setActiveTab("montants")}
+          onMouseEnter={() => selectedContract && preload(`/api/contracts/${selectedContract.id}/amounts-timeline`, fetcher)}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "montants" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
           }`}
