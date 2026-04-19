@@ -89,17 +89,24 @@ export async function PUT(
       return NextResponse.json({ error: "Partie constante invalide" }, { status: 400 });
     }
 
-    const rawComponents: { indexId?: string; coefficient?: number | string; baseValue?: number | string }[] =
+    const roundingDecimalsRaw = typeof body?.roundingDecimals === "number" ? body.roundingDecimals : parseInt(String(body?.roundingDecimals ?? "4"), 10);
+    const roundingDecimals = Number.isFinite(roundingDecimalsRaw) ? Math.max(0, Math.min(10, roundingDecimalsRaw)) : 4;
+
+    const rawComponents: { indexId?: string; coefficient?: number | string; baseValue?: number | string; reconnectionCoef?: number | string }[] =
       Array.isArray(body?.components) ? body.components : [];
-    const components: { indexId: string; coefficient: number; baseValue: number }[] = rawComponents.map((c) => ({
+    const components: { indexId: string; coefficient: number; baseValue: number; reconnectionCoef: number }[] = rawComponents.map((c) => ({
       indexId: (c.indexId ?? "").toString(),
       coefficient: typeof c.coefficient === "number" ? c.coefficient : parseFloat(String(c.coefficient ?? "0")),
       baseValue: typeof c.baseValue === "number" ? c.baseValue : parseFloat(String(c.baseValue ?? "0")),
+      reconnectionCoef: typeof c.reconnectionCoef === "number" ? c.reconnectionCoef : parseFloat(String(c.reconnectionCoef ?? "1")),
     }));
 
     for (const c of components) {
       if (!c.indexId || !Number.isFinite(c.coefficient) || !Number.isFinite(c.baseValue) || c.baseValue === 0) {
         return NextResponse.json({ error: "Composante invalide" }, { status: 400 });
+      }
+      if (!Number.isFinite(c.reconnectionCoef) || c.reconnectionCoef <= 0) {
+        c.reconnectionCoef = 1;
       }
     }
 
@@ -126,6 +133,7 @@ export async function PUT(
             periodicity,
             baseDate,
             constantPart,
+            roundingDecimals,
             components: { create: components },
           },
           include: {
@@ -142,6 +150,7 @@ export async function PUT(
           periodicity,
           baseDate,
           constantPart,
+          roundingDecimals,
           components: { create: components },
         },
         include: {

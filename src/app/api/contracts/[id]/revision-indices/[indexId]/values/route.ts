@@ -26,6 +26,7 @@ export async function POST(
     const body = await request.json();
     const date = body?.date ? new Date(body.date) : null;
     const value = typeof body?.value === "number" ? body.value : parseFloat(body?.value);
+    const isProvisional = !!body?.isProvisional;
 
     if (!date || isNaN(date.getTime())) {
       return NextResponse.json({ error: "Date invalide" }, { status: 400 });
@@ -35,7 +36,7 @@ export async function POST(
     }
 
     const created = await prisma.contractRevisionIndexValue.create({
-      data: { indexId, date, value },
+      data: { indexId, date, value, isProvisional },
     });
 
     return NextResponse.json(created);

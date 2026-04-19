@@ -1378,10 +1378,11 @@ model ContractRevisionIndex {
 }
 
 model ContractRevisionIndexValue {
-  id      String   @id @default(cuid())
-  indexId String
-  date    DateTime // date d'effet
-  value   Float
+  id            String   @id @default(cuid())
+  indexId       String
+  date          DateTime // date d'effet
+  value         Float
+  isProvisional Boolean  @default(false) // valeur provisoire (à confirmer)
 
   index ContractRevisionIndex @relation(fields: [indexId], references: [id], onDelete: Cascade)
 
@@ -1393,11 +1394,12 @@ model ContractRevisionFormula {
   id           String         @id @default(cuid())
   contractId   String
   pType        RevisionPType
-  periodicity  RevisionPeriod @default(ANNUAL)
-  baseDate     DateTime
-  constantPart Float          @default(0)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  periodicity      RevisionPeriod @default(ANNUAL)
+  baseDate         DateTime
+  constantPart     Float          @default(0)
+  roundingDecimals Int            @default(4) // arrondi du coefficient K
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   contract   Contract                   @relation(fields: [contractId], references: [id], onDelete: Cascade)
   components ContractFormulaComponent[]
@@ -1407,11 +1409,12 @@ model ContractRevisionFormula {
 }
 
 model ContractFormulaComponent {
-  id          String @id @default(cuid())
-  formulaId   String
-  indexId     String
-  coefficient Float
-  baseValue   Float // I_0 stocké explicitement
+  id               String @id @default(cuid())
+  formulaId        String
+  indexId          String
+  coefficient      Float
+  baseValue        Float // I_0 stocké explicitement
+  reconnectionCoef Float  @default(1) // coef raccordement si changement de base INSEE
 
   formula ContractRevisionFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
   index   ContractRevisionIndex   @relation(fields: [indexId], references: [id], onDelete: Cascade)

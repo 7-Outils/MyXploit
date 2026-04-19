@@ -49,13 +49,16 @@ export async function POST(
     }
 
     // Résoudre la valeur de chaque indice à periodStart (la plus récente avec date <= periodStart)
-    let K = formula.constantPart;
+    let Kraw = formula.constantPart;
     const componentDetails: {
       indexId: string;
       indexName: string;
       coefficient: number;
       baseValue: number;
       currentValue: number;
+      reconnectionCoef: number;
+      isProvisional: boolean;
+      valueDate: string;
       ratio: number;
     }[] = [];
 
@@ -71,17 +74,25 @@ export async function POST(
           { status: 400 }
         );
       }
-      const ratio = latest.value / c.baseValue;
-      K += c.coefficient * ratio;
+      const recon = c.reconnectionCoef ?? 1;
+      const ratio = (latest.value * recon) / c.baseValue;
+      Kraw += c.coefficient * ratio;
       componentDetails.push({
         indexId: c.indexId,
         indexName: latest.index.name,
         coefficient: c.coefficient,
         baseValue: c.baseValue,
         currentValue: latest.value,
+        reconnectionCoef: recon,
+        isProvisional: latest.isProvisional,
+        valueDate: latest.date.toISOString(),
         ratio,
       });
     }
+
+    const decimals = Math.max(0, Math.min(10, formula.roundingDecimals ?? 4));
+    const factor = Math.pow(10, decimals);
+    const K = Math.round(Kraw * factor) / factor;
 
     const amountField = `amount${pType}` as "amountP1" | "amountP2" | "amountP3";
     const baseField = `amount${pType}Base` as "amountP1Base" | "amountP2Base" | "amountP3Base";
@@ -112,8 +123,12 @@ export async function POST(
         pType,
         periodStart: periodStart.toISOString(),
         K,
+        Kraw,
+        roundingDecimals: decimals,
+        constantPart: formula.constantPart,
         components: componentDetails,
         sites: siteResults,
+        hasProvisionalIndex: componentDetails.some((c) => c.isProvisional),
       });
     }
 
@@ -157,8 +172,12 @@ export async function POST(
       pType,
       periodStart: periodStart.toISOString(),
       K,
+      Kraw,
+      roundingDecimals: decimals,
+      constantPart: formula.constantPart,
       components: componentDetails,
       sites: siteResults,
+      hasProvisionalIndex: componentDetails.some((c) => c.isProvisional),
     });
   } catch (error) {
     console.error("Error applying revision:", error);

@@ -37,7 +37,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const data: { date?: Date; value?: number } = {};
+    const data: { date?: Date; value?: number; isProvisional?: boolean } = {};
 
     if (body?.date !== undefined) {
       const d = new Date(body.date);
@@ -52,6 +52,9 @@ export async function PUT(
         return NextResponse.json({ error: "Valeur invalide" }, { status: 400 });
       }
       data.value = v;
+    }
+    if (body?.isProvisional !== undefined) {
+      data.isProvisional = !!body.isProvisional;
     }
 
     const updated = await prisma.contractRevisionIndexValue.update({
