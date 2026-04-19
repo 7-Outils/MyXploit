@@ -1366,6 +1366,7 @@ model ContractRevisionIndex {
   id         String   @id @default(cuid())
   contractId String
   name       String // "BT40", "ICHT-IME", ...
+  identifier String? // Identifiant INSEE (ex: "001710973")
   createdAt  DateTime @default(now())
 
   contract   Contract                     @relation(fields: [contractId], references: [id], onDelete: Cascade)

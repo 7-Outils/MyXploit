@@ -33,9 +33,15 @@ export async function PUT(
       return NextResponse.json({ error: "Nom requis" }, { status: 400 });
     }
 
+    const data: { name: string; identifier?: string | null } = { name };
+    if (body?.identifier !== undefined) {
+      const id = body.identifier ? body.identifier.toString().trim() : "";
+      data.identifier = id || null;
+    }
+
     const updated = await prisma.contractRevisionIndex.update({
       where: { id: indexId },
-      data: { name },
+      data,
       include: { values: { orderBy: { date: "asc" } } },
     });
 

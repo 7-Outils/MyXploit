@@ -16,6 +16,7 @@ interface IndexValue {
 interface RevisionIndex {
   id: string;
   name: string;
+  identifier: string | null;
   values: IndexValue[];
 }
 
@@ -113,9 +114,11 @@ function IndicesSection({
   onChanged: () => void;
 }) {
   const [newName, setNewName] = useState("");
+  const [newIdentifier, setNewIdentifier] = useState("");
   const [creating, setCreating] = useState(false);
   const [editingIndexId, setEditingIndexId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingIdentifier, setEditingIdentifier] = useState("");
 
   const [newDate, setNewDate] = useState("");
   const [newValue, setNewValue] = useState("");
@@ -130,9 +133,9 @@ function IndicesSection({
     try {
       const res = await fetch(`/api/contracts/${contractId}/revision-indices`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
+        body: JSON.stringify({ name: newName.trim(), identifier: newIdentifier.trim() || null }),
       });
-      if (res.ok) { setNewName(""); onChanged(); }
+      if (res.ok) { setNewName(""); setNewIdentifier(""); onChanged(); }
       else { alert((await res.json()).error ?? "Erreur"); }
     } finally { setCreating(false); }
   };
@@ -141,7 +144,7 @@ function IndicesSection({
     if (!editingName.trim()) return;
     const res = await fetch(`/api/contracts/${contractId}/revision-indices/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editingName.trim() }),
+      body: JSON.stringify({ name: editingName.trim(), identifier: editingIdentifier.trim() || null }),
     });
     if (res.ok) { setEditingIndexId(null); onChanged(); }
     else { alert((await res.json()).error ?? "Erreur"); }
@@ -197,18 +200,29 @@ function IndicesSection({
               <li className="px-4 py-6 text-sm text-text-secondary text-center">Aucun indice</li>
             )}
             {indices.map((i) => (
-              <li key={i.id} className={`px-4 py-2 flex items-center justify-between gap-2 cursor-pointer ${selectedIndex?.id === i.id ? "bg-accent/5" : "hover:bg-gray-50"}`} onClick={() => onSelect(i.id)}>
+              <li key={i.id} className={`px-4 py-2 flex items-start justify-between gap-2 cursor-pointer ${selectedIndex?.id === i.id ? "bg-accent/5" : "hover:bg-gray-50"}`} onClick={() => onSelect(i.id)}>
                 {editingIndexId === i.id ? (
-                  <input
-                    autoFocus
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") renameIndex(i.id); if (e.key === "Escape") setEditingIndexId(null); }}
-                    className="flex-1 text-sm border border-gray-300 rounded px-2 py-1"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  <div className="flex-1 space-y-1" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      autoFocus
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") renameIndex(i.id); if (e.key === "Escape") setEditingIndexId(null); }}
+                      placeholder="Nom"
+                      className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                    />
+                    <input
+                      value={editingIdentifier}
+                      onChange={(e) => setEditingIdentifier(e.target.value)}
+                      placeholder="Identifiant INSEE (ex: 001710973)"
+                      className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                    />
+                  </div>
                 ) : (
-                  <span className="text-sm font-medium">{i.name}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{i.name}</div>
+                    {i.identifier && <div className="text-xs text-gray-500 truncate">Id. {i.identifier}</div>}
+                  </div>
                 )}
                 <ReadOnlyGate>
                   <div className="flex items-center gap-1">
@@ -219,7 +233,7 @@ function IndicesSection({
                       </>
                     ) : (
                       <>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(i.id); setEditingName(i.name); }} className="p-1 text-gray-500 hover:bg-gray-100 rounded"><Pencil size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(i.id); setEditingName(i.name); setEditingIdentifier(i.identifier ?? ""); }} className="p-1 text-gray-500 hover:bg-gray-100 rounded"><Pencil size={14} /></button>
                         <button onClick={(e) => { e.stopPropagation(); deleteIndex(i.id); }} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
                       </>
                     )}
@@ -229,12 +243,15 @@ function IndicesSection({
             ))}
           </ul>
           <ReadOnlyGate>
-            <div className="border-t border-gray-100 p-3 flex gap-2">
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createIndex(); }} placeholder="Nom (ex: BT40)" className="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
-              <button onClick={createIndex} disabled={creating || !newName.trim()} className="px-3 py-1.5 bg-accent text-white text-sm rounded hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1">
-                {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                Ajouter
-              </button>
+            <div className="border-t border-gray-100 p-3 space-y-2">
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nom (ex: BT40 — Chauffage central)" className="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+              <div className="flex gap-2">
+                <input value={newIdentifier} onChange={(e) => setNewIdentifier(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createIndex(); }} placeholder="Identifiant INSEE (optionnel)" className="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
+                <button onClick={createIndex} disabled={creating || !newName.trim()} className="px-3 py-1.5 bg-accent text-white text-sm rounded hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1">
+                  {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                  Ajouter
+                </button>
+              </div>
             </div>
           </ReadOnlyGate>
         </div>

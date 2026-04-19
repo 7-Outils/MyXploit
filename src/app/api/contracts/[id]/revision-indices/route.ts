@@ -57,12 +57,13 @@ export async function POST(
 
     const body = await request.json();
     const name = (body?.name ?? "").toString().trim();
+    const identifier = body?.identifier ? body.identifier.toString().trim() || null : null;
     if (!name) {
       return NextResponse.json({ error: "Nom requis" }, { status: 400 });
     }
 
     const created = await prisma.contractRevisionIndex.create({
-      data: { contractId, name },
+      data: { contractId, name, identifier },
       include: { values: true },
     });
 
