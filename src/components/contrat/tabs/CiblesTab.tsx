@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import {
   Check,
   Loader2,
@@ -29,8 +31,11 @@ export function CiblesContent({
   const [editingCell, setEditingCell] = useState<{ siteId: string; year: number } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const [allSeasons, setAllSeasons] = useState<HeatingSeason[]>([]);
-  const [loadingSeasons, setLoadingSeasons] = useState(true);
+
+  const { data: allSeasonsData, isLoading: loadingSeasons, mutate: mutateSeasons } = useSWR<HeatingSeason[]>(
+    `/api/heating-seasons?contractId=${contract.id}`, fetcher
+  );
+  const allSeasons = allSeasonsData ?? [];
 
   const isCivil = contract.yearType === "CIVIL";
 
@@ -64,25 +69,6 @@ export function CiblesContent({
   };
 
   const contractYears = getContractYears();
-
-  // Fetch all heating seasons for the contract
-  useEffect(() => {
-    const fetchAllSeasons = async () => {
-      setLoadingSeasons(true);
-      try {
-        const res = await fetch(`/api/heating-seasons?contractId=${contract.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setAllSeasons(data);
-        }
-      } catch (error) {
-        console.error("Error fetching heating seasons:", error);
-      } finally {
-        setLoadingSeasons(false);
-      }
-    };
-    fetchAllSeasons();
-  }, [contract.id]);
 
   // Get NB for a site and season
   const getNbForSiteSeason = (siteId: string, season: string) => {
@@ -138,11 +124,7 @@ export function CiblesContent({
         });
       }
 
-      // Refresh data
-      const res = await fetch(`/api/heating-seasons?contractId=${contract.id}`);
-      if (res.ok) {
-        setAllSeasons(await res.json());
-      }
+      await mutateSeasons();
       onNbUpdate();
     } catch (error) {
       console.error("Error saving NB:", error);
