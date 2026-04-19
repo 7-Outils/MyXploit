@@ -102,20 +102,33 @@ export async function POST(
       include: { site: { select: { id: true, name: true } } },
     });
 
-    const siteResults = contractSites.map((cs) => {
-      const base = cs[baseField] ?? cs[amountField] ?? 0;
-      const before = cs[amountField] ?? 0;
-      const after = base * K;
-      return {
-        contractSiteId: cs.id,
-        siteId: cs.site.id,
-        siteName: cs.site.name,
-        base,
-        before,
-        after,
-        delta: after - before,
-      };
-    });
+    // Pour chaque site, calculer « Avant » = montant applicable juste avant periodStart
+    // (dernier ContractSitePriceChange avec effectiveDate < periodStart, ou base si aucun)
+    const siteResults = await Promise.all(
+      contractSites.map(async (cs) => {
+        const base = cs[baseField] ?? cs[amountField] ?? 0;
+
+        const previous = await prisma.contractSitePriceChange.findFirst({
+          where: {
+            contractSiteId: cs.id,
+            effectiveDate: { lt: periodStart },
+            [amountField]: { not: null },
+          },
+          orderBy: { effectiveDate: "desc" },
+        });
+        const before = previous ? (previous[amountField] as number) : base;
+        const after = base * K;
+        return {
+          contractSiteId: cs.id,
+          siteId: cs.site.id,
+          siteName: cs.site.name,
+          base,
+          before,
+          after,
+          delta: after - before,
+        };
+      })
+    );
 
     if (preview) {
       return NextResponse.json({
@@ -135,12 +148,13 @@ export async function POST(
     const reasonPrefix = `Révision ${pType}`;
     const isoDay = periodStart.toISOString().slice(0, 10);
     const reason = `${reasonPrefix} ${isoDay}`;
+    const today = new Date();
 
     await prisma.$transaction(async (tx) => {
       for (const r of siteResults) {
         if (!r.base) continue;
 
-        // Supprimer anciens ContractSitePriceChange pour la même clé logique
+        // 1. Upsert l'entrée d'historique pour cette période
         await tx.contractSitePriceChange.deleteMany({
           where: {
             contractSiteId: r.contractSiteId,
@@ -160,9 +174,20 @@ export async function POST(
           },
         });
 
+        // 2. Recomputer amountP<N> sur ContractSite = montant applicable aujourd'hui
+        //    (dernier ContractSitePriceChange avec effectiveDate <= today, ou base si aucun)
+        const applicable = await tx.contractSitePriceChange.findFirst({
+          where: {
+            contractSiteId: r.contractSiteId,
+            effectiveDate: { lte: today },
+            [amountField]: { not: null },
+          },
+          orderBy: { effectiveDate: "desc" },
+        });
+        const currentAmount = applicable ? (applicable[amountField] as number) : r.base;
         await tx.contractSite.update({
           where: { id: r.contractSiteId },
-          data: { [amountField]: r.after },
+          data: { [amountField]: currentAmount },
         });
       }
     });
