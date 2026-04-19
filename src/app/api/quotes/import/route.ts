@@ -6,6 +6,7 @@ import {
   findSiteMatch,
   ParsedQuote,
 } from "@/lib/pdf-parser";
+import { parseWithGemini, isGeminiEnabled } from "@/lib/gemini-pdf-parser";
 
 export interface ImportResult {
   success: boolean;
@@ -51,10 +52,22 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Parse PDF
-    let parsed;
+    // Parse PDF — Gemini d'abord (si configuré), fallback regex
+    let parsed: ParsedQuote;
+    let source: "gemini" | "regex" = "regex";
+
     try {
-      parsed = await parseQuotePDF(buffer);
+      if (isGeminiEnabled()) {
+        const geminiResult = await parseWithGemini(buffer);
+        if (geminiResult) {
+          parsed = geminiResult;
+          source = "gemini";
+        } else {
+          parsed = await parseQuotePDF(buffer);
+        }
+      } else {
+        parsed = await parseQuotePDF(buffer);
+      }
     } catch (pdfError) {
       console.error("PDF parsing error:", pdfError);
       return NextResponse.json(
@@ -75,11 +88,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Return parsed data for preview
-    const result: ImportResult = {
+    const result: ImportResult & { source?: string } = {
       success: true,
       parsed,
       siteMatched: !!matchedSite,
       matchedSite: matchedSite || undefined,
+      source,
     };
 
     return NextResponse.json(result);
