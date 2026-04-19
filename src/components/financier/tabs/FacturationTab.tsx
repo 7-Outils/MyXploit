@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  Receipt,
-  Plus,
-  Loader2,
-  Upload,
-  MapPin,
-  ChevronDown,
-  ChevronRight,
-  Trash2,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { Receipt, Plus, Loader2, Upload, Check, X, Trash2 } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 import { statusConfig, typeConfig } from "@/components/financier/constants";
 import type { Invoice, StatusFilter, TypeFilter } from "@/components/financier/types";
@@ -21,14 +13,16 @@ interface FacturationTabProps {
   typeFilter: TypeFilter;
   setTypeFilter: (t: TypeFilter) => void;
   filteredInvoices: Invoice[];
-  invoicesByYear: { year: number; invoices: Invoice[]; total: number }[];
-  expandedYears: Set<number>;
-  toggleYear: (year: number) => void;
-  handleStatusChange: (id: string, status: string) => void;
+  handleAcceptInvoice: (id: string) => void;
+  handleRefuseInvoice: (id: string) => void;
+  acceptingInvoiceId: string | null;
+  refusingInvoiceId: string | null;
   setShowDeleteConfirm: (id: string | null) => void;
   setShowImportModal: (v: boolean) => void;
   setShowInvoiceModal: (v: boolean) => void;
 }
+
+const PAGE_SIZE = 30;
 
 export function FacturationTab({
   loading,
@@ -37,14 +31,22 @@ export function FacturationTab({
   typeFilter,
   setTypeFilter,
   filteredInvoices,
-  invoicesByYear,
-  expandedYears,
-  toggleYear,
-  handleStatusChange,
+  handleAcceptInvoice,
+  handleRefuseInvoice,
+  acceptingInvoiceId,
+  refusingInvoiceId,
   setShowDeleteConfirm,
   setShowImportModal,
   setShowInvoiceModal,
 }: FacturationTabProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
+  const pageClamped = Math.min(currentPage, totalPages);
+  const pagedInvoices = filteredInvoices.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -55,20 +57,18 @@ export function FacturationTab({
 
   return (
     <>
-      {/* Filters & Actions */}
+      {/* Filters + Actions */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex bg-gray-100 rounded-lg p-1">
-          {(["ALL", "EN_ATTENTE", "VALIDEE", "PAYEE", "BROUILLON"] as StatusFilter[]).map((status) => (
+          {(["ALL", "EN_ATTENTE", "VALIDEE", "REFUSEE"] as StatusFilter[]).map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
               className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                statusFilter === status
-                  ? "bg-white shadow text-primary-dark font-medium"
-                  : "text-text-secondary hover:text-primary-dark"
+                statusFilter === status ? "bg-white shadow text-primary-dark font-medium" : "text-text-secondary hover:text-primary-dark"
               }`}
             >
-              {status === "ALL" ? "Toutes" : status === "EN_ATTENTE" ? "En attente" : status === "VALIDEE" ? "Validées" : status === "PAYEE" ? "Payées" : "Brouillon"}
+              {status === "ALL" ? "Toutes" : status === "EN_ATTENTE" ? "En attente" : status === "VALIDEE" ? "Validées" : "Refusées"}
             </button>
           ))}
         </div>
@@ -103,7 +103,7 @@ export function FacturationTab({
         </ReadOnlyGate>
       </div>
 
-      {/* Invoices list */}
+      {/* Table */}
       {filteredInvoices.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-12">
           <Receipt size={48} className="text-gray-300 mb-4" />
@@ -112,92 +112,109 @@ export function FacturationTab({
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {invoicesByYear.map(({ year, invoices: yearInvoices, total }) => {
-            const isExpanded = expandedYears.has(year);
-            const currentYear = new Date().getFullYear();
-            const isCurrent = year === currentYear;
-
-            return (
-              <div key={year} className={`border rounded-xl overflow-hidden ${isCurrent ? "border-accent" : "border-gray-200"}`}>
-                <button
-                  onClick={() => toggleYear(year)}
-                  className={`w-full flex items-center justify-between p-4 transition-colors ${isCurrent ? "bg-accent/5 hover:bg-accent/10" : "bg-gray-50 hover:bg-gray-100"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    {isExpanded ? <ChevronDown size={18} className="text-text-secondary" /> : <ChevronRight size={18} className="text-text-secondary" />}
-                    <div className="text-left">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-primary-dark">{year}</span>
-                        {isCurrent && <span className="px-2 py-0.5 bg-accent text-white text-xs rounded-full">En cours</span>}
-                      </div>
-                      <span className="text-xs text-text-secondary">{yearInvoices.length} facture{yearInvoices.length > 1 ? "s" : ""}</span>
-                    </div>
-                  </div>
-                  <p className="font-bold text-primary-dark">{total.toLocaleString("fr-FR")} € HT</p>
-                </button>
-                {isExpanded && (
-                  <div className="border-t border-gray-100 divide-y divide-gray-100">
-                    {yearInvoices.map((invoice) => {
-                      const status = statusConfig[invoice.status];
-                      const type = typeConfig[invoice.type];
-                      return (
-                        <div key={invoice.id} className="flex items-center justify-between p-4 bg-white hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-                              <Receipt size={18} className="text-accent" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-primary-dark">{invoice.reference}</p>
-                              <p className="text-sm text-text-secondary">
-                                {new Date(invoice.issueDate).toLocaleDateString("fr-FR")}
-                                {invoice.description && ` • ${invoice.description.slice(0, 40)}${invoice.description.length > 40 ? "..." : ""}`}
-                              </p>
-                              {invoice.site && (
-                                <p className="text-xs text-text-secondary flex items-center gap-1 mt-0.5">
-                                  <MapPin size={12} />
-                                  {invoice.site.name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <p className="font-semibold text-primary-dark">{invoice.amount.toLocaleString("fr-FR")} € HT</p>
-                              <p className="text-xs text-text-secondary">Éch. {new Date(invoice.dueDate).toLocaleDateString("fr-FR")}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${type.color}`}>
-                                {invoice.type}{invoice.p1SubType ? ` · ${invoice.p1SubType}` : ""}
-                              </span>
-                              <select
-                                value={invoice.status}
-                                onChange={(e) => handleStatusChange(invoice.id, e.target.value)}
-                                className={`px-3 py-1 rounded-full text-xs font-medium border-0 cursor-pointer ${status.color}`}
-                              >
-                                <option value="BROUILLON">Brouillon</option>
-                                <option value="EN_ATTENTE">En attente</option>
-                                <option value="VALIDEE">Validée</option>
-                                <option value="REJETEE">Rejetée</option>
-                                <option value="PAYEE">Payée</option>
-                              </select>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Référence</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Type</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Montant HT</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">État</th>
+                  <th className="px-4 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {pagedInvoices.map((invoice) => {
+                  const status = statusConfig[invoice.status];
+                  const type = typeConfig[invoice.type];
+                  return (
+                    <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-gray-600">{new Date(invoice.issueDate).toLocaleDateString("fr-FR")}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{invoice.reference}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${type.color}`}>
+                          {invoice.type}{invoice.p1SubType ? ` · ${invoice.p1SubType}` : ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-right font-medium text-gray-900">{invoice.amount.toLocaleString("fr-FR")} €</td>
+                      <td className="px-4 py-3 text-sm">
+                        {invoice.status === "EN_ATTENTE" ? (
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
+                            <ReadOnlyGate>
                               <button
-                                onClick={() => setShowDeleteConfirm(invoice.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                                title="Supprimer"
+                                onClick={() => handleAcceptInvoice(invoice.id)}
+                                disabled={acceptingInvoiceId === invoice.id}
+                                className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Valider"
                               >
-                                <Trash2 size={16} />
+                                {acceptingInvoiceId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                               </button>
-                            </div>
+                              <button
+                                onClick={() => handleRefuseInvoice(invoice.id)}
+                                disabled={refusingInvoiceId === invoice.id}
+                                className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Refuser"
+                              >
+                                {refusingInvoiceId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
+                              </button>
+                            </ReadOnlyGate>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        ) : invoice.status === "VALIDEE" && invoice.acceptedByUser ? (
+                          <div>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
+                            <div className="text-xs text-gray-600 mt-1">
+                              par {invoice.acceptedByUser.firstName || ""} {invoice.acceptedByUser.lastName || invoice.acceptedByUser.email}
+                            </div>
+                            {invoice.acceptedAt && (
+                              <div className="text-xs text-gray-500">{new Date(invoice.acceptedAt).toLocaleDateString("fr-FR")}</div>
+                            )}
+                          </div>
+                        ) : invoice.status === "REFUSEE" && invoice.refusedByUser ? (
+                          <div>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
+                            <div className="text-xs text-gray-600 mt-1">
+                              par {invoice.refusedByUser.firstName || ""} {invoice.refusedByUser.lastName || invoice.refusedByUser.email}
+                            </div>
+                            {invoice.refusedAt && (
+                              <div className="text-xs text-gray-500">{new Date(invoice.refusedAt).toLocaleDateString("fr-FR")}</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <ReadOnlyGate>
+                          <button
+                            onClick={() => setShowDeleteConfirm(invoice.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </ReadOnlyGate>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm">
+                <span className="text-text-secondary">
+                  {(pageClamped - 1) * PAGE_SIZE + 1}–{Math.min(pageClamped * PAGE_SIZE, filteredInvoices.length)} sur {filteredInvoices.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={pageClamped === 1} className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40">Précédent</button>
+                  <span className="text-xs text-text-secondary px-2">Page {pageClamped} / {totalPages}</span>
+                  <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={pageClamped === totalPages} className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40">Suivant</button>
+                </div>
               </div>
-            );
-          })}
+            )}
+          </div>
         </div>
       )}
     </>

@@ -17,12 +17,19 @@ export interface Contract {
   };
 }
 
+export interface InvoiceUser {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+}
+
 export interface Invoice {
   id: string;
   reference: string;
   type: "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
   p1SubType: string | null;
-  status: "BROUILLON" | "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "PAYEE";
+  status: "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
   amount: number;
   taxAmount: number | null;
   issueDate: string;
@@ -30,6 +37,10 @@ export interface Invoice {
   description: string | null;
   site: Site | null;
   contract: Contract | null;
+  acceptedAt: string | null;
+  refusedAt: string | null;
+  acceptedByUser: InvoiceUser | null;
+  refusedByUser: InvoiceUser | null;
 }
 
 export interface SeasonSite {
@@ -123,5 +134,5 @@ export interface SiteAnalyticsData {
 }
 
 export type Tab = "facturation" | "budget" | "decompte-p3" | "devis";
-export type StatusFilter = "ALL" | "BROUILLON" | "EN_ATTENTE" | "VALIDEE" | "REJETEE" | "PAYEE";
+export type StatusFilter = "ALL" | "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
 export type TypeFilter = "ALL" | "P1" | "P2" | "P3";

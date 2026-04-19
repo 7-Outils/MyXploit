@@ -11,12 +11,10 @@ export async function GET() {
     const invoices = await prisma.invoice.findMany({
       where: { organizationId: effectiveOrgId },
       include: {
-        site: {
-          select: { id: true, name: true },
-        },
-        contract: {
-          select: { id: true, reference: true, provider: true },
-        },
+        site: { select: { id: true, name: true } },
+        contract: { select: { id: true, reference: true, provider: true } },
+        acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+        refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
       orderBy: { issueDate: "desc" },
     });
@@ -50,7 +48,7 @@ export async function POST(request: NextRequest) {
       data: {
         reference: body.reference,
         type: body.type,
-        status: body.status || "BROUILLON",
+        status: "EN_ATTENTE",
         amount: parseFloat(body.amount),
         taxAmount: body.taxAmount ? parseFloat(body.taxAmount) : null,
         issueDate: new Date(body.issueDate),

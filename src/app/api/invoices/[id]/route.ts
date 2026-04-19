@@ -78,7 +78,6 @@ export async function PUT(
       data: {
         ...(body.reference && { reference: body.reference }),
         ...(body.type && { type: body.type }),
-        ...(body.status && { status: body.status }),
         ...(body.amount && { amount: parseFloat(body.amount) }),
         ...(body.taxAmount !== undefined && {
           taxAmount: body.taxAmount ? parseFloat(body.taxAmount) : null,

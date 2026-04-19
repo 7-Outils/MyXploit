@@ -47,7 +47,8 @@ function FinancierPageContent() {
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
+  const [acceptingInvoiceId, setAcceptingInvoiceId] = useState<string | null>(null);
+  const [refusingInvoiceId, setRefusingInvoiceId] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -129,8 +130,6 @@ function FinancierPageContent() {
       if (response.ok) {
         const data = await response.json();
         setInvoices(Array.isArray(data) ? data : []);
-        const currentYear = new Date().getFullYear();
-        setExpandedYears(new Set([currentYear]));
       }
     } catch (error) {
       console.error("Error fetching invoices:", error);
@@ -228,19 +227,35 @@ function FinancierPageContent() {
     }
   };
 
-  const handleStatusChange = async (invoiceId: string, newStatus: string) => {
-    if (!selectedContract) return;
+  const handleAcceptInvoice = async (invoiceId: string) => {
+    if (!confirm("Valider cette facture ?")) return;
+    setAcceptingInvoiceId(invoiceId);
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      const response = await fetch(`/api/invoices/${invoiceId}/accept`, { method: "POST" });
       if (response.ok) {
-        await fetchInvoices(selectedContract.id);
+        const updated = await response.json();
+        setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated : i)));
       }
     } catch (error) {
-      console.error("Error updating invoice:", error);
+      console.error("Error accepting invoice:", error);
+    } finally {
+      setAcceptingInvoiceId(null);
+    }
+  };
+
+  const handleRefuseInvoice = async (invoiceId: string) => {
+    if (!confirm("Refuser cette facture ?")) return;
+    setRefusingInvoiceId(invoiceId);
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}/refuse`, { method: "POST" });
+      if (response.ok) {
+        const updated = await response.json();
+        setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? updated : i)));
+      }
+    } catch (error) {
+      console.error("Error refusing invoice:", error);
+    } finally {
+      setRefusingInvoiceId(null);
     }
   };
 
@@ -378,15 +393,6 @@ function FinancierPageContent() {
     }
   };
 
-  // Toggle helpers
-  const toggleYear = (year: number) => {
-    setExpandedYears((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) next.delete(year);
-      else next.add(year);
-      return next;
-    });
-  };
 
   const toggleP3Year = (year: string) => {
     setExpandedP3Years((prev) => {
@@ -405,24 +411,6 @@ function FinancierPageContent() {
       return true;
     });
   }, [invoices, statusFilter, typeFilter]);
-
-  const invoicesByYear = useMemo(() => {
-    const groups: Record<number, Invoice[]> = {};
-    filteredInvoices.forEach((inv) => {
-      const year = new Date(inv.issueDate).getFullYear();
-      if (!groups[year]) groups[year] = [];
-      groups[year].push(inv);
-    });
-    return Object.entries(groups)
-      .sort(([a], [b]) => Number(b) - Number(a))
-      .map(([year, invs]) => ({
-        year: Number(year),
-        invoices: invs.sort(
-          (a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
-        ),
-        total: invs.reduce((sum, i) => sum + i.amount, 0),
-      }));
-  }, [filteredInvoices]);
 
 
   // Loading
@@ -481,10 +469,10 @@ function FinancierPageContent() {
           typeFilter={typeFilter}
           setTypeFilter={setTypeFilter}
           filteredInvoices={filteredInvoices}
-          invoicesByYear={invoicesByYear}
-          expandedYears={expandedYears}
-          toggleYear={toggleYear}
-          handleStatusChange={handleStatusChange}
+          handleAcceptInvoice={handleAcceptInvoice}
+          handleRefuseInvoice={handleRefuseInvoice}
+          acceptingInvoiceId={acceptingInvoiceId}
+          refusingInvoiceId={refusingInvoiceId}
           setShowDeleteConfirm={setShowDeleteConfirm}
           setShowImportModal={setShowImportModal}
           setShowInvoiceModal={setShowInvoiceModal}

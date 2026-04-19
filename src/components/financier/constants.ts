@@ -9,9 +9,7 @@ export const typeConfig = {
 };
 
 export const statusConfig = {
-  BROUILLON: { label: "Brouillon", color: "bg-gray-100 text-gray-700", icon: Clock },
   EN_ATTENTE: { label: "En attente", color: "bg-yellow-100 text-yellow-700", icon: Clock },
   VALIDEE: { label: "Validée", color: "bg-green-100 text-green-700", icon: Check },
-  REJETEE: { label: "Rejetée", color: "bg-red-100 text-red-700", icon: X },
-  PAYEE: { label: "Payée", color: "bg-blue-100 text-blue-700", icon: Check },
+  REFUSEE: { label: "Refusée", color: "bg-red-100 text-red-700", icon: X },
 };

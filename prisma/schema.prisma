@@ -265,6 +265,8 @@ model User {
   ghostSessions   GhostSession[] @relation("SuperAdminGhostSessions")
   quotesAccepted  Quote[]        @relation("QuoteAcceptedBy")
   quotesRefused   Quote[]        @relation("QuoteRefusedBy")
+  invoicesAccepted Invoice[]     @relation("InvoiceAcceptedBy")
+  invoicesRefused  Invoice[]     @relation("InvoiceRefusedBy")
   ticketsCreated         Ticket[]                 @relation("TicketCreatedBy")
   contractAssignments    UserContractAssignment[]
   missionAssignments     UserMissionAssignment[]
@@ -1544,11 +1546,9 @@ model MeterReading {
 // ============================================
 
 enum InvoiceStatus {
-  BROUILLON
   EN_ATTENTE
   VALIDEE
-  PAYEE
-  CONTESTEE
+  REFUSEE
 }
 
 enum InvoiceType {
@@ -1563,7 +1563,7 @@ model Invoice {
   id             String        @id @default(cuid())
   reference      String
   type           InvoiceType
-  status         InvoiceStatus @default(BROUILLON)
+  status         InvoiceStatus @default(EN_ATTENTE)
   amount         Float
   taxAmount      Float?
   issueDate      DateTime
@@ -1575,13 +1575,19 @@ model Invoice {
   siteId         String?
   contractId     String?
   organizationId String
+  acceptedBy     String?
+  acceptedAt     DateTime?
+  refusedBy      String?
+  refusedAt      DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   // Relations
-  site         Site?        @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  contract     Contract?    @relation(fields: [contractId], references: [id])
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site           Site?        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  contract       Contract?    @relation(fields: [contractId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  acceptedByUser User?        @relation("InvoiceAcceptedBy", fields: [acceptedBy], references: [id])
+  refusedByUser  User?        @relation("InvoiceRefusedBy", fields: [refusedBy], references: [id])
 
   @@map("invoices")
 }
