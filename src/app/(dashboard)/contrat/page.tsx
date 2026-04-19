@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
 import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab";
+import ContractRevisionTab from "@/components/administratif/ContractRevisionTab";
 import ContractFinancierTab from "@/components/administratif/ContractFinancierTab";
 import EditContractModal from "@/components/administratif/modals/EditContractModal";
 import AEImportModal from "@/components/administratif/modals/AEImportModal";
@@ -24,7 +25,7 @@ function AdministratifContent() {
   // Contract detail state
   const [contractDetail, setContractDetail] = useState<Contract | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [activeTab, setActiveTab] = useState<"sites" | "cibles" | "avenants" | "financier">("sites");
+  const [activeTab, setActiveTab] = useState<"sites" | "cibles" | "avenants" | "revision" | "financier">("sites");
   const [energySites, setEnergySites] = useState<Site[]>([]);
 
   const [showEditContractModal, setShowEditContractModal] = useState(false);
@@ -123,6 +124,14 @@ function AdministratifContent() {
           Avenants ({contractDetail?.avenants?.length || 0})
         </button>
         <button
+          onClick={() => setActiveTab("revision")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "revision" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
+          }`}
+        >
+          Révision
+        </button>
+        <button
           onClick={() => setActiveTab("financier")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === "financier" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
@@ -166,6 +175,11 @@ function AdministratifContent() {
               contract={contractDetail}
               onContractUpdate={fetchDetail}
             />
+          )}
+
+          {/* Révision Tab */}
+          {activeTab === "revision" && selectedContract && (
+            <ContractRevisionTab contractId={selectedContract.id} />
           )}
 
           {/* Financier Tab */}

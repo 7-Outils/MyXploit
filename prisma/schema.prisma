@@ -52,7 +52,7 @@ model Organization {
   clients                 Client[]
   missionTypes            MissionType[]
   missions                Mission[]
-  onboardingCompleted     Boolean @default(false)
+  onboardingCompleted     Boolean                  @default(false)
 
   @@map("organizations")
 }
@@ -63,7 +63,7 @@ model Organization {
 
 model Client {
   id             String   @id @default(cuid())
-  name           String   // "Ville de Lyon", "Région Auvergne"
+  name           String // "Ville de Lyon", "Région Auvergne"
   siret          String?
   contactName    String?
   contactEmail   String?
@@ -88,31 +88,31 @@ model Client {
 // ============================================
 
 enum MissionStatus {
-  PROSPECT       // En cours de négociation (pipeline)
-  ACTIVE         // Mission en cours
-  EN_PAUSE       // Mission suspendue
-  TERMINEE       // Mission terminée
-  ANNULEE        // Mission annulée
+  PROSPECT // En cours de négociation (pipeline)
+  ACTIVE // Mission en cours
+  EN_PAUSE // Mission suspendue
+  TERMINEE // Mission terminée
+  ANNULEE // Mission annulée
 }
 
 enum BillingModality {
-  FORFAIT        // Montant fixe
-  REGIE          // Temps passé
-  POURCENTAGE    // % du montant travaux
-  MIXTE          // Combinaison
+  FORFAIT // Montant fixe
+  REGIE // Temps passé
+  POURCENTAGE // % du montant travaux
+  MIXTE // Combinaison
 }
 
 enum DeliverableStatus {
-  A_FAIRE      // À faire
-  EN_COURS     // En cours de production
-  PRODUIT      // Produit (terminé par l'ingénieur)
-  TRANSMIS     // Transmis au client
+  A_FAIRE // À faire
+  EN_COURS // En cours de production
+  PRODUIT // Produit (terminé par l'ingénieur)
+  TRANSMIS // Transmis au client
 }
 
 // Type de mission configurable par organisation
 model MissionType {
   id             String   @id @default(cuid())
-  name           String   // "Suivi de contrat", "Audit énergétique", etc.
+  name           String // "Suivi de contrat", "Audit énergétique", etc.
   organizationId String
   isActive       Boolean  @default(true)
   sortOrder      Int      @default(0)
@@ -128,24 +128,24 @@ model MissionType {
 }
 
 model Mission {
-  id               String          @id @default(cuid())
-  reference        String          // Auto-généré: MIS-2026-0001
-  title            String
-  description      String?
-  status           MissionStatus   @default(ACTIVE)
-  missionTypeId    String
-  clientId         String
-  organizationId   String
-  startDate        DateTime?
-  endDate          DateTime?
-  amountHT         Float?
-  billingModality  BillingModality?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id              String           @id @default(cuid())
+  reference       String // Auto-généré: MIS-2026-0001
+  title           String
+  description     String?
+  status          MissionStatus    @default(ACTIVE)
+  missionTypeId   String
+  clientId        String
+  organizationId  String
+  startDate       DateTime?
+  endDate         DateTime?
+  amountHT        Float?
+  billingModality BillingModality?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  missionType  MissionType              @relation(fields: [missionTypeId], references: [id])
-  client       Client                   @relation(fields: [clientId], references: [id])
-  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  missionType  MissionType             @relation(fields: [missionTypeId], references: [id])
+  client       Client                  @relation(fields: [clientId], references: [id])
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   deliverables Deliverable[]
   engineers    UserMissionAssignment[]
   sites        MissionSite[]
@@ -160,13 +160,13 @@ model Mission {
 
 model Deliverable {
   id              String            @id @default(cuid())
-  title           String            // "Rapport annuel", "Note d'audit", "CCTP"
+  title           String // "Rapport annuel", "Note d'audit", "CCTP"
   description     String?
   status          DeliverableStatus @default(A_FAIRE)
   dueDate         DateTime?
-  completedDate   DateTime?         // Date de production
-  transmittedDate DateTime?         // Date de transmission au client
-  fileUrl         String?           // Lien vers le document
+  completedDate   DateTime? // Date de production
+  transmittedDate DateTime? // Date de transmission au client
+  fileUrl         String? // Lien vers le document
   missionId       String
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -220,69 +220,69 @@ model MissionContract {
 }
 
 enum UserRole {
-  SUPER_ADMIN  // Plateforme - accès toutes orgs en mode fantôme
-  ADMIN        // Org - gère les utilisateurs de son org
-  EDITOR       // Org - crée/modifie/supprime dans son org
-  MANAGER      // @deprecated - migrer vers EDITOR
-  READER       // Org - consulte et exporte uniquement
+  SUPER_ADMIN // Plateforme - accès toutes orgs en mode fantôme
+  ADMIN // Org - gère les utilisateurs de son org
+  EDITOR // Org - crée/modifie/supprime dans son org
+  MANAGER // @deprecated - migrer vers EDITOR
+  READER // Org - consulte et exporte uniquement
 }
 
 // Modules fonctionnels (accès configurable par organisation)
 enum Module {
-  ENERGY          // Suivi énergétique
-  FINANCIER       // Suivi financier
-  ADMINISTRATIF   // Suivi administratif
-  EXPLOITATION    // Suivi exploitation
-  OUTILS          // Boîte à outils
-  CONTRACTS       // Gestion contrats
-  PRICING         // Tarification
+  ENERGY // Suivi énergétique
+  FINANCIER // Suivi financier
+  ADMINISTRATIF // Suivi administratif
+  EXPLOITATION // Suivi exploitation
+  OUTILS // Boîte à outils
+  CONTRACTS // Gestion contrats
+  PRICING // Tarification
 }
 
 // Profil métier de l'utilisateur (expérience personnalisée)
 enum UserProfile {
-  EXPLOITANT   // Entreprise de maintenance (Engie, Dalkia, etc.) - Focus: interventions, équipements, rapports
-  CLIENT       // Propriétaire/gestionnaire du patrimoine - Focus: coûts, conformité contrat, performance
-  AMO          // Assistant Maîtrise d'Ouvrage - Focus: audits, pilotage global, reporting
+  EXPLOITANT // Entreprise de maintenance (Engie, Dalkia, etc.) - Focus: interventions, équipements, rapports
+  CLIENT // Propriétaire/gestionnaire du patrimoine - Focus: coûts, conformité contrat, performance
+  AMO // Assistant Maîtrise d'Ouvrage - Focus: audits, pilotage global, reporting
 }
 
 model User {
   id                String       @id @default(cuid())
   email             String       @unique
-  password          String?      // Hashed password (null = invitation en attente)
+  password          String? // Hashed password (null = invitation en attente)
   firstName         String?
   lastName          String?
   role              UserRole     @default(READER)
   profile           UserProfile? // Profil métier (null = pas encore choisi)
   organizationId    String
   invitationToken   String?      @unique // Token pour accepter l'invitation
-  invitationExpires DateTime?    // Expiration du token
+  invitationExpires DateTime? // Expiration du token
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
   // Relations
-  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdSites    Site[]         @relation("CreatedBy")
-  ghostSessions   GhostSession[] @relation("SuperAdminGhostSessions")
-  quotesAccepted  Quote[]        @relation("QuoteAcceptedBy")
-  quotesRefused   Quote[]        @relation("QuoteRefusedBy")
-  invoicesAccepted Invoice[]     @relation("InvoiceAcceptedBy")
-  invoicesRefused  Invoice[]     @relation("InvoiceRefusedBy")
-  ticketsCreated         Ticket[]                 @relation("TicketCreatedBy")
-  contractAssignments    UserContractAssignment[]
-  missionAssignments     UserMissionAssignment[]
-  siteActivityLogs       SiteActivityLog[]
+  organization        Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdSites        Site[]                   @relation("CreatedBy")
+  ghostSessions       GhostSession[]           @relation("SuperAdminGhostSessions")
+  quotesAccepted      Quote[]                  @relation("QuoteAcceptedBy")
+  quotesRefused       Quote[]                  @relation("QuoteRefusedBy")
+  invoicesAccepted    Invoice[]                @relation("InvoiceAcceptedBy")
+  invoicesRefused     Invoice[]                @relation("InvoiceRefusedBy")
+  ticketsCreated      Ticket[]                 @relation("TicketCreatedBy")
+  contractAssignments UserContractAssignment[]
+  missionAssignments  UserMissionAssignment[]
+  siteActivityLogs    SiteActivityLog[]
 
   @@map("users")
 }
 
 // Modules activés par organisation
 model OrganizationModule {
-  id             String       @id @default(cuid())
+  id             String   @id @default(cuid())
   organizationId String
   module         Module
-  isEnabled      Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  isEnabled      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -293,11 +293,11 @@ model OrganizationModule {
 
 // Sessions fantômes pour SUPER_ADMIN
 model GhostSession {
-  id                   String       @id @default(cuid())
+  id                   String   @id @default(cuid())
   superAdminId         String
   targetOrganizationId String
-  createdAt            DateTime     @default(now())
-  expiresAt            DateTime     // Auto-expire après 4h
+  createdAt            DateTime @default(now())
+  expiresAt            DateTime // Auto-expire après 4h
 
   superAdmin         User         @relation("SuperAdminGhostSessions", fields: [superAdminId], references: [id], onDelete: Cascade)
   targetOrganization Organization @relation(fields: [targetOrganizationId], references: [id], onDelete: Cascade)
@@ -318,7 +318,7 @@ model UserContractAssignment {
   contractId     String
   organizationId String
   assignedAt     DateTime @default(now())
-  assignedById   String?  // Qui a fait l'assignation
+  assignedById   String? // Qui a fait l'assignation
 
   // Relations
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -337,17 +337,17 @@ model UserContractAssignment {
 // ============================================
 
 enum SiteActivityType {
-  PANNE_CHAUFFAGE     // Panne chauffage
-  PANNE_ECS           // Panne ECS
-  PANNE_VENTILATION   // Panne ventilation / climatisation
-  FUITE               // Fuite eau / gaz
-  DYSFONCTIONNEMENT   // Dysfonctionnement équipement
-  COUPURE             // Coupure énergie / alimentation
-  PLAINTE_USAGER      // Plainte / signalement usager
-  INTERVENTION        // Intervention exploitant
-  INCIDENT            // Incident divers
-  ASSIGNATION         // Changement d'assignation (auto)
-  NOTE                // Note libre
+  PANNE_CHAUFFAGE // Panne chauffage
+  PANNE_ECS // Panne ECS
+  PANNE_VENTILATION // Panne ventilation / climatisation
+  FUITE // Fuite eau / gaz
+  DYSFONCTIONNEMENT // Dysfonctionnement équipement
+  COUPURE // Coupure énergie / alimentation
+  PLAINTE_USAGER // Plainte / signalement usager
+  INTERVENTION // Intervention exploitant
+  INCIDENT // Incident divers
+  ASSIGNATION // Changement d'assignation (auto)
+  NOTE // Note libre
 }
 
 model SiteActivityLog {
@@ -390,30 +390,30 @@ enum SiteType {
 
 // Niveau d'isolation du bâtiment
 enum InsulationLevel {
-  AUCUNE          // Avant 1974, pas d'isolation
-  PARTIELLE       // Isolation partielle (combles ou murs)
-  RT1974          // Conforme RT 1974
-  RT1988          // Conforme RT 1988
-  RT2000          // Conforme RT 2000
-  RT2005          // Conforme RT 2005
-  RT2012          // Conforme RT 2012
-  RE2020          // Conforme RE 2020
+  AUCUNE // Avant 1974, pas d'isolation
+  PARTIELLE // Isolation partielle (combles ou murs)
+  RT1974 // Conforme RT 1974
+  RT1988 // Conforme RT 1988
+  RT2000 // Conforme RT 2000
+  RT2005 // Conforme RT 2005
+  RT2012 // Conforme RT 2012
+  RE2020 // Conforme RE 2020
 }
 
 // Type de vitrage
 enum GlazingType {
-  SIMPLE          // Simple vitrage
-  DOUBLE          // Double vitrage standard
-  DOUBLE_FE       // Double vitrage faible émissivité
-  TRIPLE          // Triple vitrage
+  SIMPLE // Simple vitrage
+  DOUBLE // Double vitrage standard
+  DOUBLE_FE // Double vitrage faible émissivité
+  TRIPLE // Triple vitrage
 }
 
 // Type de ventilation
 enum VentilationType {
-  NATURELLE       // Ventilation naturelle
-  SIMPLE_FLUX     // VMC simple flux
-  HYGRO_B         // VMC hygroréglable B
-  DOUBLE_FLUX     // VMC double flux avec récupération
+  NATURELLE // Ventilation naturelle
+  SIMPLE_FLUX // VMC simple flux
+  HYGRO_B // VMC hygroréglable B
+  DOUBLE_FLUX // VMC double flux avec récupération
 }
 
 enum EnergyType {
@@ -422,49 +422,49 @@ enum EnergyType {
   FIOUL
   BOIS
   RESEAU_CHALEUR
-  EAU           // Appoint d'eau
+  EAU // Appoint d'eau
   AUTRE
 }
 
 // Usage de l'énergie (pour séparer chauffage et ECS)
 enum EnergyUsage {
-  CHAUFFAGE     // Chauffage seul (soumis aux DJU)
-  ECS           // Eau Chaude Sanitaire (non soumis aux DJU)
-  MIXTE         // Chauffage + ECS combiné
-  AUTRE         // Autre usage
+  CHAUFFAGE // Chauffage seul (soumis aux DJU)
+  ECS // Eau Chaude Sanitaire (non soumis aux DJU)
+  MIXTE // Chauffage + ECS combiné
+  AUTRE // Autre usage
 }
 
 enum NbUnit {
-  PCS   // Pouvoir Calorifique Supérieur
+  PCS // Pouvoir Calorifique Supérieur
   UTILE // Énergie utile
 }
 
 model Site {
-  id             String     @id @default(cuid())
-  name           String
-  type           SiteType
-  address        String
-  city           String
-  postalCode     String
-  surface        Float? // m² (surface totale)
-  surfaceChauffee Float? // m² (surface chauffée)
-  energyType     EnergyType
+  id               String           @id @default(cuid())
+  name             String
+  type             SiteType
+  address          String
+  city             String
+  postalCode       String
+  surface          Float? // m² (surface totale)
+  surfaceChauffee  Float? // m² (surface chauffée)
+  energyType       EnergyType
   // Données énergétiques P1
-  nb             Float?     // Niveau de Base / Cible énergétique (MWh)
-  nbUnit         NbUnit?    // Unité du NB (PCS ou Utile)
-  djuContractuel Float?     // DJU Contractuels (trentenaire station météo)
-  stationMeteo   String?    // Station météo de référence (ex: "ORLY", "LYON-BRON")
-  pce            String?    // Point de Comptage et d'Estimation (compteur gaz)
-  pdl            String?    // Point de Livraison (compteur électricité)
-  rae            String?    // Référence Acheminement Électricité
+  nb               Float? // Niveau de Base / Cible énergétique (MWh)
+  nbUnit           NbUnit? // Unité du NB (PCS ou Utile)
+  djuContractuel   Float? // DJU Contractuels (trentenaire station météo)
+  stationMeteo     String? // Station météo de référence (ex: "ORLY", "LYON-BRON")
+  pce              String? // Point de Comptage et d'Estimation (compteur gaz)
+  pdl              String? // Point de Livraison (compteur électricité)
+  rae              String? // Référence Acheminement Électricité
   // Caractéristiques bâtiment (profil thermique)
-  constructionYear  Int?              // Année de construction
-  numberOfFloors    Int?              // Nombre de niveaux
-  buildingHeight    Float?            // Hauteur moyenne sous plafond (m)
-  volumeChauffee    Float?            // Volume chauffé (m³) - calculé ou saisi
-  insulationLevel   InsulationLevel?  // Niveau d'isolation
-  glazingType       GlazingType?      // Type de vitrage
-  ventilationType   VentilationType?  // Type de ventilation
+  constructionYear Int? // Année de construction
+  numberOfFloors   Int? // Nombre de niveaux
+  buildingHeight   Float? // Hauteur moyenne sous plafond (m)
+  volumeChauffee   Float? // Volume chauffé (m³) - calculé ou saisi
+  insulationLevel  InsulationLevel? // Niveau d'isolation
+  glazingType      GlazingType? // Type de vitrage
+  ventilationType  VentilationType? // Type de ventilation
 
   // Autres infos
   annualBudget   Float? // Budget annuel estimé
@@ -474,31 +474,31 @@ model Site {
   organizationId String
   clientId       String? // Client (collectivité) rattaché
   createdById    String?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  client          Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  createdBy       User?           @relation("CreatedBy", fields: [createdById], references: [id])
-  contractSites   ContractSite[]  // Relation vers les contrats via la table pivot
-  equipments      Equipment[]
-  consumptions    Consumption[]
-  meters          Meter[]         // Compteurs du site (schéma de comptage)
-  invoices        Invoice[]
-  alerts          Alert[]
-  meetings        Meeting[]
-  quotes          Quote[]
-  poolBasins      PoolBasin[]     // Bassins de piscine pour ce site
-  heatingSeasons  HeatingSeason[] // Saisons de chauffage (contiennent le NB)
-  heatingPeriods  HeatingPeriod[] // Périodes de chauffe (dates allumage/arrêt)
-  aliases          SiteAlias[]      // Alias pour l'import de données
-  technicalAudits  TechnicalAudit[] // Audits techniques du site
-  occupationZones     OccupationZone[]    // Zones d'occupation thermique
-  tickets             Ticket[]            // Points de suivi
-  regulatoryControls  RegulatoryControl[] // Contrôles réglementaires
-  activityLogs        SiteActivityLog[]   // Journal d'activité
-  missionSites        MissionSite[]       // Missions rattachées
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client             Client?             @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdBy          User?               @relation("CreatedBy", fields: [createdById], references: [id])
+  contractSites      ContractSite[] // Relation vers les contrats via la table pivot
+  equipments         Equipment[]
+  consumptions       Consumption[]
+  meters             Meter[] // Compteurs du site (schéma de comptage)
+  invoices           Invoice[]
+  alerts             Alert[]
+  meetings           Meeting[]
+  quotes             Quote[]
+  poolBasins         PoolBasin[] // Bassins de piscine pour ce site
+  heatingSeasons     HeatingSeason[] // Saisons de chauffage (contiennent le NB)
+  heatingPeriods     HeatingPeriod[] // Périodes de chauffe (dates allumage/arrêt)
+  aliases            SiteAlias[] // Alias pour l'import de données
+  technicalAudits    TechnicalAudit[] // Audits techniques du site
+  occupationZones    OccupationZone[] // Zones d'occupation thermique
+  tickets            Ticket[] // Points de suivi
+  regulatoryControls RegulatoryControl[] // Contrôles réglementaires
+  activityLogs       SiteActivityLog[] // Journal d'activité
+  missionSites       MissionSite[] // Missions rattachées
 
   @@map("sites")
 }
@@ -506,18 +506,18 @@ model Site {
 // Zone d'occupation thermique d'un bâtiment
 // Permet de définir les horaires et températures de consigne par zone
 model OccupationZone {
-  id               String   @id @default(cuid())
-  siteId           String
-  name             String   // Ex: "Salles de classe", "Gymnase", "Bureaux"
-  surface          Float?   // Surface de la zone (m²)
-  tempConsigne     Float    @default(19) // Température de consigne occupation (°C)
-  tempReduit       Float    @default(16) // Température réduit hors occupation (°C)
+  id           String @id @default(cuid())
+  siteId       String
+  name         String // Ex: "Salles de classe", "Gymnase", "Bureaux"
+  surface      Float? // Surface de la zone (m²)
+  tempConsigne Float  @default(19) // Température de consigne occupation (°C)
+  tempReduit   Float  @default(16) // Température réduit hors occupation (°C)
 
   // Planning hebdomadaire (JSON: { lundi: [{start: "08:00", end: "18:00"}], ... })
-  weeklySchedule   Json?
+  weeklySchedule Json?
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
@@ -528,9 +528,9 @@ model OccupationZone {
 // Permet de mapper les noms de sites des fichiers Excel aux sites existants
 model SiteAlias {
   id             String   @id @default(cuid())
-  alias          String   // Le nom dans le fichier Excel (ex: "COMPLEXTE SPORTIF CHRISTINE CARON")
-  source         String?  // Source du fichier (ex: "IDEX", "ENGIE", "DALKIA")
-  siteId         String   // Le site correspondant
+  alias          String // Le nom dans le fichier Excel (ex: "COMPLEXTE SPORTIF CHRISTINE CARON")
+  source         String? // Source du fichier (ex: "IDEX", "ENGIE", "DALKIA")
+  siteId         String // Le site correspondant
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -552,14 +552,14 @@ model SiteAlias {
 // Domaine de l'équipement CVC
 enum EquipmentDomain {
   CHAUFFAGE
-  ECS           // Eau Chaude Sanitaire
+  ECS // Eau Chaude Sanitaire
   VENTILATION
   CLIMATISATION
   TRAITEMENT_EAU
   PLOMBERIE
-  CFO_CFA       // Courants Forts / Courants Faibles (électricité)
-  COMPTAGE      // Compteurs et instruments de mesure
-  PISCINE       // Traitement eau et chauffage piscines
+  CFO_CFA // Courants Forts / Courants Faibles (électricité)
+  COMPTAGE // Compteurs et instruments de mesure
+  PISCINE // Traitement eau et chauffage piscines
   AUTRE
 }
 
@@ -567,7 +567,7 @@ enum EquipmentType {
   // === CHAUFFAGE ===
   CHAUDIERE
   CHAUDIERE_CONDENSATION
-  PAC               // Pompe à chaleur
+  PAC // Pompe à chaleur
   PAC_AIR_EAU
   PAC_EAU_EAU
   PAC_AIR_AIR
@@ -575,7 +575,7 @@ enum EquipmentType {
   PLANCHER_CHAUFFANT
   CONVECTEUR
   AEROTERME
-  RADIANT_GAZ       // Radiant gaz
+  RADIANT_GAZ // Radiant gaz
   VANNE_3_VOIES
   VANNE_MOTORISEE
   POMPE_CHAUFFAGE
@@ -584,13 +584,13 @@ enum EquipmentType {
   ECHANGEUR_THERMIQUE
   BRULEUR
   REGULATEUR
-  AUTOMATE           // Automate de régulation / GTB
+  AUTOMATE // Automate de régulation / GTB
   SONDE_TEMPERATURE
   SONDE_EXTERIEURE
   // === ECS ===
   BALLON_ECS
   BALLON_THERMODYNAMIQUE
-  PREPARATEUR_ECS_GAZ  // Préparateur ECS Gaz
+  PREPARATEUR_ECS_GAZ // Préparateur ECS Gaz
   ECHANGEUR_ECS
   POMPE_BOUCLAGE
   MITIGEUR_THERMOSTATIQUE
@@ -599,7 +599,7 @@ enum EquipmentType {
   VMC
   VMC_SIMPLE_FLUX
   VMC_DOUBLE_FLUX
-  CTA               // Centrale de traitement d'air
+  CTA // Centrale de traitement d'air
   CAISSON_EXTRACTION
   CAISSON_SOUFFLAGE
   VENTILATEUR
@@ -609,14 +609,14 @@ enum EquipmentType {
   RECUPERATEUR_CHALEUR
   // === CLIMATISATION ===
   GROUPE_FROID
-  CLIMATISATION  // Gardé pour compatibilité
+  CLIMATISATION // Gardé pour compatibilité
   CLIMATISEUR
   SPLIT
   MULTI_SPLIT
   CASSETTE
   GAINABLE
   ROOFTOP
-  DRV               // Débit de Régulation Variable
+  DRV // Débit de Régulation Variable
   // === TRAITEMENT EAU ===
   ADOUCISSEUR
   DISCONNECTEUR
@@ -630,52 +630,52 @@ enum EquipmentType {
   SURPRESSEUR
   BACHE_EAU
   REDUCTION_PRESSION
-  POMPE_RELEVAGE     // Pompe de relevage
-  STATION_RELEVAGE   // Station de relevage
+  POMPE_RELEVAGE // Pompe de relevage
+  STATION_RELEVAGE // Station de relevage
   // === CFO/CFA (Électricité) ===
   ARMOIRE_ELECTRIQUE
-  ARMOIRE_TGBT       // Tableau Général Basse Tension
-  ARMOIRE_TD         // Tableau Divisionnaire
+  ARMOIRE_TGBT // Tableau Général Basse Tension
+  ARMOIRE_TD // Tableau Divisionnaire
   ONDULEUR
   GROUPE_ELECTROGENE
   TRANSFORMATEUR
   BAIE_INFORMATIQUE
   // === COMPTAGE ===
-  COMPTEUR_ENERGIE       // Compteur d'énergie thermique
-  COMPTEUR_CALORIES      // Compteur de calories
-  COMPTEUR_FRIGORIES     // Compteur de frigories
-  COMPTEUR_ECS           // Compteur ECS
-  COMPTEUR_GAZ           // Compteur gaz
-  COMPTEUR_ELECTRIQUE    // Compteur électrique
-  SOUS_COMPTEUR_ELEC     // Sous-compteur électrique
-  COMPTEUR_HORAIRE       // Compteur horaire
-  COMPTEUR_APPOINT       // Compteur d'appoint
-  ANALYSEUR_RESEAU       // Analyseur de réseau électrique
-  SONDE_TEMPERATURE_AMB  // Sonde de température ambiante
-  SONDE_HYGROMETRIE      // Sonde d'hygrométrie
-  CAPTEUR_CO2            // Capteur CO2
-  CAPTEUR_QUALITE_AIR    // Capteur qualité d'air
+  COMPTEUR_ENERGIE // Compteur d'énergie thermique
+  COMPTEUR_CALORIES // Compteur de calories
+  COMPTEUR_FRIGORIES // Compteur de frigories
+  COMPTEUR_ECS // Compteur ECS
+  COMPTEUR_GAZ // Compteur gaz
+  COMPTEUR_ELECTRIQUE // Compteur électrique
+  SOUS_COMPTEUR_ELEC // Sous-compteur électrique
+  COMPTEUR_HORAIRE // Compteur horaire
+  COMPTEUR_APPOINT // Compteur d'appoint
+  ANALYSEUR_RESEAU // Analyseur de réseau électrique
+  SONDE_TEMPERATURE_AMB // Sonde de température ambiante
+  SONDE_HYGROMETRIE // Sonde d'hygrométrie
+  CAPTEUR_CO2 // Capteur CO2
+  CAPTEUR_QUALITE_AIR // Capteur qualité d'air
   // === PISCINE ===
-  FILTRE_PISCINE         // Filtre à sable/diatomée/verre
-  POMPE_FILTRATION       // Pompe de filtration piscine
-  PAC_PISCINE            // Pompe à chaleur piscine
-  ECHANGEUR_PISCINE      // Échangeur thermique piscine
-  CHAUDIERE_PISCINE      // Chaudière dédiée piscine
-  ELECTROLYSEUR_SEL      // Électrolyseur au sel
-  TRAITEMENT_CHLORE      // Système de chloration
-  TRAITEMENT_UV          // Traitement UV
-  TRAITEMENT_OZONE       // Traitement ozone
-  REGULATEUR_PH          // Régulateur pH automatique
-  REGULATEUR_CHLORE      // Régulateur chlore/redox
-  POMPE_DOSEUSE          // Pompe doseuse produits
-  SONDE_PH               // Sonde pH
-  SONDE_REDOX            // Sonde redox/chlore
-  SONDE_TEMPERATURE_EAU  // Sonde température eau bassin
-  DESHUMIDIFICATEUR      // Déshumidificateur hall bassin
-  CTA_PISCINE            // Centrale traitement air piscine
-  BACHE_TAMPON           // Bâche tampon / bac tampon
-  NAGE_CONTRE_COURANT    // Système nage contre-courant
-  ROBOT_NETTOYAGE        // Robot de nettoyage automatique
+  FILTRE_PISCINE // Filtre à sable/diatomée/verre
+  POMPE_FILTRATION // Pompe de filtration piscine
+  PAC_PISCINE // Pompe à chaleur piscine
+  ECHANGEUR_PISCINE // Échangeur thermique piscine
+  CHAUDIERE_PISCINE // Chaudière dédiée piscine
+  ELECTROLYSEUR_SEL // Électrolyseur au sel
+  TRAITEMENT_CHLORE // Système de chloration
+  TRAITEMENT_UV // Traitement UV
+  TRAITEMENT_OZONE // Traitement ozone
+  REGULATEUR_PH // Régulateur pH automatique
+  REGULATEUR_CHLORE // Régulateur chlore/redox
+  POMPE_DOSEUSE // Pompe doseuse produits
+  SONDE_PH // Sonde pH
+  SONDE_REDOX // Sonde redox/chlore
+  SONDE_TEMPERATURE_EAU // Sonde température eau bassin
+  DESHUMIDIFICATEUR // Déshumidificateur hall bassin
+  CTA_PISCINE // Centrale traitement air piscine
+  BACHE_TAMPON // Bâche tampon / bac tampon
+  NAGE_CONTRE_COURANT // Système nage contre-courant
+  ROBOT_NETTOYAGE // Robot de nettoyage automatique
   // === AUTRE ===
   AUTRE
 }
@@ -689,56 +689,56 @@ enum EquipmentStatus {
 
 // Note de 1 à 5 pour les critères d'audit
 enum AuditRating {
-  NON_EVALUE  // 0 - Pas encore évalué
-  CRITIQUE    // 1 - À remplacer d'urgence
-  MAUVAIS     // 2 - Défaillances majeures
-  MOYEN       // 3 - Acceptable mais à surveiller
-  BON         // 4 - En bon état
-  EXCELLENT   // 5 - État neuf ou quasi-neuf
+  NON_EVALUE // 0 - Pas encore évalué
+  CRITIQUE // 1 - À remplacer d'urgence
+  MAUVAIS // 2 - Défaillances majeures
+  MOYEN // 3 - Acceptable mais à surveiller
+  BON // 4 - En bon état
+  EXCELLENT // 5 - État neuf ou quasi-neuf
 }
 
 // Résultat global d'un audit technique
 enum TechnicalAuditResult {
-  NON_VERIFIE   // Pas encore vérifié
-  CONFORME      // Tous les points conformes
-  NON_CONFORME  // Au moins un point non conforme critique
-  PARTIEL       // Certains points conformes, d'autres non
+  NON_VERIFIE // Pas encore vérifié
+  CONFORME // Tous les points conformes
+  NON_CONFORME // Au moins un point non conforme critique
+  PARTIEL // Certains points conformes, d'autres non
 }
 
 model Equipment {
-  id             String          @id @default(cuid())
-  name           String?         // Optionnel - auto-généré depuis le type si vide
-  domain         EquipmentDomain @default(CHAUFFAGE)
-  type           EquipmentType
-  brand          String?
-  model          String?
-  serialNumber   String?
-  imageUrl       String?         // URL de l'image de l'équipement
-  year           Int?            // Année de fabrication
-  installDate    DateTime?
-  warrantyEnd    DateTime?
-  power          Float?          // kW
-  quantity       Int?            // Quantité (pour émetteurs: radiateurs, convecteurs, etc.)
+  id                  String          @id @default(cuid())
+  name                String? // Optionnel - auto-généré depuis le type si vide
+  domain              EquipmentDomain @default(CHAUFFAGE)
+  type                EquipmentType
+  brand               String?
+  model               String?
+  serialNumber        String?
+  imageUrl            String? // URL de l'image de l'équipement
+  year                Int? // Année de fabrication
+  installDate         DateTime?
+  warrantyEnd         DateTime?
+  power               Float? // kW
+  quantity            Int? // Quantité (pour émetteurs: radiateurs, convecteurs, etc.)
   // Localisation dans le site
-  location       String?         // Local/Pièce (ex: "Chaufferie", "Sous-sol technique")
-  level          String?         // Niveau/Étage (ex: "RDC", "Sous-sol", "Toiture")
-  serviceArea    String?         // Zone desservie (ex: "Bâtiment A", "Aile Nord")
+  location            String? // Local/Pièce (ex: "Chaufferie", "Sous-sol technique")
+  level               String? // Niveau/Étage (ex: "RDC", "Sous-sol", "Toiture")
+  serviceArea         String? // Zone desservie (ex: "Bâtiment A", "Aile Nord")
   // Liste contradictoire (équipement sur liste vs présent sur site)
-  inContractList Boolean         @default(true)  // Figure sur la liste contractuelle
-  presentOnSite  Boolean         @default(true)  // Présent physiquement sur site
+  inContractList      Boolean         @default(true) // Figure sur la liste contractuelle
+  presentOnSite       Boolean         @default(true) // Présent physiquement sur site
   // Durée de vie théorique
-  theoreticalLifespan Int?       // Durée de vie en années (ex: 20 pour chaudière)
-  status         EquipmentStatus @default(OPERATIONNEL)
-  siteId         String
-  organizationId String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  theoreticalLifespan Int? // Durée de vie en années (ex: 20 pour chaudière)
+  status              EquipmentStatus @default(OPERATIONNEL)
+  siteId              String
+  organizationId      String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   // Relations
-  site               Site              @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avenantItems       AvenantItem[]     // Modifications d'avenant concernant cet équipement
-  audits             EquipmentAudit[]  // Historique des audits simples
+  site               Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avenantItems       AvenantItem[] // Modifications d'avenant concernant cet équipement
+  audits             EquipmentAudit[] // Historique des audits simples
   regulatoryControls RegulatoryControl[] // Contrôles réglementaires liés
 
   @@map("equipments")
@@ -746,27 +746,27 @@ model Equipment {
 
 // Audit d'un équipement (relevé sur site)
 model EquipmentAudit {
-  id             String      @id @default(cuid())
-  equipmentId    String
-  auditDate      DateTime    // Date de l'audit
-  auditor        String?     // Nom de l'auditeur
+  id                 String      @id @default(cuid())
+  equipmentId        String
+  auditDate          DateTime // Date de l'audit
+  auditor            String? // Nom de l'auditeur
   // Critères d'évaluation (notes)
-  visualState    AuditRating @default(NON_EVALUE)   // État visuel
-  performance    AuditRating @default(NON_EVALUE)   // Performance
-  security       AuditRating @default(NON_EVALUE)   // Sécurité
-  accessibility  AuditRating @default(NON_EVALUE)   // Accessibilité
-  compliance     AuditRating @default(NON_EVALUE)   // Conformité réglementaire
+  visualState        AuditRating @default(NON_EVALUE) // État visuel
+  performance        AuditRating @default(NON_EVALUE) // Performance
+  security           AuditRating @default(NON_EVALUE) // Sécurité
+  accessibility      AuditRating @default(NON_EVALUE) // Accessibilité
+  compliance         AuditRating @default(NON_EVALUE) // Conformité réglementaire
   // Commentaires et observations
-  visualNotes    String?     // Notes sur l'état visuel
-  performanceNotes String?   // Notes sur la performance
-  securityNotes  String?     // Notes sur la sécurité
+  visualNotes        String? // Notes sur l'état visuel
+  performanceNotes   String? // Notes sur la performance
+  securityNotes      String? // Notes sur la sécurité
   accessibilityNotes String? // Notes sur l'accessibilité
-  complianceNotes String?    // Notes sur la conformité
-  generalNotes   String?     // Observations générales
+  complianceNotes    String? // Notes sur la conformité
+  generalNotes       String? // Observations générales
   // Photos
-  photos         String[]    // URLs des photos
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  photos             String[] // URLs des photos
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   // Relations
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
@@ -778,21 +778,21 @@ model EquipmentAudit {
 model TechnicalAudit {
   id             String               @id @default(cuid())
   siteId         String
-  auditDate      DateTime             // Date de l'audit
-  auditor        String?              // Nom de l'auditeur
+  auditDate      DateTime // Date de l'audit
+  auditor        String? // Nom de l'auditeur
   // Résultats de la checklist (stocké en JSON)
   // Format: [{equipmentType, itemId, label, category, result: "CONFORME"|"NON_CONFORME"|"NA"|"NON_VERIFIE", notes?}]
   checklistItems Json
   globalResult   TechnicalAuditResult @default(NON_VERIFIE)
-  generalNotes   String?              // Observations générales
-  photos         String[]             // URLs des photos
+  generalNotes   String? // Observations générales
+  photos         String[] // URLs des photos
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
   // Relations
   site            Site                  @relation(fields: [siteId], references: [id], onDelete: Cascade)
   recommendations AuditRecommendation[] // Préconisations générées
-  workLevees      WorkLevee[]           // Levées de réserves liées à cet audit
+  workLevees      WorkLevee[] // Levées de réserves liées à cet audit
 
   @@map("technical_audits")
 }
@@ -803,16 +803,16 @@ model TechnicalAudit {
 
 // Template de checklist configurable par l'admin
 model ChecklistTemplate {
-  id              String   @id @default(cuid())
-  organizationId  String
-  name            String   // Ex: "Chaudière", "Disconnecteur"
-  domain          String   // Ex: "CHAUFFAGE", "PLOMBERIE"
-  equipmentTypes  String[] // Types d'équipements concernés
-  description     String?
-  isActive        Boolean  @default(true)
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String // Ex: "Chaudière", "Disconnecteur"
+  domain         String // Ex: "CHAUFFAGE", "PLOMBERIE"
+  equipmentTypes String[] // Types d'équipements concernés
+  description    String?
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -827,14 +827,14 @@ model ChecklistTemplate {
 model ChecklistTemplateItem {
   id                  String   @id @default(cuid())
   templateId          String
-  itemKey             String   // Clé unique dans le template (ex: "schema_principe")
-  label               String   // Label affiché (ex: "Schéma de principe présent")
-  category            String   // Catégorie (ex: "DOSSIER_TECHNIQUE")
-  description         String?  // Description détaillée optionnelle
+  itemKey             String // Clé unique dans le template (ex: "schema_principe")
+  label               String // Label affiché (ex: "Schéma de principe présent")
+  category            String // Catégorie (ex: "DOSSIER_TECHNIQUE")
+  description         String? // Description détaillée optionnelle
   // Textes pour le rapport selon le résultat
-  conformeText        String   // Texte professionnel si CONFORME
-  nonConformeText     String   // Texte d'alerte si NON_CONFORME
-  regulatoryReference String?  // Référence réglementaire (ex: "Article R.224-41-4")
+  conformeText        String // Texte professionnel si CONFORME
+  nonConformeText     String // Texte d'alerte si NON_CONFORME
+  regulatoryReference String? // Référence réglementaire (ex: "Article R.224-41-4")
   sortOrder           Int      @default(0)
   isRequired          Boolean  @default(false) // Si requis pour validation
   isActive            Boolean  @default(true)
@@ -853,22 +853,22 @@ model ChecklistTemplateItem {
 
 // Template de recommandation (action corrective par défaut)
 model RecommendationTemplate {
-  id               String   @id @default(cuid())
-  organizationId   String
-  checklistItemId  String?  // Liée à un item de checklist (optionnel)
-  title            String   // Ex: "Mise en place du schéma de principe"
-  description      String   // Description détaillée de l'action
-  defaultCostMin   Float?   // Estimation de coût minimum (€ HT)
-  defaultCostMax   Float?   // Estimation de coût maximum (€ HT)
-  priority         Int      @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
-  category         String?  // Catégorie (ex: "MAINTENANCE", "REMPLACEMENT", "REGLEMENTAIRE")
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(cuid())
+  organizationId  String
+  checklistItemId String? // Liée à un item de checklist (optionnel)
+  title           String // Ex: "Mise en place du schéma de principe"
+  description     String // Description détaillée de l'action
+  defaultCostMin  Float? // Estimation de coût minimum (€ HT)
+  defaultCostMax  Float? // Estimation de coût maximum (€ HT)
+  priority        Int      @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
+  category        String? // Catégorie (ex: "MAINTENANCE", "REMPLACEMENT", "REGLEMENTAIRE")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  checklistItem        ChecklistTemplateItem?  @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  checklistItem        ChecklistTemplateItem? @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
   auditRecommendations AuditRecommendation[]
 
   @@index([organizationId])
@@ -878,21 +878,21 @@ model RecommendationTemplate {
 
 // Recommandation générée lors d'un audit (instance)
 model AuditRecommendation {
-  id                 String    @id @default(cuid())
-  technicalAuditId   String
-  templateId         String?   // Template source (null si créée manuellement)
-  checklistItemKey   String?   // Clé de l'item de checklist concerné
-  title              String
-  description        String
-  estimatedCostMin   Float?    // Coût estimé min (modifiable par l'auditeur)
-  estimatedCostMax   Float?    // Coût estimé max
-  actualCost         Float?    // Coût réel si travaux effectués
-  priority           Int       @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
-  status             String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
-  auditorNotes       String?   // Notes de l'auditeur
-  completedAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id               String    @id @default(cuid())
+  technicalAuditId String
+  templateId       String? // Template source (null si créée manuellement)
+  checklistItemKey String? // Clé de l'item de checklist concerné
+  title            String
+  description      String
+  estimatedCostMin Float? // Coût estimé min (modifiable par l'auditeur)
+  estimatedCostMax Float? // Coût estimé max
+  actualCost       Float? // Coût réel si travaux effectués
+  priority         Int       @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
+  status           String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+  auditorNotes     String? // Notes de l'auditeur
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations
   technicalAudit TechnicalAudit          @relation(fields: [technicalAuditId], references: [id], onDelete: Cascade)
@@ -907,11 +907,11 @@ model AuditRecommendation {
 model ChecklistCategory {
   id             String   @id @default(cuid())
   organizationId String
-  key            String   // Ex: "DOSSIER_TECHNIQUE", "COMBUSTION"
-  label          String   // Ex: "Dossier technique", "Combustion"
+  key            String // Ex: "DOSSIER_TECHNIQUE", "COMBUSTION"
+  label          String // Ex: "Dossier technique", "Combustion"
   description    String?
   sortOrder      Int      @default(0)
-  icon           String?  // Nom d'icône optionnel (lucide-react)
+  icon           String? // Nom d'icône optionnel (lucide-react)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -929,17 +929,17 @@ model ChecklistCategory {
 
 // Bibliothèque de préconisations (réutilisable)
 model RecommendationLibrary {
-  id              String   @id @default(cuid())
-  organizationId  String
-  title           String   // "Mise en place schéma de principe"
-  description     String?
-  price           Float?   // 750
-  priceUnit       String   @default("HT") // "HT", "TTC"
-  category        String?  // Pour organiser: "DOCUMENTATION", "COMBUSTION", etc.
-  priority        Int      @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String // "Mise en place schéma de principe"
+  description    String?
+  price          Float? // 750
+  priceUnit      String   @default("HT") // "HT", "TTC"
+  category       String? // Pour organiser: "DOCUMENTATION", "COMBUSTION", etc.
+  priority       Int      @default(3) // 1=Urgent, 2=Court terme, 3=Moyen terme, 4=Long terme
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -951,20 +951,20 @@ model RecommendationLibrary {
 
 // Point de contrôle d'audit configurable
 model AuditCheckPoint {
-  id              String   @id @default(cuid())
-  organizationId  String
+  id             String @id @default(cuid())
+  organizationId String
 
   // Identification
-  label           String   // "Schéma de principe"
-  category        String   // "REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"
-  description     String?
+  label       String // "Schéma de principe"
+  category    String // "REGLEMENTAIRE", "CONFORMITE", "SECURITE", "PERIODIQUE"
+  description String?
 
   // Type de réponse
   // "YES_NO" - Simple oui/non
   // "MULTI_CHOICE" - Choix multiples avec préconisations différentes
   // "YES_NO_DATE" - Oui/non + date si oui
   // "YES_NO_VALUES" - Oui/non + valeurs à saisir si oui (ex: analyse combustion)
-  responseType    String   @default("MULTI_CHOICE")
+  responseType String @default("MULTI_CHOICE")
 
   // Constats possibles (JSON)
   // Format:
@@ -990,7 +990,7 @@ model AuditCheckPoint {
   //     "reportText": "Schéma de principe non mis à jour"
   //   }
   // ]
-  findings        Json     @default("[]")
+  findings Json @default("[]")
 
   // Configuration pour réponses avec valeurs (YES_NO_VALUES)
   // [
@@ -999,16 +999,16 @@ model AuditCheckPoint {
   //   { "name": "co2", "label": "CO2 (%)", "type": "number", "minThreshold": 8, "maxThreshold": 12 },
   //   { "name": "rendement", "label": "Rendement (%)", "type": "number", "minThreshold": 90 }
   // ]
-  valueFields     Json?
+  valueFields Json?
 
   // Référence réglementaire (affichée dans le rapport si non conforme)
-  regulatoryRef   String?  // "Article R.224-41-4 du Code de l'environnement"
+  regulatoryRef String? // "Article R.224-41-4 du Code de l'environnement"
 
   // Ordre et état
-  sortOrder       Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1024,39 +1024,39 @@ model AuditCheckPoint {
 
 // Type de bassin
 enum PoolBasinType {
-  BASSIN_SPORTIF      // Bassin de nage 25m/50m
+  BASSIN_SPORTIF // Bassin de nage 25m/50m
   BASSIN_APPRENTISSAGE // Bassin d'apprentissage (faible profondeur)
-  BASSIN_LUDIQUE      // Bassin ludique / loisirs
-  PATAUGEOIRE         // Pataugeoire enfants
-  FOSSE_PLONGEE       // Fosse de plongée
-  BASSIN_NORDIQUE     // Bassin nordique (extérieur chauffé)
-  BASSIN_EXTERIEUR    // Bassin extérieur non chauffé
-  SPA_JACUZZI         // Spa / Jacuzzi / Bain bouillonnant
-  TOBOGGAN            // Réception toboggan
-  RIVIERE             // Rivière à courant
+  BASSIN_LUDIQUE // Bassin ludique / loisirs
+  PATAUGEOIRE // Pataugeoire enfants
+  FOSSE_PLONGEE // Fosse de plongée
+  BASSIN_NORDIQUE // Bassin nordique (extérieur chauffé)
+  BASSIN_EXTERIEUR // Bassin extérieur non chauffé
+  SPA_JACUZZI // Spa / Jacuzzi / Bain bouillonnant
+  TOBOGGAN // Réception toboggan
+  RIVIERE // Rivière à courant
   AUTRE
 }
 
 // Type de traitement d'eau
 enum PoolTreatmentType {
-  CHLORE              // Chlore liquide ou galets
-  BROME               // Brome
-  SEL                 // Électrolyse au sel
-  UV                  // Traitement UV
-  OZONE               // Ozonation
-  CHLORE_UV           // Chlore + UV
-  CHLORE_OZONE        // Chlore + Ozone
-  SEL_UV              // Sel + UV
+  CHLORE // Chlore liquide ou galets
+  BROME // Brome
+  SEL // Électrolyse au sel
+  UV // Traitement UV
+  OZONE // Ozonation
+  CHLORE_UV // Chlore + UV
+  CHLORE_OZONE // Chlore + Ozone
+  SEL_UV // Sel + UV
   AUTRE
 }
 
 // Type de filtration
 enum PoolFiltrationType {
-  SABLE               // Filtre à sable
-  VERRE               // Média filtrant verre
-  DIATOMEE            // Diatomées
-  CARTOUCHE           // Cartouches
-  PRECOAT             // Précoat
+  SABLE // Filtre à sable
+  VERRE // Média filtrant verre
+  DIATOMEE // Diatomées
+  CARTOUCHE // Cartouches
+  PRECOAT // Précoat
   AUTRE
 }
 
@@ -1064,26 +1064,26 @@ enum PoolFiltrationType {
 model PoolBasin {
   id              String             @id @default(cuid())
   siteId          String
-  name            String             // Nom du bassin (ex: "Grand bassin", "Pataugeoire")
+  name            String // Nom du bassin (ex: "Grand bassin", "Pataugeoire")
   type            PoolBasinType
   // Dimensions
-  volume          Float              // Volume en m³
-  surface         Float?             // Surface en m²
-  length          Float?             // Longueur en m
-  width           Float?             // Largeur en m
-  depthMin        Float?             // Profondeur min en m
-  depthMax        Float?             // Profondeur max en m
+  volume          Float // Volume en m³
+  surface         Float? // Surface en m²
+  length          Float? // Longueur en m
+  width           Float? // Largeur en m
+  depthMin        Float? // Profondeur min en m
+  depthMax        Float? // Profondeur max en m
   // Configuration
-  indoor          Boolean            @default(true)  // Intérieur ou extérieur
-  heated          Boolean            @default(true)  // Chauffé ou non
-  targetTemp      Float?             // Température cible en °C (ex: 28°C)
+  indoor          Boolean            @default(true) // Intérieur ou extérieur
+  heated          Boolean            @default(true) // Chauffé ou non
+  targetTemp      Float? // Température cible en °C (ex: 28°C)
   // Traitement et filtration
   treatmentType   PoolTreatmentType  @default(CHLORE)
   filtrationType  PoolFiltrationType @default(SABLE)
   // Usage et fréquentation
-  usage           String?            // "public", "scolaire", "competition", "loisir"
-  avgDailyBathers Int?               // Fréquentation moyenne jour
-  weeksPerYear    Int?               @default(40)    // Semaines d'ouverture/an
+  usage           String? // "public", "scolaire", "competition", "loisir"
+  avgDailyBathers Int? // Fréquentation moyenne jour
+  weeksPerYear    Int?               @default(40) // Semaines d'ouverture/an
   // Notes
   notes           String?
   createdAt       DateTime           @default(now())
@@ -1100,15 +1100,15 @@ model PoolBasin {
 // ============================================
 
 enum ContractType {
-  MTI  // Marché Tout Inclus (P1+P2+P3)
-  MCI  // Marché Chauffage Installation
-  PFI  // Performance et Financement Installation
-  CPI  // Conception Performance Installation
-  MT   // Maintenance seule (P2)
-  CP   // Contrat de Performance
-  PF   // Performance Forfaitaire
-  MC   // Marché de Chauffage
-  MF   // Marché Forfaitaire
+  MTI // Marché Tout Inclus (P1+P2+P3)
+  MCI // Marché Chauffage Installation
+  PFI // Performance et Financement Installation
+  CPI // Conception Performance Installation
+  MT // Maintenance seule (P2)
+  CP // Contrat de Performance
+  PF // Performance Forfaitaire
+  MC // Marché de Chauffage
+  MF // Marché Forfaitaire
   AUTRE
 }
 
@@ -1121,17 +1121,17 @@ enum ContractStatus {
 
 // Type d'année contractuelle (pour le calcul des prorata)
 enum ContractYearType {
-  CIVIL          // Année civile: 01/01 - 31/12
+  CIVIL // Année civile: 01/01 - 31/12
   HEATING_SEASON // Saison de chauffe: configurable (ex: 01/07 - 30/06)
-  CONTRACTUAL    // Année contractuelle: débute à la date anniversaire du contrat
+  CONTRACTUAL // Année contractuelle: débute à la date anniversaire du contrat
 }
 
 // Fréquence de facturation
 enum BillingFrequency {
-  MENSUEL      // 12 échéances par an
-  TRIMESTRIEL  // 4 échéances par an (défaut)
-  SEMESTRIEL   // 2 échéances par an
-  ANNUEL       // 1 échéance par an
+  MENSUEL // 12 échéances par an
+  TRIMESTRIEL // 4 échéances par an (défaut)
+  SEMESTRIEL // 2 échéances par an
+  ANNUEL // 1 échéance par an
 }
 
 model Contract {
@@ -1154,94 +1154,99 @@ model Contract {
   billingFrequency BillingFrequency @default(TRIMESTRIEL)
   organizationId   String
   clientId         String? // Client (collectivité) rattaché
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   // Relations
-  contractSites ContractSite[] // Relation explicite avec les sites
-  avenants      Avenant[]      // Avenants du contrat
-  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  client        Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  invoices      Invoice[]
-  quotes        Quote[]
-  tickets           Ticket[]
-  meetings          Meeting[]
-  userAssignments   UserContractAssignment[] // Assignations ingénieurs
-  missionContracts  MissionContract[]       // Missions rattachées
+  contractSites    ContractSite[] // Relation explicite avec les sites
+  avenants         Avenant[] // Avenants du contrat
+  revisionIndices  ContractRevisionIndex[]
+  revisionFormulas ContractRevisionFormula[]
+  organization     Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client           Client?                   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  invoices         Invoice[]
+  quotes           Quote[]
+  tickets          Ticket[]
+  meetings         Meeting[]
+  userAssignments  UserContractAssignment[] // Assignations ingénieurs
+  missionContracts MissionContract[] // Missions rattachées
 
   @@map("contracts")
 }
 
 // Table pivot pour la relation Contract-Site avec type et prestations par site
 model ContractSite {
-  id           String       @id @default(cuid())
-  contractId   String
-  siteId       String
-  contractType ContractType @default(MC) // Type de contrat pour CE site
-  hasP1        Boolean      @default(false) // P1 - Combustible/Énergie
-  hasP2        Boolean      @default(false) // P2 - Petit entretien
-  hasP3        Boolean      @default(false) // P3 - Gros entretien/Renouvellement
-  hasP4        Boolean      @default(false) // P4 - Financement
-  amountP1     Float?       // Forfait P1 de base pour ce site
-  amountP2     Float?       // Forfait P2 de base pour ce site (total)
-  amountP3     Float?       // Forfait P3 de base pour ce site (total)
+  id              String       @id @default(cuid())
+  contractId      String
+  siteId          String
+  contractType    ContractType @default(MC) // Type de contrat pour CE site
+  hasP1           Boolean      @default(false) // P1 - Combustible/Énergie
+  hasP2           Boolean      @default(false) // P2 - Petit entretien
+  hasP3           Boolean      @default(false) // P3 - Gros entretien/Renouvellement
+  hasP4           Boolean      @default(false) // P4 - Financement
+  amountP1        Float? // Forfait P1 de base pour ce site
+  amountP2        Float? // Forfait P2 de base pour ce site (total)
+  amountP3        Float? // Forfait P3 de base pour ce site (total)
+  amountP1Base    Float? // P1 initial (référence pour révision indicielle, P_0)
+  amountP2Base    Float? // P2 initial (référence pour révision indicielle, P_0)
+  amountP3Base    Float? // P3 initial (référence pour révision indicielle, P_0)
   // === DETAIL P2 - Petit entretien par poste (€HT annuel) ===
-  amountP21    Float?       // P2 01 - Chauffage
-  amountP22    Float?       // P2 02 - Ventilation
-  amountP23    Float?       // P2 03 - Climatisation
-  amountP24    Float?       // P2 04 - ECS
-  amountP25    Float?       // P2 05 - Traitement d'eau
-  amountP26    Float?       // P2 06 - MDE (Maîtrise de l'énergie)
-  amountP27    Float?       // P2 07 - Sous-composante 7
-  amountP28    Float?       // P2 08 - Sous-composante 8
-  amountP29    Float?       // P2 09 - Sous-composante 9
-  amountP210   Float?       // P2 10 - Sous-composante 10
+  amountP21       Float? // P2 01 - Chauffage
+  amountP22       Float? // P2 02 - Ventilation
+  amountP23       Float? // P2 03 - Climatisation
+  amountP24       Float? // P2 04 - ECS
+  amountP25       Float? // P2 05 - Traitement d'eau
+  amountP26       Float? // P2 06 - MDE (Maîtrise de l'énergie)
+  amountP27       Float? // P2 07 - Sous-composante 7
+  amountP28       Float? // P2 08 - Sous-composante 8
+  amountP29       Float? // P2 09 - Sous-composante 9
+  amountP210      Float? // P2 10 - Sous-composante 10
   // === DETAIL P3 - Gros entretien par poste (€HT annuel) ===
-  amountP31    Float?       // P3 01 - Chauffage
-  amountP32    Float?       // P3 02 - Ventilation
-  amountP33    Float?       // P3 03 - Climatisation
-  amountP34    Float?       // P3 04 - ECS et traitement d'eau
-  amountP35    Float?       // P3 05 - Prestations programmées
-  amountP36    Float?       // P3 06 - APE (Actions Préventives Extraordinaires)
-  amountP37    Float?       // P3 07 - Sous-composante 7
-  amountP38    Float?       // P3 08 - Sous-composante 8
-  amountP39    Float?       // P3 09 - Sous-composante 9
-  amountP310   Float?       // P3 10 - Sous-composante 10
+  amountP31       Float? // P3 01 - Chauffage
+  amountP32       Float? // P3 02 - Ventilation
+  amountP33       Float? // P3 03 - Climatisation
+  amountP34       Float? // P3 04 - ECS et traitement d'eau
+  amountP35       Float? // P3 05 - Prestations programmées
+  amountP36       Float? // P3 06 - APE (Actions Préventives Extraordinaires)
+  amountP37       Float? // P3 07 - Sous-composante 7
+  amountP38       Float? // P3 08 - Sous-composante 8
+  amountP39       Float? // P3 09 - Sous-composante 9
+  amountP310      Float? // P3 10 - Sous-composante 10
   // Date d'intégration dans le contrat (pour les ajouts via avenant)
-  integrationDate DateTime?  // Si null, c'est depuis le début du contrat
+  integrationDate DateTime? // Si null, c'est depuis le début du contrat
   // Date de sortie du contrat (pour les retraits via avenant)
-  exitDate        DateTime?  // Si renseigné, le site sort du contrat à cette date
-  avenantEntreeId String?    // Avenant d'entrée (si ajouté après le début)
-  avenantSortieId String?    // Avenant de sortie (si retiré)
+  exitDate        DateTime? // Si renseigné, le site sort du contrat à cette date
+  avenantEntreeId String? // Avenant d'entrée (si ajouté après le début)
+  avenantSortieId String? // Avenant de sortie (si retiré)
 
   // === COEFFICIENTS ENERGETIQUES ===
   // Coefficient Q : énergie pour produire 1m³ d'ECS (MWh/m³)
   // Varie selon T° eau froide, T° ECS, rendement. Typiquement 0.10 à 0.14
-  coefficientQ   Float?   @default(0.12)
+  coefficientQ       Float? @default(0.12)
   // Coefficient PCS : Pouvoir Calorifique Supérieur du gaz (kWh/m³)
   // 20 mbar (basse pression): ~10.5 kWh/m³, 300 mbar (moyenne pression): ~14.5 kWh/m³
-  coefficientPCS Float?   @default(10.5)
+  coefficientPCS     Float? @default(10.5)
   // Rendement chaudière (pour calculs avancés)
   rendementChaudiere Float? @default(0.90)
 
   // === ANALYSE EAU PISCINE ===
   // Configuration des passages d'analyse d'eau pour les bassins (piscines)
-  poolAnalysisEnabled     Boolean  @default(false)  // Analyse d'eau activée pour ce site
-  poolAnalysisPerDay      Int?     // Nombre d'analyses par jour (1, 2, 3...)
-  poolAnalysisDaysPerWeek Int?     // Jours par semaine (7=quotidien, 5=semaine, etc.)
-  poolAnalysisWeeksPerYear Int?    // Semaines par an (ex: 40 si piscine fermée 12 semaines)
-  poolAnalysisMinutesPerVisit Int? @default(30) // Durée par passage en minutes
+  poolAnalysisEnabled         Boolean @default(false) // Analyse d'eau activée pour ce site
+  poolAnalysisPerDay          Int? // Nombre d'analyses par jour (1, 2, 3...)
+  poolAnalysisDaysPerWeek     Int? // Jours par semaine (7=quotidien, 5=semaine, etc.)
+  poolAnalysisWeeksPerYear    Int? // Semaines par an (ex: 40 si piscine fermée 12 semaines)
+  poolAnalysisMinutesPerVisit Int?    @default(30) // Durée par passage en minutes
 
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  contract       Contract            @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  site           Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  avenantEntree  Avenant?            @relation("SiteEntree", fields: [avenantEntreeId], references: [id])
-  avenantSortie  Avenant?            @relation("SiteSortie", fields: [avenantSortieId], references: [id])
-  priceChanges   ContractSitePriceChange[] // Historique des changements de prix
-  avenantItems   AvenantItem[]       // Modifications d'avenant concernant ce site
+  contract      Contract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  site          Site                      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  avenantEntree Avenant?                  @relation("SiteEntree", fields: [avenantEntreeId], references: [id])
+  avenantSortie Avenant?                  @relation("SiteSortie", fields: [avenantSortieId], references: [id])
+  priceChanges  ContractSitePriceChange[] // Historique des changements de prix
+  avenantItems  AvenantItem[] // Modifications d'avenant concernant ce site
 
   @@unique([contractId, siteId]) // Un site ne peut être qu'une fois dans un contrat
   @@map("contract_sites")
@@ -1253,15 +1258,15 @@ model ContractSite {
 
 // Type de modification dans un avenant
 enum AvenantItemType {
-  AJOUT_SITE              // Ajout d'un site au contrat
-  RETRAIT_SITE            // Retrait d'un site du contrat
-  AJOUT_EQUIPEMENT        // Ajout d'équipement avec impact financier
-  RETRAIT_EQUIPEMENT      // Retrait d'équipement avec impact financier
-  MODIFICATION_PRIX_P1    // Changement de prix P1
-  MODIFICATION_PRIX_P2    // Changement de prix P2
-  MODIFICATION_PRIX_P3    // Changement de prix P3
-  AJOUT_PRESTATION        // Ajout de prestation (P1, P2, P3, P4)
-  RETRAIT_PRESTATION      // Retrait de prestation
+  AJOUT_SITE // Ajout d'un site au contrat
+  RETRAIT_SITE // Retrait d'un site du contrat
+  AJOUT_EQUIPEMENT // Ajout d'équipement avec impact financier
+  RETRAIT_EQUIPEMENT // Retrait d'équipement avec impact financier
+  MODIFICATION_PRIX_P1 // Changement de prix P1
+  MODIFICATION_PRIX_P2 // Changement de prix P2
+  MODIFICATION_PRIX_P3 // Changement de prix P3
+  AJOUT_PRESTATION // Ajout de prestation (P1, P2, P3, P4)
+  RETRAIT_PRESTATION // Retrait de prestation
   AUTRE
 }
 
@@ -1269,69 +1274,69 @@ enum AvenantItemType {
 model Avenant {
   id            String    @id @default(cuid())
   contractId    String
-  reference     String    // Ex: "Avenant n°1", "AV-2024-001"
+  reference     String // Ex: "Avenant n°1", "AV-2024-001"
   signatureDate DateTime? // Date de signature de l'avenant
-  description   String?   // Description générale de l'avenant
-  documentUrl   String?   // Lien vers le document de l'avenant
+  description   String? // Description générale de l'avenant
+  documentUrl   String? // Lien vers le document de l'avenant
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  contract      Contract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  items         AvenantItem[]             // Les différentes modifications de cet avenant
-  sitesEntrees  ContractSite[]            @relation("SiteEntree") // Sites ajoutés par cet avenant
-  sitesSorties  ContractSite[]            @relation("SiteSortie") // Sites retirés par cet avenant
-  priceChanges  ContractSitePriceChange[] // Changements de prix liés à cet avenant (legacy)
+  contract     Contract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  items        AvenantItem[] // Les différentes modifications de cet avenant
+  sitesEntrees ContractSite[]            @relation("SiteEntree") // Sites ajoutés par cet avenant
+  sitesSorties ContractSite[]            @relation("SiteSortie") // Sites retirés par cet avenant
+  priceChanges ContractSitePriceChange[] // Changements de prix liés à cet avenant (legacy)
 
   @@map("avenants")
 }
 
 // Chaque modification dans un avenant
 model AvenantItem {
-  id              String          @id @default(cuid())
-  avenantId       String
-  type            AvenantItemType
-  effectiveDate   DateTime        // Date d'effet de CETTE modification
-  description     String?         // Description de cette modification
+  id             String          @id @default(cuid())
+  avenantId      String
+  type           AvenantItemType
+  effectiveDate  DateTime // Date d'effet de CETTE modification
+  description    String? // Description de cette modification
   // Entités concernées
-  contractSiteId  String?         // Si la modification concerne un site
-  equipmentId     String?         // Si la modification concerne un équipement
+  contractSiteId String? // Si la modification concerne un site
+  equipmentId    String? // Si la modification concerne un équipement
   // Incidence financière de cette modification (delta annuel)
-  deltaP1         Float?          // +/- montant P1 annuel
-  deltaP2         Float?          // +/- montant P2 annuel
-  deltaP3         Float?          // +/- montant P3 annuel
+  deltaP1        Float? // +/- montant P1 annuel
+  deltaP2        Float? // +/- montant P2 annuel
+  deltaP3        Float? // +/- montant P3 annuel
   // Nouveaux montants après modification (pour historique)
-  newAmountP1     Float?
-  newAmountP2     Float?
-  newAmountP3     Float?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  newAmountP1    Float?
+  newAmountP2    Float?
+  newAmountP3    Float?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   // Relations
-  avenant       Avenant       @relation(fields: [avenantId], references: [id], onDelete: Cascade)
-  contractSite  ContractSite? @relation(fields: [contractSiteId], references: [id])
-  equipment     Equipment?    @relation(fields: [equipmentId], references: [id])
+  avenant      Avenant       @relation(fields: [avenantId], references: [id], onDelete: Cascade)
+  contractSite ContractSite? @relation(fields: [contractSiteId], references: [id])
+  equipment    Equipment?    @relation(fields: [equipmentId], references: [id])
 
   @@map("avenant_items")
 }
 
 // Historique des changements de prix pour un site dans un contrat
 model ContractSitePriceChange {
-  id              String   @id @default(cuid())
-  contractSiteId  String
-  avenantId       String?  // Avenant à l'origine du changement (null = prix initial)
-  effectiveDate   DateTime // Date d'effet du changement
+  id             String   @id @default(cuid())
+  contractSiteId String
+  avenantId      String? // Avenant à l'origine du changement (null = prix initial)
+  effectiveDate  DateTime // Date d'effet du changement
   // Nouveaux montants après ce changement
-  amountP1        Float?   // Nouveau P1 annuel
-  amountP2        Float?   // Nouveau P2 annuel
-  amountP3        Float?   // Nouveau P3 annuel
+  amountP1       Float? // Nouveau P1 annuel
+  amountP2       Float? // Nouveau P2 annuel
+  amountP3       Float? // Nouveau P3 annuel
   // Delta pour calculer le prorata de l'année
-  deltaP1         Float?   // +/- montant P1 (pour calcul prorata)
-  deltaP2         Float?   // +/- montant P2 (pour calcul prorata)
-  deltaP3         Float?   // +/- montant P3 (pour calcul prorata)
-  reason          String?  // Ex: "Ajout chaudière 300kW", "Remplacement VMC"
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  deltaP1        Float? // +/- montant P1 (pour calcul prorata)
+  deltaP2        Float? // +/- montant P2 (pour calcul prorata)
+  deltaP3        Float? // +/- montant P3 (pour calcul prorata)
+  reason         String? // Ex: "Ajout chaudière 300kW", "Remplacement VMC"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   contractSite ContractSite @relation(fields: [contractSiteId], references: [id], onDelete: Cascade)
@@ -1341,28 +1346,101 @@ model ContractSitePriceChange {
 }
 
 // ============================================
+// REVISION INDICIELLE (P1/P2/P3)
+// ============================================
+
+enum RevisionPType {
+  P1
+  P2
+  P3
+}
+
+enum RevisionPeriod {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+model ContractRevisionIndex {
+  id         String   @id @default(cuid())
+  contractId String
+  name       String // "BT40", "ICHT-IME", ...
+  createdAt  DateTime @default(now())
+
+  contract   Contract                     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  values     ContractRevisionIndexValue[]
+  components ContractFormulaComponent[]
+
+  @@unique([contractId, name])
+  @@map("contract_revision_indices")
+}
+
+model ContractRevisionIndexValue {
+  id      String   @id @default(cuid())
+  indexId String
+  date    DateTime // date d'effet
+  value   Float
+
+  index ContractRevisionIndex @relation(fields: [indexId], references: [id], onDelete: Cascade)
+
+  @@unique([indexId, date])
+  @@map("contract_revision_index_values")
+}
+
+model ContractRevisionFormula {
+  id           String         @id @default(cuid())
+  contractId   String
+  pType        RevisionPType
+  periodicity  RevisionPeriod @default(ANNUAL)
+  baseDate     DateTime
+  constantPart Float          @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  contract   Contract                   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  components ContractFormulaComponent[]
+
+  @@unique([contractId, pType])
+  @@map("contract_revision_formulas")
+}
+
+model ContractFormulaComponent {
+  id          String @id @default(cuid())
+  formulaId   String
+  indexId     String
+  coefficient Float
+  baseValue   Float // I_0 stocké explicitement
+
+  formula ContractRevisionFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  index   ContractRevisionIndex   @relation(fields: [indexId], references: [id], onDelete: Cascade)
+
+  @@map("contract_formula_components")
+}
+
+// ============================================
 // CONSOMMATIONS ENERGETIQUES
 // ============================================
 
 model Consumption {
-  id             String            @id @default(cuid())
-  siteId         String
-  organizationId String
-  energyType     EnergyType
-  usage          EnergyUsage       @default(MIXTE) // Chauffage, ECS, Mixte
-  source         ConsumptionSource @default(MANUAL) // Origine de la donnée
-  period         DateTime          // Mois ou date de consommation
-  periodEnd      DateTime?         // Fin de période (relevés exploitant à dates irrégulières)
-  quantity       Float             // kWh ou m³ ou litres
-  unit           String            // kWh, m³, L
-  cost           Float?            // Coût en €
-  djuReel        Float?            // DJU Réels de la période (pour calcul N'B)
-  meterName      String?           // Nom du compteur (ex: "CPT GAZ GrDF BESSON")
+  id                String            @id @default(cuid())
+  siteId            String
+  organizationId    String
+  energyType        EnergyType
+  usage             EnergyUsage       @default(MIXTE) // Chauffage, ECS, Mixte
+  source            ConsumptionSource @default(MANUAL) // Origine de la donnée
+  period            DateTime // Mois ou date de consommation
+  periodEnd         DateTime? // Fin de période (relevés exploitant à dates irrégulières)
+  quantity          Float // kWh ou m³ ou litres
+  unit              String // kWh, m³, L
+  cost              Float? // Coût en €
+  djuReel           Float? // DJU Réels de la période (pour calcul N'B)
+  meterName         String? // Nom du compteur (ex: "CPT GAZ GrDF BESSON")
   // Champs calculés (optionnel, pour cache)
-  quantityEcs    Float?            // Part ECS déduite (si MIXTE)
-  quantityChauffage Float?         // Part Chauffage (si MIXTE)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  quantityEcs       Float? // Part ECS déduite (si MIXTE)
+  quantityChauffage Float? // Part Chauffage (si MIXTE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   // Relations
   site         Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
@@ -1373,9 +1451,9 @@ model Consumption {
 }
 
 enum ConsumptionSource {
-  TELERELEVE  // Données automatiques GRDF/Enedis
-  EXPLOITANT  // Relevés manuels exploitant (import IDEX, etc.)
-  MANUAL      // Saisie manuelle par l'utilisateur
+  TELERELEVE // Données automatiques GRDF/Enedis
+  EXPLOITANT // Relevés manuels exploitant (import IDEX, etc.)
+  MANUAL // Saisie manuelle par l'utilisateur
 }
 
 // ============================================
@@ -1383,23 +1461,23 @@ enum ConsumptionSource {
 // ============================================
 
 model HeatingSeason {
-  id              String    @id @default(cuid())
-  siteId          String
-  season          String    // Ex: "2024-2025" (année de départ - année de fin)
-  startDate       DateTime? // Date d'allumage du chauffage (null si pas encore défini)
-  endDate         DateTime? // Date d'arrêt (null si pas encore arrêté)
-  lastReleveDate  DateTime? // Date du dernier relevé importé (pour calcul DJU)
+  id             String    @id @default(cuid())
+  siteId         String
+  season         String // Ex: "2024-2025" (année de départ - année de fin)
+  startDate      DateTime? // Date d'allumage du chauffage (null si pas encore défini)
+  endDate        DateTime? // Date d'arrêt (null si pas encore arrêté)
+  lastReleveDate DateTime? // Date du dernier relevé importé (pour calcul DJU)
   // Engagement énergétique de la saison (peut varier avec APE)
-  nb             Float?    // NB de la saison (MWh) - si null, utilise le NB du site
-  nbUnit         NbUnit?   // Unité du NB (PCS ou Utile)
-  djuContractuel Float?    // DJU contractuels de la saison (si différent du site)
+  nb             Float? // NB de la saison (MWh) - si null, utilise le NB du site
+  nbUnit         NbUnit? // Unité du NB (PCS ou Utile)
+  djuContractuel Float? // DJU contractuels de la saison (si différent du site)
   // Index compteur au démarrage (optionnel, pour relevé initial)
-  startIndex     Float?    // Index compteur gaz/énergie au démarrage
-  startIndexUnit String?   // Unité de l'index (m³, kWh)
+  startIndex     Float? // Index compteur gaz/énergie au démarrage
+  startIndexUnit String? // Unité de l'index (m³, kWh)
   // Index compteur à l'arrêt (optionnel)
-  endIndex       Float?    // Index compteur à l'arrêt
+  endIndex       Float? // Index compteur à l'arrêt
   // Notes
-  notes          String?   // Remarques sur la mise en route/arrêt, APE appliquée, etc.
+  notes          String? // Remarques sur la mise en route/arrêt, APE appliquée, etc.
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -1416,13 +1494,13 @@ model HeatingSeason {
 // Modèle dédié aux dates d'exploitation, séparé de HeatingSeason (qui garde le NB).
 // Un site peut avoir plusieurs périodes par an (ex: CIVIL 2025 = fin saison 24-25 + début saison 25-26).
 model HeatingPeriod {
-  id         String    @id @default(cuid())
-  siteId     String
-  startDate  DateTime  // Date d'allumage du chauffage
-  endDate    DateTime? // Date d'arrêt (null si saison en cours)
-  notes      String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  siteId    String
+  startDate DateTime // Date d'allumage du chauffage
+  endDate   DateTime? // Date d'arrêt (null si saison en cours)
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
 
@@ -1437,60 +1515,60 @@ model HeatingPeriod {
 
 // Type de compteur
 enum MeterType {
-  PRINCIPAL      // Compteur distributeur (GRDF/Enedis) - source API
-  DIVISIONNAIRE  // Sous-compteur (relevé exploitant)
+  PRINCIPAL // Compteur distributeur (GRDF/Enedis) - source API
+  DIVISIONNAIRE // Sous-compteur (relevé exploitant)
 }
 
 // Fluide/énergie mesuré
 enum MeterFluid {
-  GAZ            // Compteur gaz (m³)
-  ELECTRICITE    // Compteur électrique (kWh)
-  EAU_CHAUDE     // Compteur ECS volumétrique (m³)
-  EAU_FROIDE     // Compteur eau froide (m³)
-  CHALEUR        // Compteur calorifique (kWh/MWh)
-  FIOUL          // Jauge fioul (litres)
+  GAZ // Compteur gaz (m³)
+  ELECTRICITE // Compteur électrique (kWh)
+  EAU_CHAUDE // Compteur ECS volumétrique (m³)
+  EAU_FROIDE // Compteur eau froide (m³)
+  CHALEUR // Compteur calorifique (kWh/MWh)
+  FIOUL // Jauge fioul (litres)
 }
 
 // Source des données
 enum MeterDataSource {
-  API            // Données télérelevées (GRDF/Enedis)
-  MANUEL         // Relevé exploitant
+  API // Données télérelevées (GRDF/Enedis)
+  MANUEL // Relevé exploitant
 }
 
 // Compteur (principal ou sous-compteur)
 model Meter {
-  id            String          @id @default(cuid())
-  siteId        String
-  name          String          // Ex: "Compteur gaz principal", "Sous-compteur ECS bâtiment A"
-  reference     String?         // PCE, PDL, ou numéro série interne
-  type          MeterType       @default(DIVISIONNAIRE)
-  fluid         MeterFluid
-  dataSource    MeterDataSource @default(MANUEL)
-  unit          String          @default("m3") // m³, kWh, MWh, L
+  id         String          @id @default(cuid())
+  siteId     String
+  name       String // Ex: "Compteur gaz principal", "Sous-compteur ECS bâtiment A"
+  reference  String? // PCE, PDL, ou numéro série interne
+  type       MeterType       @default(DIVISIONNAIRE)
+  fluid      MeterFluid
+  dataSource MeterDataSource @default(MANUEL)
+  unit       String          @default("m3") // m³, kWh, MWh, L
 
   // Hiérarchie (sous-compteur rattaché à un principal)
-  parentId      String?
-  parent        Meter?          @relation("MeterHierarchy", fields: [parentId], references: [id])
-  children      Meter[]         @relation("MeterHierarchy")
+  parentId String?
+  parent   Meter?  @relation("MeterHierarchy", fields: [parentId], references: [id])
+  children Meter[] @relation("MeterHierarchy")
 
   // Pour le calcul chauffage : ce compteur est-il déduit du principal ?
   // Ex: ECS déduit du gaz total pour obtenir le chauffage
-  isDeductedFromParent Boolean  @default(false)
+  isDeductedFromParent Boolean @default(false)
 
   // Coefficient de conversion (si applicable)
   // Ex: pour ECS volumétrique → énergie : coefficient Q
-  conversionCoefficient Float?  // Ex: 0.12 MWh/m³ pour ECS
+  conversionCoefficient Float? // Ex: 0.12 MWh/m³ pour ECS
   conversionUnit        String? // Unité après conversion (ex: "MWh")
 
   // Actif ou non
-  isActive      Boolean         @default(true)
+  isActive Boolean @default(true)
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  site          Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  readings      MeterReading[]
+  site     Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  readings MeterReading[]
 
   @@index([siteId])
   @@map("meters")
@@ -1498,42 +1576,42 @@ model Meter {
 
 // Relevé de compteur
 model MeterReading {
-  id            String          @id @default(cuid())
-  meterId       String
+  id      String @id @default(cuid())
+  meterId String
 
   // Date et période
-  readingDate   DateTime        // Date du relevé
-  periodStart   DateTime?       // Début de période (pour conso)
-  periodEnd     DateTime?       // Fin de période (pour conso)
+  readingDate DateTime // Date du relevé
+  periodStart DateTime? // Début de période (pour conso)
+  periodEnd   DateTime? // Fin de période (pour conso)
 
   // Valeurs
-  indexValue    Float?          // Index compteur (si relevé d'index)
-  consumption   Float?          // Consommation sur la période
-  unit          String          @default("m3") // Unité de la valeur
+  indexValue  Float? // Index compteur (si relevé d'index)
+  consumption Float? // Consommation sur la période
+  unit        String @default("m3") // Unité de la valeur
 
   // Valeur convertie (si coefficient appliqué)
-  consumptionConverted Float?   // Ex: m³ ECS → MWh
-  unitConverted        String?  // Unité après conversion
+  consumptionConverted Float? // Ex: m³ ECS → MWh
+  unitConverted        String? // Unité après conversion
 
   // Source et validation
-  source        MeterDataSource // API ou MANUEL
-  isValidated   Boolean         @default(false) // Validé par l'AMO/client
-  validatedAt   DateTime?
-  validatedBy   String?         // Nom du validateur
+  source      MeterDataSource // API ou MANUEL
+  isValidated Boolean         @default(false) // Validé par l'AMO/client
+  validatedAt DateTime?
+  validatedBy String? // Nom du validateur
 
   // Marqueur "nouveau compteur" — quand le compteur est remplacé,
   // ce relevé est le premier du nouveau compteur (pas de calcul de conso
   // avec le relevé précédent du compteur remplacé)
-  isReset       Boolean         @default(false)
+  isReset Boolean @default(false)
 
   // Notes
-  notes         String?
+  notes String?
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  meter         Meter           @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
 
   @@index([meterId])
   @@index([readingDate])
@@ -1597,54 +1675,54 @@ model Invoice {
 // ============================================
 
 enum QuoteStatus {
-  BROUILLON      // Devis en cours de création
-  EN_ATTENTE     // Devis reçu, en attente de décision
-  ACCEPTE        // Devis accepté
-  REFUSE         // Devis refusé
-  EXPIRE         // Devis expiré
-  COMMANDE       // Transformé en commande
-  FACTURE        // Facturé
+  BROUILLON // Devis en cours de création
+  EN_ATTENTE // Devis reçu, en attente de décision
+  ACCEPTE // Devis accepté
+  REFUSE // Devis refusé
+  EXPIRE // Devis expiré
+  COMMANDE // Transformé en commande
+  FACTURE // Facturé
 }
 
 enum QuoteType {
-  P3          // Maintenance préventive (GER)
-  P5          // Gros travaux
+  P3 // Maintenance préventive (GER)
+  P5 // Gros travaux
 }
 
 model Quote {
-  id             String      @id @default(cuid())
-  reference      String
-  title          String
-  provider       String      // Fournisseur (ex: T.É.P.I. EXPLOITATION)
-  client         String?     // Client facturé (ex: IDEX ENERGIES)
-  quoteType      QuoteType?  // Type: P3, P5, Astreinte
-  amountHT       Float       @default(0) // Montant HT
-  amountTVA      Float?      // Montant TVA
-  amountTTC      Float       @default(0) // Montant TTC
-  status         QuoteStatus @default(BROUILLON)
-  issueDate      DateTime    @default(now()) // Date d'émission
-  validUntil     DateTime?   // Date de validité (optionnel)
+  id         String      @id @default(cuid())
+  reference  String
+  title      String
+  provider   String // Fournisseur (ex: T.É.P.I. EXPLOITATION)
+  client     String? // Client facturé (ex: IDEX ENERGIES)
+  quoteType  QuoteType? // Type: P3, P5, Astreinte
+  amountHT   Float       @default(0) // Montant HT
+  amountTVA  Float? // Montant TVA
+  amountTTC  Float       @default(0) // Montant TTC
+  status     QuoteStatus @default(BROUILLON)
+  issueDate  DateTime    @default(now()) // Date d'émission
+  validUntil DateTime? // Date de validité (optionnel)
 
   // Décision
-  acceptedBy     String?     // ID de l'utilisateur qui a accepté
-  acceptedAt     DateTime?   // Date d'acceptation
-  refusedBy      String?     // ID de l'utilisateur qui a refusé
-  refusedAt      DateTime?   // Date de refus
+  acceptedBy String? // ID de l'utilisateur qui a accepté
+  acceptedAt DateTime? // Date d'acceptation
+  refusedBy  String? // ID de l'utilisateur qui a refusé
+  refusedAt  DateTime? // Date de refus
 
   description    String?
-  documentUrl    String?     // URL du PDF original
-  siteId         String?     // Site concerné
-  contractId     String?     // Contrat lié
+  documentUrl    String? // URL du PDF original
+  siteId         String? // Site concerné
+  contractId     String? // Contrat lié
   organizationId String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   site           Site?        @relation(fields: [siteId], references: [id])
   contract       Contract?    @relation(fields: [contractId], references: [id])
   items          QuoteItem[]
-  workOrder      WorkOrder?   // Suivi de l'exécution des travaux
+  workOrder      WorkOrder? // Suivi de l'exécution des travaux
   acceptedByUser User?        @relation("QuoteAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
   refusedByUser  User?        @relation("QuoteRefusedBy", fields: [refusedBy], references: [id], onDelete: SetNull)
 
@@ -1652,15 +1730,15 @@ model Quote {
 }
 
 model QuoteItem {
-  id          String  @id @default(cuid())
+  id          String @id @default(cuid())
   quoteId     String
-  lineNumber  Int     // Numéro de ligne
-  description String  // Description du poste
-  quantity    Float   // Quantité
-  unit        String  // Unité (HEUR, FORF, KG, U, etc.)
-  unitPrice   Float   // Prix unitaire HT
-  totalHT     Float   // Montant HT de la ligne
-  tvaRate     Float?  // Taux de TVA (ex: 20.00)
+  lineNumber  Int // Numéro de ligne
+  description String // Description du poste
+  quantity    Float // Quantité
+  unit        String // Unité (HEUR, FORF, KG, U, etc.)
+  unitPrice   Float // Prix unitaire HT
+  totalHT     Float // Montant HT de la ligne
+  tvaRate     Float? // Taux de TVA (ex: 20.00)
 
   // Relations
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
@@ -1673,66 +1751,66 @@ model QuoteItem {
 // ============================================
 
 enum RegulatoryCategory {
-  COMBUSTION         // Contrôle combustion, ramonage
-  GAZ                // Vérification installation gaz
-  LEGIONELLE         // Analyse légionelle, carnet sanitaire
+  COMBUSTION // Contrôle combustion, ramonage
+  GAZ // Vérification installation gaz
+  LEGIONELLE // Analyse légionelle, carnet sanitaire
   FLUIDE_FRIGORIGENE // Étanchéité fluide frigorigène
-  ELECTRIQUE         // Vérification installation électrique
-  AERAULIQUE         // Contrôle aéraulique, filtres, débits
-  PRESSION           // Appareils à pression, disconnecteurs
-  TOUR_AERO          // Tours aéroréfrigérantes
-  INCENDIE           // Sécurité incendie, désenfumage
-  EAU                // Qualité eau, traitement eau
+  ELECTRIQUE // Vérification installation électrique
+  AERAULIQUE // Contrôle aéraulique, filtres, débits
+  PRESSION // Appareils à pression, disconnecteurs
+  TOUR_AERO // Tours aéroréfrigérantes
+  INCENDIE // Sécurité incendie, désenfumage
+  EAU // Qualité eau, traitement eau
   AUTRE
 }
 
 enum ControlFrequency {
-  MENSUEL         // Tous les mois
-  TRIMESTRIEL     // Tous les 3 mois
-  SEMESTRIEL      // Tous les 6 mois
-  ANNUEL          // Tous les ans
-  BIENNAL         // Tous les 2 ans
-  TRIENNAL        // Tous les 3 ans
-  QUINQUENNAL     // Tous les 5 ans
-  PONCTUEL        // Unique / à la demande
+  MENSUEL // Tous les mois
+  TRIMESTRIEL // Tous les 3 mois
+  SEMESTRIEL // Tous les 6 mois
+  ANNUEL // Tous les ans
+  BIENNAL // Tous les 2 ans
+  TRIENNAL // Tous les 3 ans
+  QUINQUENNAL // Tous les 5 ans
+  PONCTUEL // Unique / à la demande
 }
 
 enum ControlStatus {
-  A_PLANIFIER     // Pas encore planifié
-  PLANIFIE        // Date d'intervention prévue
-  EFFECTUE        // Contrôle réalisé
-  EN_RETARD       // Échéance dépassée
-  NON_APPLICABLE  // Ne s'applique plus
+  A_PLANIFIER // Pas encore planifié
+  PLANIFIE // Date d'intervention prévue
+  EFFECTUE // Contrôle réalisé
+  EN_RETARD // Échéance dépassée
+  NON_APPLICABLE // Ne s'applique plus
 }
 
 enum ControlResult {
   CONFORME
   NON_CONFORME
-  AVEC_RESERVES   // Conforme sous réserve
-  EN_ATTENTE      // Résultat en attente (ex: analyse labo)
+  AVEC_RESERVES // Conforme sous réserve
+  EN_ATTENTE // Résultat en attente (ex: analyse labo)
 }
 
 /// Type de contrôle réglementaire (template configurable par organisation)
 /// Ex: "Ramonage conduit fumée", "Analyse légionelle ECS", "Vérification gaz"
 model RegulatoryControlType {
-  id              String             @id @default(cuid())
-  organizationId  String
-  name            String             // Ex: "Ramonage conduit fumée"
-  category        RegulatoryCategory
-  description     String?            // Détail du contrôle
-  regulatoryRef   String?            // Référence légale (ex: "Arrêté du 15/09/2009")
-  frequency       ControlFrequency   @default(ANNUEL)
-  frequencyMonths Int                @default(12) // Pour calcul précis de la prochaine échéance
+  id                String             @id @default(cuid())
+  organizationId    String
+  name              String // Ex: "Ramonage conduit fumée"
+  category          RegulatoryCategory
+  description       String? // Détail du contrôle
+  regulatoryRef     String? // Référence légale (ex: "Arrêté du 15/09/2009")
+  frequency         ControlFrequency   @default(ANNUEL)
+  frequencyMonths   Int                @default(12) // Pour calcul précis de la prochaine échéance
   /// Domaines d'équipements concernés (filtre pour savoir quels sites sont impactés)
   applicableDomains EquipmentDomain[] // Ex: [CHAUFFAGE] pour ramonage
   /// Seuils d'applicabilité
-  minPowerKw      Float?             // Applicable si puissance >= X kW (ex: 400kW pour inspection chaudière)
-  isActive        Boolean            @default(true)
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  minPowerKw        Float? // Applicable si puissance >= X kW (ex: 400kW pour inspection chaudière)
+  isActive          Boolean            @default(true)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   // Relations
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   controls     RegulatoryControl[]
 
   @@index([organizationId])
@@ -1741,28 +1819,28 @@ model RegulatoryControlType {
 
 /// Instance d'un contrôle réglementaire à réaliser ou réalisé
 model RegulatoryControl {
-  id              String          @id @default(cuid())
-  typeId          String
-  siteId          String
-  equipmentId     String?         // Optionnel : équipement spécifique concerné
-  organizationId  String
+  id             String  @id @default(cuid())
+  typeId         String
+  siteId         String
+  equipmentId    String? // Optionnel : équipement spécifique concerné
+  organizationId String
 
   // Planification
-  dueDate         DateTime        // Échéance réglementaire
-  status          ControlStatus   @default(A_PLANIFIER)
+  dueDate DateTime // Échéance réglementaire
+  status  ControlStatus @default(A_PLANIFIER)
 
   // Réalisation
-  performedDate   DateTime?       // Date effective du contrôle
-  performer       String?         // Entreprise/technicien (ex: "Dekra", "Bureau Veritas")
-  result          ControlResult?
-  reportUrl       String?         // Lien vers le rapport/attestation
-  notes           String?         // Observations, non-conformités relevées
+  performedDate DateTime? // Date effective du contrôle
+  performer     String? // Entreprise/technicien (ex: "Dekra", "Bureau Veritas")
+  result        ControlResult?
+  reportUrl     String? // Lien vers le rapport/attestation
+  notes         String? // Observations, non-conformités relevées
 
   // Prochaine échéance (calculée après réalisation)
-  nextDueDate     DateTime?
+  nextDueDate DateTime?
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   type         RegulatoryControlType @relation(fields: [typeId], references: [id], onDelete: Cascade)
@@ -1816,10 +1894,10 @@ model Ticket {
   updatedAt      DateTime     @updatedAt
 
   // Relations
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  site         Site               @relation(fields: [siteId], references: [id])
-  contract     Contract?          @relation(fields: [contractId], references: [id])
-  createdBy    User?              @relation("TicketCreatedBy", fields: [createdById], references: [id])
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  site         Site                @relation(fields: [siteId], references: [id])
+  contract     Contract?           @relation(fields: [contractId], references: [id])
+  createdBy    User?               @relation("TicketCreatedBy", fields: [createdById], references: [id])
   agendaItems  MeetingAgendaItem[]
 
   @@index([organizationId])
@@ -1860,7 +1938,7 @@ model Meeting {
   site         Site?               @relation(fields: [siteId], references: [id])
   contract     Contract?           @relation(fields: [contractId], references: [id])
   organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  workLevees   WorkLevee[]         // Levées de réserves liées à cette réunion
+  workLevees   WorkLevee[] // Levées de réserves liées à cette réunion
   agendaItems  MeetingAgendaItem[] // ODJ structuré
 
   @@index([contractId])
@@ -1871,8 +1949,8 @@ model MeetingAgendaItem {
   id        String  @id @default(cuid())
   meetingId String
   ticketId  String? // null = point libre (pas lié à un ticket)
-  order     Int     // Position dans l'ODJ
-  title     String  // Auto-rempli depuis ticket.title ou libre
+  order     Int // Position dans l'ODJ
+  title     String // Auto-rempli depuis ticket.title ou libre
   notes     String? // Notes prises pendant la réunion
   decision  String? // Décision actée
 
@@ -1946,12 +2024,12 @@ model EnergyProvider {
   tokenExpiresAt DateTime?
 
   // Statut connexion
-  isConnected    Boolean  @default(false)
-  lastSyncAt     DateTime?
-  lastError      String?
+  isConnected Boolean   @default(false)
+  lastSyncAt  DateTime?
+  lastError   String?
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1965,22 +2043,22 @@ model EnergyProvider {
 // ============================================
 
 enum PriceType {
-  PEG      // Point d'Échange de Gaz - Prix spot du gaz naturel (€/MWh)
-  TICGN    // Taxe Intérieure Consommation Gaz Naturel (€/MWh)
-  CEE      // Certificats d'Économies d'Énergie (€/MWh cumac)
-  TVD      // Tarif de Distribution GRDF (€/MWh)
+  PEG // Point d'Échange de Gaz - Prix spot du gaz naturel (€/MWh)
+  TICGN // Taxe Intérieure Consommation Gaz Naturel (€/MWh)
+  CEE // Certificats d'Économies d'Énergie (€/MWh cumac)
+  TVD // Tarif de Distribution GRDF (€/MWh)
 }
 
 model EnergyPrice {
-  id        String    @id @default(cuid())
-  type      PriceType
-  value     Float     // Prix en €/MWh
-  date      DateTime  // Date d'application du prix
-  source    String?   // Source de la donnée (EMMY, GRDF, manuel, etc.)
-  notes     String?   // Notes additionnelles
+  id     String    @id @default(cuid())
+  type   PriceType
+  value  Float // Prix en €/MWh
+  date   DateTime // Date d'application du prix
+  source String? // Source de la donnée (EMMY, GRDF, manuel, etc.)
+  notes  String? // Notes additionnelles
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([type, date])
   @@map("energy_prices")
@@ -1991,13 +2069,13 @@ model EnergyPrice {
 // ============================================
 
 enum WorkStatus {
-  PLANIFIE            // Travaux planifiés (devis accepté)
-  EN_COURS            // Travaux en cours d'exécution
-  TERMINE             // Travaux terminés sur site
+  PLANIFIE // Travaux planifiés (devis accepté)
+  EN_COURS // Travaux en cours d'exécution
+  TERMINE // Travaux terminés sur site
   ATTENTE_ATTACHEMENT // Attachement reçu, en attente de levée
-  ATTENTE_LEVEE       // Réserves à lever
-  CLOTURE             // Travaux clôturés (comptés dans P3)
-  ANNULE              // Travaux annulés
+  ATTENTE_LEVEE // Réserves à lever
+  CLOTURE // Travaux clôturés (comptés dans P3)
+  ANNULE // Travaux annulés
 }
 
 enum AttachementType {
@@ -2008,17 +2086,17 @@ enum AttachementType {
 }
 
 enum LeveeType {
-  VISITE_ANNUELLE  // Visite annuelle P2
-  AUDIT_TECHNIQUE  // Audit technique
-  VISITE_DEDIEE    // Visite dédiée pour levée
+  VISITE_ANNUELLE // Visite annuelle P2
+  AUDIT_TECHNIQUE // Audit technique
+  VISITE_DEDIEE // Visite dédiée pour levée
   AUTRE
 }
 
 // Ordre de Travail (Work Order) - Suivi de l'exécution des devis acceptés
 model WorkOrder {
-  id             String     @id @default(cuid())
-  quoteId        String     @unique
-  status         WorkStatus @default(PLANIFIE)
+  id      String     @id @default(cuid())
+  quoteId String     @unique
+  status  WorkStatus @default(PLANIFIE)
 
   // Timeline
   planifiedDate  DateTime?
@@ -2035,7 +2113,7 @@ model WorkOrder {
   cancelReason String?
 
   // Relations
-  quote        Quote               @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quote        Quote             @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   attachements WorkAttachement[]
   reservations WorkReservation[]
   levees       WorkLevee[]
@@ -2086,11 +2164,11 @@ model WorkReservation {
 
 // Levées de réserves (inspections post-travaux)
 model WorkLevee {
-  id               String    @id @default(cuid())
-  workOrderId      String
-  type             LeveeType
-  leveeDate        DateTime
-  inspector        String?
+  id          String    @id @default(cuid())
+  workOrderId String
+  type        LeveeType
+  leveeDate   DateTime
+  inspector   String?
 
   // Liens optionnels vers Meeting ou TechnicalAudit
   meetingId        String?
