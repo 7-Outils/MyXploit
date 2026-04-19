@@ -27,7 +27,6 @@ import { DecompteP3Tab } from "@/components/financier/tabs/DecompteP3Tab";
 import DevisP3Content from "@/components/exploitation/DevisP3Content";
 
 // Modals
-import { DeleteConfirmModal } from "@/components/financier/modals/DeleteConfirmModal";
 import { ImportModal } from "@/components/financier/modals/ImportModal";
 import { InvoiceModal } from "@/components/financier/modals/InvoiceModal";
 
@@ -51,9 +50,7 @@ function FinancierPageContent() {
   const [refusingInvoiceId, setRefusingInvoiceId] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [contractSites, setContractSites] = useState<Site[]>([]);
@@ -259,24 +256,6 @@ function FinancierPageContent() {
     }
   };
 
-  const handleDeleteInvoice = async (invoiceId: string) => {
-    if (!selectedContract) return;
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/invoices/${invoiceId}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        await fetchInvoices(selectedContract.id);
-        setShowDeleteConfirm(null);
-      }
-    } catch (error) {
-      console.error("Error deleting invoice:", error);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -473,7 +452,6 @@ function FinancierPageContent() {
           handleRefuseInvoice={handleRefuseInvoice}
           acceptingInvoiceId={acceptingInvoiceId}
           refusingInvoiceId={refusingInvoiceId}
-          setShowDeleteConfirm={setShowDeleteConfirm}
           setShowImportModal={setShowImportModal}
           setShowInvoiceModal={setShowInvoiceModal}
         />
@@ -496,14 +474,6 @@ function FinancierPageContent() {
       )}
 
       {/* Modals */}
-      {showDeleteConfirm && (
-        <DeleteConfirmModal
-          onClose={() => setShowDeleteConfirm(null)}
-          onConfirm={() => handleDeleteInvoice(showDeleteConfirm)}
-          deleting={deleting}
-        />
-      )}
-
       {showImportModal && (
         <ImportModal
           onClose={() => {

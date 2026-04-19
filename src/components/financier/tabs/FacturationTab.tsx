@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Receipt, Plus, Loader2, Upload, Check, X, Trash2 } from "lucide-react";
+import { Receipt, Plus, Loader2, Upload, Check, X } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 import { statusConfig, typeConfig } from "@/components/financier/constants";
 import type { Invoice, StatusFilter, TypeFilter } from "@/components/financier/types";
@@ -17,7 +17,6 @@ interface FacturationTabProps {
   handleRefuseInvoice: (id: string) => void;
   acceptingInvoiceId: string | null;
   refusingInvoiceId: string | null;
-  setShowDeleteConfirm: (id: string | null) => void;
   setShowImportModal: (v: boolean) => void;
   setShowInvoiceModal: (v: boolean) => void;
 }
@@ -35,7 +34,6 @@ export function FacturationTab({
   handleRefuseInvoice,
   acceptingInvoiceId,
   refusingInvoiceId,
-  setShowDeleteConfirm,
   setShowImportModal,
   setShowInvoiceModal,
 }: FacturationTabProps) {
@@ -122,7 +120,6 @@ export function FacturationTab({
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Type</th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Montant HT</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">État</th>
-                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -162,22 +159,26 @@ export function FacturationTab({
                               </button>
                             </ReadOnlyGate>
                           </div>
-                        ) : invoice.status === "VALIDEE" && invoice.acceptedByUser ? (
+                        ) : invoice.status === "VALIDEE" ? (
                           <div>
                             <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
-                            <div className="text-xs text-gray-600 mt-1">
-                              par {invoice.acceptedByUser.firstName || ""} {invoice.acceptedByUser.lastName || invoice.acceptedByUser.email}
-                            </div>
+                            {invoice.acceptedByUser && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                par {invoice.acceptedByUser.firstName || ""} {invoice.acceptedByUser.lastName || invoice.acceptedByUser.email}
+                              </div>
+                            )}
                             {invoice.acceptedAt && (
                               <div className="text-xs text-gray-500">{new Date(invoice.acceptedAt).toLocaleDateString("fr-FR")}</div>
                             )}
                           </div>
-                        ) : invoice.status === "REFUSEE" && invoice.refusedByUser ? (
+                        ) : invoice.status === "REFUSEE" ? (
                           <div>
                             <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
-                            <div className="text-xs text-gray-600 mt-1">
-                              par {invoice.refusedByUser.firstName || ""} {invoice.refusedByUser.lastName || invoice.refusedByUser.email}
-                            </div>
+                            {invoice.refusedByUser && (
+                              <div className="text-xs text-gray-600 mt-1">
+                                par {invoice.refusedByUser.firstName || ""} {invoice.refusedByUser.lastName || invoice.refusedByUser.email}
+                              </div>
+                            )}
                             {invoice.refusedAt && (
                               <div className="text-xs text-gray-500">{new Date(invoice.refusedAt).toLocaleDateString("fr-FR")}</div>
                             )}
@@ -185,17 +186,6 @@ export function FacturationTab({
                         ) : (
                           <span className={`px-2 py-1 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <ReadOnlyGate>
-                          <button
-                            onClick={() => setShowDeleteConfirm(invoice.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </ReadOnlyGate>
                       </td>
                     </tr>
                   );
