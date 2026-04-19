@@ -13,7 +13,6 @@ import ContractSitesTab from "@/components/administratif/ContractSitesTab";
 import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab";
 import ContractRevisionTab from "@/components/administratif/ContractRevisionTab";
 import ContractMontantsTab from "@/components/administratif/ContractMontantsTab";
-import ContractFinancierTab from "@/components/administratif/ContractFinancierTab";
 import EditContractModal from "@/components/administratif/modals/EditContractModal";
 import AEImportModal from "@/components/administratif/modals/AEImportModal";
 import type { Contract } from "@/components/administratif/types";
@@ -26,7 +25,7 @@ function AdministratifContent() {
   // Contract detail state
   const [contractDetail, setContractDetail] = useState<Contract | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
-  const [activeTab, setActiveTab] = useState<"sites" | "cibles" | "avenants" | "revision" | "montants" | "financier">("sites");
+  const [activeTab, setActiveTab] = useState<"sites" | "cibles" | "avenants" | "revision" | "montants">("sites");
   const [energySites, setEnergySites] = useState<Site[]>([]);
 
   const [showEditContractModal, setShowEditContractModal] = useState(false);
@@ -140,14 +139,6 @@ function AdministratifContent() {
         >
           Montants
         </button>
-        <button
-          onClick={() => setActiveTab("financier")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "financier" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          Financier
-        </button>
       </div>
 
       {/* Tab Content */}
@@ -194,14 +185,6 @@ function AdministratifContent() {
           {/* Montants Tab */}
           {activeTab === "montants" && selectedContract && (
             <ContractMontantsTab contractId={selectedContract.id} />
-          )}
-
-          {/* Financier Tab */}
-          {activeTab === "financier" && contractDetail && (
-            <ContractFinancierTab
-              contractId={selectedContract.id}
-              contract={contractDetail}
-            />
           )}
         </>
       )}
