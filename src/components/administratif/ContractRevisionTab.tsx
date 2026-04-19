@@ -426,18 +426,21 @@ function FormulasSection({
       {indices.length === 0 ? (
         <p className="text-sm text-text-secondary">Ajoutez d'abord au moins un indice ci-dessus avant de définir une formule.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {(["P1", "P2", "P3"] as const).map((p) => (
-            <FormulaCard
-              key={p}
-              pType={p}
-              contractId={contractId}
-              indices={indices}
-              existing={formulas.find((f) => f.pType === p) ?? null}
-              onChanged={onChanged}
-            />
-          ))}
-        </div>
+        <>
+          <p className="text-xs text-text-secondary mb-3">P1 (énergie) n'est pas révisable par formule indicielle — feature dédiée à venir pour le décompte MTI (NB / N&apos;B).</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(["P2", "P3"] as const).map((p) => (
+              <FormulaCard
+                key={p}
+                pType={p}
+                contractId={contractId}
+                indices={indices}
+                existing={formulas.find((f) => f.pType === p) ?? null}
+                onChanged={onChanged}
+              />
+            ))}
+          </div>
+        </>
       )}
     </section>
   );
