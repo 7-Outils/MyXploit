@@ -47,7 +47,7 @@ export async function parseWithGemini(pdfBuffer: Buffer): Promise<ParsedQuote | 
     const base64 = pdfBuffer.toString("base64");
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash",
+      model: "gemini-3-flash-preview",
       contents: [
         {
           role: "user",
