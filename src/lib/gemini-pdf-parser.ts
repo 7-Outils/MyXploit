@@ -22,7 +22,9 @@ Classification du type (très important) :
 
 Pour siteName, retourne uniquement le nom du bâtiment/établissement (ex: "Mairie", "École Jules Ferry", "Piscine municipale"), pas l'adresse complète.
 
-Pour amountHT, retourne le montant hors taxes en nombre décimal (sans symbole ni espaces).`;
+Pour amountHT, retourne le montant hors taxes en nombre décimal (sans symbole ni espaces).
+
+Pour issueDate, retourne la date d'émission du document au format ISO "YYYY-MM-DD" (ex: "2025-12-09"). C'est la date affichée en tête du document (souvent "Date : 9 décembre 2025" ou "Date d'émission : 09/12/2025"), pas la date d'échéance ni la date des travaux.`;
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -32,6 +34,7 @@ const responseSchema = {
     siteCity: { type: Type.STRING, nullable: true },
     objet: { type: Type.STRING, nullable: true },
     amountHT: { type: Type.NUMBER, nullable: true },
+    issueDate: { type: Type.STRING, nullable: true },
     quoteType: {
       type: Type.STRING,
       enum: ["P1", "P3", "P5", "TRAVAUX", "AMELIORATION", "AUTRE"],
@@ -73,6 +76,7 @@ export async function parseWithGemini(pdfBuffer: Buffer): Promise<ParsedQuote | 
       siteCity: string | null;
       objet: string | null;
       amountHT: number | null;
+      issueDate: string | null;
       quoteType: "P1" | "P3" | "P5" | "TRAVAUX" | "AMELIORATION" | "AUTRE" | null;
     };
 
@@ -88,6 +92,7 @@ export async function parseWithGemini(pdfBuffer: Buffer): Promise<ParsedQuote | 
       siteCity: parsed.siteCity,
       objet: parsed.objet,
       amountHT: parsed.amountHT,
+      issueDate: parsed.issueDate ?? null,
       quoteType: mappedQuoteType,
       rawText: "",
     };

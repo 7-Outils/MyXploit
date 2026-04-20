@@ -11,6 +11,7 @@ export interface ParsedQuote {
   siteCity: string | null;
   objet: string | null;
   amountHT: number | null;
+  issueDate?: string | null; // ISO date "YYYY-MM-DD" — extrait par Gemini, absent en regex
   quoteType: "P3" | "P5" | "TRAVAUX" | "AMELIORATION" | "AUTRE" | null;
   rawText: string;
 }
