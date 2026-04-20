@@ -269,6 +269,32 @@ export function normalizeCity(city: string): string {
  * IMPORTANT: Ne match par ville que si un nom de site a été trouvé dans le PDF
  * pour éviter de matcher le mauvais site (ex: Mairie au lieu de l'école)
  */
+// Mots génériques fréquents dans les noms de sites français — exclus du matching
+// car "école" ou "mairie" tout seul n'est pas distinctif
+const GENERIC_SITE_WORDS = new Set([
+  "ecole", "école", "elementaire", "élémentaire", "maternelle", "primaire",
+  "college", "collège", "lycee", "lycée", "groupe", "scolaire",
+  "mairie", "hotel", "hôtel", "ville", "maison",
+  "piscine", "gymnase", "stade", "complexe", "salle", "centre", "club",
+  "eglise", "église", "cimetiere", "cimetière",
+  "residence", "résidence", "foyer", "logement", "logements",
+  "de", "la", "le", "du", "des", "les", "l", "d",
+  "saint", "sainte", "st", "ste",
+]);
+
+function tokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 0);
+}
+
+function distinctiveTokens(s: string): string[] {
+  return tokenize(s).filter((w) => w.length >= 3 && !GENERIC_SITE_WORDS.has(w));
+}
+
 export function findSiteMatch(
   siteName: string | null,
   siteCity: string | null,
@@ -276,46 +302,44 @@ export function findSiteMatch(
 ): { id: string; name: string } | null {
   if (!siteName && !siteCity) return null;
 
+  const searchDistinctive = siteName ? distinctiveTokens(siteName) : [];
+  const normalizedSearchName = siteName ? siteName.toLowerCase().trim() : "";
   const normalizedSearchCity = siteCity ? normalizeCity(siteCity) : "";
-  const normalizedSearchName = siteName ? siteName.toLowerCase() : "";
 
-  // PREMIÈRE PASSE: Match par nom (priorité absolue)
+  // PREMIÈRE PASSE: Match exact (nom contenant ou contenu dans nom BDD)
+  // On garde cette passe car si Gemini renvoie le nom exact d'un site, on veut matcher.
   if (normalizedSearchName) {
     for (const site of sites) {
-      const normalizedName = site.name.toLowerCase();
-
-      // Match exact ou partiel par nom
-      if (normalizedName.includes(normalizedSearchName)) {
+      const normalizedName = site.name.toLowerCase().trim();
+      if (normalizedName === normalizedSearchName) {
         return { id: site.id, name: site.name };
       }
-      if (normalizedSearchName.includes(normalizedName)) {
+      if (normalizedName.includes(normalizedSearchName) || normalizedSearchName.includes(normalizedName)) {
         return { id: site.id, name: site.name };
       }
     }
   }
 
-  // DEUXIÈME PASSE: Match par ville + nom combinés
-  // Seulement si on a un nom ET une ville
-  if (normalizedSearchName && normalizedSearchCity) {
+  // DEUXIÈME PASSE: Match par tokens distinctifs (exclut mots génériques type "école")
+  // Il faut qu'AU MOINS UN TOKEN DISTINCTIF matche (nom propre, numéro, etc.)
+  if (searchDistinctive.length > 0) {
     for (const site of sites) {
-      const normalizedCity = normalizeCity(site.city);
-      const normalizedName = site.name.toLowerCase();
-
-      // Chercher un site qui match la ville ET contient des mots-clés du nom
-      if (normalizedCity.includes(normalizedSearchCity) || normalizedSearchCity.includes(normalizedCity)) {
-        // Vérifier si des mots du nom correspondent
-        const searchWords = normalizedSearchName.split(/\s+/).filter(w => w.length > 3);
-        const siteWords = normalizedName.split(/\s+/);
-        const hasWordMatch = searchWords.some(sw => siteWords.some(w => w.includes(sw) || sw.includes(w)));
-        if (hasWordMatch) {
+      const siteDistinctive = new Set(distinctiveTokens(site.name));
+      const hasDistinctiveMatch = searchDistinctive.some((t) => siteDistinctive.has(t));
+      if (hasDistinctiveMatch) {
+        // Si on a aussi la ville, on la confirme
+        if (normalizedSearchCity) {
+          const normalizedCity = normalizeCity(site.city);
+          if (normalizedCity.includes(normalizedSearchCity) || normalizedSearchCity.includes(normalizedCity)) {
+            return { id: site.id, name: site.name };
+          }
+        } else {
           return { id: site.id, name: site.name };
         }
       }
     }
   }
 
-  // NE PAS matcher par ville seule - trop de faux positifs
-  // L'utilisateur doit sélectionner manuellement si le nom n'est pas trouvé
-
+  // Pas de match fiable trouvé — on laisse l'utilisateur choisir
   return null;
 }
