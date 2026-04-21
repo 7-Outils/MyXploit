@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Building2, ChevronDown, ChevronUp, Check, Flame, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import * as echarts from "echarts/core";
-import { BarChart } from "echarts/charts";
-import { GridComponent, TooltipComponent } from "echarts/components";
+import { BarChart, LineChart } from "echarts/charts";
+import { GridComponent, TooltipComponent, MarkLineComponent, LegendComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { prorateAcrossMonths } from "@/lib/date-prorate";
 import { addDays } from "date-fns";
 
-echarts.use([BarChart, GridComponent, TooltipComponent, CanvasRenderer]);
+echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, MarkLineComponent, LegendComponent, CanvasRenderer]);
 
 interface MeterReadingRow {
   id: string;
@@ -86,12 +86,159 @@ function toKwh(r: MeterReadingRow): number {
   if (r.consumptionConverted != null && r.unitConverted === "MWh") return r.consumptionConverted * 1000;
   if (r.unit === "kWh") return r.consumption;
   if (r.unit === "MWh") return r.consumption * 1000;
-  return 0; // m³ not normalizable without coefficient
+  return 0; // m³ not normalizable without coefficient (EAU_FROIDE)
+}
+
+/**
+ * Clé mensuelle "YYYY-MM" depuis un ISO YYYY-MM-01T00:00:00.000Z.
+ */
+function periodIsoToKey(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Proratise une ligne de relevé sur les mois calendaires qu'elle couvre
+ * (entre previous.readingDate+1 et readingDate). Retourne Map<"YYYY-MM", kWh>.
+ * Si pas de previous, attribue au mois du relevé.
+ */
+function monthlyShare(r: MeterReadingRow, kwh: number): Map<string, number> {
+  const result = new Map<string, number>();
+  if (kwh === 0) return result;
+  if (r.previous?.readingDate) {
+    const start = addDays(new Date(r.previous.readingDate), 1);
+    const end = new Date(r.readingDate);
+    const share = prorateAcrossMonths(start, end, kwh);
+    for (const [iso, q] of share.entries()) {
+      result.set(periodIsoToKey(iso), q);
+    }
+  } else {
+    const d = new Date(r.readingDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    result.set(key, kwh);
+  }
+  return result;
+}
+
+/* ───────────────────────── Sparkline sub-component ───────────────────────── */
+
+function Sparkline({ values, color, height = 28 }: { values: number[]; color: string; height?: number }) {
+  if (values.length === 0) return null;
+  const max = Math.max(...values, 1);
+  const width = 80;
+  const step = width / Math.max(values.length - 1, 1);
+  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(height - (v / max) * height).toFixed(1)}`).join(" ");
+  return (
+    <svg width={width} height={height} className="block" aria-hidden>
+      <polyline
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={pts}
+      />
+    </svg>
+  );
+}
+
+/* ───────────────────────── StackedMonthlyChart ───────────────────────── */
+
+function StackedMonthlyChart({
+  data,
+  fluids,
+}: {
+  // data: Map<fluid, Map<"YYYY-MM", kWh>>
+  data: Map<string, Map<string, number>>;
+  fluids: string[];
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Union des mois présents sur tous les fluides
+  const months = useMemo(() => {
+    const all = new Set<string>();
+    for (const byMonth of data.values()) for (const k of byMonth.keys()) all.add(k);
+    return Array.from(all).sort();
+  }, [data]);
+
+  const series = useMemo(() => {
+    return fluids.map((fluid) => {
+      const byMonth = data.get(fluid) ?? new Map<string, number>();
+      return {
+        name: FLUID_LABELS[fluid] || fluid,
+        type: "bar" as const,
+        stack: "total",
+        itemStyle: { color: FLUID_COLORS[fluid] || "#9ca3af" },
+        data: months.map((m) => Math.round(byMonth.get(m) ?? 0)),
+      };
+    });
+  }, [fluids, data, months]);
+
+  useEffect(() => {
+    if (!ref.current || months.length === 0) return;
+    const chart = echarts.init(ref.current);
+    chart.setOption({
+      grid: { left: 60, right: 16, top: 40, bottom: 32 },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(17,24,39,0.95)",
+        borderWidth: 0,
+        textStyle: { color: "#fff", fontSize: 12 },
+      },
+      legend: {
+        data: series.map((s) => s.name),
+        top: 8,
+        textStyle: { fontSize: 11, color: "#6b7280" },
+      },
+      xAxis: {
+        type: "category",
+        data: months.map((m) => {
+          const [y, mo] = m.split("-");
+          return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+        }),
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 11, color: "#6b7280" },
+      },
+      yAxis: {
+        type: "value",
+        name: "kWh",
+        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: "#f3f4f6" } },
+        axisLabel: {
+          fontSize: 11,
+          color: "#6b7280",
+          formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString()),
+        },
+      },
+      series,
+    });
+    const onResize = () => chart.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      chart.dispose();
+    };
+  }, [months, series]);
+
+  if (months.length === 0) return null;
+  return <div ref={ref} style={{ width: "100%", height: 260 }} />;
 }
 
 /* ───────────────────────── FluidChart sub-component ───────────────────────── */
 
-function FluidChart({ fluid, readings }: { fluid: string; readings: MeterReadingRow[] }) {
+function FluidChart({
+  fluid,
+  readings,
+  monthlyTargetKwh,
+}: {
+  fluid: string;
+  readings: MeterReadingRow[];
+  monthlyTargetKwh?: number | null;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const instance = useRef<echarts.ECharts | null>(null);
 
@@ -184,6 +331,22 @@ function FluidChart({ fluid, readings }: { fluid: string; readings: MeterReading
           data: values,
           itemStyle: { color, borderRadius: [3, 3, 0, 0] },
           barMaxWidth: 28,
+          // Ligne cible (NB/12) sur les fluides chauffage si fournie
+          ...(monthlyTargetKwh && monthlyTargetKwh > 0 && unit === "kWh"
+            ? {
+                markLine: {
+                  symbol: "none",
+                  lineStyle: { color: "#64748b", type: "dashed", width: 1.5 },
+                  label: {
+                    formatter: `Cible ${Math.round(monthlyTargetKwh).toLocaleString("fr-FR")} kWh/mois`,
+                    color: "#64748b",
+                    fontSize: 10,
+                    position: "insideEndTop",
+                  },
+                  data: [{ yAxis: monthlyTargetKwh }],
+                },
+              }
+            : {}),
         },
       ],
     });
@@ -194,7 +357,7 @@ function FluidChart({ fluid, readings }: { fluid: string; readings: MeterReading
       chart.dispose();
       instance.current = null;
     };
-  }, [labels, values, unit, fluid, months.length]);
+  }, [labels, values, unit, fluid, months.length, monthlyTargetKwh]);
 
   if (months.length === 0) return null;
 
@@ -273,6 +436,25 @@ export function RelevesContent({
 
   useEffect(() => { fetchReadings(); }, [fetchReadings, refreshKey]);
 
+  // Objectif NB pour l'overlay cible sur chart chauffage
+  const [contractNbKwh, setContractNbKwh] = useState<number | null>(null);
+  useEffect(() => {
+    if (!contractId) { setContractNbKwh(null); return; }
+    fetch(`/api/heating-seasons?contractId=${contractId}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: { season: string; nb: number | null }[]) => {
+        if (!Array.isArray(data) || data.length === 0) { setContractNbKwh(null); return; }
+        // Saison la plus récente = plus grande clé
+        const latestSeason = [...new Set(data.map((d) => d.season))].sort().pop();
+        if (!latestSeason) { setContractNbKwh(null); return; }
+        const totalNbMwh = data
+          .filter((d) => d.season === latestSeason)
+          .reduce((s, d) => s + (d.nb ?? 0), 0);
+        setContractNbKwh(totalNbMwh > 0 ? totalNbMwh * 1000 : null);
+      })
+      .catch(() => setContractNbKwh(null));
+  }, [contractId]);
+
   // Unique filter lists
   const fluids = useMemo(() => {
     const canonSet = new Set<string>();
@@ -344,17 +526,59 @@ export function RelevesContent({
     [filtered]
   );
 
-  // KPIs
-  const kpis = useMemo(() => {
-    let gas = 0, ecs = 0, elec = 0;
+  // Monthly kWh per fluid (via proratisation) — source unique pour KPIs + stacked chart
+  const monthlyByFluid = useMemo(() => {
+    const byFluid = new Map<string, Map<string, number>>();
     for (const r of filtered) {
       const kwh = toKwh(r);
-      if (r.meter.fluid === "EAU_CHAUDE") ecs += kwh;
-      else if (r.meter.fluid === "ELECTRICITE") elec += kwh;
-      else if (r.meter.fluid === "GAZ" || r.meter.fluid === "CHALEUR" || r.meter.fluid === "FIOUL") gas += kwh;
+      if (kwh === 0) continue; // EAU_FROIDE ou pas de conversion
+      const share = monthlyShare(r, kwh);
+      if (share.size === 0) continue;
+      let entry = byFluid.get(r.meter.fluid);
+      if (!entry) { entry = new Map(); byFluid.set(r.meter.fluid, entry); }
+      for (const [k, q] of share.entries()) entry.set(k, (entry.get(k) ?? 0) + q);
     }
-    return { gas, ecs, elec, total: filtered.length };
+    return byFluid;
   }, [filtered]);
+
+  // KPIs dynamiques par fluide: total + sparkline + trend (dernier mois vs avant-dernier)
+  const kpiCards = useMemo(() => {
+    const order: string[] = ["GAZ", "CHALEUR", "FIOUL", "EAU_CHAUDE", "ELECTRICITE"];
+    const cards: Array<{
+      fluid: string;
+      label: string;
+      color: string;
+      total: number;
+      spark: number[];
+      trend: number | null;
+    }> = [];
+    for (const fluid of order) {
+      const byMonth = monthlyByFluid.get(fluid);
+      if (!byMonth || byMonth.size === 0) continue;
+      const months = Array.from(byMonth.keys()).sort();
+      const spark = months.map((m) => byMonth.get(m) ?? 0);
+      const total = spark.reduce((s, v) => s + v, 0);
+      let trend: number | null = null;
+      if (spark.length >= 2 && spark[spark.length - 2] > 0) {
+        trend = ((spark[spark.length - 1] - spark[spark.length - 2]) / spark[spark.length - 2]) * 100;
+      }
+      cards.push({
+        fluid,
+        label: FLUID_LABELS[fluid] || fluid,
+        color: FLUID_COLORS[fluid] || "#9ca3af",
+        total,
+        spark,
+        trend,
+      });
+    }
+    return cards;
+  }, [monthlyByFluid]);
+
+  // Fluids énergétiques pour le stacked chart (exclut eau froide — non convertible)
+  const energyFluidsInFiltered = useMemo(
+    () => Array.from(monthlyByFluid.keys()),
+    [monthlyByFluid]
+  );
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -491,27 +715,52 @@ export function RelevesContent({
         </Button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="bg-white border border-gray-100 rounded-xl p-4">
-          <p className="text-xs text-text-secondary mb-1">Gaz / Chaleur</p>
-          <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.gas, "kWh")}</p>
+      {/* KPIs dynamiques — une card par fluide énergétique présent */}
+      {kpiCards.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {kpiCards.map((k) => (
+            <div key={k.fluid} className="bg-white border border-gray-100 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-text-secondary flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: k.color }} />
+                  {k.label}
+                </p>
+                {k.trend != null && (
+                  <span className={`text-[10px] font-medium ${k.trend > 0 ? "text-red-600" : k.trend < 0 ? "text-green-600" : "text-text-secondary"}`}>
+                    {k.trend > 0 ? "↑" : k.trend < 0 ? "↓" : "="} {Math.abs(k.trend).toFixed(0)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-2xl font-semibold text-primary-dark">{formatValue(k.total, "kWh")}</p>
+              <div className="mt-2">
+                <Sparkline values={k.spark} color={k.color} />
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-4">
-          <p className="text-xs text-text-secondary mb-1">ECS</p>
-          <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.ecs, "kWh")}</p>
-        </div>
-        <div className="bg-white border border-gray-100 rounded-xl p-4">
-          <p className="text-xs text-text-secondary mb-1">Électricité</p>
-          <p className="text-2xl font-semibold text-primary-dark">{formatValue(kpis.elec, "kWh")}</p>
-        </div>
-      </div>
+      )}
 
-      {/* One chart per fluid — 2 columns on desktop */}
+      {/* Stacked chart global — répartition mensuelle tous fluides */}
+      {energyFluidsInFiltered.length > 1 && (
+        <ChartCard title="Consommation totale par mois" subtitle="Répartition par énergie (kWh)">
+          <StackedMonthlyChart data={monthlyByFluid} fluids={energyFluidsInFiltered} />
+        </ChartCard>
+      )}
+
+      {/* Détail par fluide — 2 colonnes on desktop */}
       {fluidsInFiltered.length > 0 && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {fluidsInFiltered.map((fluid) => (
-            <FluidChart key={fluid} fluid={fluid} readings={filtered} />
+            <FluidChart
+              key={fluid}
+              fluid={fluid}
+              readings={filtered}
+              monthlyTargetKwh={
+                (fluid === "GAZ" || fluid === "CHALEUR" || fluid === "FIOUL") && contractNbKwh
+                  ? contractNbKwh / 12
+                  : null
+              }
+            />
           ))}
         </div>
       )}
