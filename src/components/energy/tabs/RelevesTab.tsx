@@ -248,33 +248,16 @@ function StackedMonthlyChart({
 
 /* ─────────────────── Ratio Conso chauffage / DJU ─────────────────── */
 
-function RatioChauffageDjuChart({
-  monthlyChauffageKwh,
-  monthlyDju,
-}: {
-  monthlyChauffageKwh: Map<string, number>;
-  monthlyDju: Map<string, number>;
-}) {
+function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, number> }) {
   const ref = useRef<HTMLDivElement>(null);
 
   const { months, ratios } = useMemo(() => {
-    // Seuil DJU pour éviter les valeurs absurdes en été (DJU proche de 0)
-    const MIN_DJU = 10;
-    const keys = Array.from(new Set([
-      ...monthlyChauffageKwh.keys(),
-      ...monthlyDju.keys(),
-    ])).sort();
-    const validMonths: string[] = [];
-    const values: number[] = [];
-    for (const k of keys) {
-      const kwh = monthlyChauffageKwh.get(k) ?? 0;
-      const dju = monthlyDju.get(k) ?? 0;
-      if (kwh <= 0 || dju < MIN_DJU) continue;
-      validMonths.push(k);
-      values.push(Math.round((kwh / dju) * 10) / 10);
-    }
-    return { months: validMonths, ratios: values };
-  }, [monthlyChauffageKwh, monthlyDju]);
+    const keys = Array.from(monthlyRatio.keys()).sort();
+    return {
+      months: keys,
+      ratios: keys.map((k) => Math.round((monthlyRatio.get(k) ?? 0) * 10) / 10),
+    };
+  }, [monthlyRatio]);
 
   useEffect(() => {
     if (!ref.current || months.length === 0) return;
@@ -283,7 +266,6 @@ function RatioChauffageDjuChart({
       grid: { left: 56, right: 16, top: 24, bottom: 32 },
       tooltip: {
         trigger: "axis",
-        axisPointer: { type: "shadow" },
         backgroundColor: "rgba(17,24,39,0.95)",
         borderWidth: 0,
         textStyle: { color: "#fff", fontSize: 12 },
@@ -295,6 +277,7 @@ function RatioChauffageDjuChart({
       },
       xAxis: {
         type: "category",
+        boundaryGap: false,
         data: months.map((m) => {
           const [y, mo] = m.split("-");
           return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
@@ -314,10 +297,14 @@ function RatioChauffageDjuChart({
       },
       series: [
         {
-          type: "bar",
+          type: "line",
           data: ratios,
-          barMaxWidth: 48,
-          itemStyle: { color: "#6366f1", borderRadius: [3, 3, 0, 0] },
+          smooth: true,
+          symbol: "circle",
+          symbolSize: 6,
+          lineStyle: { color: "#6366f1", width: 2 },
+          itemStyle: { color: "#6366f1" },
+          areaStyle: { color: "rgba(99,102,241,0.08)" },
         },
       ],
     });
@@ -426,20 +413,28 @@ export function RelevesContent({
       .catch(() => setContractNbKwh(null));
   }, [contractId]);
 
-  // DJU mensuel pour le chart ratio conso/DJU (au niveau contrat, pas par site)
-  const [monthlyDju, setMonthlyDju] = useState<Map<string, number>>(new Map());
+  // DJU mensuel par site (pour calcul cohérent du ratio conso/DJU selon le filtre).
+  // Quand filterSite=all: on pondère par la conso chauffage de chaque site.
+  // Quand filterSite=siteId: on utilise directement les DJU du site.
+  const [djuBySite, setDjuBySite] = useState<Map<string, Map<string, number>>>(new Map());
   useEffect(() => {
-    if (!contractId) { setMonthlyDju(new Map()); return; }
+    if (!contractId) { setDjuBySite(new Map()); return; }
     const year = new Date().getFullYear();
     fetch(`/api/dju?contractId=${contractId}&year=${year}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { monthlyData?: { month: string; dju: number }[] } | null) => {
-        if (!data?.monthlyData) { setMonthlyDju(new Map()); return; }
-        const m = new Map<string, number>();
-        for (const { month, dju } of data.monthlyData) m.set(month, dju);
-        setMonthlyDju(m);
+      .then((data: {
+        sites?: { siteId: string; monthlyData: { month: string; dju: number }[] }[];
+      } | null) => {
+        if (!data?.sites) { setDjuBySite(new Map()); return; }
+        const m = new Map<string, Map<string, number>>();
+        for (const s of data.sites) {
+          const byMonth = new Map<string, number>();
+          for (const md of s.monthlyData) byMonth.set(md.month, md.dju);
+          m.set(s.siteId, byMonth);
+        }
+        setDjuBySite(m);
       })
-      .catch(() => setMonthlyDju(new Map()));
+      .catch(() => setDjuBySite(new Map()));
   }, [contractId]);
 
   // Unique filter lists
@@ -582,18 +577,67 @@ export function RelevesContent({
     [monthlyByFluid]
   );
 
-  // Conso chauffage mensuelle (GAZ + CHALEUR + FIOUL) en kWh pour le ratio conso/DJU
+  // Conso chauffage mensuelle (GAZ + CHALEUR + FIOUL) en kWh — par site puis totale.
+  // Per-site sert à pondérer le DJU effectif quand plusieurs sites sont affichés.
+  const chauffageByMonthBySite = useMemo(() => {
+    // Map<siteId, Map<"YYYY-MM", kWh>>
+    const bySite = new Map<string, Map<string, number>>();
+    const heatingFluids = new Set(["GAZ", "CHALEUR", "FIOUL"]);
+    for (const r of filtered) {
+      if (!heatingFluids.has(r.meter.fluid)) continue;
+      const kwh = toKwh(r);
+      if (kwh === 0) continue;
+      const share = monthlyShare(r, kwh);
+      if (share.size === 0) continue;
+      let siteMap = bySite.get(r.meter.siteId);
+      if (!siteMap) { siteMap = new Map(); bySite.set(r.meter.siteId, siteMap); }
+      for (const [k, q] of share.entries()) siteMap.set(k, (siteMap.get(k) ?? 0) + q);
+    }
+    return bySite;
+  }, [filtered]);
+
   const monthlyChauffageKwh = useMemo(() => {
     const result = new Map<string, number>();
-    for (const fluid of ["GAZ", "CHALEUR", "FIOUL"] as const) {
-      const byMonth = monthlyByFluid.get(fluid);
-      if (!byMonth) continue;
-      for (const [k, v] of byMonth.entries()) {
-        result.set(k, (result.get(k) ?? 0) + v);
-      }
+    for (const byMonth of chauffageByMonthBySite.values()) {
+      for (const [k, v] of byMonth.entries()) result.set(k, (result.get(k) ?? 0) + v);
     }
     return result;
-  }, [monthlyByFluid]);
+  }, [chauffageByMonthBySite]);
+
+  // DJU effectif mensuel: moyenne pondérée par la conso chauffage de chaque site ce mois-là.
+  // Si tous les sites du filtre partagent la même station, ça revient au DJU de cette station.
+  const effectiveMonthlyDju = useMemo(() => {
+    const result = new Map<string, number>();
+    // Union des mois présents dans au moins un site
+    const allMonths = new Set<string>();
+    for (const byMonth of chauffageByMonthBySite.values()) for (const m of byMonth.keys()) allMonths.add(m);
+    for (const m of allMonths) {
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (const [siteId, byMonth] of chauffageByMonthBySite.entries()) {
+        const kwh = byMonth.get(m) ?? 0;
+        if (kwh <= 0) continue;
+        const djuMap = djuBySite.get(siteId);
+        const dju = djuMap?.get(m);
+        if (dju == null || dju <= 0) continue;
+        weightedSum += dju * kwh;
+        totalWeight += kwh;
+      }
+      if (totalWeight > 0) result.set(m, weightedSum / totalWeight);
+    }
+    return result;
+  }, [chauffageByMonthBySite, djuBySite]);
+
+  // Ratio mensuel kWh/DJU (exclut mois avec DJU < 10 — été)
+  const monthlyRatio = useMemo(() => {
+    const result = new Map<string, number>();
+    for (const [m, kwh] of monthlyChauffageKwh.entries()) {
+      const dju = effectiveMonthlyDju.get(m);
+      if (dju == null || dju < 10 || kwh <= 0) continue;
+      result.set(m, kwh / dju);
+    }
+    return result;
+  }, [monthlyChauffageKwh, effectiveMonthlyDju]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -731,8 +775,8 @@ export function RelevesContent({
       </div>
 
       {/* KPIs dynamiques — une card par fluide énergétique présent */}
-      {kpiCards.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      {(kpiCards.length > 0 || monthlyRatio.size > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {kpiCards.map((k) => (
             <div key={k.fluid} className="bg-white border border-gray-100 rounded-xl p-4">
               <div className="flex items-center justify-between mb-1">
@@ -757,6 +801,38 @@ export function RelevesContent({
               </div>
             </div>
           ))}
+          {monthlyRatio.size > 0 && (() => {
+            const ratioKeys = Array.from(monthlyRatio.keys()).sort();
+            const ratioSpark = ratioKeys.map((k) => monthlyRatio.get(k) ?? 0);
+            const avgRatio = ratioSpark.reduce((s, v) => s + v, 0) / ratioSpark.length;
+            let ratioTrend: number | null = null;
+            if (ratioSpark.length >= 2 && ratioSpark[ratioSpark.length - 2] > 0) {
+              ratioTrend = ((ratioSpark[ratioSpark.length - 1] - ratioSpark[ratioSpark.length - 2]) / ratioSpark[ratioSpark.length - 2]) * 100;
+            }
+            return (
+              <div className="bg-white border border-gray-100 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-text-secondary flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#6366f1" }} />
+                    Ratio conso/DJU
+                  </p>
+                  {ratioTrend != null && (
+                    <span className={`text-[10px] font-medium ${ratioTrend > 0 ? "text-red-600" : ratioTrend < 0 ? "text-green-600" : "text-text-secondary"}`}>
+                      {ratioTrend > 0 ? "↑" : ratioTrend < 0 ? "↓" : "="} {Math.abs(ratioTrend).toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+                <p className="text-2xl font-semibold text-primary-dark">
+                  {avgRatio.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}
+                  <span className="text-sm font-normal text-text-secondary ml-1">kWh/DJU</span>
+                </p>
+                <p className="text-xs text-text-secondary mt-0.5">Moyenne {ratioSpark.length} mois</p>
+                <div className="mt-2">
+                  <Sparkline values={ratioSpark} color="#6366f1" />
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -806,10 +882,7 @@ export function RelevesContent({
             title="Conso chauffage / DJU"
             subtitle="kWh par degré-jour (signature énergétique)"
           >
-            <RatioChauffageDjuChart
-              monthlyChauffageKwh={monthlyChauffageKwh}
-              monthlyDju={monthlyDju}
-            />
+            <RatioChauffageDjuChart monthlyRatio={monthlyRatio} />
           </ChartCard>
         </div>
       )}
