@@ -42,6 +42,17 @@ const FLUID_LABELS: Record<string, string> = {
   FIOUL: "Fioul",
 };
 
+// Regroupe les variantes MeterFluid en fluide canonique pour le filtre.
+// ECS / Eau froide sont tous les deux "Eau" du point de vue utilisateur.
+const CANONICAL_FLUID: Record<string, string> = {
+  GAZ: "Gaz",
+  ELECTRICITE: "Électricité",
+  EAU_CHAUDE: "Eau",
+  EAU_FROIDE: "Eau",
+  CHALEUR: "Chaleur",
+  FIOUL: "Fioul",
+};
+
 const FLUID_COLORS: Record<string, string> = {
   GAZ: "#f59e0b",
   ELECTRICITE: "#eab308",
@@ -249,28 +260,48 @@ export function RelevesContent({
   useEffect(() => { fetchReadings(); }, [fetchReadings, refreshKey]);
 
   // Unique filter lists
-  const fluids = useMemo(() => Array.from(new Set(readings.map((r) => r.meter.fluid))), [readings]);
+  const fluids = useMemo(() => {
+    const canonSet = new Set<string>();
+    for (const r of readings) canonSet.add(CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid);
+    return Array.from(canonSet);
+  }, [readings]);
   const sitesList = useMemo(() => {
     const map = new Map<string, string>();
     readings.forEach((r) => map.set(r.meter.siteId, r.meter.site.name));
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [readings]);
+  // Quand aucun site n'est sélectionné, on dédoublonne par nom de compteur
+  // (plusieurs sites peuvent avoir "CPT GAZ GrDF" — on évite les doublons visuels).
+  // Le filtre matche alors par nom. Quand un site est sélectionné, on liste les
+  // compteurs de ce site (identifiés par id).
   const metersList = useMemo(() => {
+    if (filterSite === "all") {
+      const names = Array.from(new Set(readings.map((r) => r.meter.name)));
+      return names.map((name) => ({ id: name, name, siteId: "" }));
+    }
     const map = new Map<string, { id: string; name: string; siteId: string }>();
     readings.forEach((r) => {
+      if (r.meter.siteId !== filterSite) return;
       if (!map.has(r.meter.id)) map.set(r.meter.id, { id: r.meter.id, name: r.meter.name, siteId: r.meter.siteId });
     });
     return Array.from(map.values());
-  }, [readings]);
+  }, [readings, filterSite]);
 
-  const availableMeters = filterSite === "all" ? metersList : metersList.filter((m) => m.siteId === filterSite);
+  const availableMeters = metersList;
 
   // Filtered readings (applies to KPIs, charts and table)
   const filtered = useMemo(() => {
     let list = readings;
-    if (filterFluid !== "all") list = list.filter((r) => r.meter.fluid === filterFluid);
+    if (filterFluid !== "all") {
+      list = list.filter((r) => (CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid) === filterFluid);
+    }
     if (filterSite !== "all") list = list.filter((r) => r.meter.siteId === filterSite);
-    if (filterMeter !== "all") list = list.filter((r) => r.meter.id === filterMeter);
+    if (filterMeter !== "all") {
+      // Quand site=all, filterMeter est un nom de compteur; sinon un id.
+      list = list.filter((r) =>
+        filterSite === "all" ? r.meter.name === filterMeter : r.meter.id === filterMeter
+      );
+    }
     if (filterDateFrom) list = list.filter((r) => r.readingDate.split("T")[0] >= filterDateFrom);
     if (filterDateTo) list = list.filter((r) => r.readingDate.split("T")[0] <= filterDateTo);
 
@@ -360,7 +391,7 @@ export function RelevesContent({
         >
           <option value="all">Tous fluides</option>
           {fluids.map((f) => (
-            <option key={f} value={f}>{FLUID_LABELS[f] || f}</option>
+            <option key={f} value={f}>{f}</option>
           ))}
         </select>
         <select
