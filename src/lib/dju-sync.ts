@@ -282,8 +282,13 @@ export async function getDailyDjuForStation(
   startDate: string,
   endDate: string,
 ): Promise<Map<string, number>> {
-  const station = stationMeteo || getStationFromPostalCode(postalCode);
-  const coords = WEATHER_STATIONS[station];
+  // stationMeteo peut être stocké en "display name" (ex: "Paris Le Bourget")
+  // alors que WEATHER_STATIONS est keyé en "LE-BOURGET". Fallback au postalCode
+  // si le lookup direct ne trouve rien.
+  const key = stationMeteo && WEATHER_STATIONS[stationMeteo]
+    ? stationMeteo
+    : getStationFromPostalCode(postalCode);
+  const coords = WEATHER_STATIONS[key];
   if (!coords) return new Map();
 
   try {
@@ -307,8 +312,10 @@ export async function getMonthlyDjuForStation(
   startDate: string,
   endDate: string,
 ): Promise<Map<string, number>> {
-  const station = stationMeteo || getStationFromPostalCode(postalCode);
-  const coords = WEATHER_STATIONS[station];
+  const key = stationMeteo && WEATHER_STATIONS[stationMeteo]
+    ? stationMeteo
+    : getStationFromPostalCode(postalCode);
+  const coords = WEATHER_STATIONS[key];
   if (!coords) return new Map();
 
   try {
