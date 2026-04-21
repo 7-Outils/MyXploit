@@ -111,10 +111,23 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer();
     const workbook = XLSX.read(buffer, { type: "array" });
 
-    // Use first sheet or "P2P3" sheet if available
-    const sheetName = workbook.SheetNames.includes("P2P3")
-      ? "P2P3"
-      : workbook.SheetNames[0];
+    // Prefer "P2P3" or "DPGF" as data sheet. Exclude metadata-only tabs
+    // (Contrat, Info, Metadata) and the "Sites" tab when it's used for site
+    // details (address/surface). Fallback to first sheet.
+    const hasSiteDetailsSheet = workbook.SheetNames.some(
+      (name) => name.toLowerCase() === "sites" || name.toLowerCase() === "liste sites"
+    );
+    const sheetName =
+      workbook.SheetNames.find(
+        (name) => name.toLowerCase() === "p2p3" || name.toLowerCase() === "dpgf"
+      ) ??
+      workbook.SheetNames.find((name) => {
+        const lower = name.toLowerCase();
+        if (["contrat", "info", "metadata", "synthèse", "synthese"].includes(lower)) return false;
+        if (hasSiteDetailsSheet && (lower === "sites" || lower === "liste sites")) return false;
+        return true;
+      }) ??
+      workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const rawData = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, { header: 1 });
 
