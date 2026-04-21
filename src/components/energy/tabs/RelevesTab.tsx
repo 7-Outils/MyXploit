@@ -246,6 +246,99 @@ function StackedMonthlyChart({
   return <div ref={ref} style={{ width: "100%", height: 240 }} />;
 }
 
+/* ─────────────────── Ratio Conso chauffage / DJU ─────────────────── */
+
+function RatioChauffageDjuChart({
+  monthlyChauffageKwh,
+  monthlyDju,
+}: {
+  monthlyChauffageKwh: Map<string, number>;
+  monthlyDju: Map<string, number>;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { months, ratios } = useMemo(() => {
+    // Seuil DJU pour éviter les valeurs absurdes en été (DJU proche de 0)
+    const MIN_DJU = 10;
+    const keys = Array.from(new Set([
+      ...monthlyChauffageKwh.keys(),
+      ...monthlyDju.keys(),
+    ])).sort();
+    const validMonths: string[] = [];
+    const values: number[] = [];
+    for (const k of keys) {
+      const kwh = monthlyChauffageKwh.get(k) ?? 0;
+      const dju = monthlyDju.get(k) ?? 0;
+      if (kwh <= 0 || dju < MIN_DJU) continue;
+      validMonths.push(k);
+      values.push(Math.round((kwh / dju) * 10) / 10);
+    }
+    return { months: validMonths, ratios: values };
+  }, [monthlyChauffageKwh, monthlyDju]);
+
+  useEffect(() => {
+    if (!ref.current || months.length === 0) return;
+    const chart = echarts.init(ref.current);
+    chart.setOption({
+      grid: { left: 56, right: 16, top: 24, bottom: 32 },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        backgroundColor: "rgba(17,24,39,0.95)",
+        borderWidth: 0,
+        textStyle: { color: "#fff", fontSize: 12 },
+        formatter: (params: unknown) => {
+          const p = (params as { axisValueLabel: string; value: number }[])[0];
+          return `<div style="font-weight:600;margin-bottom:2px">${p.axisValueLabel}</div>
+            <div>${p.value.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} kWh/DJU</div>`;
+        },
+      },
+      xAxis: {
+        type: "category",
+        data: months.map((m) => {
+          const [y, mo] = m.split("-");
+          return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+        }),
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { fontSize: 11, color: "#6b7280" },
+      },
+      yAxis: {
+        type: "value",
+        name: "kWh/DJU",
+        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: "#f3f4f6" } },
+        axisLabel: { fontSize: 11, color: "#6b7280" },
+      },
+      series: [
+        {
+          type: "bar",
+          data: ratios,
+          barMaxWidth: 48,
+          itemStyle: { color: "#6366f1", borderRadius: [3, 3, 0, 0] },
+        },
+      ],
+    });
+    const onResize = () => chart.resize();
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      chart.dispose();
+    };
+  }, [months, ratios]);
+
+  if (months.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[240px] text-xs text-text-secondary">
+        Données insuffisantes (besoin de conso chauffage + DJU &gt; 10 par mois)
+      </div>
+    );
+  }
+  return <div ref={ref} style={{ width: "100%", height: 240 }} />;
+}
+
 /* ───────────────────────── Main component ───────────────────────── */
 
 export function RelevesContent({
@@ -331,6 +424,22 @@ export function RelevesContent({
         setContractNbKwh(totalNbMwh > 0 ? totalNbMwh * 1000 : null);
       })
       .catch(() => setContractNbKwh(null));
+  }, [contractId]);
+
+  // DJU mensuel pour le chart ratio conso/DJU (au niveau contrat, pas par site)
+  const [monthlyDju, setMonthlyDju] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!contractId) { setMonthlyDju(new Map()); return; }
+    const year = new Date().getFullYear();
+    fetch(`/api/dju?contractId=${contractId}&year=${year}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { monthlyData?: { month: string; dju: number }[] } | null) => {
+        if (!data?.monthlyData) { setMonthlyDju(new Map()); return; }
+        const m = new Map<string, number>();
+        for (const { month, dju } of data.monthlyData) m.set(month, dju);
+        setMonthlyDju(m);
+      })
+      .catch(() => setMonthlyDju(new Map()));
   }, [contractId]);
 
   // Unique filter lists
@@ -472,6 +581,19 @@ export function RelevesContent({
     () => Array.from(monthlyByFluid.keys()),
     [monthlyByFluid]
   );
+
+  // Conso chauffage mensuelle (GAZ + CHALEUR + FIOUL) en kWh pour le ratio conso/DJU
+  const monthlyChauffageKwh = useMemo(() => {
+    const result = new Map<string, number>();
+    for (const fluid of ["GAZ", "CHALEUR", "FIOUL"] as const) {
+      const byMonth = monthlyByFluid.get(fluid);
+      if (!byMonth) continue;
+      for (const [k, v] of byMonth.entries()) {
+        result.set(k, (result.get(k) ?? 0) + v);
+      }
+    }
+    return result;
+  }, [monthlyByFluid]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -638,46 +760,58 @@ export function RelevesContent({
         </div>
       )}
 
-      {/* Chart empilé unique — filtré par les selecteurs fluide/site/compteur.
-          Toggle kWh ↔ MWh à droite du titre. */}
+      {/* Charts côte à côte: consommation empilée + ratio conso chauffage / DJU
+          (signature énergétique, gomme la variation climatique). */}
       {energyFluidsInFiltered.length > 0 && (
-        <ChartCard
-          title="Consommation mensuelle"
-          subtitle="Répartition par énergie"
-          action={
-            <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden text-xs">
-              <button
-                type="button"
-                onClick={() => setDisplayUnit("kWh")}
-                className={`px-3 py-1 transition-colors ${
-                  displayUnit === "kWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                kWh
-              </button>
-              <button
-                type="button"
-                onClick={() => setDisplayUnit("MWh")}
-                className={`px-3 py-1 transition-colors border-l border-gray-200 ${
-                  displayUnit === "MWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                MWh
-              </button>
-            </div>
-          }
-        >
-          <StackedMonthlyChart
-            data={monthlyByFluid}
-            fluids={energyFluidsInFiltered}
-            displayUnit={displayUnit}
-            monthlyTargetKwh={
-              energyFluidsInFiltered.every((f) => f === "GAZ" || f === "CHALEUR" || f === "FIOUL") && contractNbKwh
-                ? contractNbKwh / 12
-                : null
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <ChartCard
+            title="Consommation mensuelle"
+            subtitle="Répartition par énergie"
+            action={
+              <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDisplayUnit("kWh")}
+                  className={`px-3 py-1 transition-colors ${
+                    displayUnit === "kWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  kWh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayUnit("MWh")}
+                  className={`px-3 py-1 transition-colors border-l border-gray-200 ${
+                    displayUnit === "MWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  MWh
+                </button>
+              </div>
             }
-          />
-        </ChartCard>
+          >
+            <StackedMonthlyChart
+              data={monthlyByFluid}
+              fluids={energyFluidsInFiltered}
+              displayUnit={displayUnit}
+              monthlyTargetKwh={
+                energyFluidsInFiltered.every((f) => f === "GAZ" || f === "CHALEUR" || f === "FIOUL") && contractNbKwh
+                  ? contractNbKwh / 12
+                  : null
+              }
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Conso chauffage / DJU"
+            subtitle="kWh par degré-jour (signature énergétique)"
+          >
+            <RatioChauffageDjuChart
+              monthlyChauffageKwh={monthlyChauffageKwh}
+              monthlyDju={monthlyDju}
+            />
+          </ChartCard>
+        </div>
       )}
 
       {/* Table */}
