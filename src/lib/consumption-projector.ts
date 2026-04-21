@@ -87,20 +87,19 @@ export async function regenerateConsumptionForSite(
     },
   });
 
-  // Coefficient energy/m³ à appliquer à delta (output en kWh pour Consumption.quantity,
-  // compatible avec analytics qui attend du kWh pour les fluides énergétiques).
-  // - Gaz m³ → PCS (kWh/m³)
-  // - ECS volumétrique m³ → qECS × 1000 (MWh/m³ → kWh/m³)
-  // - FIOUL L → 10 (PCI, kWh/L)
-  // - kWh déjà → 1 (no-op)
-  // - EAU_FROIDE → null (pas de conversion énergétique)
+  // Coefficient energy/m³ à appliquer à delta (output en kWh pour Consumption.quantity).
+  // Sémantique par fluide (Meter.unit historiquement peu fiable — artefact de l'ancien
+  // import qui pré-convertissait au stockage).
+  //   GAZ      → index en m³,  * PCS                → kWh
+  //   EAU_CHAUDE → m³,          * qECS × 1000       → kWh
+  //   FIOUL    → L,             * 10 (PCI kWh/L)    → kWh
+  //   ELECTRICITE / CHALEUR → déjà en kWh (no-op)
+  //   EAU_FROIDE → m³ (pas de conversion énergétique)
   const coefFor = (fluid: MeterFluid, unit: string): { coef: number | null; outUnit: string } => {
-    const u = unit.toLowerCase().replace(/\s/g, "");
-    if (fluid === "GAZ" && (u === "m3" || u === "m³")) return { coef: sitePcs, outUnit: "kWh" };
-    if (fluid === "EAU_CHAUDE" && (u === "m3" || u === "m³")) return { coef: siteQMwh * 1000, outUnit: "kWh" };
-    if (fluid === "FIOUL" && (u === "l" || u === "litres")) return { coef: 10, outUnit: "kWh" };
-    if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "mwh") return { coef: 1000, outUnit: "kWh" };
-    if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "kwh") return { coef: 1, outUnit: "kWh" };
+    if (fluid === "GAZ") return { coef: sitePcs, outUnit: "kWh" };
+    if (fluid === "EAU_CHAUDE") return { coef: siteQMwh * 1000, outUnit: "kWh" };
+    if (fluid === "FIOUL") return { coef: 10, outUnit: "kWh" };
+    if (fluid === "ELECTRICITE" || fluid === "CHALEUR") return { coef: 1, outUnit: "kWh" };
     return { coef: null, outUnit: unit };
   };
 

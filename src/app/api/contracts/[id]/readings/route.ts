@@ -64,19 +64,23 @@ export async function GET(
 
     const convertDelta = (
       fluid: string,
-      unit: string,
       delta: number,
       siteId: string
     ): { value: number; unit: string } | null => {
+      // Sémantique par fluide (Meter.unit est historiquement peu fiable sur
+      // les meters créés avant le refactor). Hypothèse: l'index est toujours
+      // dans l'unité "naturelle" du fluide.
+      //   GAZ      → index en m³,  * PCS (kWh/m³)  → kWh
+      //   EAU_CHAUDE (ECS) → m³,  * qECS * 1000  → kWh
+      //   FIOUL    → L,   * 10 (PCI kWh/L)      → kWh
+      //   ELECTRICITE / CHALEUR → déjà en kWh (pas de conversion)
+      //   EAU_FROIDE → m³ (pas d'énergie)
       const cs = coefsBySite.get(siteId);
       const pcs = cs?.coefficientPCS ?? 10.5;
       const qMwh = cs?.coefficientQ ?? 0.13;
-      const u = unit.toLowerCase().replace(/\s/g, "");
-      if (fluid === "GAZ" && (u === "m3" || u === "m³")) return { value: delta * pcs, unit: "kWh" };
-      if (fluid === "EAU_CHAUDE" && (u === "m3" || u === "m³")) return { value: delta * qMwh * 1000, unit: "kWh" };
-      if (fluid === "FIOUL" && (u === "l" || u === "litres")) return { value: delta * 10, unit: "kWh" };
-      if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "mwh") return { value: delta * 1000, unit: "kWh" };
-      if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "kwh") return { value: delta, unit: "kWh" };
+      if (fluid === "GAZ") return { value: delta * pcs, unit: "kWh" };
+      if (fluid === "EAU_CHAUDE") return { value: delta * qMwh * 1000, unit: "kWh" };
+      if (fluid === "FIOUL") return { value: delta * 10, unit: "kWh" };
       return null;
     };
 
@@ -121,7 +125,7 @@ export async function GET(
         if (r.indexValue != null && prev?.indexValue != null) {
           consumption = r.indexValue - prev.indexValue;
           // Conversion via coefficients contractuels (ContractSite), pas via Meter.conversionCoefficient
-          const converted = convertDelta(r.meter.fluid, r.meter.unit, consumption, r.meter.siteId);
+          const converted = convertDelta(r.meter.fluid, consumption, r.meter.siteId);
           if (converted) {
             consumptionConverted = converted.value;
             unitConverted = converted.unit;
