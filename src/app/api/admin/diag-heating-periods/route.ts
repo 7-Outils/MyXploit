@@ -15,12 +15,22 @@ export async function GET(request: NextRequest) {
   }
 
   const periods = await prisma.heatingPeriod.findMany({
-    include: { site: { select: { name: true } } },
+    include: {
+      site: {
+        select: {
+          name: true,
+          postalCode: true,
+          stationMeteo: true,
+        },
+      },
+    },
     orderBy: [{ siteId: "asc" }, { createdAt: "asc" }],
   });
 
   type Info = {
     siteName: string;
+    postalCode: string | null;
+    stationMeteo: string | null;
     count: number;
     periods: { id: string; startDate: Date; endDate: Date | null; createdAt: Date }[];
   };
@@ -39,6 +49,8 @@ export async function GET(request: NextRequest) {
     } else {
       bySite.set(key, {
         siteName: p.site.name,
+        postalCode: p.site.postalCode,
+        stationMeteo: p.site.stationMeteo,
         count: 1,
         periods: [
           { id: p.id, startDate: p.startDate, endDate: p.endDate, createdAt: p.createdAt },
