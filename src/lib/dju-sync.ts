@@ -99,6 +99,33 @@ const DEPT_TO_STATION: Record<string, string> = {
   "84": "ORANGE", "2A": "AJACCIO", "2B": "BASTIA",
 };
 
+// Normalise un libellé de station (espaces, tirets, casse, accents) pour le matcher
+// contre les clés OU les `name` de WEATHER_STATIONS. Ex: "Paris Le Bourget" → "parislebourget".
+function normalizeStation(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+// Lookup table construite une fois: version normalisée (clé OU name) → clé canonique.
+const STATION_LOOKUP: Record<string, string> = (() => {
+  const table: Record<string, string> = {};
+  for (const [key, { name }] of Object.entries(WEATHER_STATIONS)) {
+    table[normalizeStation(key)] = key;
+    table[normalizeStation(name)] = key;
+  }
+  return table;
+})();
+
+/** Résout un libellé quelconque (clé, display name avec espaces/tirets/accents) vers la clé canonique. */
+export function resolveStationKey(stationLabel: string | null): string | null {
+  if (!stationLabel) return null;
+  if (WEATHER_STATIONS[stationLabel]) return stationLabel;
+  return STATION_LOOKUP[normalizeStation(stationLabel)] ?? null;
+}
+
 export function getStationFromPostalCode(postalCode: string | null): string {
   if (!postalCode) return "PARIS-MONTSOURIS";
 
@@ -283,11 +310,9 @@ export async function getDailyDjuForStation(
   endDate: string,
 ): Promise<Map<string, number>> {
   // stationMeteo peut être stocké en "display name" (ex: "Paris Le Bourget")
-  // alors que WEATHER_STATIONS est keyé en "LE-BOURGET". Fallback au postalCode
-  // si le lookup direct ne trouve rien.
-  const key = stationMeteo && WEATHER_STATIONS[stationMeteo]
-    ? stationMeteo
-    : getStationFromPostalCode(postalCode);
+  // alors que WEATHER_STATIONS est keyé en "LE-BOURGET". On résout via un lookup
+  // tolérant aux variations (casse, tirets, accents). Fallback au postalCode.
+  const key = resolveStationKey(stationMeteo) ?? getStationFromPostalCode(postalCode);
   const coords = WEATHER_STATIONS[key];
   if (!coords) return new Map();
 
@@ -312,9 +337,7 @@ export async function getMonthlyDjuForStation(
   startDate: string,
   endDate: string,
 ): Promise<Map<string, number>> {
-  const key = stationMeteo && WEATHER_STATIONS[stationMeteo]
-    ? stationMeteo
-    : getStationFromPostalCode(postalCode);
+  const key = resolveStationKey(stationMeteo) ?? getStationFromPostalCode(postalCode);
   const coords = WEATHER_STATIONS[key];
   if (!coords) return new Map();
 
@@ -398,11 +421,9 @@ export async function syncDjuForSites(
     const siteConsumptions = consumptionsBySite.get(site.id);
     if (!siteConsumptions || siteConsumptions.length === 0) continue;
 
-    // Determine weather station
-    let stationCode = site.stationMeteo;
-    if (!stationCode || !WEATHER_STATIONS[stationCode]) {
-      stationCode = getStationFromPostalCode(site.postalCode);
-    }
+    // Determine weather station (tolérant aux display names)
+    const stationCode =
+      resolveStationKey(site.stationMeteo) ?? getStationFromPostalCode(site.postalCode);
 
     const stationData = WEATHER_STATIONS[stationCode];
     if (!stationData) {
