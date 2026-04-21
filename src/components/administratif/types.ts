@@ -21,6 +21,7 @@ export interface ContractSite {
   amountP35: number | null;
   amountP36: number | null;
   coefficientPCS: number | null;
+  coefficientQ: number | null;
   integrationDate: string | null;
   exitDate: string | null;
   site: {
@@ -37,6 +38,7 @@ export interface ContractSite {
     nbUnit: string | null;
     pce: string | null;
     pdl: string | null;
+    djuContractuel: number | null;
   };
 }
 

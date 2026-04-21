@@ -41,6 +41,7 @@ interface Site {
   nbUnit: string | null;
   pce: string | null;
   pdl: string | null;
+  djuContractuel: number | null;
 }
 
 interface ContractSite {
@@ -66,6 +67,7 @@ interface ContractSite {
   amountP35: number | null;
   amountP36: number | null;
   coefficientPCS: number | null;
+  coefficientQ: number | null;
   integrationDate: string | null;
   exitDate: string | null;
   site: Site;
@@ -162,7 +164,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
   const [updatingContractSite, setUpdatingContractSite] = useState(false);
   const [editContractSiteFormData, setEditContractSiteFormData] = useState({
     contractType: "MC", hasP1: false, hasP2: false, hasP3: false, hasP4: false,
-    amountP2: "", amountP3: "", coefficientPCS: "",
+    amountP2: "", amountP3: "", coefficientPCS: "", coefficientQ: "",
   });
 
   // Import sites modal
@@ -281,6 +283,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
       amountP2: contractSite.amountP2?.toString() || "",
       amountP3: contractSite.amountP3?.toString() || "",
       coefficientPCS: contractSite.coefficientPCS?.toString() || "10.5",
+      coefficientQ: contractSite.coefficientQ?.toString() || "0.13",
     });
     setShowEditContractSiteModal(true);
   };
@@ -300,6 +303,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
           amountP2: editContractSiteFormData.amountP2 || null,
           amountP3: editContractSiteFormData.amountP3 || null,
           coefficientPCS: editContractSiteFormData.coefficientPCS || null,
+          coefficientQ: editContractSiteFormData.coefficientQ || null,
         }),
       });
       if (response.ok) {
@@ -473,6 +477,23 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                     <Building2 size={14} className="text-gray-400" />
                     <span className="text-xs text-gray-600">{site.surfaceChauffee || site.surface ? `${(site.surfaceChauffee || site.surface)?.toLocaleString()} m²` : "—"}</span>
                   </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mb-3 text-[10px]">
+                  {contractSite.coefficientPCS != null && (
+                    <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-medium" title="Coefficient PCS (kWh/m³) — conversion gaz">
+                      PCS {contractSite.coefficientPCS}
+                    </span>
+                  )}
+                  {contractSite.coefficientQ != null && (
+                    <span className="px-2 py-0.5 rounded bg-sky-50 text-sky-700 font-medium" title="Coefficient Q (MWh/m³) — conversion ECS">
+                      qECS {contractSite.coefficientQ}
+                    </span>
+                  )}
+                  {site.djuContractuel != null && (
+                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium" title="DJU contractuel">
+                      DJC {site.djuContractuel}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-gray-50">
                   <div className="flex gap-1">
@@ -801,17 +822,24 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                 </div>
               </div>
               <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Coefficient de conversion gaz</p>
-                <div>
-                  <label className="block text-sm text-text-secondary mb-1">Coefficient PCS (kWh/m³)</label>
-                  <div className="flex gap-2 items-center">
-                    <input type="number" step="0.1" value={editContractSiteFormData.coefficientPCS} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: e.target.value })} className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="10.5" />
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "10.5" })} className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${editContractSiteFormData.coefficientPCS === "10.5" ? "bg-accent text-white border-accent" : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"}`}>20 mbar</button>
-                      <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "14.5" })} className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${editContractSiteFormData.coefficientPCS === "14.5" ? "bg-accent text-white border-accent" : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"}`}>300 mbar</button>
+                <p className="text-sm font-medium text-primary-dark mb-3">Coefficients de conversion énergétique</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1">Coefficient PCS — gaz (kWh/m³)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="number" step="0.1" value={editContractSiteFormData.coefficientPCS} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: e.target.value })} className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="10.5" />
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "10.5" })} className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${editContractSiteFormData.coefficientPCS === "10.5" ? "bg-accent text-white border-accent" : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"}`}>20 mbar</button>
+                        <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "14.5" })} className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${editContractSiteFormData.coefficientPCS === "14.5" ? "bg-accent text-white border-accent" : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"}`}>300 mbar</button>
+                      </div>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1">20 mbar (basse pression) : ~10.5 | 300 mbar (moyenne pression) : ~14.5</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">20 mbar (basse pression) : ~10.5 | 300 mbar (moyenne pression) : ~14.5</p>
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1">Coefficient Q — ECS (MWh/m³)</label>
+                    <input type="number" step="0.01" value={editContractSiteFormData.coefficientQ} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientQ: e.target.value })} className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="0.13" />
+                    <p className="text-xs text-gray-500 mt-1">Énergie pour produire 1 m³ d&apos;ECS — typiquement 0.10 à 0.14 selon le contrat</p>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 pt-4">

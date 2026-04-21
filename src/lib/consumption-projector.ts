@@ -52,6 +52,18 @@ export async function regenerateConsumptionForSite(
   siteId: string,
   organizationId: string
 ): Promise<{ generated: number; deleted: number }> {
+  // Paramètres contractuels (source de vérité unique)
+  // Si le site appartient à plusieurs contrats, on prend le plus récemment intégré
+  // et non sorti. Fallback 10.5 PCS / 0.13 qECS si aucun contrat actif.
+  const contractSites = await prisma.contractSite.findMany({
+    where: { siteId, exitDate: null },
+    orderBy: { integrationDate: "desc" },
+    select: { coefficientPCS: true, coefficientQ: true },
+  });
+  const activeCs = contractSites[0] ?? null;
+  const sitePcs = activeCs?.coefficientPCS ?? 10.5;
+  const siteQMwh = activeCs?.coefficientQ ?? 0.13; // MWh/m³
+
   const meters = await prisma.meter.findMany({
     where: { siteId, isActive: true },
     select: {
@@ -75,6 +87,23 @@ export async function regenerateConsumptionForSite(
     },
   });
 
+  // Coefficient energy/m³ à appliquer à delta (output en kWh pour Consumption.quantity,
+  // compatible avec analytics qui attend du kWh pour les fluides énergétiques).
+  // - Gaz m³ → PCS (kWh/m³)
+  // - ECS volumétrique m³ → qECS × 1000 (MWh/m³ → kWh/m³)
+  // - FIOUL L → 10 (PCI, kWh/L)
+  // - kWh déjà → 1 (no-op)
+  // - EAU_FROIDE → null (pas de conversion énergétique)
+  const coefFor = (fluid: MeterFluid, unit: string): { coef: number | null; outUnit: string } => {
+    const u = unit.toLowerCase().replace(/\s/g, "");
+    if (fluid === "GAZ" && (u === "m3" || u === "m³")) return { coef: sitePcs, outUnit: "kWh" };
+    if (fluid === "EAU_CHAUDE" && (u === "m3" || u === "m³")) return { coef: siteQMwh * 1000, outUnit: "kWh" };
+    if (fluid === "FIOUL" && (u === "l" || u === "litres")) return { coef: 10, outUnit: "kWh" };
+    if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "mwh") return { coef: 1000, outUnit: "kWh" };
+    if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "kwh") return { coef: 1, outUnit: "kWh" };
+    return { coef: null, outUnit: unit };
+  };
+
   // Agrégation: key = "siteId|energyType|usage|periodKey" → { quantity, periodEnd, meterNames }
   type Bucket = {
     siteId: string;
@@ -89,7 +118,8 @@ export async function regenerateConsumptionForSite(
 
   for (const meter of meters as MeterWithReadings[]) {
     const { energyType, usage } = fluidToEnergyContext(meter.fluid, meter.name);
-    const outputUnit = meter.conversionUnit ?? meter.unit;
+    const { coef, outUnit } = coefFor(meter.fluid, meter.unit);
+    const outputUnit = outUnit;
 
     // Itérer paires (prev, curr). isReset ferme la chaîne.
     let prev: (typeof meter.readings)[number] | null = null;
@@ -111,10 +141,7 @@ export async function regenerateConsumptionForSite(
         continue;
       }
 
-      const converted =
-        meter.conversionCoefficient != null
-          ? delta * meter.conversionCoefficient
-          : delta;
+      const converted = coef != null ? delta * coef : delta;
 
       const startDate = addDays(prev.readingDate, 1);
       const endDate = curr.readingDate;
