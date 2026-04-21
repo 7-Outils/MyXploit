@@ -239,6 +239,7 @@ function EnergyPageContent() {
       if (response.ok) {
         setIdexImportResult(result);
         if (result.imported > 0 || result.updated > 0) {
+          setReadingsVersion((v) => v + 1);
           await fetchData();
         }
       } else {
