@@ -166,7 +166,8 @@ function StackedMonthlyChart({
         name: FLUID_LABELS[fluid] || fluid,
         type: "bar" as const,
         stack: "total",
-        itemStyle: { color: FLUID_COLORS[fluid] || "#9ca3af" },
+        barMaxWidth: 48,
+        itemStyle: { color: FLUID_COLORS[fluid] || "#9ca3af", borderRadius: [3, 3, 0, 0] },
         data: months.map((m) => {
           const v = (byMonth.get(m) ?? 0) / divisor;
           return displayUnit === "MWh" ? Math.round(v * 10) / 10 : Math.round(v);
@@ -242,7 +243,7 @@ function StackedMonthlyChart({
   }, [months, series, displayUnit]);
 
   if (months.length === 0) return null;
-  return <div ref={ref} style={{ width: "100%", height: 260 }} />;
+  return <div ref={ref} style={{ width: "100%", height: 240 }} />;
 }
 
 /* ───────────────────────── Main component ───────────────────────── */
