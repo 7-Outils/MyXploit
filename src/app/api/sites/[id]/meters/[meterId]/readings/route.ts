@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth";
-import type { EnergyType, EnergyUsage, ConsumptionSource } from "@/generated/prisma/client";
+import { regenerateConsumptionForSite } from "@/lib/consumption-projector";
 
 // GET /api/sites/[id]/meters/[meterId]/readings - List readings for a meter
 export async function GET(
@@ -228,61 +228,8 @@ export async function POST(
       },
     });
 
-    // Sync to Consumption table so analytics/ECS/Relevés tabs see the data
-    if (consumption !== null && consumption > 0 && periodStart) {
-      // Map meter fluid to energyType + usage
-      const fluidMap: Record<string, { energyType: EnergyType; usage: EnergyUsage }> = {
-        GAZ: { energyType: "GAZ", usage: "CHAUFFAGE" },
-        ELECTRICITE: { energyType: "ELECTRICITE", usage: "CHAUFFAGE" },
-        EAU_CHAUDE: { energyType: "GAZ", usage: "ECS" },
-        EAU_FROIDE: { energyType: "EAU", usage: "ECS" },
-        CHALEUR: { energyType: "RESEAU_CHALEUR", usage: "CHAUFFAGE" },
-        FIOUL: { energyType: "FIOUL", usage: "CHAUFFAGE" },
-      };
-
-      const mapping = fluidMap[meter.fluid] || { energyType: "GAZ" as EnergyType, usage: "CHAUFFAGE" as EnergyUsage };
-
-      // Normalize to kWh for consistency with analytics
-      let qty = consumptionConverted ?? consumption;
-      let qtyUnit = unitConverted ?? meter.unit;
-      if (qtyUnit === "MWh" && qty !== null) {
-        qty = qty * 1000;
-        qtyUnit = "kWh";
-      }
-
-      // Period = first day of the month of periodStart
-      const period = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1);
-
-      await prisma.consumption.upsert({
-        where: {
-          siteId_energyType_usage_period_source: {
-            siteId,
-            energyType: mapping.energyType,
-            usage: mapping.usage,
-            period,
-            source: "EXPLOITANT" as ConsumptionSource,
-          },
-        },
-        update: {
-          quantity: qty,
-          unit: qtyUnit,
-          periodEnd: readingDate,
-          meterName: meter.name,
-        },
-        create: {
-          siteId,
-          organizationId: site.organizationId,
-          energyType: mapping.energyType,
-          usage: mapping.usage,
-          source: "EXPLOITANT",
-          period,
-          periodEnd: readingDate,
-          quantity: qty,
-          unit: qtyUnit,
-          meterName: meter.name,
-        },
-      });
-    }
+    // Régénérer la projection Consumption (proratisée) pour le site impacté
+    await regenerateConsumptionForSite(siteId, site.organizationId);
 
     return NextResponse.json(reading, { status: 201 });
   } catch (error) {

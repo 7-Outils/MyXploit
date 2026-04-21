@@ -20,7 +20,6 @@ interface MeterReadingRow {
   consumptionConverted: number | null;
   unitConverted: string | null;
   notes: string | null;
-  isImport?: boolean;
   meter: {
     id: string;
     name: string;
@@ -511,7 +510,7 @@ export function RelevesContent({
                       </td>
                       <td className="px-4 py-3 text-right text-sm text-text-secondary">
                         {r.consumptionConverted != null && r.unitConverted
-                          ? `${r.consumptionConverted.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} ${r.unitConverted}`
+                          ? formatValue(r.consumptionConverted, r.unitConverted)
                           : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -524,8 +523,6 @@ export function RelevesContent({
                               <X size={14} />
                             </button>
                           </div>
-                        ) : r.isImport ? (
-                          <span className="text-[10px] text-text-secondary">Import</span>
                         ) : (
                           <div className="flex items-center justify-center gap-1">
                             <button onClick={() => startEdit(r)} className="p-1.5 text-gray-400 hover:text-accent hover:bg-gray-100 rounded" title="Modifier">

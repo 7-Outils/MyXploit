@@ -1617,6 +1617,7 @@ model MeterReading {
   // Relations
   meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
 
+  @@unique([meterId, readingDate])
   @@index([meterId])
   @@index([readingDate])
   @@index([periodStart, periodEnd])

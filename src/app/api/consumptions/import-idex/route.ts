@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
 import { EnergyType, EnergyUsage } from "@/generated/prisma/client";
+import { regenerateConsumptionForSite } from "@/lib/consumption-projector";
 
 // Types for exploitant data (generic for IDEX, Engie, Dalkia, etc.)
 interface ExploitantRow {
@@ -192,7 +193,7 @@ export async function POST(request: NextRequest) {
       }>,
     };
 
-    // Data structure for preview: track each meter individually
+    // Data structure for preview: aggregated per meter/month in native unit
     // Key: siteId|energyType|usage|period|meterName
     const meterData = new Map<string, {
       siteId: string;
@@ -206,6 +207,20 @@ export async function POST(request: NextRequest) {
       unit: string;
       meterName: string;
     }>();
+
+    // Raw per-row data — source de vérité pour créer les MeterReading à l'import.
+    // Contient une entrée par ligne Excel valide (après site-match).
+    type RawImportRow = {
+      siteId: string;
+      meterName: string;
+      readingDate: Date;
+      indexValue: number | null;
+      consoNative: number;
+      unitNative: string;
+      energyType: EnergyType;
+      usage: EnergyUsage;
+    };
+    const rawRowsForImport: RawImportRow[] = [];
 
     // Track max relevé date per site (for updating HeatingSeason.lastReleveDate)
     const maxReleveDateBySite = new Map<string, Date>();
@@ -345,56 +360,63 @@ export async function POST(request: NextRequest) {
           maxReleveDateBySite.set(siteMatch.siteId, period);
         }
 
-        // Handle consumption value - skip if zero but heating season was already processed above
-        let quantity = exploitantRow.conso;
-        if (quantity === 0) {
+        // Skip lines sans conso ET sans index (rien à enregistrer)
+        const rawConso = exploitantRow.conso;
+        const rawIndex = exploitantRow.index;
+        if (rawConso === 0 && (!rawIndex || rawIndex === 0)) {
           results.skipped++;
           continue;
         }
 
-        // Convert unit and quantity (gas m³ → kWh using PCS coefficient)
-        const pcsCoefficient = sitePcsCoefficients.get(siteMatch.siteId) || DEFAULT_PCS;
-        const { unit, quantity: convertedQuantity } = normalizeUnitAndQuantity(
-          exploitantRow.unite,
-          quantity,
-          energyType,
-          pcsCoefficient
-        );
-        quantity = convertedQuantity;
+        // Normalize unit string only (no quantity conversion — on garde l'unité native)
+        const unitNative = normalizeUnitOnly(exploitantRow.unite);
 
-        // Set period to first day of month
-        const periodMonth = new Date(period.getFullYear(), period.getMonth(), 1);
-        const periodStr = periodMonth.toISOString();
-
-        // Create unique key per meter
-        const meterKey = `${siteMatch.siteId}|${energyType}|${usage}|${periodStr}|${exploitantRow.nomCompteur}`;
-
-        if (meterData.has(meterKey)) {
-          // Same meter, same period - update quantity (shouldn't happen normally)
-          const existing = meterData.get(meterKey)!;
-          existing.quantity += quantity;
-        } else {
-          meterData.set(meterKey, {
+        // Per-row raw data for MeterReading creation
+        if (exploitantRow.nomCompteur) {
+          rawRowsForImport.push({
             siteId: siteMatch.siteId,
-            siteName: siteMatch.siteName || exploitantRow.nomInstallation,
-            excelName: exploitantRow.nomInstallation,
+            meterName: exploitantRow.nomCompteur,
+            readingDate: period,
+            indexValue: rawIndex && rawIndex > 0 ? rawIndex : null,
+            consoNative: rawConso,
+            unitNative,
             energyType,
             usage,
-            period: periodMonth,
-            periodStr,
-            quantity,
-            unit,
-            meterName: exploitantRow.nomCompteur,
           });
         }
 
+        // Preview aggregation (per meter per month, in native unit)
+        if (rawConso > 0) {
+          const periodMonth = new Date(period.getFullYear(), period.getMonth(), 1);
+          const periodStr = periodMonth.toISOString();
+          const meterKey = `${siteMatch.siteId}|${energyType}|${usage}|${periodStr}|${exploitantRow.nomCompteur}`;
+
+          if (meterData.has(meterKey)) {
+            const existing = meterData.get(meterKey)!;
+            existing.quantity += rawConso;
+          } else {
+            meterData.set(meterKey, {
+              siteId: siteMatch.siteId,
+              siteName: siteMatch.siteName || exploitantRow.nomInstallation,
+              excelName: exploitantRow.nomInstallation,
+              energyType,
+              usage,
+              period: periodMonth,
+              periodStr,
+              quantity: rawConso,
+              unit: unitNative,
+              meterName: exploitantRow.nomCompteur,
+            });
+          }
+        }
+
         // Create alert for high water makeup (maintenance indicator)
-        if (isMaintenanceIndicator && quantity > 10) {
+        if (isMaintenanceIndicator && rawConso > 10) {
           await createWaterMakeupAlert(
             siteMatch.siteId,
             siteMatch.siteName || exploitantRow.nomInstallation,
             user.organizationId,
-            quantity,
+            rawConso,
             period
           );
         }
@@ -495,92 +517,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Import mode: aggregate by site/energy/usage/period and upsert
-    const aggregatedData = new Map<string, {
-      siteId: string;
-      energyType: EnergyType;
-      usage: EnergyUsage;
-      period: Date;
-      quantity: number;
-      unit: string;
-      meterNames: string[];
-    }>();
-
-    for (const data of meterData.values()) {
-      const aggKey = `${data.siteId}|${data.energyType}|${data.usage}|${data.periodStr}`;
-
-      if (aggregatedData.has(aggKey)) {
-        const existing = aggregatedData.get(aggKey)!;
-        existing.quantity += data.quantity;
-        if (data.meterName && !existing.meterNames.includes(data.meterName)) {
-          existing.meterNames.push(data.meterName);
-        }
-      } else {
-        aggregatedData.set(aggKey, {
-          siteId: data.siteId,
-          energyType: data.energyType,
-          usage: data.usage,
-          period: data.period,
-          quantity: data.quantity,
-          unit: data.unit,
-          meterNames: data.meterName ? [data.meterName] : [],
-        });
-      }
-    }
-
-    // Upsert aggregated data
-    for (const data of aggregatedData.values()) {
-      try {
-        const existing = await prisma.consumption.findUnique({
-          where: {
-            siteId_energyType_usage_period_source: {
-              siteId: data.siteId,
-              energyType: data.energyType,
-              usage: data.usage,
-              period: data.period,
-              source: "EXPLOITANT",
-            },
-          },
-        });
-
-        const meterName = data.meterNames.length > 0 ? data.meterNames.join(", ") : null;
-
-        if (existing) {
-          await prisma.consumption.update({
-            where: { id: existing.id },
-            data: {
-              quantity: data.quantity,
-              unit: data.unit,
-              meterName,
-            },
-          });
-          results.updated++;
-        } else {
-          await prisma.consumption.create({
-            data: {
-              siteId: data.siteId,
-              organizationId: effectiveOrgId,
-              energyType: data.energyType,
-              usage: data.usage,
-              period: data.period,
-              quantity: data.quantity,
-              unit: data.unit,
-              meterName,
-              source: "EXPLOITANT",
-            },
-          });
-          results.imported++;
-        }
-      } catch (error) {
-        results.errors.push({
-          row: 0,
-          site: data.siteId,
-          error: error instanceof Error ? error.message : "Erreur lors de l'enregistrement",
-        });
-      }
-    }
-
-    // Auto-create meters in the metering schema
+    // Import mode: step 1 — auto-create meters (with conversionCoefficient)
     const metersCreated: string[] = [];
     const uniqueMeters = new Map<string, {
       siteId: string;
@@ -589,51 +526,121 @@ export async function POST(request: NextRequest) {
       unit: string;
     }>();
 
-    // Collect unique meters per site
-    for (const data of meterData.values()) {
-      if (data.meterName) {
-        const key = `${data.siteId}|${data.meterName}`;
-        if (!uniqueMeters.has(key)) {
-          uniqueMeters.set(key, {
-            siteId: data.siteId,
-            meterName: data.meterName,
-            energyType: data.energyType,
-            unit: data.unit,
-          });
-        }
+    for (const row of rawRowsForImport) {
+      const key = `${row.siteId}|${row.meterName}`;
+      if (!uniqueMeters.has(key)) {
+        uniqueMeters.set(key, {
+          siteId: row.siteId,
+          meterName: row.meterName,
+          energyType: row.energyType,
+          unit: row.unitNative,
+        });
       }
     }
 
-    // Create meters if they don't exist
+    // meterId lookup: (siteId|meterName) → meterId
+    const meterIdByKey = new Map<string, string>();
+
     for (const meter of uniqueMeters.values()) {
       try {
-        // Check if meter already exists for this site
         const existingMeter = await prisma.meter.findFirst({
-          where: {
-            siteId: meter.siteId,
-            name: meter.meterName,
-          },
+          where: { siteId: meter.siteId, name: meter.meterName },
+          select: { id: true, conversionCoefficient: true, conversionUnit: true },
         });
 
-        if (!existingMeter) {
-          // Map energyType to MeterFluid
-          const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
+        const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
+        const sitePcs = sitePcsCoefficients.get(meter.siteId) ?? DEFAULT_PCS;
+        const { coefficient, convUnit } = computeMeterConversion(fluid, meter.unit, sitePcs);
 
-          await prisma.meter.create({
+        if (existingMeter) {
+          meterIdByKey.set(`${meter.siteId}|${meter.meterName}`, existingMeter.id);
+          // Backfill conversionCoefficient if missing on existing meter (improves display)
+          if (coefficient != null && existingMeter.conversionCoefficient == null) {
+            await prisma.meter.update({
+              where: { id: existingMeter.id },
+              data: { conversionCoefficient: coefficient, conversionUnit: convUnit },
+            });
+          }
+        } else {
+          const created = await prisma.meter.create({
             data: {
               siteId: meter.siteId,
               name: meter.meterName,
               fluid,
-              type: "DIVISIONNAIRE", // Default, user can change to PRINCIPAL later
+              type: "DIVISIONNAIRE",
               dataSource: "MANUEL",
               unit: meter.unit,
+              conversionCoefficient: coefficient,
+              conversionUnit: convUnit,
               isActive: true,
             },
+            select: { id: true },
           });
+          meterIdByKey.set(`${meter.siteId}|${meter.meterName}`, created.id);
           metersCreated.push(meter.meterName);
         }
       } catch (err) {
         console.error("Error creating meter:", meter.meterName, err);
+      }
+    }
+
+    // Import mode: step 2 — upsert MeterReading per raw row (source de vérité)
+    const impactedSites = new Set<string>();
+    for (const row of rawRowsForImport) {
+      const meterId = meterIdByKey.get(`${row.siteId}|${row.meterName}`);
+      if (!meterId) {
+        results.errors.push({
+          row: 0,
+          site: row.siteId,
+          error: `Compteur introuvable: ${row.meterName}`,
+        });
+        continue;
+      }
+
+      try {
+        const existing = await prisma.meterReading.findUnique({
+          where: { meterId_readingDate: { meterId, readingDate: row.readingDate } },
+          select: { id: true },
+        });
+        if (existing) {
+          await prisma.meterReading.update({
+            where: { id: existing.id },
+            data: {
+              indexValue: row.indexValue,
+              unit: row.unitNative,
+              notes: `Import exploitant ${importType}`,
+            },
+          });
+          results.updated++;
+        } else {
+          await prisma.meterReading.create({
+            data: {
+              meterId,
+              readingDate: row.readingDate,
+              indexValue: row.indexValue,
+              unit: row.unitNative,
+              source: "MANUEL",
+              notes: `Import exploitant ${importType}`,
+            },
+          });
+          results.imported++;
+        }
+        impactedSites.add(row.siteId);
+      } catch (error) {
+        results.errors.push({
+          row: 0,
+          site: row.siteId,
+          error: error instanceof Error ? error.message : "Erreur MeterReading",
+        });
+      }
+    }
+
+    // Import mode: step 3 — régénérer Consumption (projection) pour chaque site impacté
+    for (const siteId of impactedSites) {
+      try {
+        await regenerateConsumptionForSite(siteId, effectiveOrgId);
+      } catch (err) {
+        console.error(`Error regenerating consumption for site ${siteId}:`, err);
       }
     }
 
@@ -992,38 +999,36 @@ function excelDateToJSDate(serial: number): Date {
   return new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
 }
 
-// Helper: Normalize unit and convert quantity if needed (gas m³ → kWh)
-function normalizeUnitAndQuantity(
+// Helper: normalize unit string to canonical form (no quantity conversion — on garde le natif)
+function normalizeUnitOnly(unit: string): string {
+  const u = unit.toLowerCase().replace(/\s/g, "");
+  if (u === "m3" || u === "m³") return "m³";
+  if (u === "kwh") return "kWh";
+  if (u === "mwh") return "MWh";
+  if (u === "l" || u === "litres") return "L";
+  return unit;
+}
+
+// Helper: compute conversion coefficient + unit for a meter based on fluid and native unit.
+// Used at Meter auto-creation to populate conversionCoefficient / conversionUnit,
+// so the Relevés display + the Consumption projector both get kWh consistently.
+function computeMeterConversion(
+  fluid: "GAZ" | "ELECTRICITE" | "EAU_CHAUDE" | "EAU_FROIDE" | "CHALEUR" | "FIOUL",
   unit: string,
-  quantity: number,
-  energyType: EnergyType,
-  pcsCoefficient: number
-): { unit: string; quantity: number } {
-  const unitLower = unit.toLowerCase().replace(/\s/g, "");
-
-  // Convert gas m³ to kWh using PCS coefficient
-  // 20 mbar: ~10.5 kWh/m³, 300 mbar: ~14.5 kWh/m³
-  if ((unitLower === "m3" || unitLower === "m³") && energyType === "GAZ") {
-    return {
-      unit: "kWh",
-      quantity: Math.round(quantity * pcsCoefficient * 100) / 100, // Round to 2 decimals
-    };
+  sitePcs: number
+): { coefficient: number | null; convUnit: string | null } {
+  const u = unit.toLowerCase().replace(/\s/g, "");
+  if (fluid === "GAZ" && (u === "m3" || u === "m³")) {
+    return { coefficient: sitePcs, convUnit: "kWh" };
   }
-
-  // MWh to kWh
-  if (unitLower === "mwh") {
-    return {
-      unit: "kWh",
-      quantity: quantity * 1000,
-    };
+  if (fluid === "FIOUL" && (u === "l" || u === "litres")) {
+    return { coefficient: 10, convUnit: "kWh" }; // PCI fioul ~10 kWh/L
   }
-
-  // Keep m³ for water
-  if (unitLower === "m3" || unitLower === "m³") return { unit: "m³", quantity };
-  if (unitLower === "kwh") return { unit: "kWh", quantity };
-  if (unitLower === "l" || unitLower === "litres") return { unit: "L", quantity };
-
-  return { unit, quantity };
+  if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "mwh") {
+    return { coefficient: 1000, convUnit: "kWh" };
+  }
+  // Déjà en kWh, ou eau (pas de conversion énergétique possible)
+  return { coefficient: null, convUnit: null };
 }
 
 // Helper: Update heating season record
