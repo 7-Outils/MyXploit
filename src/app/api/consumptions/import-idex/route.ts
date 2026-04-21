@@ -141,18 +141,22 @@ export async function POST(request: NextRequest) {
 
     // Map siteId -> PCS coefficient (for gas m³ to kWh conversion)
     const sitePcsCoefficients = new Map<string, number>();
+    // Map siteId -> Q coefficient (MWh/m³ for ECS volumetric → energy)
+    const siteQCoefficients = new Map<string, number>();
     const DEFAULT_PCS = 10.5; // Default PCS coefficient for 20 mbar (kWh/m³)
+    const DEFAULT_Q = 0.12; // Default Q coefficient (MWh/m³ ECS)
 
     if (contractId) {
       const contractSites = await prisma.contractSite.findMany({
         where: { contractId },
-        select: { siteId: true, coefficientPCS: true },
+        select: { siteId: true, coefficientPCS: true, coefficientQ: true },
       });
       sitesQuery.id = { in: contractSites.map((cs) => cs.siteId) };
 
-      // Store PCS coefficients per site
+      // Store PCS + Q coefficients per site
       contractSites.forEach((cs) => {
         sitePcsCoefficients.set(cs.siteId, cs.coefficientPCS || DEFAULT_PCS);
+        siteQCoefficients.set(cs.siteId, cs.coefficientQ || DEFAULT_Q);
       });
     }
 
@@ -552,7 +556,8 @@ export async function POST(request: NextRequest) {
 
         const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
         const sitePcs = sitePcsCoefficients.get(meter.siteId) ?? DEFAULT_PCS;
-        const { coefficient, convUnit } = computeMeterConversion(fluid, meter.unit, sitePcs);
+        const siteQ = siteQCoefficients.get(meter.siteId) ?? DEFAULT_Q;
+        const { coefficient, convUnit } = computeMeterConversion(fluid, meter.unit, sitePcs, siteQ);
 
         if (existingMeter) {
           meterIdByKey.set(`${meter.siteId}|${meter.meterName}`, existingMeter.id);
@@ -1017,11 +1022,16 @@ function normalizeUnitOnly(unit: string): string {
 function computeMeterConversion(
   fluid: "GAZ" | "ELECTRICITE" | "EAU_CHAUDE" | "EAU_FROIDE" | "CHALEUR" | "FIOUL",
   unit: string,
-  sitePcs: number
+  sitePcs: number,
+  siteQ: number
 ): { coefficient: number | null; convUnit: string | null } {
   const u = unit.toLowerCase().replace(/\s/g, "");
   if (fluid === "GAZ" && (u === "m3" || u === "m³")) {
     return { coefficient: sitePcs, convUnit: "kWh" };
+  }
+  if (fluid === "EAU_CHAUDE" && (u === "m3" || u === "m³")) {
+    // Q est en MWh/m³. On convertit en kWh/m³ pour rester cohérent avec le reste.
+    return { coefficient: siteQ * 1000, convUnit: "kWh" };
   }
   if (fluid === "FIOUL" && (u === "l" || u === "litres")) {
     return { coefficient: 10, convUnit: "kWh" }; // PCI fioul ~10 kWh/L
@@ -1029,7 +1039,7 @@ function computeMeterConversion(
   if ((fluid === "ELECTRICITE" || fluid === "CHALEUR") && u === "mwh") {
     return { coefficient: 1000, convUnit: "kWh" };
   }
-  // Déjà en kWh, ou eau (pas de conversion énergétique possible)
+  // Déjà en kWh, ou eau froide (pas de conversion énergétique)
   return { coefficient: null, convUnit: null };
 }
 
