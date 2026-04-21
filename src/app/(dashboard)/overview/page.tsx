@@ -5,12 +5,10 @@ import {
   AlertTriangle,
   Receipt,
   Calendar,
-  CalendarCheck,
-  CalendarX,
+  CalendarRange,
   Loader2,
   Wrench,
 } from "lucide-react";
-import { StatsCard } from "@/components/dashboard/stats-card";
 import { useUserProfile, PROFILE_CONFIG } from "@/contexts/UserProfileContext";
 import { useContract } from "@/contexts/ContractContext";
 import { Onboarding } from "@/components/dashboard/onboarding";
@@ -229,29 +227,6 @@ export default function OverviewPage() {
     );
   }
 
-  const formatDate = (iso?: string) =>
-    iso
-      ? new Date(iso).toLocaleDateString("fr-FR", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        })
-      : "—";
-
-  const daysUntilEnd = selectedContract?.endDate
-    ? Math.ceil(
-        (new Date(selectedContract.endDate).getTime() - Date.now()) /
-          (1000 * 60 * 60 * 24)
-      )
-    : null;
-
-  const daysSinceStart = selectedContract?.startDate
-    ? Math.floor(
-        (Date.now() - new Date(selectedContract.startDate).getTime()) /
-          (1000 * 60 * 60 * 24)
-      )
-    : null;
-
   if (!selectedContract) {
     return (
       <div className="flex items-center justify-center py-20 text-text-secondary">
@@ -260,44 +235,66 @@ export default function OverviewPage() {
     );
   }
 
+  const start = new Date(selectedContract.startDate);
+  const end = new Date(selectedContract.endDate);
+  const now = Date.now();
+  const span = end.getTime() - start.getTime();
+  const progress =
+    span > 0
+      ? Math.min(100, Math.max(0, ((now - start.getTime()) / span) * 100))
+      : 0;
+  const daysLeft = Math.ceil((end.getTime() - now) / 86_400_000);
+  const isExpired = daysLeft < 0;
+  const isEndingSoon = !isExpired && daysLeft <= 90;
+
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+  const statusLabel = isExpired
+    ? `Expiré il y a ${Math.abs(daysLeft)} j`
+    : `${daysLeft} j restants`;
+
+  const barColor = isExpired
+    ? "bg-red-400"
+    : isEndingSoon
+    ? "bg-amber-400"
+    : "bg-accent";
+
+  const statusColor = isExpired
+    ? "text-red-700 bg-red-50"
+    : isEndingSoon
+    ? "text-amber-700 bg-amber-50"
+    : "text-text-secondary bg-gray-50";
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <StatsCard
-        title="Date de démarrage"
-        value={formatDate(selectedContract.startDate)}
-        change={
-          daysSinceStart !== null && daysSinceStart >= 0
-            ? `Il y a ${daysSinceStart} j`
-            : undefined
-        }
-        changeType="neutral"
-        icon={CalendarCheck}
-        iconColor="text-green-600"
-      />
-      <StatsCard
-        title="Date de fin"
-        value={formatDate(selectedContract.endDate)}
-        change={
-          daysUntilEnd !== null
-            ? daysUntilEnd >= 0
-              ? `Dans ${daysUntilEnd} j`
-              : `Expiré depuis ${Math.abs(daysUntilEnd)} j`
-            : undefined
-        }
-        changeType={
-          daysUntilEnd !== null && daysUntilEnd < 0
-            ? "negative"
-            : daysUntilEnd !== null && daysUntilEnd < 90
-            ? "neutral"
-            : "positive"
-        }
-        icon={CalendarX}
-        iconColor={
-          daysUntilEnd !== null && daysUntilEnd < 0
-            ? "text-red-600"
-            : "text-accent"
-        }
-      />
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border border-gray-100 text-xs">
+        <div className="flex items-center gap-1.5 text-text-secondary shrink-0">
+          <CalendarRange className="w-3.5 h-3.5" />
+          <span>Période</span>
+        </div>
+        <span className="text-primary-dark tabular-nums font-medium shrink-0">
+          {fmt(start)}
+        </span>
+        <div className="relative flex-1 h-1 bg-gray-100 rounded-full overflow-hidden min-w-[60px]">
+          <div
+            className={`absolute inset-y-0 left-0 rounded-full ${barColor}`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <span className="text-primary-dark tabular-nums font-medium shrink-0">
+          {fmt(end)}
+        </span>
+        <span
+          className={`shrink-0 px-2 py-0.5 rounded-full font-medium ${statusColor}`}
+        >
+          {statusLabel}
+        </span>
+      </div>
     </div>
   );
 }
