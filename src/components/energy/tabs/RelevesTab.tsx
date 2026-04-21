@@ -8,6 +8,8 @@ import { GridComponent, TooltipComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
+import { prorateAcrossMonths } from "@/lib/date-prorate";
+import { addDays } from "date-fns";
 
 echarts.use([BarChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
@@ -89,11 +91,24 @@ function FluidChart({ fluid, readings }: { fluid: string; readings: MeterReading
       if (r.meter.fluid !== fluid || r.consumption == null) continue;
       const { value, unit: u } = getDisplayValue(r);
       if (!detectedUnit) detectedUnit = u;
-      // The consumption was done BETWEEN previous reading and current reading.
-      // Attribute it to the previous month (month when the gas was actually consumed).
-      const refDate = r.previous?.readingDate ? new Date(r.previous.readingDate) : new Date(r.readingDate);
-      const key = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, "0")}`;
-      byMonth.set(key, (byMonth.get(key) || 0) + value);
+
+      // Proratise la conso entre le relevé précédent et le courant sur les mois calendaires touchés.
+      // Cohérent avec le projector Consumption (lib/consumption-projector.ts).
+      if (r.previous?.readingDate) {
+        const start = addDays(new Date(r.previous.readingDate), 1);
+        const end = new Date(r.readingDate);
+        const share = prorateAcrossMonths(start, end, value);
+        for (const [periodIso, qty] of share.entries()) {
+          const d = new Date(periodIso);
+          const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+          byMonth.set(key, (byMonth.get(key) ?? 0) + qty);
+        }
+      } else {
+        // Pas de previous (1er relevé / reset) — attribution simple au mois du relevé
+        const d = new Date(r.readingDate);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        byMonth.set(key, (byMonth.get(key) ?? 0) + value);
+      }
     }
     const months = Array.from(byMonth.keys()).sort();
     return {
