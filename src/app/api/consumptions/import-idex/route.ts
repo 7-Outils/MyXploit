@@ -340,11 +340,13 @@ export async function POST(request: NextRequest) {
             // Only process start markers
             if (isHeatingStart) {
               await updateHeatingSeason(siteMatch.siteId, period, true, false, false);
+              await upsertHeatingPeriodStart(siteMatch.siteId, period);
             }
           } else if (importType === "ARRET") {
             // Only process stop markers
             if (isHeatingStop) {
               await updateHeatingSeason(siteMatch.siteId, period, false, true, false);
+              await upsertHeatingPeriodEnd(siteMatch.siteId, period);
             }
           } else if (importType === "RELEVE_MENSUEL") {
             // Process ON state only (monthly updates of endDate)
@@ -1029,6 +1031,42 @@ function computeMeterConversion(
   }
   // Déjà en kWh, ou eau (pas de conversion énergétique possible)
   return { coefficient: null, convUnit: null };
+}
+
+// Helper: Crée un HeatingPeriod avec startDate = date (ou met à jour le plus récent
+// ouvert pour ce site si il existe sans endDate). Idempotent sur (siteId, startDate).
+async function upsertHeatingPeriodStart(siteId: string, date: Date) {
+  try {
+    const existing = await prisma.heatingPeriod.findFirst({
+      where: { siteId, startDate: date },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.heatingPeriod.create({
+      data: { siteId, startDate: date, endDate: null },
+    });
+  } catch (error) {
+    console.error("Error upserting heating period start:", error);
+  }
+}
+
+// Helper: Clôture le HeatingPeriod le plus récent (endDate=null) du site avec la date d'arrêt.
+async function upsertHeatingPeriodEnd(siteId: string, date: Date) {
+  try {
+    const open = await prisma.heatingPeriod.findFirst({
+      where: { siteId, endDate: null },
+      orderBy: { startDate: "desc" },
+      select: { id: true, startDate: true },
+    });
+    if (open && open.startDate <= date) {
+      await prisma.heatingPeriod.update({
+        where: { id: open.id },
+        data: { endDate: date },
+      });
+    }
+  } catch (error) {
+    console.error("Error upserting heating period end:", error);
+  }
 }
 
 // Helper: Update heating season record
