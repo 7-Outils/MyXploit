@@ -231,8 +231,10 @@ export function resolveDjuContractuel(
 ): number | null {
   if (djuContractuel != null && djuContractuel > 0) return djuContractuel;
 
-  if (stationMeteo && DJU_TRENTENAIRES[stationMeteo]) {
-    return DJU_TRENTENAIRES[stationMeteo];
+  // Résolution tolérante du libellé station (espaces, tirets, accents, casse)
+  const stationKey = resolveStationKey(stationMeteo);
+  if (stationKey && DJU_TRENTENAIRES[stationKey]) {
+    return DJU_TRENTENAIRES[stationKey];
   }
 
   if (postalCode) {

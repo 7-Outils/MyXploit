@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
-import { getDailyDjuForStation } from "@/lib/dju-sync";
+import { getDailyDjuForStation, resolveDjuContractuel } from "@/lib/dju-sync";
 
 // Force dynamic — never cache this route
 export const dynamic = "force-dynamic";
@@ -377,8 +377,13 @@ export async function GET(request: NextRequest) {
       // NB comes exclusively from the heating season (Cibles énergétiques)
       const heatingSeason = heatingSeasonMap.get(site.id);
       const nb = heatingSeason?.nb ?? null;
-      // DJC comes from the contract (set in Contrat → Paramètres)
-      const djuContractuel = contractDjc;
+      // DJC priority: Site.djuContractuel > Contract.djuContractuel > trentenaire
+      // (calculé depuis la station météo du site, défaut PARIS-MONTSOURIS si inconnue).
+      const djuContractuel = resolveDjuContractuel(
+        site.djuContractuel ?? contractDjc ?? null,
+        site.stationMeteo ?? null,
+        site.postalCode ?? null
+      );
 
       // NB is stored in MWh, convert to kWh (* 1000) for consistency with consumptions
       const nbKwh = nb ? nb * 1000 : 0;

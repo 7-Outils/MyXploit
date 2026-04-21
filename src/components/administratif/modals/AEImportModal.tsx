@@ -265,10 +265,18 @@ export default function AEImportModal({ onClose, contractId }: AEImportModalProp
                   </table>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-lg mt-4">
-                  <h4 className="font-medium text-blue-800 mb-2">Le contrat sera créé avec :</h4>
+                  <h4 className="font-medium text-blue-800 mb-2">
+                    {isUpdate ? "Le contrat sera mis à jour avec :" : "Le contrat sera créé avec :"}
+                  </h4>
                   <ul className="text-sm text-blue-700 space-y-1">
-                    <li>• {preview.newSites} nouveau(x) site(s) créé(s)</li>
-                    <li>• {preview.existingSites} site(s) existant(s) lié(s)</li>
+                    {isUpdate ? (
+                      <li>• {preview.total} site(s) du fichier AE — valeurs NB, P1/P2/P3, qECS mises à jour si présentes</li>
+                    ) : (
+                      <>
+                        <li>• {preview.newSites} nouveau(x) site(s) créé(s)</li>
+                        <li>• {preview.existingSites} site(s) existant(s) lié(s)</li>
+                      </>
+                    )}
                     <li>• Types de contrat par site (PFI, PF, MTI, etc.) déterminant les prestations P1/P2/P3</li>
                     <li>• NB (Niveau de Base) par année de contrat</li>
                     <li>• Montants P1 HT (calculés à l&apos;instant T de l&apos;AE)</li>
@@ -283,7 +291,13 @@ export default function AEImportModal({ onClose, contractId }: AEImportModalProp
             <Button variant="outline" className="flex-1" onClick={handleClose}>Annuler</Button>
             {preview && preview.total > 0 && (
               <Button className="flex-1" onClick={handleSubmit} disabled={importing}>
-                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : `Créer le contrat avec ${preview.total} site${preview.total > 1 ? "s" : ""}`}
+                {importing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isUpdate ? (
+                  `Mettre à jour le contrat (${preview.total} site${preview.total > 1 ? "s" : ""})`
+                ) : (
+                  `Créer le contrat avec ${preview.total} site${preview.total > 1 ? "s" : ""}`
+                )}
               </Button>
             )}
           </div>
