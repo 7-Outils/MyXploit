@@ -598,8 +598,8 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const existing = await prisma.meterReading.findUnique({
-          where: { meterId_readingDate: { meterId, readingDate: row.readingDate } },
+        const existing = await prisma.meterReading.findFirst({
+          where: { meterId, readingDate: row.readingDate },
           select: { id: true },
         });
         if (existing) {
