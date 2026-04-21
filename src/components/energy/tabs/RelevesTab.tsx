@@ -70,15 +70,6 @@ function formatValue(v: number, unit: string): string {
   return `${Math.round(v).toLocaleString("fr-FR")} ${unit}`;
 }
 
-// Converted-to-display value (keeps native unit for chart)
-function getDisplayValue(r: MeterReadingRow): { value: number; unit: string } {
-  if (r.consumption == null) return { value: 0, unit: r.unit };
-  if (r.consumptionConverted != null && r.unitConverted) {
-    return { value: r.consumptionConverted, unit: r.unitConverted };
-  }
-  return { value: r.consumption, unit: r.unit };
-}
-
 // Normalize to kWh for KPI totals
 function toKwh(r: MeterReadingRow): number {
   if (r.consumption == null) return 0;
@@ -147,10 +138,14 @@ function Sparkline({ values, color, height = 28 }: { values: number[]; color: st
 function StackedMonthlyChart({
   data,
   fluids,
+  displayUnit,
+  monthlyTargetKwh,
 }: {
   // data: Map<fluid, Map<"YYYY-MM", kWh>>
   data: Map<string, Map<string, number>>;
   fluids: string[];
+  displayUnit: "kWh" | "MWh";
+  monthlyTargetKwh?: number | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -161,18 +156,39 @@ function StackedMonthlyChart({
     return Array.from(all).sort();
   }, [data]);
 
+  const divisor = displayUnit === "MWh" ? 1000 : 1;
+  const targetInUnit = monthlyTargetKwh != null ? monthlyTargetKwh / divisor : null;
+
   const series = useMemo(() => {
-    return fluids.map((fluid) => {
+    const base = fluids.map((fluid) => {
       const byMonth = data.get(fluid) ?? new Map<string, number>();
       return {
         name: FLUID_LABELS[fluid] || fluid,
         type: "bar" as const,
         stack: "total",
         itemStyle: { color: FLUID_COLORS[fluid] || "#9ca3af" },
-        data: months.map((m) => Math.round(byMonth.get(m) ?? 0)),
+        data: months.map((m) => {
+          const v = (byMonth.get(m) ?? 0) / divisor;
+          return displayUnit === "MWh" ? Math.round(v * 10) / 10 : Math.round(v);
+        }),
       };
     });
-  }, [fluids, data, months]);
+    // Ligne cible (NB/12) en markLine sur la 1ère série si fournie
+    if (targetInUnit != null && targetInUnit > 0 && base.length > 0) {
+      (base[0] as Record<string, unknown>).markLine = {
+        symbol: "none",
+        lineStyle: { color: "#64748b", type: "dashed", width: 1.5 },
+        label: {
+          formatter: `Cible ${displayUnit === "MWh" ? targetInUnit.toFixed(1) : Math.round(targetInUnit).toLocaleString("fr-FR")} ${displayUnit}/mois`,
+          color: "#64748b",
+          fontSize: 10,
+          position: "insideEndTop",
+        },
+        data: [{ yAxis: targetInUnit }],
+      };
+    }
+    return base;
+  }, [fluids, data, months, divisor, displayUnit, targetInUnit]);
 
   useEffect(() => {
     if (!ref.current || months.length === 0) return;
@@ -203,7 +219,7 @@ function StackedMonthlyChart({
       },
       yAxis: {
         type: "value",
-        name: "kWh",
+        name: displayUnit,
         nameTextStyle: { color: "#6b7280", fontSize: 10 },
         axisLine: { show: false },
         axisTick: { show: false },
@@ -211,7 +227,8 @@ function StackedMonthlyChart({
         axisLabel: {
           fontSize: 11,
           color: "#6b7280",
-          formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString()),
+          formatter: (v: number) =>
+            displayUnit === "MWh" ? v.toString() : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString(),
         },
       },
       series,
@@ -222,153 +239,10 @@ function StackedMonthlyChart({
       window.removeEventListener("resize", onResize);
       chart.dispose();
     };
-  }, [months, series]);
+  }, [months, series, displayUnit]);
 
   if (months.length === 0) return null;
   return <div ref={ref} style={{ width: "100%", height: 260 }} />;
-}
-
-/* ───────────────────────── FluidChart sub-component ───────────────────────── */
-
-function FluidChart({
-  fluid,
-  readings,
-  monthlyTargetKwh,
-}: {
-  fluid: string;
-  readings: MeterReadingRow[];
-  monthlyTargetKwh?: number | null;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const instance = useRef<echarts.ECharts | null>(null);
-
-  const { months, labels, values, unit } = useMemo(() => {
-    const byMonth = new Map<string, number>();
-    let detectedUnit = "";
-    for (const r of readings) {
-      if (r.meter.fluid !== fluid || r.consumption == null) continue;
-      const { value, unit: u } = getDisplayValue(r);
-      if (!detectedUnit) detectedUnit = u;
-
-      // Proratise la conso entre le relevé précédent et le courant sur les mois calendaires touchés.
-      // Cohérent avec le projector Consumption (lib/consumption-projector.ts).
-      if (r.previous?.readingDate) {
-        const start = addDays(new Date(r.previous.readingDate), 1);
-        const end = new Date(r.readingDate);
-        const share = prorateAcrossMonths(start, end, value);
-        for (const [periodIso, qty] of share.entries()) {
-          const d = new Date(periodIso);
-          const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-          byMonth.set(key, (byMonth.get(key) ?? 0) + qty);
-        }
-      } else {
-        // Pas de previous (1er relevé / reset) — attribution simple au mois du relevé
-        const d = new Date(r.readingDate);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        byMonth.set(key, (byMonth.get(key) ?? 0) + value);
-      }
-    }
-    const months = Array.from(byMonth.keys()).sort();
-    return {
-      months,
-      labels: months.map((m) => {
-        const [y, mo] = m.split("-");
-        return new Date(Number(y), Number(mo) - 1, 1).toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
-      }),
-      values: months.map((m) => Math.round((byMonth.get(m) || 0) * 10) / 10),
-      unit: detectedUnit,
-    };
-  }, [fluid, readings]);
-
-  const total = values.reduce((s, v) => s + v, 0);
-
-  useEffect(() => {
-    if (!ref.current || months.length === 0) {
-      instance.current?.dispose();
-      instance.current = null;
-      return;
-    }
-    const chart = echarts.init(ref.current);
-    instance.current = chart;
-    const color = FLUID_COLORS[fluid] || "#9ca3af";
-    chart.setOption({
-      grid: { left: 56, right: 16, top: 20, bottom: 32 },
-      tooltip: {
-        trigger: "axis",
-        axisPointer: { type: "shadow" },
-        backgroundColor: "rgba(17,24,39,0.95)",
-        borderWidth: 0,
-        textStyle: { color: "#fff", fontSize: 12 },
-        formatter: (params: unknown) => {
-          const p = (params as { axisValueLabel: string; value: number }[])[0];
-          return `<div style="font-weight:600;margin-bottom:2px">${p.axisValueLabel}</div>
-            <div>${p.value.toLocaleString("fr-FR")} ${unit}</div>`;
-        },
-      },
-      xAxis: {
-        type: "category",
-        data: labels,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { fontSize: 11, color: "#6b7280" },
-      },
-      yAxis: {
-        type: "value",
-        name: unit,
-        nameTextStyle: { color: "#6b7280", fontSize: 10 },
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { color: "#f3f4f6" } },
-        axisLabel: {
-          fontSize: 11,
-          color: "#6b7280",
-          formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString()),
-        },
-      },
-      series: [
-        {
-          type: "bar",
-          data: values,
-          itemStyle: { color, borderRadius: [3, 3, 0, 0] },
-          barMaxWidth: 28,
-          // Ligne cible (NB/12) sur les fluides chauffage si fournie
-          ...(monthlyTargetKwh && monthlyTargetKwh > 0 && unit === "kWh"
-            ? {
-                markLine: {
-                  symbol: "none",
-                  lineStyle: { color: "#64748b", type: "dashed", width: 1.5 },
-                  label: {
-                    formatter: `Cible ${Math.round(monthlyTargetKwh).toLocaleString("fr-FR")} kWh/mois`,
-                    color: "#64748b",
-                    fontSize: 10,
-                    position: "insideEndTop",
-                  },
-                  data: [{ yAxis: monthlyTargetKwh }],
-                },
-              }
-            : {}),
-        },
-      ],
-    });
-    const handleResize = () => chart.resize();
-    window.addEventListener("resize", handleResize);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      chart.dispose();
-      instance.current = null;
-    };
-  }, [labels, values, unit, fluid, months.length, monthlyTargetKwh]);
-
-  if (months.length === 0) return null;
-
-  return (
-    <ChartCard
-      title={FLUID_LABELS[fluid] || fluid}
-      subtitle={`${total.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} ${unit}`}
-    >
-      <div ref={ref} style={{ width: "100%", height: 220 }} />
-    </ChartCard>
-  );
 }
 
 /* ───────────────────────── Main component ───────────────────────── */
@@ -405,6 +279,9 @@ export function RelevesContent({
   // Pagination
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Toggle unité d'affichage du chart empilé
+  const [displayUnit, setDisplayUnit] = useState<"kWh" | "MWh">("kWh");
 
   // Combobox site (searchable)
   const [siteSearch, setSiteSearch] = useState("");
@@ -520,12 +397,6 @@ export function RelevesContent({
   const pageClamped = Math.min(currentPage, totalPages);
   const pagedRows = filtered.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
 
-  // Fluids present in filtered data — one chart per fluid
-  const fluidsInFiltered = useMemo(
-    () => Array.from(new Set(filtered.map((r) => r.meter.fluid))),
-    [filtered]
-  );
-
   // Monthly kWh per fluid (via proratisation) — source unique pour KPIs + stacked chart
   const monthlyByFluid = useMemo(() => {
     const byFluid = new Map<string, Map<string, number>>();
@@ -541,9 +412,25 @@ export function RelevesContent({
     return byFluid;
   }, [filtered]);
 
+  // Total natif par fluide (m³ pour GAZ/ECS, L pour FIOUL). r.consumption
+  // est en unité native depuis /api/contracts/[id]/readings.
+  const nativeByFluid = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of filtered) {
+      if (r.consumption == null || r.consumption <= 0) continue;
+      m.set(r.meter.fluid, (m.get(r.meter.fluid) ?? 0) + r.consumption);
+    }
+    return m;
+  }, [filtered]);
+
   // KPIs dynamiques par fluide: total + sparkline + trend (dernier mois vs avant-dernier)
   const kpiCards = useMemo(() => {
     const order: string[] = ["GAZ", "CHALEUR", "FIOUL", "EAU_CHAUDE", "ELECTRICITE"];
+    const nativeUnit: Record<string, string> = {
+      GAZ: "m³",
+      EAU_CHAUDE: "m³",
+      FIOUL: "L",
+    };
     const cards: Array<{
       fluid: string;
       label: string;
@@ -551,6 +438,8 @@ export function RelevesContent({
       total: number;
       spark: number[];
       trend: number | null;
+      nativeTotal: number | null;
+      nativeUnit: string | null;
     }> = [];
     for (const fluid of order) {
       const byMonth = monthlyByFluid.get(fluid);
@@ -562,6 +451,7 @@ export function RelevesContent({
       if (spark.length >= 2 && spark[spark.length - 2] > 0) {
         trend = ((spark[spark.length - 1] - spark[spark.length - 2]) / spark[spark.length - 2]) * 100;
       }
+      const native = nativeByFluid.get(fluid);
       cards.push({
         fluid,
         label: FLUID_LABELS[fluid] || fluid,
@@ -569,10 +459,12 @@ export function RelevesContent({
         total,
         spark,
         trend,
+        nativeTotal: native && nativeUnit[fluid] ? native : null,
+        nativeUnit: nativeUnit[fluid] ?? null,
       });
     }
     return cards;
-  }, [monthlyByFluid]);
+  }, [monthlyByFluid, nativeByFluid]);
 
   // Fluids énergétiques pour le stacked chart (exclut eau froide — non convertible)
   const energyFluidsInFiltered = useMemo(
@@ -732,6 +624,11 @@ export function RelevesContent({
                 )}
               </div>
               <p className="text-2xl font-semibold text-primary-dark">{formatValue(k.total, "kWh")}</p>
+              {k.nativeTotal != null && k.nativeUnit && (
+                <p className="text-xs text-text-secondary mt-0.5">
+                  {k.nativeTotal.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} {k.nativeUnit}
+                </p>
+              )}
               <div className="mt-2">
                 <Sparkline values={k.spark} color={k.color} />
               </div>
@@ -740,29 +637,46 @@ export function RelevesContent({
         </div>
       )}
 
-      {/* Stacked chart global — répartition mensuelle tous fluides */}
-      {energyFluidsInFiltered.length > 1 && (
-        <ChartCard title="Consommation totale par mois" subtitle="Répartition par énergie (kWh)">
-          <StackedMonthlyChart data={monthlyByFluid} fluids={energyFluidsInFiltered} />
+      {/* Chart empilé unique — filtré par les selecteurs fluide/site/compteur.
+          Toggle kWh ↔ MWh à droite du titre. */}
+      {energyFluidsInFiltered.length > 0 && (
+        <ChartCard
+          title="Consommation mensuelle"
+          subtitle="Répartition par énergie"
+          action={
+            <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden text-xs">
+              <button
+                type="button"
+                onClick={() => setDisplayUnit("kWh")}
+                className={`px-3 py-1 transition-colors ${
+                  displayUnit === "kWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                kWh
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisplayUnit("MWh")}
+                className={`px-3 py-1 transition-colors border-l border-gray-200 ${
+                  displayUnit === "MWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                MWh
+              </button>
+            </div>
+          }
+        >
+          <StackedMonthlyChart
+            data={monthlyByFluid}
+            fluids={energyFluidsInFiltered}
+            displayUnit={displayUnit}
+            monthlyTargetKwh={
+              energyFluidsInFiltered.every((f) => f === "GAZ" || f === "CHALEUR" || f === "FIOUL") && contractNbKwh
+                ? contractNbKwh / 12
+                : null
+            }
+          />
         </ChartCard>
-      )}
-
-      {/* Détail par fluide — 2 colonnes on desktop */}
-      {fluidsInFiltered.length > 0 && (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {fluidsInFiltered.map((fluid) => (
-            <FluidChart
-              key={fluid}
-              fluid={fluid}
-              readings={filtered}
-              monthlyTargetKwh={
-                (fluid === "GAZ" || fluid === "CHALEUR" || fluid === "FIOUL") && contractNbKwh
-                  ? contractNbKwh / 12
-                  : null
-              }
-            />
-          ))}
-        </div>
       )}
 
       {/* Table */}
