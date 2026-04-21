@@ -218,8 +218,8 @@ export async function POST(request: NextRequest) {
     const p36ColIndex = findExactColIndex(/p36.*ape.*annuel/);
     const p3TotalColIndex = findExactColIndex(/p3\s*[-–]\s*total.*annuel/);
 
-    // Coefficient Q (ECS) — colonne "qECS" case-insensitive
-    const qEcsColIndex = findColIndex(["qecs"]);
+    // Coefficient Q (ECS) — colonne "qECS", "q ECS", "q_ecs" case-insensitive
+    const qEcsColIndex = findColIndex(["qecs", "q ecs", "q_ecs"]);
 
     // Build site matchers
     const siteAliases = await prisma.siteAlias.findMany({

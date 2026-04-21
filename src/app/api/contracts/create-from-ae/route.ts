@@ -550,8 +550,8 @@ export async function POST(request: NextRequest) {
     const abonnementColIndex = findColIndex(["abonnement"]);
     const locationCompteurColIndex = findColIndex(["location compteur", "location"]);
 
-    // Coefficient Q (ECS) — colonne "qECS" case-insensitive
-    const qEcsColIndex = findColIndex(["qecs"]);
+    // Coefficient Q (ECS) — colonne "qECS", "q ECS", "q_ecs" case-insensitive
+    const qEcsColIndex = findColIndex(["qecs", "q ecs", "q_ecs"]);
 
     // P1 HT by year columns (P1 HT - Année 1, P1 HT - Année 2, etc.)
     const p1Columns: { index: number; year: number }[] = [];
