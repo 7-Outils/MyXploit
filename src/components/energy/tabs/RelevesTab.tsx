@@ -243,6 +243,20 @@ export function RelevesContent({
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Combobox site (searchable)
+  const [siteSearch, setSiteSearch] = useState("");
+  const [siteOpen, setSiteOpen] = useState(false);
+  const siteComboRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (siteComboRef.current && !siteComboRef.current.contains(e.target as Node)) {
+        setSiteOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, []);
+
   const fetchReadings = useCallback(() => {
     if (!contractId) {
       setReadings([]);
@@ -394,16 +408,42 @@ export function RelevesContent({
             <option key={f} value={f}>{f}</option>
           ))}
         </select>
-        <select
-          value={filterSite}
-          onChange={(e) => { setFilterSite(e.target.value); setFilterMeter("all"); }}
-          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white"
-        >
-          <option value="all">Tous sites</option>
-          {sitesList.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+        <div ref={siteComboRef} className="relative">
+          <input
+            type="text"
+            value={siteOpen ? siteSearch : (filterSite === "all" ? "" : (sitesList.find((s) => s.id === filterSite)?.name ?? ""))}
+            onChange={(e) => { setSiteSearch(e.target.value); setSiteOpen(true); }}
+            onFocus={() => { setSiteSearch(""); setSiteOpen(true); }}
+            placeholder="Tous sites"
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white w-56"
+          />
+          {siteOpen && (
+            <div className="absolute z-20 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+              <button
+                type="button"
+                onClick={() => { setFilterSite("all"); setFilterMeter("all"); setSiteOpen(false); setSiteSearch(""); }}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${filterSite === "all" ? "bg-accent/10 text-accent" : ""}`}
+              >
+                Tous sites
+              </button>
+              {sitesList
+                .filter((s) => s.name.toLowerCase().includes(siteSearch.toLowerCase()))
+                .map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => { setFilterSite(s.id); setFilterMeter("all"); setSiteOpen(false); setSiteSearch(""); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${filterSite === s.id ? "bg-accent/10 text-accent" : ""}`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              {sitesList.filter((s) => s.name.toLowerCase().includes(siteSearch.toLowerCase())).length === 0 && (
+                <div className="px-3 py-2 text-xs text-text-secondary">Aucun site</div>
+              )}
+            </div>
+          )}
+        </div>
         <select
           value={filterMeter}
           onChange={(e) => setFilterMeter(e.target.value)}
