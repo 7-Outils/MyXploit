@@ -323,10 +323,17 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // Inject DJR into site data — only days within heating intervals
+    // Inject DJR into site data — only days within heating intervals.
+    // Pour les sites SANS télérelève (relevés exploitant sparse), on cap le DJR
+    // aux mois effectivement couverts par la consommation. Sinon N'B projette
+    // sur toute la saison de chauffe (≥6 mois) alors que NC ne couvre que les
+    // mois avec relevés (2-3 mois), et l'écart devient absurde.
     siteMap.forEach((siteData) => {
       const daily = dailyDjuBySite.get(siteData.site.id);
       if (!daily) return;
+
+      const hasTelereleve = sitesWithTelereleve.has(siteData.site.id);
+      const coveredMonths = hasTelereleve ? null : siteData.months;
 
       // Reset monthly DJR and total
       siteData.months.forEach((m) => { m.djr = 0; });
@@ -335,8 +342,10 @@ export async function GET(request: NextRequest) {
       for (const [dateIso, dju] of daily.entries()) {
         const d = new Date(dateIso);
         if (!isHeatingDay(siteData.site.id, d)) continue;
-        total += dju;
         const monthKey = dateIso.substring(0, 7); // YYYY-MM
+        // Cap DJR aux mois couverts par des relevés exploitant
+        if (coveredMonths && !coveredMonths.has(monthKey)) continue;
+        total += dju;
         const monthData = siteData.months.get(monthKey);
         if (monthData) monthData.djr += dju;
       }
