@@ -205,6 +205,9 @@ export async function POST(request: NextRequest) {
     const p36ColIndex = findExactColIndex(/p36.*ape.*annuel/);
     const p3TotalColIndex = findExactColIndex(/p3\s*[-–]\s*total.*annuel/);
 
+    // Coefficient Q (ECS) — colonne "qECS" case-insensitive
+    const qEcsColIndex = findColIndex(["qecs"]);
+
     // Build site matchers
     const siteAliases = await prisma.siteAlias.findMany({
       where: { organizationId: effectiveOrgId },
@@ -359,6 +362,10 @@ export async function POST(request: NextRequest) {
           if (previewRow.p3?.p35 !== undefined) updateData.amountP35 = previewRow.p3.p35;
           if (previewRow.p3?.p36 !== undefined) updateData.amountP36 = previewRow.p3.p36;
           if (previewRow.p3?.total !== undefined) updateData.amountP3 = previewRow.p3.total;
+
+          // Coefficient Q (ECS) — on n'écrase pas une valeur existante si absent du fichier
+          const qEcs = parseNum(qEcsColIndex);
+          if (qEcs !== undefined) updateData.coefficientQ = qEcs;
 
           if (Object.keys(updateData).length > 0) {
             await prisma.contractSite.update({

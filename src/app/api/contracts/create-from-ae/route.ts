@@ -68,6 +68,8 @@ interface ParsedSite {
   contractType: string;
   contractTypeInfo: ReturnType<typeof getContractTypeInfo>;
   nb: { [year: number]: number | null };
+  // Coefficient Q (MWh/m³) pour l'ECS volumétrique (colonne qECS de l'AE)
+  qEcs?: number;
   // P1 components (for price revision)
   p1Components: P1Components;
   // P1 values by year (calculated in AE but imported for reference)
@@ -548,6 +550,9 @@ export async function POST(request: NextRequest) {
     const abonnementColIndex = findColIndex(["abonnement"]);
     const locationCompteurColIndex = findColIndex(["location compteur", "location"]);
 
+    // Coefficient Q (ECS) — colonne "qECS" case-insensitive
+    const qEcsColIndex = findColIndex(["qecs"]);
+
     // P1 HT by year columns (P1 HT - Année 1, P1 HT - Année 2, etc.)
     const p1Columns: { index: number; year: number }[] = [];
     headers.forEach((h, index) => {
@@ -707,6 +712,7 @@ export async function POST(request: NextRequest) {
         contractType: contractTypeStr,
         contractTypeInfo,
         nb,
+        qEcs: parseNum(row, qEcsColIndex),
         p1Components,
         p1ByYear,
         p2,
@@ -879,6 +885,7 @@ export async function POST(request: NextRequest) {
         hasP2: boolean;
         hasP3: boolean;
         hasP4: boolean;
+        coefficientQ: number;
         amountP1: number | null;
         amountP2: number | null;
         amountP3: number | null;
@@ -1012,6 +1019,7 @@ export async function POST(request: NextRequest) {
           hasP2: true,
           hasP3,
           hasP4: false,
+          coefficientQ: parsedSite.qEcs ?? 0.13,
           amountP1: p1Total,
           amountP2: p2Total > 0 ? p2Total : null,
           amountP3: p3Total > 0 ? p3Total : null,
