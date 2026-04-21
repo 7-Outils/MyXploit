@@ -118,7 +118,55 @@ export async function GET(
       })
     );
 
-    return NextResponse.json(enriched);
+    // Also include IDEX/Exploitant imports (stored in Consumption, not MeterReading).
+    // They are reshaped as read-only "readings" so they display in the Relevés tab.
+    const consumptions = await prisma.consumption.findMany({
+      where: {
+        siteId: { in: siteIds },
+        source: "EXPLOITANT",
+        organizationId: effectiveOrgId,
+      },
+      include: {
+        site: { select: { name: true } },
+      },
+      orderBy: { period: "desc" },
+      take: limit,
+    });
+
+    const energyTypeToFluid = (energyType: string, usage: string): string => {
+      switch (energyType) {
+        case "GAZ": return "GAZ";
+        case "ELECTRICITE": return "ELECTRICITE";
+        case "FIOUL": return "FIOUL";
+        case "RESEAU_CHALEUR": return "CHALEUR";
+        case "EAU": return usage === "ECS" ? "EAU_CHAUDE" : "EAU_FROIDE";
+        case "BOIS": return "FIOUL";
+        default: return "GAZ";
+      }
+    };
+
+    const importRows = consumptions.map((c) => ({
+      id: `imp_${c.id}`,
+      readingDate: c.periodEnd ?? c.period,
+      indexValue: null,
+      consumption: c.quantity,
+      unit: c.unit,
+      consumptionConverted: null,
+      unitConverted: null,
+      notes: null,
+      isImport: true,
+      meter: {
+        id: `imp_${c.id}`,
+        name: c.meterName ?? "Import exploitant",
+        fluid: energyTypeToFluid(c.energyType, c.usage),
+        unit: c.unit,
+        siteId: c.siteId,
+        site: { name: c.site.name },
+      },
+      previous: null,
+    }));
+
+    return NextResponse.json([...enriched, ...importRows]);
   } catch (error) {
     console.error("Error fetching contract readings:", error);
     return NextResponse.json(
