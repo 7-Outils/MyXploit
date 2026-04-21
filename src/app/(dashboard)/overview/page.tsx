@@ -5,9 +5,12 @@ import {
   AlertTriangle,
   Receipt,
   Calendar,
+  CalendarCheck,
+  CalendarX,
   Loader2,
   Wrench,
 } from "lucide-react";
+import { StatsCard } from "@/components/dashboard/stats-card";
 import { useUserProfile, PROFILE_CONFIG } from "@/contexts/UserProfileContext";
 import { useContract } from "@/contexts/ContractContext";
 import { Onboarding } from "@/components/dashboard/onboarding";
@@ -226,9 +229,75 @@ export default function OverviewPage() {
     );
   }
 
+  const formatDate = (iso?: string) =>
+    iso
+      ? new Date(iso).toLocaleDateString("fr-FR", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : "—";
+
+  const daysUntilEnd = selectedContract?.endDate
+    ? Math.ceil(
+        (new Date(selectedContract.endDate).getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : null;
+
+  const daysSinceStart = selectedContract?.startDate
+    ? Math.floor(
+        (Date.now() - new Date(selectedContract.startDate).getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : null;
+
+  if (!selectedContract) {
+    return (
+      <div className="flex items-center justify-center py-20 text-text-secondary">
+        <p>Sélectionnez un contrat pour voir les KPI.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center py-20 text-text-secondary">
-      <p>À venir</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <StatsCard
+        title="Date de démarrage"
+        value={formatDate(selectedContract.startDate)}
+        change={
+          daysSinceStart !== null && daysSinceStart >= 0
+            ? `Il y a ${daysSinceStart} j`
+            : undefined
+        }
+        changeType="neutral"
+        icon={CalendarCheck}
+        iconColor="text-green-600"
+      />
+      <StatsCard
+        title="Date de fin"
+        value={formatDate(selectedContract.endDate)}
+        change={
+          daysUntilEnd !== null
+            ? daysUntilEnd >= 0
+              ? `Dans ${daysUntilEnd} j`
+              : `Expiré depuis ${Math.abs(daysUntilEnd)} j`
+            : undefined
+        }
+        changeType={
+          daysUntilEnd !== null && daysUntilEnd < 0
+            ? "negative"
+            : daysUntilEnd !== null && daysUntilEnd < 90
+            ? "neutral"
+            : "positive"
+        }
+        icon={CalendarX}
+        iconColor={
+          daysUntilEnd !== null && daysUntilEnd < 0
+            ? "text-red-600"
+            : "text-accent"
+        }
+      />
     </div>
   );
 }
