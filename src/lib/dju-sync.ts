@@ -297,7 +297,7 @@ export async function getDailyDjuForStation(
     for (const d of daily) byDay.set(d.date, d.dju);
     return byDay;
   } catch (err) {
-    console.error(`DJU fetch failed for station ${station}:`, err);
+    console.error(`DJU fetch failed for station ${key}:`, err);
     return new Map();
   }
 }
@@ -327,7 +327,7 @@ export async function getMonthlyDjuForStation(
     }
     return byMonth;
   } catch (err) {
-    console.error(`DJU fetch failed for station ${station}:`, err);
+    console.error(`DJU fetch failed for station ${key}:`, err);
     return new Map();
   }
 }
