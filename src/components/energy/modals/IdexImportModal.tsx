@@ -430,20 +430,19 @@ export function IdexImportModal({
               <>
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
-                  className="flex-1 flex items-center justify-center gap-2"
+                  className="flex-1 relative"
                   onClick={onConfirmImport}
                   disabled={importing}
                 >
-                  {importing ? (
-                    <>
+                  <span className={`flex items-center justify-center gap-2 ${importing ? "invisible" : ""}`}>
+                    <Check size={18} />
+                    <span>Confirmer l&apos;import</span>
+                  </span>
+                  {importing && (
+                    <span className="absolute inset-0 flex items-center justify-center gap-2">
                       <Loader2 size={18} className="animate-spin" />
                       <span>Import en cours...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check size={18} />
-                      <span>Confirmer l&apos;import</span>
-                    </>
+                    </span>
                   )}
                 </Button>
               </>
@@ -451,20 +450,19 @@ export function IdexImportModal({
               <>
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
-                  className="flex-1 flex items-center justify-center gap-2"
+                  className="flex-1 relative"
                   onClick={handleSubmit}
                   disabled={importing || !selectedFile}
                 >
-                  {importing ? (
-                    <>
+                  <span className={`flex items-center justify-center gap-2 ${importing ? "invisible" : ""}`}>
+                    <FileSpreadsheet size={18} />
+                    <span>Analyser le fichier</span>
+                  </span>
+                  {importing && (
+                    <span className="absolute inset-0 flex items-center justify-center gap-2">
                       <Loader2 size={18} className="animate-spin" />
                       <span>Analyse...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FileSpreadsheet size={18} />
-                      <span>Analyser le fichier</span>
-                    </>
+                    </span>
                   )}
                 </Button>
               </>
