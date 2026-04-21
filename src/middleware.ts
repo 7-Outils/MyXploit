@@ -36,6 +36,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow Vercel Cron + admin one-shots via shared secret
+  const authHeader = request.headers.get("authorization");
+  if (
+    process.env.CRON_SECRET &&
+    authHeader === `Bearer ${process.env.CRON_SECRET}`
+  ) {
+    return NextResponse.next();
+  }
+
   // Check for session cookie
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
 
