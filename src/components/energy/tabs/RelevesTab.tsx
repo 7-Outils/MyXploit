@@ -118,17 +118,30 @@ function monthlyShare(r: MeterReadingRow, kwh: number): Map<string, number> {
 function Sparkline({ values, color, height = 28 }: { values: number[]; color: string; height?: number }) {
   if (values.length === 0) return null;
   const max = Math.max(...values, 1);
-  const width = 80;
-  const step = width / Math.max(values.length - 1, 1);
-  const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(height - (v / max) * height).toFixed(1)}`).join(" ");
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  // viewBox interne fixe, le SVG s'étire via width=100% + preserveAspectRatio=none
+  const vbWidth = 100;
+  const step = vbWidth / Math.max(values.length - 1, 1);
+  const pts = values
+    .map((v, i) => `${(i * step).toFixed(2)},${(height - ((v - min) / range) * height).toFixed(2)}`)
+    .join(" ");
   return (
-    <svg width={width} height={height} className="block" aria-hidden>
+    <svg
+      width="100%"
+      height={height}
+      viewBox={`0 0 ${vbWidth} ${height}`}
+      preserveAspectRatio="none"
+      className="block overflow-visible"
+      aria-hidden
+    >
       <polyline
         fill="none"
         stroke={color}
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
         points={pts}
       />
     </svg>
