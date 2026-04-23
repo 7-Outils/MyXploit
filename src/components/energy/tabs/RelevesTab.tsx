@@ -443,24 +443,41 @@ export function RelevesContent({
       .catch(() => setDjuBySite(new Map()));
   }, [contractId]);
 
-  // Unique filter lists
+  // Filtres en cascade: chaque dropdown se rétrécit en fonction des autres filtres actifs.
+  // Exemple: fluide=Gaz → sites qui n'ont pas de gaz disparaissent; compteur choisi → le
+  // site auquel il appartient devient le seul disponible.
+  const matchFluid = (r: MeterReadingRow) =>
+    filterFluid === "all" || (CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid) === filterFluid;
+  const matchSite = (r: MeterReadingRow) =>
+    filterSite === "all" || r.meter.siteId === filterSite;
+  const matchMeter = (r: MeterReadingRow) =>
+    filterMeter === "all" || (filterSite === "all" ? r.meter.name === filterMeter : r.meter.id === filterMeter);
+
   const fluids = useMemo(() => {
     const canonSet = new Set<string>();
-    for (const r of readings) canonSet.add(CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid);
+    for (const r of readings) {
+      if (!matchSite(r)) continue;
+      if (!matchMeter(r)) continue;
+      canonSet.add(CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid);
+    }
     return Array.from(canonSet);
-  }, [readings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readings, filterSite, filterMeter]);
+
   const sitesList = useMemo(() => {
     const map = new Map<string, string>();
-    readings.forEach((r) => map.set(r.meter.siteId, r.meter.site.name));
+    for (const r of readings) {
+      if (!matchFluid(r)) continue;
+      if (!matchMeter(r)) continue;
+      map.set(r.meter.siteId, r.meter.site.name);
+    }
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [readings]);
-  // Quand aucun site n'est sélectionné, on dédoublonne par nom de compteur
-  // (plusieurs sites peuvent avoir "CPT GAZ GrDF" — on évite les doublons visuels).
-  // Le filtre matche alors par nom. Quand un site est sélectionné, on liste les
-  // compteurs de ce site (identifiés par id).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readings, filterFluid, filterMeter]);
+
+  // Compteurs: dédoublonnés par nom quand site=all (plusieurs sites peuvent partager
+  // "CPT GAZ GrDF"), par id quand un site est sélectionné.
   const metersList = useMemo(() => {
-    const matchFluid = (r: MeterReadingRow) =>
-      filterFluid === "all" || (CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid) === filterFluid;
     if (filterSite === "all") {
       const names = new Set<string>();
       for (const r of readings) if (matchFluid(r)) names.add(r.meter.name);
@@ -473,6 +490,7 @@ export function RelevesContent({
       if (!map.has(r.meter.id)) map.set(r.meter.id, { id: r.meter.id, name: r.meter.name, siteId: r.meter.siteId });
     }
     return Array.from(map.values());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [readings, filterSite, filterFluid]);
 
   const availableMeters = metersList;

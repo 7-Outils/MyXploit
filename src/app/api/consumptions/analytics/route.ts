@@ -276,15 +276,18 @@ export async function GET(request: NextRequest) {
           siteData.djrByMonth.set(monthKey, arr);
         }
       } else if (consumption.usage === EnergyUsage.ECS) {
-        // Separate water-based ECS (m³) from heat-based ECS (kWh)
-        if (consumption.energyType === "EAU") {
-          // Water flow meter - stays in m³
+        // Route selon l'UNITÉ stockée, pas selon energyType:
+        // - m³ → volumétrique (ecsTotal, sera converti en kWh au moment de la déduction)
+        // - kWh/MWh → déjà énergétique (ecsHeatTotal direct)
+        // Le projector convertit EAU_CHAUDE m³ → kWh via coefficient Q, donc
+        // energyType=EAU peut avoir unit="kWh" après projection.
+        const qty = consumption.unit === "MWh" ? consumption.quantity * 1000 : consumption.quantity;
+        if (consumption.unit === "m³" || consumption.unit === "m3") {
           siteData.ecsTotal += consumption.quantity;
           monthData.ecs += consumption.quantity;
         } else {
-          // Heat/Gas/Electric - in kWh
-          siteData.ecsHeatTotal += consumption.quantity;
-          monthData.ecsHeat += consumption.quantity;
+          siteData.ecsHeatTotal += qty;
+          monthData.ecsHeat += qty;
         }
       } else if (consumption.usage === EnergyUsage.MIXTE) {
         // For MIXTE, we use the quantityChauffage if available, or estimate
