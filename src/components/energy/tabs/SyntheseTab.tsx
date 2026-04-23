@@ -52,7 +52,7 @@ export function SyntheseContent({
   }
 
   return (
-    <>
+    <div className="space-y-6">
       {/* KPIs */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
@@ -225,6 +225,6 @@ export function SyntheseContent({
           </div>
         </ChartCard>
       )}
-    </>
+    </div>
   );
 }
