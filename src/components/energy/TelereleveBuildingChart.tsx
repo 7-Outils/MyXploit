@@ -465,14 +465,17 @@ export function TelereleveBuildingChart({
 
     const seriesLabel = "Consommation";
 
-    // Compute kWh/DJU ratio line when in monthly frequency and DJU data available
+    // Compute kWh/DJU ratio line when in monthly frequency and DJU data available.
+    // Seuil DJU >= 10 pour exclure les mois d'été (valeurs absurdes sinon:
+    // 1 kWh / 2 DJU = 0.5 kWh/DJU n'a aucun sens physique).
+    const MIN_DJU = 10;
     const showRatio = frequency === "month" && djuByMonth && djuByMonth.size > 0;
     const ratioValues = showRatio
       ? buckets.map((b) => {
           const d = new Date(b.date);
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
           const dju = djuByMonth!.get(key) || 0;
-          return dju > 0 ? Math.round((b.total / dju) * 10) / 10 : null;
+          return dju >= MIN_DJU ? Math.round((b.total / dju) * 10) / 10 : null;
         })
       : [];
 

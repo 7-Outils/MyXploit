@@ -534,8 +534,15 @@ export async function GET(request: NextRequest) {
       const lastConsumptionDate = lastConsumptionMap.get(site.id);
 
       // Check if heatingSeason has a real start date (not null)
-      // After the schema change, startDate is null until IDEX import sets it
-      const hasRealStartDate = !!heatingSeason?.startDate;
+      // After the schema change, startDate is null until IDEX import sets it.
+      // Ignore dates corrompues (startDate > endDate, ou startDate > today) —
+      // artefacts de l'ancienne migration 432ce3d qui posait startDate=01/01/YYYY.
+      const rawStart = heatingSeason?.startDate;
+      const rawEnd = heatingSeason?.endDate;
+      const datesValid = !!rawStart
+        && rawStart <= today
+        && (!rawEnd || rawEnd >= rawStart);
+      const hasRealStartDate = datesValid;
 
       if (heatingSeason && hasRealStartDate) {
         // Utiliser les dates de la saison de chauffage
