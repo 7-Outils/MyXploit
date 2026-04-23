@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
-import { getDailyDjuForStation, resolveDjuContractuel } from "@/lib/dju-sync";
+import { getDailyDjuForStation, resolveDjuContractuel, resolveStationKey, getStationFromPostalCode } from "@/lib/dju-sync";
 
 // Force dynamic — never cache this route
 export const dynamic = "force-dynamic";
@@ -300,28 +300,50 @@ export async function GET(request: NextRequest) {
 
     // ─── Fetch daily DJU from weather API ───────────────────────────────
     const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    // One call per site covering the full query period, then filter by
-    // intervals to only sum DJU on heating days.
-    const dailyDjuBySite = new Map<string, Map<string, number>>();
+
+    // Dédup par station météo: un contrat de 74 sites partage souvent 1-5
+    // stations (zone géo commune). Sans dédup on faisait 74 appels Open-Meteo
+    // en parallèle → rate limit → échecs silencieux → DJR=0 qui se rempli au
+    // refresh. Avec dédup on fait ~5 appels, robuste.
+    type StationGroup = { key: string; spanStart: Date; spanEnd: Date; siteIds: string[] };
+    const stationGroups = new Map<string, StationGroup>();
+    for (const site of sites) {
+      const intervals = intervalsBySite.get(site.id);
+      if (!intervals || intervals.length === 0) continue;
+      const spanStart = intervals.reduce((min, i) => (i.start < min ? i.start : min), intervals[0].start);
+      const spanEnd = intervals.reduce((max, i) => (i.end > max ? i.end : max), intervals[0].end);
+      const stationKey =
+        resolveStationKey(site.stationMeteo) ?? getStationFromPostalCode(site.postalCode);
+      const existing = stationGroups.get(stationKey);
+      if (existing) {
+        if (spanStart < existing.spanStart) existing.spanStart = spanStart;
+        if (spanEnd > existing.spanEnd) existing.spanEnd = spanEnd;
+        existing.siteIds.push(site.id);
+      } else {
+        stationGroups.set(stationKey, { key: stationKey, spanStart, spanEnd, siteIds: [site.id] });
+      }
+    }
+
+    const dailyDjuByStation = new Map<string, Map<string, number>>();
     await Promise.all(
-      sites.map(async (site) => {
-        const intervals = intervalsBySite.get(site.id);
-        if (!intervals || intervals.length === 0) {
-          dailyDjuBySite.set(site.id, new Map());
-          return;
-        }
-        // Span all intervals: fetch min→max then filter
-        const spanStart = intervals.reduce((min, i) => (i.start < min ? i.start : min), intervals[0].start);
-        const spanEnd = intervals.reduce((max, i) => (i.end > max ? i.end : max), intervals[0].end);
+      Array.from(stationGroups.values()).map(async (g) => {
         const daily = await getDailyDjuForStation(
-          site.stationMeteo,
-          site.postalCode,
-          toIso(spanStart),
-          toIso(spanEnd),
+          g.key,
+          null,
+          toIso(g.spanStart),
+          toIso(g.spanEnd),
         );
-        dailyDjuBySite.set(site.id, daily);
+        dailyDjuByStation.set(g.key, daily);
       })
     );
+
+    // Dispatch par site
+    const dailyDjuBySite = new Map<string, Map<string, number>>();
+    for (const site of sites) {
+      const stationKey =
+        resolveStationKey(site.stationMeteo) ?? getStationFromPostalCode(site.postalCode);
+      dailyDjuBySite.set(site.id, dailyDjuByStation.get(stationKey) ?? new Map());
+    }
 
     // Inject DJR into site data — only days within heating intervals.
     // Pour les sites SANS télérelève (relevés exploitant sparse), on cap le DJR
