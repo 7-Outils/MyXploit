@@ -30,6 +30,7 @@ import { StatsCards } from "@/components/overview/StatsCards";
 import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
 import ConsoHeatmap from "@/components/overview/ConsoHeatmap";
+import ContractPeriodBar from "@/components/overview/ContractPeriodBar";
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -236,66 +237,14 @@ export default function OverviewPage() {
     );
   }
 
-  const start = new Date(selectedContract.startDate);
-  const end = new Date(selectedContract.endDate);
-  const now = Date.now();
-  const span = end.getTime() - start.getTime();
-  const progress =
-    span > 0
-      ? Math.min(100, Math.max(0, ((now - start.getTime()) / span) * 100))
-      : 0;
-  const daysLeft = Math.ceil((end.getTime() - now) / 86_400_000);
-  const isExpired = daysLeft < 0;
-  const isEndingSoon = !isExpired && daysLeft <= 90;
-
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-
-  const statusLabel = isExpired
-    ? `Expiré il y a ${Math.abs(daysLeft)} j`
-    : `${daysLeft} j restants`;
-
-  const barColor = isExpired
-    ? "bg-red-400"
-    : isEndingSoon
-    ? "bg-amber-400"
-    : "bg-accent";
-
-  const statusColor = isExpired
-    ? "text-red-700 bg-red-50"
-    : isEndingSoon
-    ? "text-amber-700 bg-amber-50"
-    : "text-text-secondary bg-gray-50";
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-white rounded-lg border border-gray-100 text-xs">
-        <div className="flex items-center gap-1.5 text-text-secondary shrink-0">
-          <CalendarRange className="w-3.5 h-3.5" />
-          <span>Période</span>
-        </div>
-        <span className="text-primary-dark tabular-nums font-medium shrink-0">
-          {fmt(start)}
-        </span>
-        <div className="relative flex-1 h-1 bg-gray-100 rounded-full overflow-hidden min-w-[60px]">
-          <div
-            className={`absolute inset-y-0 left-0 rounded-full ${barColor}`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <span className="text-primary-dark tabular-nums font-medium shrink-0">
-          {fmt(end)}
-        </span>
-        <span
-          className={`shrink-0 px-2 py-0.5 rounded-full font-medium ${statusColor}`}
-        >
-          {statusLabel}
-        </span>
-      </div>
+      <ContractPeriodBar
+        reference={selectedContract.reference}
+        title={selectedContract.title}
+        startDate={selectedContract.startDate}
+        endDate={selectedContract.endDate}
+      />
 
       <ConsoHeatmap
         contractId={selectedContract.id}
