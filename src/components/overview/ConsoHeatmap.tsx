@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
-import { editorialDisplay as display, editorialMono as mono } from "@/lib/editorial-fonts";
 
 interface MonthData {
   month: string;
@@ -23,6 +22,7 @@ interface SitePerf {
   status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
   nc: number;
   nbPrime: number;
+  delta: number;
 }
 
 interface SummaryPayload {
@@ -51,18 +51,16 @@ const MONTH_ORDER_HEATING = ["07", "08", "09", "10", "11", "12", "01", "02", "03
 const MONTH_ORDER_CIVIL = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
 const MONTH_SHORT = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
 
-// Palette resserrée — axe froid→chaud en trois paliers par sens. Pas d'orange/amber
-// (visuellement trop "trafic"), on reste sur emerald→stone→rose pour un rendu éditorial.
 function deltaCell(delta: number | null): { bg: string; text: string; label: string } {
-  if (delta === null) return { bg: "bg-stone-50", text: "text-stone-300", label: "—" };
+  if (delta === null) return { bg: "bg-gray-50", text: "text-gray-300", label: "—" };
   const v = Math.round(delta);
   const signed = v > 0 ? `+${v}` : `${v}`;
-  if (v <= -15) return { bg: "bg-emerald-700", text: "text-white",       label: signed };
-  if (v <=  -5) return { bg: "bg-emerald-300", text: "text-emerald-950", label: signed };
-  if (v <    5) return { bg: "bg-stone-100",   text: "text-stone-500",   label: signed };
-  if (v <   15) return { bg: "bg-rose-200",    text: "text-rose-950",    label: signed };
-  if (v <   30) return { bg: "bg-rose-500",    text: "text-white",       label: signed };
-  return           { bg: "bg-rose-800",     text: "text-white",       label: signed };
+  if (v <= -15) return { bg: "bg-emerald-600", text: "text-white",       label: signed };
+  if (v <=  -5) return { bg: "bg-emerald-200", text: "text-emerald-900", label: signed };
+  if (v <    5) return { bg: "bg-gray-100",    text: "text-gray-500",    label: signed };
+  if (v <   15) return { bg: "bg-amber-200",   text: "text-amber-900",   label: signed };
+  if (v <   30) return { bg: "bg-orange-400",  text: "text-white",       label: signed };
+  return           { bg: "bg-red-500",        text: "text-white",       label: signed };
 }
 
 function currentHeatingSeasonYear(): number {
@@ -70,13 +68,18 @@ function currentHeatingSeasonYear(): number {
   return now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
 }
 
-function fmtSignedPct1(v: number): string {
-  const r = Math.round(v * 10) / 10;
-  return (r > 0 ? "+" : r === 0 ? "" : "") + r.toFixed(1) + "%";
+function fmtSignedPct(v: number, d = 1): string {
+  const r = Math.round(v * 10 ** d) / 10 ** d;
+  return (r > 0 ? "+" : "") + r.toFixed(d);
 }
 
 function fmtMwh(kwh: number): string {
-  return Math.round(kwh / 1000).toLocaleString("fr-FR");
+  return (kwh / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 0 });
+}
+
+function fmtSignedMwh(kwh: number): string {
+  const mwh = Math.round(kwh / 1000);
+  return (mwh > 0 ? "+" : "") + mwh.toLocaleString("fr-FR");
 }
 
 export default function ConsoHeatmap({ contractId, yearType }: Props) {
@@ -131,316 +134,248 @@ export default function ConsoHeatmap({ contractId, yearType }: Props) {
     [comparableSites]
   );
 
-  const periodLabel = yearType === "CIVIL" ? `${year}` : `${year - 1} — ${year}`;
-  const canNext = yearType === "CIVIL"
-    ? year < new Date().getFullYear()
-    : year < currentHeatingSeasonYear();
-
+  const periodLabel = yearType === "CIVIL" ? `${year}` : `${year - 1}–${year}`;
+  const canNext = yearType === "CIVIL" ? year < new Date().getFullYear() : year < currentHeatingSeasonYear();
   const summary = data?.summary;
-  const totalSites = summary
-    ? summary.sitesEnEconomie + summary.sitesObjectifAtteint + summary.sitesEnDepassement
-    : 0;
-  const maxSegment = summary ? Math.max(summary.sitesEnEconomie, summary.sitesObjectifAtteint, summary.sitesEnDepassement) : 1;
+  const totalSites = summary ? summary.sitesEnEconomie + summary.sitesObjectifAtteint + summary.sitesEnDepassement : 0;
 
-  const deltaColor = summary
-    ? summary.deltaPercent <= -5 ? "text-emerald-700"
-    : summary.deltaPercent >=  5 ? "text-rose-700"
-    : "text-stone-700"
-    : "text-stone-500";
+  const globalDeltaColor = summary
+    ? summary.deltaPercent <= -5
+      ? "text-emerald-700"
+      : summary.deltaPercent >= 5
+      ? "text-red-700"
+      : "text-gray-600"
+    : "text-gray-500";
 
   return (
-    <section className={`${display.variable} ${mono.variable} bg-white rounded-xl border border-stone-200/70 overflow-hidden`}>
-      {/* BANDEAU DE TÊTE ──────────────────────────────────────────────── */}
-      <header className="flex items-end justify-between px-8 pt-7 pb-5 border-b border-stone-100">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-stone-400 font-semibold">
-            <span>§</span>
-            <span>Performance énergétique</span>
-          </div>
-          <h2 className="text-lg font-semibold text-stone-900 mt-1.5">
-            Consommation réelle vs cible théorique
-          </h2>
+    <div className="bg-white rounded-lg border border-gray-200/80 overflow-hidden">
+      {/* Header ligne 1 — titre + navigation ────────────────────────── */}
+      <div className="flex items-center justify-between px-4 h-10 border-b border-gray-100">
+        <div className="flex items-center gap-3 text-xs">
+          <span className="font-semibold text-primary-dark">Performance énergétique</span>
+          <span className="text-text-secondary">·</span>
+          <span className="text-text-secondary tabular-nums">
+            {comparableSites.length} site{comparableSites.length > 1 ? "s" : ""} avec cible
+          </span>
         </div>
-        <nav className="flex items-center gap-3 text-[11px] text-stone-400">
+        <div className="flex items-center gap-0.5 text-xs">
           <button
             onClick={() => setYear(year - 1)}
-            className="hover:text-stone-900 transition-colors font-semibold"
+            className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 rounded text-text-secondary"
           >
-            ← précédent
+            <ChevronLeft size={14} />
           </button>
-          <span className={`${mono.className} text-stone-900 tabular-nums text-xs font-medium min-w-[90px] text-center`}>
+          <span className="px-2 tabular-nums font-medium text-primary-dark min-w-[72px] text-center">
             {periodLabel}
           </span>
           <button
             onClick={() => setYear(year + 1)}
             disabled={!canNext}
-            className="hover:text-stone-900 transition-colors font-semibold disabled:opacity-30 disabled:hover:text-stone-400"
+            className="w-6 h-6 flex items-center justify-center hover:bg-gray-100 rounded text-text-secondary disabled:opacity-30"
           >
-            suivant →
+            <ChevronRight size={14} />
           </button>
-        </nav>
-      </header>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin text-stone-400" />
         </div>
-      ) : comparableSites.length === 0 || !summary ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-stone-500">
-            Aucun site avec cible (NB) renseignée pour cette période.
-          </p>
+      </div>
+
+      {/* Strip KPI — 1 ligne dense ────────────────────────────────── */}
+      {summary && totalSites > 0 && (
+        <div className="flex items-center gap-6 px-4 h-11 border-b border-gray-100 text-xs">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">Écart</span>
+            <span className={`text-base font-semibold tabular-nums ${globalDeltaColor}`}>
+              {fmtSignedPct(summary.deltaPercent)}%
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">NC</span>
+            <span className="tabular-nums text-primary-dark font-medium">{fmtMwh(summary.totalNc)} MWh</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">N&apos;B</span>
+            <span className="tabular-nums text-primary-dark font-medium">{fmtMwh(summary.totalNbPrime)} MWh</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-text-secondary font-medium">Δ</span>
+            <span className={`tabular-nums font-medium ${summary.totalDelta > 0 ? "text-red-700" : "text-emerald-700"}`}>
+              {fmtSignedMwh(summary.totalDelta)} MWh
+            </span>
+          </div>
+          <div className="flex-1" />
+          <div className="flex items-center gap-3 tabular-nums">
+            <span className="inline-flex items-center gap-1 text-emerald-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{summary.sitesEnEconomie} économie
+            </span>
+            <span className="inline-flex items-center gap-1 text-gray-600">
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />{summary.sitesObjectifAtteint} objectif
+            </span>
+            <span className="inline-flex items-center gap-1 text-red-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />{summary.sitesEnDepassement} dépassement
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Matrice ──────────────────────────────────────────────────── */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-5 h-5 animate-spin text-accent" />
+        </div>
+      ) : comparableSites.length === 0 ? (
+        <div className="text-center py-12 text-xs text-text-secondary">
+          Aucun site avec cible (NB) renseignée pour cette période.
         </div>
       ) : (
-        <>
-          {/* HERO : verdict global éditorial ───────────────────────────── */}
-          <div className="grid grid-cols-[minmax(280px,auto)_1fr] gap-12 px-8 py-10 border-b border-stone-100">
-            {/* Chiffre display */}
-            <div className="relative">
-              <div className="text-[9px] uppercase tracking-[0.24em] text-stone-400 font-semibold mb-3">
-                Écart cumulé
-              </div>
-              <div
-                className={`${display.className} italic ${deltaColor} leading-none tabular-nums`}
-                style={{
-                  fontSize: "clamp(72px, 8vw, 112px)",
-                  animation: "heatmapRise 800ms cubic-bezier(0.16, 1, 0.3, 1) both",
-                }}
-              >
-                {fmtSignedPct1(summary.deltaPercent)}
-              </div>
-              <dl className={`${mono.className} mt-5 flex gap-6 text-[11px] tabular-nums`}>
-                <div>
-                  <dt className="text-[9px] uppercase tracking-widest text-stone-400 mb-0.5">Réel</dt>
-                  <dd className="text-stone-900 font-medium">{fmtMwh(summary.totalNc)} MWh</dd>
-                </div>
-                <div>
-                  <dt className="text-[9px] uppercase tracking-widest text-stone-400 mb-0.5">Cible</dt>
-                  <dd className="text-stone-900 font-medium">{fmtMwh(summary.totalNbPrime)} MWh</dd>
-                </div>
-                <div>
-                  <dt className="text-[9px] uppercase tracking-widest text-stone-400 mb-0.5">Delta</dt>
-                  <dd className={`font-medium ${summary.totalDelta > 0 ? "text-rose-700" : "text-emerald-700"}`}>
-                    {summary.totalDelta > 0 ? "+" : ""}{fmtMwh(summary.totalDelta)} MWh
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Répartition — 3 barres verticales type diagramme éditorial */}
-            <div className="border-l border-stone-100 pl-12">
-              <div className="text-[9px] uppercase tracking-[0.24em] text-stone-400 font-semibold mb-5">
-                Répartition des sites
-                <span className={`${mono.className} text-stone-500 ml-3 tabular-nums`}>n = {totalSites}</span>
-              </div>
-              <div className="grid grid-cols-3 gap-8">
-                <DistSegment
-                  label="Économie"
-                  count={summary.sitesEnEconomie}
-                  max={maxSegment}
-                  color="bg-emerald-600"
-                  tone="text-emerald-700"
-                />
-                <DistSegment
-                  label="Objectif"
-                  count={summary.sitesObjectifAtteint}
-                  max={maxSegment}
-                  color="bg-stone-400"
-                  tone="text-stone-700"
-                />
-                <DistSegment
-                  label="Dépassement"
-                  count={summary.sitesEnDepassement}
-                  max={maxSegment}
-                  color="bg-rose-600"
-                  tone="text-rose-700"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* HEATMAP ──────────────────────────────────────────────────── */}
-          <div>
-            <div className="flex items-center justify-between px-8 py-3 border-b border-stone-100">
-              <div className="text-[9px] uppercase tracking-[0.22em] text-stone-400 font-semibold">
-                Matrice site × mois
-              </div>
-              <div className={`${mono.className} text-[10px] text-stone-400 tabular-nums`}>
-                {comparableSites.length} lignes · 12 colonnes · tri ↓ écart
-              </div>
-            </div>
-
-            <div className="overflow-auto max-h-[60vh]">
-              <table className="border-separate border-spacing-0" style={{ minWidth: "max-content" }}>
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 top-0 bg-white z-30 text-left px-6 py-3 w-[280px] min-w-[280px] border-b border-r border-stone-100">
-                      <div className="text-[9px] font-semibold text-stone-400 uppercase tracking-[0.2em]">Site</div>
-                    </th>
-                    {monthCols.map((m) => (
-                      <th key={m.key} className="sticky top-0 bg-white z-20 px-1 py-3 w-[52px] min-w-[52px] border-b border-stone-100">
-                        <div className={`${mono.className} text-[10px] text-stone-500 font-medium text-center uppercase tracking-wider`}>
-                          {m.label}
-                        </div>
-                      </th>
-                    ))}
-                    <th className="sticky top-0 bg-white z-20 px-3 py-3 w-[110px] min-w-[110px] border-b border-l border-stone-100">
-                      <div className="text-[9px] font-semibold text-stone-400 uppercase tracking-[0.2em] text-center">Cumulé</div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rankedSites.map((site, rowIdx) => {
-                    const row = byCell.get(site.siteId);
-                    const yearly = deltaCell(site.deltaPercent);
-                    return (
-                      <tr
-                        key={site.siteId}
-                        className="group motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1"
-                        style={{ animationDelay: `${Math.min(rowIdx * 10, 240)}ms`, animationFillMode: "backwards" }}
-                      >
-                        <td
-                          className={`sticky left-0 z-10 px-6 py-1.5 w-[280px] min-w-[280px] border-b border-r border-stone-100 bg-white group-hover:bg-stone-50/80 transition-colors`}
-                        >
-                          <Link href={`/energy/sites/${site.siteId}`} className="flex items-center gap-3">
-                            <span className={`${mono.className} text-[10px] tabular-nums text-stone-300 font-medium w-5`}>
-                              {String(rowIdx + 1).padStart(2, "0")}
-                            </span>
-                            <span className="text-sm font-medium text-stone-900 truncate group-hover:text-stone-700 transition-colors">
-                              {site.siteName}
-                            </span>
-                          </Link>
-                        </td>
-                        {monthCols.map((col) => {
-                          const md = row?.get(col.key);
-                          const delta = md && md.nbPrime > 0
-                            ? ((md.nc - md.nbPrime) / md.nbPrime) * 100
-                            : null;
-                          const cell = deltaCell(delta);
-                          const hasData = md && md.nc > 0;
-                          return (
-                            <td key={col.key} className="border-b border-stone-100 p-[2px] align-middle">
-                              <div
-                                title={
-                                  hasData && delta !== null
-                                    ? `${site.siteName} · ${col.label}\n${cell.label}%\nNC ${fmtMwh(md!.nc)} MWh — N'B ${fmtMwh(md!.nbPrime)} MWh`
-                                    : `${site.siteName} · ${col.label} : pas de données`
-                                }
-                                className={`${mono.className} h-7 flex items-center justify-center rounded-[3px] text-[10px] font-medium tabular-nums transition-all hover:scale-110 hover:shadow-sm ${cell.bg} ${cell.text} ${hasData ? "cursor-help" : ""}`}
-                              >
-                                {hasData ? cell.label : ""}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td className="border-b border-l border-stone-100 p-[2px] align-middle">
-                          <div className={`${mono.className} h-7 flex items-center justify-center rounded-[3px] text-xs font-semibold tabular-nums ${yearly.bg} ${yearly.text}`}>
-                            {yearly.label}%
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td className="sticky left-0 z-10 bg-stone-50 px-6 py-2.5 w-[280px] min-w-[280px] border-t-2 border-stone-200 border-r border-stone-100">
-                      <div className="text-[9px] uppercase tracking-[0.2em] font-bold text-stone-700">Moyenne mensuelle</div>
+        <div className="overflow-auto max-h-[72vh]">
+          <table className="border-separate border-spacing-0 text-xs" style={{ minWidth: "max-content" }}>
+            <thead>
+              <tr>
+                <th className="sticky left-0 top-0 bg-white z-30 text-left px-3 h-8 w-[240px] min-w-[240px] border-b border-r border-gray-100">
+                  <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Site</span>
+                </th>
+                {monthCols.map((m) => (
+                  <th key={m.key} className="sticky top-0 bg-white z-20 w-[44px] min-w-[44px] h-8 border-b border-gray-100">
+                    <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">{m.label}</span>
+                  </th>
+                ))}
+                <ThDivider />
+                <th className="sticky top-0 bg-white z-20 px-2 w-[80px] min-w-[80px] h-8 border-b border-gray-100 text-right">
+                  <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">NC</span>
+                </th>
+                <th className="sticky top-0 bg-white z-20 px-2 w-[80px] min-w-[80px] h-8 border-b border-gray-100 text-right">
+                  <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Δ MWh</span>
+                </th>
+                <th className="sticky top-0 bg-white z-20 px-2 w-[64px] min-w-[64px] h-8 border-b border-gray-100 text-center">
+                  <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">Δ%</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rankedSites.map((site, rowIdx) => {
+                const row = byCell.get(site.siteId);
+                const yearly = deltaCell(site.deltaPercent);
+                return (
+                  <tr key={site.siteId} className="group">
+                    <td
+                      className={`sticky left-0 z-10 px-3 h-7 w-[240px] min-w-[240px] border-b border-r border-gray-100 ${
+                        rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+                      } group-hover:bg-accent/5`}
+                    >
+                      <Link href={`/energy/sites/${site.siteId}`} className="flex items-center gap-2">
+                        <span className="text-[10px] tabular-nums text-gray-300 font-medium w-4 shrink-0">
+                          {rowIdx + 1}
+                        </span>
+                        <span className="text-xs font-medium text-primary-dark truncate group-hover:text-accent transition-colors">
+                          {site.siteName}
+                        </span>
+                      </Link>
                     </td>
                     {monthCols.map((col) => {
-                      const agg = monthAggregates.get(col.key) ?? null;
-                      const cell = deltaCell(agg);
+                      const md = row?.get(col.key);
+                      const delta = md && md.nbPrime > 0 ? ((md.nc - md.nbPrime) / md.nbPrime) * 100 : null;
+                      const cell = deltaCell(delta);
+                      const hasData = md && md.nc > 0;
                       return (
-                        <td key={col.key} className="border-t-2 border-stone-200 p-[2px] align-middle bg-stone-50">
-                          <div className={`${mono.className} h-7 flex items-center justify-center rounded-[3px] text-[10px] font-semibold tabular-nums ${cell.bg} ${cell.text}`}>
-                            {agg !== null ? cell.label : ""}
+                        <td key={col.key} className="border-b border-gray-100 p-0.5 align-middle">
+                          <div
+                            title={
+                              hasData && delta !== null
+                                ? `${site.siteName} · ${col.label}\nΔ ${cell.label}% — NC ${fmtMwh(md!.nc)} / N'B ${fmtMwh(md!.nbPrime)} MWh`
+                                : `${site.siteName} · ${col.label} : pas de données`
+                            }
+                            className={`h-6 flex items-center justify-center rounded-[2px] text-[10px] font-semibold tabular-nums ${cell.bg} ${cell.text} ${hasData ? "cursor-help" : ""}`}
+                          >
+                            {hasData ? cell.label : ""}
                           </div>
                         </td>
                       );
                     })}
-                    <td className="border-t-2 border-stone-200 border-l border-stone-100 p-[2px] align-middle bg-stone-50">
-                      <div className={`${mono.className} h-7 flex items-center justify-center rounded-[3px] text-xs font-bold tabular-nums ${deltaCell(summary.deltaPercent).bg} ${deltaCell(summary.deltaPercent).text}`}>
-                        {fmtSignedPct1(summary.deltaPercent)}
+                    <TdDivider />
+                    <td className={`h-7 px-2 text-right tabular-nums border-b border-gray-100 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+                      <span className="text-xs text-primary-dark font-medium">{fmtMwh(site.nc)}</span>
+                    </td>
+                    <td className={`h-7 px-2 text-right tabular-nums border-b border-gray-100 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+                      <span className={`text-xs font-medium ${site.delta > 0 ? "text-red-700" : site.delta < 0 ? "text-emerald-700" : "text-gray-500"}`}>
+                        {fmtSignedMwh(site.delta)}
+                      </span>
+                    </td>
+                    <td className="h-7 p-0.5 align-middle border-b border-gray-100">
+                      <div className={`h-6 flex items-center justify-center rounded-[2px] text-[11px] font-bold tabular-nums ${yearly.bg} ${yearly.text}`}>
+                        {yearly.label}%
                       </div>
                     </td>
                   </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            {/* LEGEND ─────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-8 py-4 border-t border-stone-100 text-[10px]">
-              <div className="flex items-center gap-1.5">
-                <span className="uppercase tracking-[0.2em] font-bold text-stone-700 mr-3">Échelle</span>
-                <LegendSwatch bg="bg-emerald-700"  value="≤ −15" />
-                <LegendSwatch bg="bg-emerald-300"  value="−5" />
-                <LegendSwatch bg="bg-stone-100"    value="±5" />
-                <LegendSwatch bg="bg-rose-200"     value="+5" />
-                <LegendSwatch bg="bg-rose-500"     value="+15" />
-                <LegendSwatch bg="bg-rose-800"     value="≥ +30" />
-              </div>
-              <div className={`${mono.className} text-stone-400 tabular-nums italic`}>
-                clic site → détail
-              </div>
-            </div>
-          </div>
-        </>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="sticky left-0 z-10 bg-gray-50 px-3 h-8 w-[240px] min-w-[240px] border-t-2 border-gray-200 border-r border-gray-100">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-primary-dark">Moyenne</span>
+                </td>
+                {monthCols.map((col) => {
+                  const agg = monthAggregates.get(col.key) ?? null;
+                  const cell = deltaCell(agg);
+                  return (
+                    <td key={col.key} className="border-t-2 border-gray-200 p-0.5 align-middle bg-gray-50">
+                      <div className={`h-6 flex items-center justify-center rounded-[2px] text-[10px] font-bold tabular-nums ${cell.bg} ${cell.text}`}>
+                        {agg !== null ? cell.label : ""}
+                      </div>
+                    </td>
+                  );
+                })}
+                <TdDivider foot />
+                <td className="border-t-2 border-gray-200 h-8 px-2 text-right tabular-nums bg-gray-50">
+                  <span className="text-xs text-primary-dark font-semibold">{summary ? fmtMwh(summary.totalNc) : ""}</span>
+                </td>
+                <td className="border-t-2 border-gray-200 h-8 px-2 text-right tabular-nums bg-gray-50">
+                  <span className={`text-xs font-semibold ${summary && summary.totalDelta > 0 ? "text-red-700" : "text-emerald-700"}`}>
+                    {summary ? fmtSignedMwh(summary.totalDelta) : ""}
+                  </span>
+                </td>
+                <td className="border-t-2 border-gray-200 h-8 p-0.5 align-middle bg-gray-50">
+                  <div className={`h-6 flex items-center justify-center rounded-[2px] text-[11px] font-bold tabular-nums ${summary ? deltaCell(summary.deltaPercent).bg : "bg-gray-100"} ${summary ? deltaCell(summary.deltaPercent).text : "text-gray-500"}`}>
+                    {summary ? fmtSignedPct(summary.deltaPercent) + "%" : "—"}
+                  </div>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
 
-      <style jsx>{`
-        @keyframes heatmapRise {
-          from {
-            opacity: 0;
-            transform: translateY(16px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </section>
+      {/* Légende ──────────────────────────────────────────────────── */}
+      {comparableSites.length > 0 && (
+        <div className="flex items-center justify-between px-4 h-8 border-t border-gray-100 text-[10px] text-text-secondary">
+          <div className="flex items-center gap-1.5">
+            <span className="uppercase tracking-wider font-semibold text-primary-dark mr-1">Échelle</span>
+            <LegendSwatch bg="bg-emerald-600" value="≤−15" />
+            <LegendSwatch bg="bg-emerald-200" value="−5" />
+            <LegendSwatch bg="bg-gray-100" value="±5" />
+            <LegendSwatch bg="bg-amber-200" value="+5" />
+            <LegendSwatch bg="bg-orange-400" value="+15" />
+            <LegendSwatch bg="bg-red-500" value="≥+30" />
+          </div>
+          <div className="tabular-nums italic">Trié par écart ↓ · clic site → détail</div>
+        </div>
+      )}
+    </div>
   );
 }
 
-function DistSegment({
-  label,
-  count,
-  max,
-  color,
-  tone,
-}: {
-  label: string;
-  count: number;
-  max: number;
-  color: string;
-  tone: string;
-}) {
-  const height = max > 0 ? (count / max) * 100 : 0;
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="h-16 flex items-end">
-        <div
-          className={`${color} w-full rounded-sm`}
-          style={{
-            height: `${Math.max(4, height)}%`,
-            animation: "heatmapRise 900ms cubic-bezier(0.16, 1, 0.3, 1) both",
-          }}
-        />
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className={`text-2xl font-semibold tabular-nums ${tone}`}>{count}</span>
-        <span className="text-[10px] uppercase tracking-widest text-stone-400 font-medium">{label}</span>
-      </div>
-    </div>
-  );
+function ThDivider() {
+  return <th className="sticky top-0 bg-white z-20 w-[1px] min-w-[1px] h-8 border-b border-gray-100 border-l border-gray-200" aria-hidden />;
+}
+
+function TdDivider({ foot = false }: { foot?: boolean }) {
+  return <td className={`${foot ? "bg-gray-50 border-t-2 border-gray-200" : ""} border-b border-gray-100 border-l border-gray-200 w-[1px] min-w-[1px]`} aria-hidden />;
 }
 
 function LegendSwatch({ bg, value }: { bg: string; value: string }) {
   return (
     <span className="inline-flex items-center gap-1 mr-2">
-      <span className={`w-3 h-3 rounded-[2px] ${bg} inline-block`} />
-      <span className="tabular-nums text-stone-500">{value}</span>
+      <span className={`w-2.5 h-2.5 rounded-[2px] ${bg}`} />
+      <span className="tabular-nums">{value}</span>
     </span>
   );
 }
