@@ -67,16 +67,32 @@ function monthsElapsed(start: Date, end: Date): number {
 export default function ActionPanel({ contract }: Props) {
   const cid = contract.id;
 
-  const { data: alerts, isLoading: la } = useSWR<Alert[]>(`/api/alerts?contractId=${cid}`, fetcher);
-  const { data: invoices, isLoading: li } = useSWR<Invoice[]>(`/api/invoices?contractId=${cid}`, fetcher);
-  const { data: workOrders, isLoading: lw } = useSWR<WorkOrder[]>(`/api/work-orders?contractId=${cid}`, fetcher);
-  const { data: meetings, isLoading: lm } = useSWR<Meeting[]>(`/api/meetings?contractId=${cid}`, fetcher);
+  // /api/alerts, /api/invoices, /api/meetings ignorent ?contractId= et renvoient
+  // l'org entière → on filtre côté client. /api/work-orders renvoie {workOrders:[]}.
+  const { data: alertsRaw, isLoading: la } = useSWR<Alert[]>(`/api/alerts`, fetcher);
+  const { data: invoicesRaw, isLoading: li } = useSWR<Invoice[]>(`/api/invoices`, fetcher);
+  const { data: workOrdersRaw, isLoading: lw } = useSWR<{ workOrders: WorkOrder[] }>(
+    `/api/work-orders?contractId=${cid}`,
+    fetcher
+  );
+  const { data: meetingsRaw, isLoading: lm } = useSWR<Meeting[]>(`/api/meetings`, fetcher);
 
   const loading = la || li || lw || lm;
 
+  const alerts = useMemo(() => (Array.isArray(alertsRaw) ? alertsRaw : []), [alertsRaw]);
+  const invoices = useMemo(
+    () => (Array.isArray(invoicesRaw) ? invoicesRaw : []).filter((i) => i.contractId === cid),
+    [invoicesRaw, cid]
+  );
+  const workOrders = useMemo(
+    () => (Array.isArray(workOrdersRaw?.workOrders) ? workOrdersRaw!.workOrders : []),
+    [workOrdersRaw]
+  );
+  const meetings = useMemo(() => (Array.isArray(meetingsRaw) ? meetingsRaw : []), [meetingsRaw]);
+
   // Alertes critiques non lues ───────────────────────────────────────
   const alertStats = useMemo(() => {
-    const list = (alerts ?? []).filter((a) => !a.isRead && a.priority === "CRITIQUE");
+    const list = alerts.filter((a) => !a.isRead && a.priority === "CRITIQUE");
     const siteIds = new Set(list.map((a) => a.siteId).filter(Boolean));
     const latest = list.reduce<Date | null>((acc, a) => {
       const d = new Date(a.createdAt);
@@ -98,14 +114,14 @@ export default function ActionPanel({ contract }: Props) {
     const now = new Date();
     const elapsed = monthsElapsed(start, now);
     const expected = Math.floor(elapsed / periodMonths);
-    const p2 = (invoices ?? []).filter((i) => i.type === "P2");
+    const p2 = invoices.filter((i) => i.type === "P2");
     const missing = Math.max(0, expected - p2.length);
     return { count: missing, expected, received: p2.length, label: PERIOD_LABEL[billing] };
   }, [invoices, contract.startDate, contract.billingFrequency]);
 
   // Travaux à clôturer ───────────────────────────────────────────────
   const workStats = useMemo(() => {
-    const toClose = (workOrders ?? []).filter((w) =>
+    const toClose = workOrders.filter((w) =>
       w.status === "TERMINE" || w.status === "ATTENTE_ATTACHEMENT" || w.status === "ATTENTE_LEVEE"
     );
     const oldest = toClose.reduce<Date | null>((acc, w) => {
@@ -123,7 +139,7 @@ export default function ActionPanel({ contract }: Props) {
   const meetingStats = useMemo(() => {
     const now = new Date();
     const next7 = new Date(now.getTime() + 7 * 86_400_000);
-    const upcoming = (meetings ?? [])
+    const upcoming = meetings
       .map((m) => ({ ...m, dateObj: new Date(m.date) }))
       .filter((m) => m.dateObj >= now && m.dateObj <= next7)
       .sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime());
