@@ -251,8 +251,14 @@ function StackedMonthlyChart({
     });
     const onResize = () => chart.resize();
     window.addEventListener("resize", onResize);
+    // ResizeObserver: déclenche aussi le resize quand le container passe de
+    // display:none à display:block (changement d'onglet) — sans ça le chart
+    // reste coincé aux dimensions mesurées lors du mount (potentiellement 0px).
+    const ro = new ResizeObserver(() => chart.resize());
+    ro.observe(ref.current);
     return () => {
       window.removeEventListener("resize", onResize);
+      ro.disconnect();
       chart.dispose();
     };
   }, [months, series, displayUnit]);
@@ -326,8 +332,11 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
     });
     const onResize = () => chart.resize();
     window.addEventListener("resize", onResize);
+    const ro = new ResizeObserver(() => chart.resize());
+    ro.observe(ref.current);
     return () => {
       window.removeEventListener("resize", onResize);
+      ro.disconnect();
       chart.dispose();
     };
   }, [months, ratios]);
