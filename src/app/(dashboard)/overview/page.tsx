@@ -30,7 +30,7 @@ import { StatsCards } from "@/components/overview/StatsCards";
 import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
 import ConsoHeatmap from "@/components/overview/ConsoHeatmap";
-import ContractPeriodBar from "@/components/overview/ContractPeriodBar";
+import ActionPanel from "@/components/overview/ActionPanel";
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -238,18 +238,12 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <ContractPeriodBar
-        reference={selectedContract.reference}
-        title={selectedContract.title}
-        startDate={selectedContract.startDate}
-        endDate={selectedContract.endDate}
-      />
-
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <ConsoHeatmap
         contractId={selectedContract.id}
         yearType={selectedContract.yearType ?? "HEATING_SEASON"}
       />
+      <ActionPanel contract={selectedContract} />
     </div>
   );
 }

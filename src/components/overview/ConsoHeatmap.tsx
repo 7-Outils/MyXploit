@@ -226,7 +226,7 @@ export default function ConsoHeatmap({ contractId, yearType }: Props) {
           Aucun site avec cible (NB) renseignée pour cette période.
         </div>
       ) : (
-        <div className="overflow-auto max-h-[72vh]">
+        <div className="overflow-auto max-h-[460px]">
           <table className="border-separate border-spacing-0 text-xs" style={{ minWidth: "max-content" }}>
             <thead>
               <tr>

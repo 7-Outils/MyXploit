@@ -18,6 +18,7 @@ interface ContractSummary {
   startDate: string;
   endDate: string;
   yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
+  billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
   _count?: { contractSites: number };
 }
 
