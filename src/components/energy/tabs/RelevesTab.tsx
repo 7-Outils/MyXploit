@@ -776,7 +776,7 @@ export function RelevesContent({
 
       {/* KPIs dynamiques — une card par fluide énergétique présent */}
       {(kpiCards.length > 0 || monthlyRatio.size > 0) && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
           {kpiCards.map((k) => (
             <div key={k.fluid} className="bg-white border border-gray-100 rounded-xl p-4">
               <div className="flex items-center justify-between mb-1">
