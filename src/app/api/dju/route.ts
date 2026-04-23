@@ -407,7 +407,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ sites: [], summary: null });
     }
 
-    // Récupérer les saisons de chauffage pour tous les sites
+    // Récupérer les saisons de chauffage pour tous les sites (pour le NB)
     const season = `${year - 1}-${year}`; // Ex: "2024-2025"
     const heatingSeasons = await prisma.heatingSeason.findMany({
       where: {
@@ -420,6 +420,27 @@ export async function GET(request: NextRequest) {
     const heatingSeasonMap = new Map(
       heatingSeasons.map((hs) => [hs.siteId, hs])
     );
+
+    // Récupérer les périodes de chauffe (modèle HeatingPeriod = source de vérité
+    // pour les dates allumage/arrêt depuis le refactor 432ce3d).
+    // Fenêtre de la saison: [year-1 juillet, year juin 30].
+    const seasonStart = new Date(`${year - 1}-07-01`);
+    const seasonEnd = new Date(`${year}-06-30`);
+    const heatingPeriods = await prisma.heatingPeriod.findMany({
+      where: {
+        siteId: { in: sites.map((s) => s.id) },
+        // Overlap avec la saison: startDate <= seasonEnd AND (endDate null OR endDate >= seasonStart)
+        startDate: { lte: seasonEnd },
+        OR: [{ endDate: null }, { endDate: { gte: seasonStart } }],
+      },
+      orderBy: { startDate: "asc" },
+    });
+    const heatingPeriodsBySite = new Map<string, typeof heatingPeriods>();
+    for (const hp of heatingPeriods) {
+      const list = heatingPeriodsBySite.get(hp.siteId) || [];
+      list.push(hp);
+      heatingPeriodsBySite.set(hp.siteId, list);
+    }
 
     // Récupérer la date du dernier relevé/consommation pour chaque site
     // (utilisé quand la saison est en cours, pas de date de fin)
@@ -438,19 +459,19 @@ export async function GET(request: NextRequest) {
       lastConsumptions.map((lc) => [lc.siteId, lc._max.period])
     );
 
-    // Déterminer la période globale (min startDate, max endDate)
+    // Déterminer la période globale (min startDate, max endDate) — bornée par saison
     const today = new Date();
     let globalStartDate = new Date(`${year - 1}-07-01`); // Fallback: 1er juillet N-1
 
-    // Trouver la date max nécessaire: max entre les dates de fin de saison et les derniers relevés
+    // Trouver la date max nécessaire: max entre dates de fin de périodes et derniers relevés.
+    // On se base sur HeatingPeriod (source de vérité), plus HeatingSeason (legacy).
     let maxNeededDate = new Date(`${year - 1}-07-01`);
-    heatingSeasons.forEach((hs) => {
-      if (hs.startDate && hs.startDate < globalStartDate) {
-        globalStartDate = hs.startDate;
+    heatingPeriods.forEach((hp) => {
+      if (hp.startDate < globalStartDate && hp.startDate >= seasonStart) {
+        globalStartDate = hp.startDate;
       }
-      if (hs.endDate && hs.endDate > maxNeededDate) {
-        maxNeededDate = hs.endDate;
-      }
+      const end = hp.endDate ?? today;
+      if (end > maxNeededDate) maxNeededDate = end;
     });
     lastConsumptions.forEach((lc) => {
       if (lc._max.period) {
@@ -533,38 +554,29 @@ export async function GET(request: NextRequest) {
       // Date du dernier relevé pour ce site (si saison en cours)
       const lastConsumptionDate = lastConsumptionMap.get(site.id);
 
-      // Check if heatingSeason has a real start date (not null)
-      // After the schema change, startDate is null until IDEX import sets it.
-      // Ignore dates corrompues (startDate > endDate, ou startDate > today) —
-      // artefacts de l'ancienne migration 432ce3d qui posait startDate=01/01/YYYY.
-      const rawStart = heatingSeason?.startDate;
-      const rawEnd = heatingSeason?.endDate;
-      const datesValid = !!rawStart
-        && rawStart <= today
-        && (!rawEnd || rawEnd >= rawStart);
-      const hasRealStartDate = datesValid;
+      // Source de vérité pour les dates = HeatingPeriod (modèle dédié depuis
+      // le refactor 432ce3d). HeatingSeason est gardé seulement pour le NB.
+      const sitePeriods = heatingPeriodsBySite.get(site.id) ?? [];
 
-      if (heatingSeason && hasRealStartDate) {
-        // Utiliser les dates de la saison de chauffage
-        siteStartDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
+      if (sitePeriods.length > 0) {
+        // Période la plus tôt possible (intersection saison)
+        const earliest = sitePeriods[0].startDate;
+        siteStartDate = earliest < seasonStart ? seasonStart : earliest;
 
-        if (heatingSeason.endDate) {
-          // endDate = date exacte du dernier relevé (pas normalisée)
-          // Ex: si relevé le 04/11, endDate = 04/11 → calculer DJU jusqu'au 04/11
-          siteEndDate = heatingSeason.endDate;
-        } else if (lastConsumptionDate) {
-          // Fallback: utiliser la date exacte du dernier relevé
-          siteEndDate = lastConsumptionDate;
-        } else {
-          // Pas de relevé encore: utiliser la date de début
-          siteEndDate = heatingSeason.startDate!; // Safe: already checked by hasRealStartDate
-        }
+        // Date de fin: dernière endDate définie, ou today si une période est
+        // toujours en cours (endDate null).
+        const latest = sitePeriods.reduce<Date | null>((max, p) => {
+          if (p.endDate == null) return today;
+          if (max == null || p.endDate > max) return p.endDate;
+          return max;
+        }, null);
+        siteEndDate = latest ?? today;
+        // Cap à la fin de saison
+        if (siteEndDate > seasonEnd) siteEndDate = seasonEnd;
       } else {
-        // Fallback: période par défaut (1er oct - 30 avril)
-        // Used when no HeatingSeason or when startDate is the default July 1st
+        // Aucune HeatingPeriod pour ce site: fallback par défaut (1er oct - 30 avril)
         siteStartDate = new Date(`${year - 1}-10-01`);
         if (lastConsumptionDate) {
-          // period = 1er du mois du relevé, donc conso jusqu'à period - 1 jour
           siteEndDate = new Date(lastConsumptionDate.getTime() - 24 * 60 * 60 * 1000);
         } else {
           const defaultEndDate = new Date(`${year}-04-30`);
