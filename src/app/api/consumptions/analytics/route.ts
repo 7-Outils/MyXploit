@@ -72,6 +72,22 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Coefficient Q par site (pour convertir ECS volumétrique m³ → kWh).
+    // Nécessaire pour déduire correctement l'ECS du NC chauffage.
+    const siteCoefQ = new Map<string, number>();
+    if (sites.length > 0) {
+      const contractSitesCoef = await prisma.contractSite.findMany({
+        where: {
+          siteId: { in: sites.map((s) => s.id) },
+          ...(contractId ? { contractId } : {}),
+        },
+        select: { siteId: true, coefficientQ: true },
+      });
+      for (const cs of contractSitesCoef) {
+        if (cs.coefficientQ != null) siteCoefQ.set(cs.siteId, cs.coefficientQ);
+      }
+    }
+
     // Fetch heating seasons for this year to get season-specific NB
     const season = yearType === "CIVIL" ? `${year}` : `${year - 1}-${year}`;
     const heatingSeasons = await prisma.heatingSeason.findMany({
@@ -374,20 +390,26 @@ export async function GET(request: NextRequest) {
       siteData.djrTotal = total;
     });
 
-    // ─── Deduct ECS from NC for TELERELEVE sites ─────────────────────
-    // GRDF gives total gas (chauffage + ECS + other). For sites with
-    // telereleve, subtract the heat-based ECS (kWh) reported by the
-    // exploitant to get the true NC chauffage.
+    // ─── Deduct ECS from NC ──────────────────────────────────────────
+    // Le compteur gaz principal mesure TOUT le gaz consommé (chauffage + ECS).
+    // Pour avoir le NC chauffage net, on déduit l'ECS:
+    //   - ecsHeatTotal: ECS mesuré en kWh (gaz/elec dédié ECS, source TELERELEVE ou EXPLOITANT)
+    //   - ecsTotal × coefQ × 1000: ECS volumétrique m³ converti en kWh
+    // On applique la déduction à TOUS les sites (pas juste TELERELEVE) dès
+    // lors qu'il y a de l'ECS identifié.
     siteMap.forEach((siteData) => {
-      if (!sitesWithTelereleve.has(siteData.site.id)) return;
-      if (siteData.ecsHeatTotal <= 0) return;
+      const coefQ = siteCoefQ.get(siteData.site.id) ?? 0.13;
+      const ecsFromVolume = siteData.ecsTotal > 0 ? siteData.ecsTotal * coefQ * 1000 : 0;
+      const ecsKwh = siteData.ecsHeatTotal + ecsFromVolume;
+      if (ecsKwh <= 0) return;
 
-      siteData.ncTotal = Math.max(0, siteData.ncTotal - siteData.ecsHeatTotal);
+      siteData.ncTotal = Math.max(0, siteData.ncTotal - ecsKwh);
 
-      // Also deduct per month
+      // Also deduct per month: ecsHeat (kWh) + ecs volumétrique × coefQ × 1000
       siteData.months.forEach((monthData) => {
-        if (monthData.ecsHeat > 0) {
-          monthData.nc = Math.max(0, monthData.nc - monthData.ecsHeat);
+        const monthEcsKwh = monthData.ecsHeat + (monthData.ecs > 0 ? monthData.ecs * coefQ * 1000 : 0);
+        if (monthEcsKwh > 0) {
+          monthData.nc = Math.max(0, monthData.nc - monthEcsKwh);
         }
       });
     });
