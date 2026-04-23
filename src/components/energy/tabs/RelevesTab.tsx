@@ -72,6 +72,14 @@ function formatValue(v: number, unit: string): string {
   return `${Math.round(v).toLocaleString("fr-FR")} ${unit}`;
 }
 
+// Formatage strict forcé sur kWh ou MWh (pour les KPIs qui suivent le toggle)
+function formatForced(v: number, unit: "kWh" | "MWh"): string {
+  if (unit === "MWh") {
+    return `${(v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} MWh`;
+  }
+  return `${Math.round(v).toLocaleString("fr-FR")} kWh`;
+}
+
 // Normalize to kWh for KPI totals
 function toKwh(r: MeterReadingRow): number {
   if (r.consumption == null) return 0;
@@ -865,7 +873,7 @@ export function RelevesContent({
                   </span>
                 )}
               </div>
-              <p className="text-2xl font-semibold text-primary-dark">{formatValue(k.total, "kWh")}</p>
+              <p className="text-2xl font-semibold text-primary-dark">{formatForced(k.total, displayUnit)}</p>
               {k.nativeTotal != null && k.nativeUnit && (
                 <p className="text-xs text-text-secondary mt-0.5">
                   {k.nativeTotal.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} {k.nativeUnit}
