@@ -83,11 +83,9 @@ export function SyntheseContent({
         />
         <StatsCard
           title="Sites en dépassement"
-          value={analytics.summary.sitesEnDepassement.toString()}
+          value={`${analytics.summary.sitesEnDepassement}/${analytics.summary.totalSites}`}
           change={
-            analytics.summary.sitesEnDepassement > 0
-              ? `${analytics.summary.sitesEnDepassement}/${analytics.summary.totalSites} dérivent`
-              : "Aucune dérive"
+            analytics.summary.sitesEnDepassement > 0 ? "À surveiller" : "Aucune dérive"
           }
           changeType={analytics.summary.sitesEnDepassement > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
