@@ -887,7 +887,8 @@ export function RelevesContent({
         </div>
       )}
 
-      {/* Table */}
+      {/* Table — affichée uniquement quand un site ET un fluide sont filtrés */}
+      {filterSite !== "all" && filterFluid !== "all" && (
       <ChartCard title="Relevés">
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -1027,6 +1028,7 @@ export function RelevesContent({
           </div>
         )}
       </ChartCard>
+      )}
     </div>
   );
 }
