@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -30,6 +31,11 @@ export function SyntheseContent({
   setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
 }) {
+  // Filtre par status cliqué sur une KPI (Économie / Dépassement)
+  const [statusFilter, setStatusFilter] = useState<"ECONOMIE" | "DEPASSEMENT" | null>(null);
+  const toggleStatus = (s: "ECONOMIE" | "DEPASSEMENT") =>
+    setStatusFilter((prev) => (prev === s ? null : s));
+
   if (!analytics) {
     return (
       <ChartCard title="">
@@ -80,6 +86,8 @@ export function SyntheseContent({
           value={`${analytics.summary.sitesEnEconomie}/${analytics.summary.totalSites}`}
           icon={Building2}
           iconColor="text-accent"
+          onClick={() => toggleStatus("ECONOMIE")}
+          active={statusFilter === "ECONOMIE"}
         />
         <StatsCard
           title="Sites en dépassement"
@@ -90,12 +98,34 @@ export function SyntheseContent({
           changeType={analytics.summary.sitesEnDepassement > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
           iconColor="text-red-600"
+          onClick={() => toggleStatus("DEPASSEMENT")}
+          active={statusFilter === "DEPASSEMENT"}
         />
       </div>
 
       {/* Performance par site */}
       {analytics.sites.length > 0 && (
-        <ChartCard title="Performance par site">
+        <ChartCard
+          title="Performance par site"
+          subtitle={
+            statusFilter === "ECONOMIE"
+              ? "Filtré : sites en économie"
+              : statusFilter === "DEPASSEMENT"
+              ? "Filtré : sites en dépassement"
+              : undefined
+          }
+          action={
+            statusFilter ? (
+              <button
+                type="button"
+                onClick={() => setStatusFilter(null)}
+                className="text-xs text-accent hover:underline"
+              >
+                Réinitialiser
+              </button>
+            ) : undefined
+          }
+        >
           <div className="overflow-x-auto -mx-6 -my-6">
             <table className="w-full">
               <thead className="bg-background-secondary border-b border-gray-100">
@@ -113,7 +143,10 @@ export function SyntheseContent({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {analytics.sites.filter((site) => site.nb != null).map((site) => (
+                {analytics.sites
+                  .filter((site) => site.nb != null)
+                  .filter((site) => statusFilter == null || site.status === statusFilter)
+                  .map((site) => (
                   <tr key={site.siteId} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
