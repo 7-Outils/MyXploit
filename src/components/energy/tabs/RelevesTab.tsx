@@ -43,12 +43,14 @@ const FLUID_LABELS: Record<string, string> = {
 };
 
 // Regroupe les variantes MeterFluid en fluide canonique pour le filtre.
-// ECS / Eau froide sont tous les deux "Eau" du point de vue utilisateur.
+// ECS (EAU_CHAUDE) est séparé de Eau froide car physiquement différent:
+// ECS se convertit en kWh via coefficient Q (énergie), eau froide est pure
+// volume (indicateur de maintenance/fuite uniquement).
 const CANONICAL_FLUID: Record<string, string> = {
   GAZ: "Gaz",
   ELECTRICITE: "Électricité",
-  EAU_CHAUDE: "Eau",
-  EAU_FROIDE: "Eau",
+  EAU_CHAUDE: "ECS",
+  EAU_FROIDE: "Eau froide",
   CHALEUR: "Chaleur",
   FIOUL: "Fioul",
 };
@@ -195,7 +197,7 @@ function StackedMonthlyChart({
     if (!ref.current || months.length === 0) return;
     const chart = echarts.init(ref.current);
     chart.setOption({
-      grid: { left: 60, right: 16, top: 40, bottom: 32 },
+      grid: { left: 60, right: 16, top: 16, bottom: 56 },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -205,7 +207,7 @@ function StackedMonthlyChart({
       },
       legend: {
         data: series.map((s) => s.name),
-        top: 8,
+        bottom: 8,
         textStyle: { fontSize: 11, color: "#6b7280" },
       },
       xAxis: {
@@ -394,23 +396,27 @@ export function RelevesContent({
 
   useEffect(() => { fetchReadings(); }, [fetchReadings, refreshKey]);
 
-  // Objectif NB pour l'overlay cible sur chart chauffage
-  const [contractNbKwh, setContractNbKwh] = useState<number | null>(null);
+  // Objectif NB par site (pour l'overlay cible sur chart chauffage).
+  // On garde un map siteId → NB_kWh pour pouvoir adapter la cible au filtre.
+  const [nbBySite, setNbBySite] = useState<Map<string, number>>(new Map());
   useEffect(() => {
-    if (!contractId) { setContractNbKwh(null); return; }
+    if (!contractId) { setNbBySite(new Map()); return; }
     fetch(`/api/heating-seasons?contractId=${contractId}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: { season: string; nb: number | null }[]) => {
-        if (!Array.isArray(data) || data.length === 0) { setContractNbKwh(null); return; }
+      .then((data: { siteId: string; season: string; nb: number | null }[]) => {
+        if (!Array.isArray(data) || data.length === 0) { setNbBySite(new Map()); return; }
         // Saison la plus récente = plus grande clé
         const latestSeason = [...new Set(data.map((d) => d.season))].sort().pop();
-        if (!latestSeason) { setContractNbKwh(null); return; }
-        const totalNbMwh = data
-          .filter((d) => d.season === latestSeason)
-          .reduce((s, d) => s + (d.nb ?? 0), 0);
-        setContractNbKwh(totalNbMwh > 0 ? totalNbMwh * 1000 : null);
+        if (!latestSeason) { setNbBySite(new Map()); return; }
+        const m = new Map<string, number>();
+        for (const hs of data) {
+          if (hs.season !== latestSeason) continue;
+          if (hs.nb == null || hs.nb <= 0) continue;
+          m.set(hs.siteId, hs.nb * 1000); // MWh → kWh
+        }
+        setNbBySite(m);
       })
-      .catch(() => setContractNbKwh(null));
+      .catch(() => setNbBySite(new Map()));
   }, [contractId]);
 
   // DJU mensuel par site (pour calcul cohérent du ratio conso/DJU selon le filtre).
@@ -453,17 +459,21 @@ export function RelevesContent({
   // Le filtre matche alors par nom. Quand un site est sélectionné, on liste les
   // compteurs de ce site (identifiés par id).
   const metersList = useMemo(() => {
+    const matchFluid = (r: MeterReadingRow) =>
+      filterFluid === "all" || (CANONICAL_FLUID[r.meter.fluid] ?? r.meter.fluid) === filterFluid;
     if (filterSite === "all") {
-      const names = Array.from(new Set(readings.map((r) => r.meter.name)));
-      return names.map((name) => ({ id: name, name, siteId: "" }));
+      const names = new Set<string>();
+      for (const r of readings) if (matchFluid(r)) names.add(r.meter.name);
+      return Array.from(names).map((name) => ({ id: name, name, siteId: "" }));
     }
     const map = new Map<string, { id: string; name: string; siteId: string }>();
-    readings.forEach((r) => {
-      if (r.meter.siteId !== filterSite) return;
+    for (const r of readings) {
+      if (r.meter.siteId !== filterSite) continue;
+      if (!matchFluid(r)) continue;
       if (!map.has(r.meter.id)) map.set(r.meter.id, { id: r.meter.id, name: r.meter.name, siteId: r.meter.siteId });
-    });
+    }
     return Array.from(map.values());
-  }, [readings, filterSite]);
+  }, [readings, filterSite, filterFluid]);
 
   const availableMeters = metersList;
 
@@ -576,6 +586,29 @@ export function RelevesContent({
     () => Array.from(monthlyByFluid.keys()),
     [monthlyByFluid]
   );
+
+  // Cible mensuelle NB/12 adaptée au filtre:
+  //   - filterSite spécifique → NB de ce site / 12
+  //   - filterSite "all" → somme des NB des sites visibles dans les relevés / 12
+  // Affichée uniquement si la vue ne contient QUE des fluides chauffage.
+  const monthlyTargetKwh = useMemo(() => {
+    const onlyHeating = energyFluidsInFiltered.length > 0
+      && energyFluidsInFiltered.every((f) => f === "GAZ" || f === "CHALEUR" || f === "FIOUL");
+    if (!onlyHeating) return null;
+
+    let totalNb = 0;
+    if (filterSite !== "all") {
+      totalNb = nbBySite.get(filterSite) ?? 0;
+    } else {
+      // Sites présents dans les relevés filtrés (respecte filterFluid et autres)
+      const siteIds = new Set<string>();
+      for (const r of filtered) siteIds.add(r.meter.siteId);
+      for (const siteId of siteIds) {
+        totalNb += nbBySite.get(siteId) ?? 0;
+      }
+    }
+    return totalNb > 0 ? totalNb / 12 : null;
+  }, [energyFluidsInFiltered, filterSite, filtered, nbBySite]);
 
   // Conso chauffage mensuelle (GAZ + CHALEUR + FIOUL) en kWh — par site puis totale.
   // Per-site sert à pondérer le DJU effectif quand plusieurs sites sont affichés.
@@ -870,11 +903,7 @@ export function RelevesContent({
               data={monthlyByFluid}
               fluids={energyFluidsInFiltered}
               displayUnit={displayUnit}
-              monthlyTargetKwh={
-                energyFluidsInFiltered.every((f) => f === "GAZ" || f === "CHALEUR" || f === "FIOUL") && contractNbKwh
-                  ? contractNbKwh / 12
-                  : null
-              }
+              monthlyTargetKwh={monthlyTargetKwh}
             />
           </ChartCard>
 
