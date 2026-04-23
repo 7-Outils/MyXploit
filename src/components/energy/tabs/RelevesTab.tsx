@@ -265,7 +265,8 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
     if (!ref.current || months.length === 0) return;
     const chart = echarts.init(ref.current);
     chart.setOption({
-      grid: { left: 56, right: 16, top: 24, bottom: 32 },
+      // Bottom:56 pour aligner l'axe X avec le chart stacked (qui a une légende en bas)
+      grid: { left: 56, right: 16, top: 24, bottom: 56 },
       tooltip: {
         trigger: "axis",
         backgroundColor: "rgba(17,24,39,0.95)",
@@ -363,8 +364,9 @@ export function RelevesContent({
   const PAGE_SIZE = 50;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Toggle unité d'affichage du chart empilé
-  const [displayUnit, setDisplayUnit] = useState<"kWh" | "MWh">("kWh");
+  // Toggle unité d'affichage du chart empilé (MWh par défaut — plus lisible
+  // pour des gros volumes annuels, switch manuel si besoin de précision kWh)
+  const [displayUnit, setDisplayUnit] = useState<"kWh" | "MWh">("MWh");
 
   // Combobox site (searchable)
   const [siteSearch, setSiteSearch] = useState("");
