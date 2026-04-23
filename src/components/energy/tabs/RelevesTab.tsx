@@ -628,12 +628,12 @@ export function RelevesContent({
     return result;
   }, [chauffageByMonthBySite, djuBySite]);
 
-  // Ratio mensuel kWh/DJU (exclut mois avec DJU < 10 — été)
+  // Ratio mensuel kWh/DJU (exclut été + intersaisons: DJU < 50 → non pertinent)
   const monthlyRatio = useMemo(() => {
     const result = new Map<string, number>();
     for (const [m, kwh] of monthlyChauffageKwh.entries()) {
       const dju = effectiveMonthlyDju.get(m);
-      if (dju == null || dju < 10 || kwh <= 0) continue;
+      if (dju == null || dju < 50 || kwh <= 0) continue;
       result.set(m, kwh / dju);
     }
     return result;

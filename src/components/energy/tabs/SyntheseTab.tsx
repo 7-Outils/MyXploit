@@ -82,10 +82,14 @@ export function SyntheseContent({
           iconColor="text-accent"
         />
         <StatsCard
-          title="Alertes dérives"
-          value={activeAlerts.length.toString()}
-          change={activeAlerts.filter((a) => a.priority === "CRITIQUE").length > 0 ? `${activeAlerts.filter((a) => a.priority === "CRITIQUE").length} critiques` : "Aucune critique"}
-          changeType={activeAlerts.filter((a) => a.priority === "CRITIQUE").length > 0 ? "negative" : "neutral"}
+          title="Sites en dépassement"
+          value={analytics.summary.sitesEnDepassement.toString()}
+          change={
+            analytics.summary.sitesEnDepassement > 0
+              ? `${analytics.summary.sitesEnDepassement}/${analytics.summary.totalSites} dérivent`
+              : "Aucune dérive"
+          }
+          changeType={analytics.summary.sitesEnDepassement > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
           iconColor="text-red-600"
         />

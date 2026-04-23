@@ -466,9 +466,10 @@ export function TelereleveBuildingChart({
     const seriesLabel = "Consommation";
 
     // Compute kWh/DJU ratio line when in monthly frequency and DJU data available.
-    // Seuil DJU >= 10 pour exclure les mois d'été (valeurs absurdes sinon:
-    // 1 kWh / 2 DJU = 0.5 kWh/DJU n'a aucun sens physique).
-    const MIN_DJU = 10;
+    // Seuil DJU >= 50 pour exclure l'été et les intersaisons (mai-sept, DJU 0-50).
+    // En dessous, la conso n'est plus principalement liée au chauffage → le ratio
+    // explose (ex: juin 12 DJU + 12 MWh non-chauffage → 1050 kWh/DJU aberrant).
+    const MIN_DJU = 50;
     const showRatio = frequency === "month" && djuByMonth && djuByMonth.size > 0;
     const ratioValues = showRatio
       ? buckets.map((b) => {
