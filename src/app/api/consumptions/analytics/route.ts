@@ -584,17 +584,23 @@ export async function GET(request: NextRequest) {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
       },
-      summary: {
-        totalSites: sitePerformances.length,
-        totalNc: Math.round(totalNc),
-        totalNbPrime: Math.round(totalNbPrime),
-        totalDelta: Math.round(totalDelta),
-        deltaPercent: Math.round(globalDeltaPercent * 10) / 10,
-        status: globalDeltaPercent < -5 ? "ECONOMIE" : globalDeltaPercent > 5 ? "DEPASSEMENT" : "OBJECTIF",
-        sitesEnEconomie: sitePerformances.filter((s) => s.status === "ECONOMIE").length,
-        sitesEnDepassement: sitePerformances.filter((s) => s.status === "DEPASSEMENT").length,
-        sitesObjectifAtteint: sitePerformances.filter((s) => s.status === "OBJECTIF").length,
-      },
+      summary: (() => {
+        // On ne compte que les sites avec NB (comparaison NC/N'B possible).
+        // Les sites sans NB ont nbPrime=0 → deltaPercent=0 → auto-OBJECTIF,
+        // ce qui gonflait artificiellement les stats.
+        const comparable = sitePerformances.filter((s) => s.nb != null);
+        return {
+          totalSites: comparable.length,
+          totalNc: Math.round(totalNc),
+          totalNbPrime: Math.round(totalNbPrime),
+          totalDelta: Math.round(totalDelta),
+          deltaPercent: Math.round(globalDeltaPercent * 10) / 10,
+          status: globalDeltaPercent < -5 ? "ECONOMIE" : globalDeltaPercent > 5 ? "DEPASSEMENT" : "OBJECTIF",
+          sitesEnEconomie: comparable.filter((s) => s.status === "ECONOMIE").length,
+          sitesEnDepassement: comparable.filter((s) => s.status === "DEPASSEMENT").length,
+          sitesObjectifAtteint: comparable.filter((s) => s.status === "OBJECTIF").length,
+        };
+      })(),
       monthlyData: globalMonthlyData,
       performanceByType,
       sites: sitePerformances,
