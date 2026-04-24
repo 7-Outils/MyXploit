@@ -282,7 +282,7 @@ function Dot({ verdict }: { verdict: Verdict }) {
 }
 
 function VerdictInline({ verdict }: { verdict: Verdict }) {
-  if (verdict.kind === "insufficient") return <span>{verdict.count} sais · données insuff.</span>;
+  if (verdict.kind === "insufficient") return <span>{verdict.count} saison{verdict.count > 1 ? "s" : ""} · historique en constitution</span>;
   if (verdict.kind === "unstable") return <span>signature instable · R² {verdict.r2.toFixed(2)}</span>;
   const sign = verdict.deltaMwh > 0 ? "+" : "";
   const label = verdict.severity === "LACHE" ? "lâche" : verdict.severity === "SERREE" ? "serrée" : "OK";
@@ -330,9 +330,7 @@ function DetailPane({
                 }`
               : site.verdict.kind === "unstable"
               ? `Signature non linéaire (R²=${site.verdict.r2.toFixed(2)}) — pas de calibration possible`
-              : `${site.verdict.count} saison${site.verdict.count > 1 ? "s" : ""} exploitable${
-                  site.verdict.count > 1 ? "s" : ""
-                } · minimum requis : 3`}
+              : `Historique actuel : ${site.verdict.count} saison${site.verdict.count > 1 ? "s" : ""} · signature énergétique disponible à partir de 3 saisons`}
           </p>
         </div>
 
@@ -349,7 +347,7 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   if (verdict.kind === "insufficient") {
     return (
       <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-        Données insuffisantes
+        Historique en constitution
       </span>
     );
   }
@@ -379,10 +377,26 @@ function DiagnosticPanel({
 }) {
   if (site.verdict.kind === "insufficient") {
     return (
-      <p className="text-sm text-text-secondary">
-        Diagnostic impossible : {site.verdict.count} saison{site.verdict.count > 1 ? "s" : ""} dispo, 3 minimum requises.
-        Revenir dans {3 - site.verdict.count} saison{3 - site.verdict.count > 1 ? "s" : ""}.
-      </p>
+      <div className="space-y-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1">
+            Historique disponible
+          </div>
+          <div className="text-sm text-primary-dark tabular-nums font-semibold">
+            {site.verdict.count} saison{site.verdict.count > 1 ? "s" : ""}
+            <span className="text-text-secondary font-normal ml-2">sur 3 minimum</span>
+          </div>
+        </div>
+        <p className="text-sm text-text-secondary leading-relaxed">
+          La méthode de signature énergétique nécessite un minimum de 3 saisons exploitables
+          pour produire une calibration robuste. La mesure se stabilisera automatiquement dès
+          l&apos;arrivée des prochaines saisons.
+        </p>
+        <p className="text-[11px] text-text-secondary italic border-l-2 border-gray-100 pl-3">
+          En attendant, la cible actuelle reste appliquée. Le graphique ci-contre situe la
+          saison disponible par rapport aux références (DJC, NB actuel).
+        </p>
+      </div>
     );
   }
   if (site.verdict.kind === "unstable") {
@@ -512,15 +526,16 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
         <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#d1d5db" />
         <line x1={P} y1={P} x2={P} y2={H - P} stroke="#d1d5db" />
 
-        {/* DJC vertical marker */}
+        {/* DJC vertical marker — label à gauche de la ligne pour éviter collision */}
         <line x1={djcX} y1={P} x2={djcX} y2={H - P} stroke="#9ca3af" strokeDasharray="3 3" />
-        <text x={djcX + 4} y={P + 10} fontSize={10} fill="#6b7280" fontFamily="ui-sans-serif">
+        <text x={djcX - 5} y={P + 11} fontSize={10} fill="#6b7280" textAnchor="end" fontFamily="ui-sans-serif">
           DJC {Math.round(djcVal).toLocaleString("fr-FR")}
         </text>
 
-        {/* Current NB horizontal */}
+        {/* Current NB horizontal — label à GAUCHE de la ligne horizontale (début),
+            pour éviter la collision avec le label DJC en haut-droite */}
         <line x1={P} y1={currentNbY} x2={W - P} y2={currentNbY} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.6} />
-        <text x={W - P - 4} y={currentNbY - 4} fontSize={10} fill="#b45309" textAnchor="end" fontFamily="ui-sans-serif">
+        <text x={P + 6} y={currentNbY - 4} fontSize={10} fill="#b45309" textAnchor="start" fontFamily="ui-sans-serif">
           NB actuel {points[0].currentNb.toFixed(0)}
         </text>
 
