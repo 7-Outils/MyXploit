@@ -99,13 +99,36 @@ export function diagnose(points: SeasonPoint[]): Verdict {
     return { kind: "insufficient", count: points.length };
   }
 
-  // Step 1 : régression sur tout
-  let fit = linearRegression(points);
+  // Step 1 : régression globale (baseline + source des résidus)
+  const globalFit = linearRegression(points);
+
+  // Step 2 : détection de tendance AVANT exclusion d'outlier.
+  // Sinon un site en tendance baissière voit sa saison la plus récente virée
+  // comme "aberrante" alors que c'est la plus représentative de la perf actuelle.
+  const rhoGlobal = trendCorrelation(points, globalFit.slope, globalFit.intercept);
+  if (Math.abs(rhoGlobal) > TREND_THRESHOLD && points.length > 3) {
+    const sorted = [...points].sort((a, b) => a.year - b.year);
+    const recent = sorted.slice(-3);
+    const recentFit = linearRegression(recent);
+    if (recentFit.r2 >= R2_UNSTABLE) {
+      const skipped = sorted.slice(0, -3);
+      const label = rhoGlobal > 0 ? "haussière" : "baissière";
+      return buildCalibrated(
+        points,
+        recent,
+        skipped,
+        recentFit,
+        `Tendance ${label} détectée (ρ=${rhoGlobal.toFixed(2)}) → régression sur les 3 dernières saisons`
+      );
+    }
+  }
+
+  // Step 3 : pas de tendance claire. Si R² global faible, tenter l'outlier.
+  let fit = globalFit;
   let excluded: SeasonPoint[] = [];
   let used = [...points];
   let method = `Régression linéaire sur ${points.length} saisons`;
 
-  // Step 2 : si R² faible, tenter de virer l'outlier le plus fort
   if (fit.r2 < R2_STABLE && points.length >= MIN_SEASONS + 1) {
     const residuals = points.map((p) => ({
       p,
@@ -115,7 +138,6 @@ export function diagnose(points: SeasonPoint[]): Verdict {
     const worst = residuals[0].p;
     const filtered = points.filter((p) => p !== worst);
     const refit = linearRegression(filtered);
-    // On ne garde la suppression que si l'amélioration est significative (>0,1)
     if (refit.r2 > fit.r2 + 0.1 && refit.r2 >= R2_UNSTABLE) {
       fit = refit;
       used = filtered;
@@ -124,32 +146,26 @@ export function diagnose(points: SeasonPoint[]): Verdict {
     }
   }
 
-  // Step 3 : toujours instable ?
   if (fit.r2 < R2_UNSTABLE) {
     return { kind: "unstable", r2: fit.r2, usedPoints: used };
   }
 
-  // Step 4 : détection de tendance (dégradation ou amélioration continue)
-  const rho = trendCorrelation(used, fit.slope, fit.intercept);
-  if (Math.abs(rho) > TREND_THRESHOLD && used.length > 3) {
-    const sorted = [...used].sort((a, b) => a.year - b.year);
-    const recent = sorted.slice(-3);
-    const refit = linearRegression(recent);
-    if (refit.r2 >= R2_UNSTABLE) {
-      const skipped = sorted.slice(0, -3);
-      fit = refit;
-      used = recent;
-      excluded = [...excluded, ...skipped];
-      method = `Tendance ${rho > 0 ? "haussière" : "baissière"} détectée (ρ=${rho.toFixed(2)}) → régression sur les 3 dernières saisons`;
-    }
-  }
+  return buildCalibrated(points, used, excluded, fit, method);
+}
 
-  // Step 5 : calcul NB_ref
-  const djc = points[0].djc; // identique par site
+// Construit un verdict calibrated à partir d'un jeu de points retenus et d'un fit.
+// Partagé entre le mode auto (diagnose) et le mode manuel (diagnoseManual).
+export function buildCalibrated(
+  allPoints: SeasonPoint[],
+  used: SeasonPoint[],
+  excluded: SeasonPoint[],
+  fit: { slope: number; intercept: number; r2: number },
+  method: string
+): Verdict {
+  const djc = allPoints[0].djc;
   const nbRefKwh = fit.slope * djc + fit.intercept;
   const nbRefMwh = nbRefKwh / 1000;
-  const currentNbMwh = points[0].currentNb;
-
+  const currentNbMwh = allPoints[0].currentNb;
   const deltaMwh = currentNbMwh - nbRefMwh;
   const deltaPct = nbRefMwh > 0 ? (deltaMwh / nbRefMwh) * 100 : 0;
 
@@ -171,4 +187,20 @@ export function diagnose(points: SeasonPoint[]): Verdict {
     usedPoints: used,
     excludedPoints: excluded,
   };
+}
+
+// Mode custom : l'utilisateur sélectionne manuellement les saisons à inclure.
+export function diagnoseManual(allPoints: SeasonPoint[], used: SeasonPoint[]): Verdict {
+  if (used.length < MIN_SEASONS) {
+    return { kind: "insufficient", count: used.length };
+  }
+  const fit = linearRegression(used);
+  if (fit.r2 < R2_UNSTABLE) {
+    return { kind: "unstable", r2: fit.r2, usedPoints: used };
+  }
+  const excluded = allPoints.filter((p) => !used.includes(p));
+  return buildCalibrated(
+    allPoints, used, excluded, fit,
+    `Sélection manuelle — ${used.length} saison${used.length > 1 ? "s" : ""} retenue${used.length > 1 ? "s" : ""}`
+  );
 }

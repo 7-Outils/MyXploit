@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { AlertCircle, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
 import { fetcher } from "@/lib/swr-fetcher";
-import { diagnose, type SeasonPoint, type Verdict } from "@/lib/signature-energetique";
+import { diagnose, diagnoseManual, type SeasonPoint, type Verdict } from "@/lib/signature-energetique";
 
 interface SiteApiShape {
   siteId: string;
@@ -293,11 +293,52 @@ function VerdictInline({ verdict }: { verdict: Verdict }) {
   );
 }
 
+type Mode = "auto" | "all" | "last3" | "custom";
+
 function DetailPane({
   site,
 }: {
   site: { siteId: string; siteName: string; verdict: Verdict; points: SeasonPoint[] };
 }) {
+  // Reset de la sélection quand on change de site
+  const [mode, setMode] = useState<Mode>("auto");
+  const [manualExcluded, setManualExcluded] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    setMode("auto");
+    setManualExcluded(new Set());
+  }, [site.siteId]);
+
+  // Calcul du verdict selon le mode sélectionné (interactif)
+  const liveVerdict: Verdict = useMemo(() => {
+    const sorted = [...site.points].sort((a, b) => a.year - b.year);
+    if (mode === "auto") return site.verdict; // verdict du diagnose() initial
+    if (mode === "all") return diagnoseManual(site.points, sorted);
+    if (mode === "last3") {
+      const last3 = sorted.slice(-3);
+      return diagnoseManual(site.points, last3);
+    }
+    // custom
+    const kept = site.points.filter((p) => !manualExcluded.has(p.year));
+    return diagnoseManual(site.points, kept);
+  }, [mode, manualExcluded, site]);
+
+  const togglePoint = (year: number) => {
+    // Un clic sur un point ou chip → passe en mode custom avec cette saison exclue
+    setMode("custom");
+    setManualExcluded((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year);
+      else next.add(year);
+      return next;
+    });
+  };
+
+  const sortedPoints = [...site.points].sort((a, b) => a.year - b.year);
+  const excludedNow = new Set<number>(
+    liveVerdict.kind === "calibrated" ? liveVerdict.excludedPoints.map((p) => p.year) : []
+  );
+
   return (
     <>
       {/* Entête pane ─────────────────────────────────────────── */}
@@ -306,7 +347,7 @@ function DetailPane({
           <h2 className="text-base font-semibold text-primary-dark truncate">
             {site.siteName}
           </h2>
-          <VerdictBadge verdict={site.verdict} />
+          <VerdictBadge verdict={liveVerdict} />
         </div>
         <Link
           href={`/energy/sites/${site.siteId}`}
@@ -317,26 +358,69 @@ function DetailPane({
       </div>
 
       {/* Contenu ─────────────────────────────────────────────── */}
-      <div className="p-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
-        {/* Scatter principal */}
-        <div>
-          <SignatureChart points={site.points} verdict={site.verdict} />
-          <p className="text-[11px] text-text-secondary italic border-l-2 border-gray-100 pl-3 mt-3">
-            {site.verdict.kind === "calibrated"
-              ? `${site.verdict.method}${
-                  site.verdict.excludedPoints.length > 0
-                    ? ` · Exclues : ${site.verdict.excludedPoints.map((p) => `${p.year - 1}-${p.year}`).join(", ")}`
-                    : ""
-                }`
-              : site.verdict.kind === "unstable"
-              ? `Signature non linéaire (R²=${site.verdict.r2.toFixed(2)}) — pas de calibration possible`
-              : `Historique actuel : ${site.verdict.count} saison${site.verdict.count > 1 ? "s" : ""} · signature énergétique disponible à partir de 3 saisons`}
-          </p>
-        </div>
+      <div className="p-6 space-y-5">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+          {/* Scatter + chips */}
+          <div className="space-y-4">
+            <SignatureChart points={site.points} verdict={liveVerdict} onTogglePoint={togglePoint} />
 
-        {/* Panel chiffres + reco */}
-        <div className="space-y-5">
-          <DiagnosticPanel site={site} />
+            {/* Chips saisons — cliquables */}
+            <div>
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-2">
+                <span>Saisons prises en compte</span>
+                <span className="text-gray-400">clic pour exclure / inclure</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {sortedPoints.map((p) => {
+                  const excluded = excludedNow.has(p.year);
+                  return (
+                    <button
+                      key={p.year}
+                      onClick={() => togglePoint(p.year)}
+                      className={`text-[11px] px-2 py-1 rounded-md border transition-colors tabular-nums ${
+                        excluded
+                          ? "border-dashed border-gray-300 bg-gray-50 text-gray-400 line-through"
+                          : "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                      }`}
+                    >
+                      {p.year - 1}–{p.year}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Mode presets */}
+            <div>
+              <div className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-lg p-0.5 w-fit">
+                {(["auto", "all", "last3", "custom"] as Mode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      setMode(m);
+                      if (m !== "custom") setManualExcluded(new Set());
+                    }}
+                    className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                      mode === m ? "bg-white shadow-sm text-primary-dark" : "text-text-secondary hover:text-primary-dark"
+                    }`}
+                  >
+                    {m === "auto" ? "Auto algo" : m === "all" ? "Toutes saisons" : m === "last3" ? "3 dernières" : "Manuel"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-text-secondary mt-2 italic">
+                {mode === "auto" && "L'algorithme choisit : tendance → 3 dernières, outlier → exclusion auto, sinon toutes."}
+                {mode === "all" && "Toutes les saisons disponibles sont incluses dans la régression."}
+                {mode === "last3" && "Seules les 3 saisons les plus récentes sont utilisées — reflète la performance actuelle."}
+                {mode === "custom" && `${site.points.length - manualExcluded.size} saison(s) retenue(s), ${manualExcluded.size} exclue(s) manuellement.`}
+              </p>
+            </div>
+          </div>
+
+          {/* Panel narratif */}
+          <div>
+            <DiagnosticPanel site={site} verdict={liveVerdict} />
+          </div>
         </div>
       </div>
     </>
@@ -372,73 +456,107 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
 
 function DiagnosticPanel({
   site,
+  verdict,
 }: {
-  site: { verdict: Verdict; points: SeasonPoint[] };
+  site: { points: SeasonPoint[] };
+  verdict: Verdict;
 }) {
-  if (site.verdict.kind === "insufficient") {
+  if (verdict.kind === "insufficient") {
     return (
       <div className="space-y-3">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1">
-            Historique disponible
-          </div>
-          <div className="text-sm text-primary-dark tabular-nums font-semibold">
-            {site.verdict.count} saison{site.verdict.count > 1 ? "s" : ""}
-            <span className="text-text-secondary font-normal ml-2">sur 3 minimum</span>
-          </div>
-        </div>
-        <p className="text-sm text-text-secondary leading-relaxed">
-          La méthode de signature énergétique nécessite un minimum de 3 saisons exploitables
-          pour produire une calibration robuste. La mesure se stabilisera automatiquement dès
-          l&apos;arrivée des prochaines saisons.
+        <p className="text-sm text-primary-dark leading-relaxed">
+          <strong className="tabular-nums">{verdict.count} saison{verdict.count > 1 ? "s" : ""}</strong> exploitable{verdict.count > 1 ? "s" : ""} — il en faut au moins 3 pour calibrer.
         </p>
-        <p className="text-[11px] text-text-secondary italic border-l-2 border-gray-100 pl-3">
-          En attendant, la cible actuelle reste appliquée. Le graphique ci-contre situe la
-          saison disponible par rapport aux références (DJC, NB actuel).
+        <p className="text-[13px] text-text-secondary leading-relaxed">
+          La signature énergétique se stabilisera automatiquement aux prochaines saisons. La cible actuelle reste appliquée entre-temps.
         </p>
       </div>
     );
   }
-  if (site.verdict.kind === "unstable") {
+  if (verdict.kind === "unstable") {
     return (
-      <p className="text-sm text-text-secondary">
-        La relation NC/DJR est trop bruitée (R² {site.verdict.r2.toFixed(2)}). Probable changement de régime
-        (rénovation, changement d&apos;usage, incidents). Investiguer manuellement avant toute action.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-primary-dark leading-relaxed">
+          <strong>Signature instable</strong> — la relation NC/DJR est trop bruitée
+          (<span className="tabular-nums">R² {verdict.r2.toFixed(2)}</span>).
+        </p>
+        <p className="text-[13px] text-text-secondary leading-relaxed">
+          Probable changement de régime : rénovation partielle, changement d&apos;usage, incidents. La calibration automatique est désactivée — à investiguer manuellement avant toute action sur la cible.
+        </p>
+      </div>
     );
   }
-  const v = site.verdict;
+
+  const v = verdict;
   const current = site.points[0].currentNb;
-  const reco = v.severity === "LACHE" ? "durcir la cible" : v.severity === "SERREE" ? "renégocier à la hausse" : null;
+  const djc = site.points[0].djc;
+  const absDelta = Math.abs(v.deltaMwh);
+  const absPct = Math.abs(v.deltaPct);
+  const direction = v.severity === "LACHE" ? "trop haut" : v.severity === "SERREE" ? "trop bas" : null;
+
   return (
-    <>
-      <div className="space-y-3">
-        <Metric label="Cible actuelle" value={`${current.toFixed(0)} MWh`} />
-        <Metric label="Cible référence (signature)" value={`${v.nbRefMwh.toFixed(0)} MWh`} highlight />
-        <Metric
+    <div className="space-y-4">
+      {/* Chiffres clés empilés */}
+      <div className="space-y-2.5 border-l-2 border-gray-100 pl-4">
+        <NarrativeRow label="Cible contractuelle" value={`${current.toFixed(0)} MWh`} tone="gray" />
+        <NarrativeRow
+          label="Cible selon signature"
+          value={`${v.nbRefMwh.toFixed(0)} MWh`}
+          tone={v.severity === "OK" ? "emerald" : v.severity === "LACHE" ? "amber" : "rose"}
+          highlight
+        />
+        <NarrativeRow
           label="Écart"
           value={`${v.deltaMwh > 0 ? "+" : ""}${v.deltaMwh.toFixed(0)} MWh`}
-          sub={`${v.deltaPct > 0 ? "+" : ""}${v.deltaPct.toFixed(1)}%`}
+          sub={`${v.deltaPct > 0 ? "+" : ""}${v.deltaPct.toFixed(1)} %`}
           tone={v.severity === "LACHE" ? "amber" : v.severity === "SERREE" ? "rose" : "gray"}
         />
-        <Metric label="R²" value={v.r2.toFixed(2)} sub={`${v.usedPoints.length} saisons`} />
       </div>
-      {reco && (
-        <div className="pt-4 border-t border-gray-100">
-          <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1">
+
+      {/* Phrase narrative */}
+      <p className="text-[13px] text-text-secondary leading-relaxed">
+        À conditions contractuelles (<span className="tabular-nums">DJC {djc.toLocaleString("fr-FR")}</span>),
+        la signature prédit <strong className="text-primary-dark tabular-nums">{v.nbRefMwh.toFixed(0)} MWh</strong>.
+        La cible actuelle de <strong className="tabular-nums">{current.toFixed(0)} MWh</strong>
+        {direction ? (
+          <> est donc <strong className="text-primary-dark">{direction} de {absDelta.toFixed(0)} MWh ({absPct.toFixed(0)} %)</strong>.</>
+        ) : (
+          <> est cohérente avec l&apos;historique (écart ≤ 10 %).</>
+        )}
+      </p>
+
+      {/* Reco */}
+      {v.severity !== "OK" && (
+        <div className="pt-3 border-t border-gray-100">
+          <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1.5">
             Recommandation
           </div>
-          <p className="text-sm text-primary-dark">
-            <strong>{reco.charAt(0).toUpperCase() + reco.slice(1)}</strong>{" "}
-            vers <strong className="tabular-nums">{v.nbRefMwh.toFixed(0)} MWh</strong>.
+          <p className="text-sm text-primary-dark leading-relaxed">
+            {v.severity === "LACHE" ? "Durcir la cible" : "Renégocier la cible à la hausse"} vers{" "}
+            <strong className="tabular-nums bg-accent/10 px-1.5 rounded">{v.nbRefMwh.toFixed(0)} MWh</strong>.
           </p>
         </div>
       )}
-    </>
+
+      {/* Qualité du fit */}
+      <div className="pt-3 border-t border-gray-100 text-[11px] text-text-secondary space-y-1">
+        <div className="flex items-center justify-between">
+          <span>Qualité du fit</span>
+          <span className="tabular-nums font-medium text-primary-dark">R² {v.r2.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span>Saisons retenues</span>
+          <span className="tabular-nums">{v.usedPoints.length} / {site.points.length}</span>
+        </div>
+      </div>
+      <p className="text-[10px] text-text-secondary italic">
+        {v.method}
+      </p>
+    </div>
   );
 }
 
-function Metric({
+function NarrativeRow({
   label,
   value,
   sub,
@@ -448,19 +566,26 @@ function Metric({
   label: string;
   value: string;
   sub?: string;
-  tone?: "gray" | "amber" | "rose";
+  tone?: "gray" | "amber" | "rose" | "emerald";
   highlight?: boolean;
 }) {
   const toneClass = {
     gray: "text-primary-dark",
-    amber: "text-amber-700",
-    rose: "text-rose-700",
+    amber: "text-amber-800",
+    rose: "text-rose-800",
+    emerald: "text-emerald-800",
   }[tone];
+  const bgClass = highlight
+    ? tone === "amber" ? "bg-amber-50"
+    : tone === "rose" ? "bg-rose-50"
+    : tone === "emerald" ? "bg-emerald-50"
+    : "bg-gray-50"
+    : "";
   return (
     <div className="flex items-baseline justify-between gap-3">
       <span className="text-[11px] text-text-secondary uppercase tracking-wider font-medium">{label}</span>
       <div className="text-right">
-        <span className={`text-sm font-semibold tabular-nums ${toneClass} ${highlight ? "bg-accent/10 px-1.5 rounded" : ""}`}>
+        <span className={`text-sm font-bold tabular-nums ${toneClass} ${highlight ? `${bgClass} px-1.5 rounded` : ""}`}>
           {value}
         </span>
         {sub && <span className="text-[11px] text-text-secondary ml-1.5 tabular-nums">{sub}</span>}
@@ -471,7 +596,15 @@ function Metric({
 
 // ─── Scatter plot ────────────────────────────────────────────────
 
-function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: Verdict }) {
+function SignatureChart({
+  points,
+  verdict,
+  onTogglePoint,
+}: {
+  points: SeasonPoint[];
+  verdict: Verdict;
+  onTogglePoint?: (year: number) => void;
+}) {
   if (points.length === 0) return null;
 
   const W = 520, H = 280, P = 40;
@@ -526,40 +659,104 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
         <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#d1d5db" />
         <line x1={P} y1={P} x2={P} y2={H - P} stroke="#d1d5db" />
 
-        {/* DJC vertical marker — label à gauche de la ligne pour éviter collision */}
+        {/* DJC vertical — "conditions contractuelles" */}
         <line x1={djcX} y1={P} x2={djcX} y2={H - P} stroke="#9ca3af" strokeDasharray="3 3" />
         <text x={djcX - 5} y={P + 11} fontSize={10} fill="#6b7280" textAnchor="end" fontFamily="ui-sans-serif">
           DJC {Math.round(djcVal).toLocaleString("fr-FR")}
         </text>
 
-        {/* Current NB horizontal — label à GAUCHE de la ligne horizontale (début),
-            pour éviter la collision avec le label DJC en haut-droite */}
+        {/* Ligne cible contractuelle (NB actuel) — horizontale amber */}
         <line x1={P} y1={currentNbY} x2={W - P} y2={currentNbY} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.6} />
         <text x={P + 6} y={currentNbY - 4} fontSize={10} fill="#b45309" textAnchor="start" fontFamily="ui-sans-serif">
-          NB actuel {points[0].currentNb.toFixed(0)}
+          Cible contractuelle {points[0].currentNb.toFixed(0)}
         </text>
 
-        {/* Regression line */}
+        {/* Bande de confiance (simple halo autour de la régression) */}
+        {lineSeg && verdict.kind === "calibrated" && (
+          <polygon
+            points={`${lineSeg.x1},${lineSeg.y1 - 8} ${lineSeg.x2},${lineSeg.y2 - 8} ${lineSeg.x2},${lineSeg.y2 + 8} ${lineSeg.x1},${lineSeg.y1 + 8}`}
+            fill="#0f172a"
+            opacity={0.06}
+          />
+        )}
+
+        {/* Droite de signature énergétique */}
         {lineSeg && (
           <line x1={lineSeg.x1} y1={lineSeg.y1} x2={lineSeg.x2} y2={lineSeg.y2} stroke="#0f172a" strokeWidth={1.5} />
         )}
 
-        {/* NB_ref point */}
+        {/* Annotation delta NB actuel ↔ NB ref à x=DJC — le KEY insight visuel */}
+        {nbRefY !== null && verdict.kind === "calibrated" && (() => {
+          const delta = verdict.deltaMwh;
+          const severe = verdict.severity !== "OK";
+          const deltaColor = verdict.severity === "LACHE" ? "#b45309" : verdict.severity === "SERREE" ? "#be123c" : "#6b7280";
+          const top = Math.min(currentNbY, nbRefY);
+          const bot = Math.max(currentNbY, nbRefY);
+          const mid = (top + bot) / 2;
+          // Flèche verticale le long de la ligne DJC
+          return severe ? (
+            <g>
+              <line x1={djcX} y1={top + 2} x2={djcX} y2={bot - 2} stroke={deltaColor} strokeWidth={2} />
+              {/* Têtes de flèche */}
+              <polygon points={`${djcX - 4},${top + 6} ${djcX + 4},${top + 6} ${djcX},${top}`} fill={deltaColor} />
+              <polygon points={`${djcX - 4},${bot - 6} ${djcX + 4},${bot - 6} ${djcX},${bot}`} fill={deltaColor} />
+              {/* Label delta */}
+              <rect
+                x={djcX - 32}
+                y={mid - 8}
+                width={64}
+                height={16}
+                rx={3}
+                fill="white"
+                stroke={deltaColor}
+                strokeWidth={0.8}
+              />
+              <text x={djcX} y={mid + 4} fontSize={10} fontWeight={700} fill={deltaColor} textAnchor="middle" fontFamily="ui-sans-serif">
+                {delta > 0 ? "+" : ""}{Math.round(delta)} MWh
+              </text>
+            </g>
+          ) : null;
+        })()}
+
+        {/* Point cible selon signature (NB ref) */}
         {nbRefY !== null && verdict.kind === "calibrated" && (
           <g>
             <circle cx={djcX} cy={nbRefY} r={6} fill="#0f172a" />
             <circle cx={djcX} cy={nbRefY} r={10} fill="none" stroke="#0f172a" strokeOpacity={0.25} strokeWidth={1} />
-            <text x={djcX + 10} y={nbRefY - 8} fontSize={10} fill="#0f172a" fontWeight={600} fontFamily="ui-sans-serif">
-              NB réf {verdict.nbRefMwh.toFixed(0)}
-            </text>
           </g>
         )}
+        {/* Label "cible selon signature" placé à l'extérieur pour éviter collision avec le delta */}
+        {nbRefY !== null && verdict.kind === "calibrated" && (
+          <text
+            x={djcX + 14}
+            y={nbRefY + (currentNbY < nbRefY ? 12 : -8)}
+            fontSize={10}
+            fill="#0f172a"
+            fontWeight={700}
+            fontFamily="ui-sans-serif"
+          >
+            Cible signature {verdict.nbRefMwh.toFixed(0)}
+          </text>
+        )}
 
-        {/* Data points */}
+        {/* Data points — cliquables si onTogglePoint fourni */}
         {points.map((p) => {
           const excluded = excludedYears.has(p.year);
           return (
-            <g key={p.year}>
+            <g
+              key={p.year}
+              onClick={() => onTogglePoint?.(p.year)}
+              style={{ cursor: onTogglePoint ? "pointer" : undefined }}
+            >
+              {/* Hit area plus large */}
+              {onTogglePoint && (
+                <circle
+                  cx={xScale(p.djr)}
+                  cy={yScale(p.nc / 1000)}
+                  r={12}
+                  fill="transparent"
+                />
+              )}
               <circle
                 cx={xScale(p.djr)}
                 cy={yScale(p.nc / 1000)}
@@ -567,7 +764,11 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
                 fill={excluded ? "#e5e7eb" : "#0ea5e9"}
                 stroke={excluded ? "#9ca3af" : "#0369a1"}
                 strokeWidth={1.5}
-              />
+              >
+                <title>
+                  {`Saison ${p.year - 1}-${p.year}\nNC : ${(p.nc / 1000).toFixed(0)} MWh\nDJR : ${Math.round(p.djr).toLocaleString("fr-FR")}${excluded ? "\n(exclue)" : ""}`}
+                </title>
+              </circle>
               <text
                 x={xScale(p.djr)}
                 y={yScale(p.nc / 1000) - 9}
@@ -575,6 +776,7 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
                 fill={excluded ? "#9ca3af" : "#0369a1"}
                 textAnchor="middle"
                 fontFamily="ui-sans-serif"
+                pointerEvents="none"
               >
                 {`${p.year - 1}-${p.year.toString().slice(2)}`}
               </text>
@@ -584,10 +786,10 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
 
         {/* Axis labels */}
         <text x={W / 2} y={H - 6} fontSize={10} fill="#9ca3af" textAnchor="middle" fontFamily="ui-sans-serif">
-          DJU (DJR saison)
+          DJU observés (DJR saison)
         </text>
         <text x={14} y={H / 2} fontSize={10} fill="#9ca3af" transform={`rotate(-90, 14, ${H / 2})`} fontFamily="ui-sans-serif">
-          NC (MWh)
+          Conso chauffage (MWh)
         </text>
       </svg>
     </div>
