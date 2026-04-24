@@ -87,92 +87,103 @@ export default function InsightHero({ contractId, yearType }: Props) {
     : 0;
 
   // ─── Narratif ────────────────────────────────────────────────────
-  // Ordre de priorité :
-  // 1. rien à afficher (pas de sites avec cible)
-  // 2. un site unique dérape → on nomme
-  // 3. plusieurs sites dérivent → on quantifie + nomme le pire
-  // 4. saison en économie nette → on célèbre
-  // 5. tout est à l'objectif pile → mention brève
+  // On lead avec un VERDICT global (pas un ratio de sites), puis on raconte
+  // l'histoire : s'il y a des dérives qui compensent des économies, on le dit.
+  // Objectif : lecture en 5 sec, pas de redondance avec la gauge en-dessous.
   const insight = useMemo(() => {
     if (!summary || total === 0) return null;
 
-    const pctOnTarget = Math.round(((summary.sitesEnEconomie + summary.sitesObjectifAtteint) / total) * 100);
+    const globalDelta = summary.deltaPercent;
+    const dep = summary.sitesEnDepassement;
+    const eco = summary.sitesEnEconomie;
 
-    // Cas 1 : un seul outlier
-    if (summary.sitesEnDepassement === 1 && worst) {
-      return {
-        tone: "warning" as const,
-        headline: `${pctOnTarget} % des sites à l'objectif.`,
-        detail: (
-          <>
-            Seul <strong className="text-primary-dark">{worst.siteName}</strong> dérape cette saison
-            {" — "}
-            <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
-            <span className="text-text-secondary">
-              (+{fmtMwh(worst.delta)} MWh vs cible)
-            </span>.
-          </>
-        ),
-        cta: { label: `Voir ${worst.siteName}`, href: `/energy/sites/${worst.siteId}` },
-      };
+    // ─ Verdict global
+    let headline: string;
+    let tone: "good" | "neutral" | "warning" | "bad";
+    if (globalDelta <= -5) {
+      headline = `Saison en économie : ${fmtPct(globalDelta, 1)}`;
+      tone = "good";
+    } else if (globalDelta < 5) {
+      headline = `Contrat à l'équilibre (${fmtPct(globalDelta, 1)} global)`;
+      tone = "neutral";
+    } else if (globalDelta < 15) {
+      headline = `Contrat en léger dépassement : ${fmtPct(globalDelta, 1)}`;
+      tone = "warning";
+    } else {
+      headline = `Contrat en dérive : ${fmtPct(globalDelta, 1)}`;
+      tone = "bad";
     }
 
-    // Cas 2 : plusieurs sites dérivent
-    if (summary.sitesEnDepassement >= 2 && worst) {
-      return {
-        tone: "warning" as const,
-        headline: `${pctOnTarget} % des sites à l'objectif.`,
-        detail: (
-          <>
-            <strong className="text-primary-dark">{summary.sitesEnDepassement} sites</strong> dérivent cette saison — pire :{" "}
-            <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
-            <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
-            <span className="text-text-secondary">
-              (+{fmtMwh(worst.delta)} MWh vs cible)
-            </span>.
-          </>
-        ),
-        cta: { label: "Examiner les sites", href: `/energy?contractId=${contractId}&filter=depassement` },
-      };
-    }
+    // ─ Détail — l'histoire derrière le verdict
+    let detail: React.ReactNode;
 
-    // Cas 3 : économie globale
-    if (summary.deltaPercent <= -5) {
-      return {
-        tone: "good" as const,
-        headline: `Saison en économie : ${fmtPct(summary.deltaPercent, 1)}.`,
-        detail: (
-          <>
-            Équivalent à <strong className="text-emerald-700 tabular-nums">
-              {fmtMwh(summary.totalDelta)} MWh économisés
-            </strong> sur l&apos;ensemble du contrat.
-            {best && (
-              <>
-                {" "}Le site le plus performant :{" "}
-                <strong className="text-primary-dark">{best.siteName}</strong>{" "}
-                <span className="tabular-nums">{fmtPct(best.deltaPercent)}</span>.
-              </>
-            )}
-          </>
-        ),
-        cta: best
-          ? { label: `Voir ${best.siteName}`, href: `/energy/sites/${best.siteId}` }
-          : { label: "Voir tous les sites", href: `/energy?contractId=${contractId}` },
-      };
-    }
-
-    // Cas 4 : tout pile à l'objectif
-    return {
-      tone: "neutral" as const,
-      headline: `Tous les sites sont à l'objectif.`,
-      detail: (
+    if (dep === 0) {
+      // Pas de dérive : célébration nette ou équilibre calme
+      detail = tone === "good" ? (
         <>
-          <strong className="text-primary-dark tabular-nums">{total}</strong> sites comparables,
-          aucun en dérive vs la cible ajustée DJU cette saison.
+          Équivalent à <strong className="text-emerald-700 tabular-nums">
+            {fmtMwh(summary.totalDelta)} MWh économisés
+          </strong> sur la saison. Aucun site en dérive.
+          {best && (
+            <>
+              {" "}Le plus performant : <strong className="text-primary-dark">{best.siteName}</strong>{" "}
+              <span className="tabular-nums">{fmtPct(best.deltaPercent)}</span>.
+            </>
+          )}
         </>
-      ),
-      cta: { label: "Voir le détail", href: `/energy?contractId=${contractId}` },
-    };
+      ) : (
+        <>
+          <strong className="text-primary-dark tabular-nums">{total} sites</strong> comparables,
+          tous dans la fenêtre de performance. Pas de site en dérive.
+        </>
+      );
+    } else if (dep === 1 && worst) {
+      // Un seul outlier — on le nomme, on explique la pondération s'il y a de l'économie
+      detail = tone === "good" ? (
+        <>
+          Malgré <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
+          <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
+          <span className="text-text-secondary">(+{fmtMwh(worst.delta)} MWh)</span>,
+          les {eco} sites en économie tirent le contrat vers le bas.
+        </>
+      ) : (
+        <>
+          Un seul site en cause : <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
+          <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
+          <span className="text-text-secondary">(+{fmtMwh(worst.delta)} MWh vs cible)</span>.
+        </>
+      );
+    } else if (dep >= 2 && worst) {
+      // Plusieurs dérives : on nomme la pire, on contextualise l'ampleur
+      const compensation = eco > 0 && globalDelta < 5
+        ? (
+          <>
+            {" "}Les <strong className="text-emerald-700 tabular-nums">{eco} sites en économie</strong>{" "}
+            compensent et maintiennent le contrat à l&apos;équilibre.
+          </>
+        )
+        : null;
+      detail = (
+        <>
+          <strong className="text-primary-dark tabular-nums">{dep} sites en dérive</strong>,
+          mené par <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
+          <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
+          <span className="text-text-secondary">(+{fmtMwh(worst.delta)} MWh)</span>.
+          {compensation}
+        </>
+      );
+    } else {
+      detail = null;
+    }
+
+    // ─ CTA
+    const cta = worst
+      ? { label: `Examiner ${worst.siteName}`, href: `/energy/sites/${worst.siteId}` }
+      : best
+      ? { label: `Voir ${best.siteName}`, href: `/energy/sites/${best.siteId}` }
+      : { label: "Voir le détail", href: `/energy?contractId=${contractId}` };
+
+    return { headline, detail, cta, tone };
   }, [summary, total, worst, best, contractId]);
 
   if (isLoading && !data) {
@@ -194,10 +205,10 @@ export default function InsightHero({ contractId, yearType }: Props) {
     );
   }
 
-  const toneBorder = insight.tone === "warning"
-    ? "border-amber-200/60"
-    : insight.tone === "good"
-    ? "border-emerald-200/60"
+  const toneBorder =
+    insight.tone === "bad" ? "border-rose-200/70"
+    : insight.tone === "warning" ? "border-amber-200/60"
+    : insight.tone === "good" ? "border-emerald-200/60"
     : "border-gray-200/80";
 
   return (
