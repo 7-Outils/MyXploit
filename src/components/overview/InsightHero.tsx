@@ -14,6 +14,8 @@ interface SitePerf {
   delta: number;
   nc: number;
   nbPrime: number;
+  djrTotal: number;
+  djuContractuel: number | null;
   status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
 }
 
@@ -88,6 +90,24 @@ export default function InsightHero({ contractId, yearType }: Props) {
   const total = summary
     ? summary.sitesEnEconomie + summary.sitesObjectifAtteint + summary.sitesEnDepassement
     : 0;
+
+  // ─── Analyse climatique ────────────────────────────────────────
+  // DJR moyen de la saison sur les sites comparables vs DJC du contrat.
+  // Si DJR < DJC de plus de 5 %, l'hiver a été plus doux que prévu → les
+  // dérives ne peuvent PAS être imputées au climat (ce qui est le killer).
+  const climate = useMemo(() => {
+    if (comparableSites.length === 0) return null;
+    const djc = comparableSites.find((s) => s.djuContractuel && s.djuContractuel > 0)?.djuContractuel;
+    if (!djc) return null;
+    const djrValues = comparableSites.map((s) => s.djrTotal).filter((v) => v > 0);
+    if (djrValues.length === 0) return null;
+    const djrAvg = djrValues.reduce((a, b) => a + b, 0) / djrValues.length;
+    const pctVsDjc = ((djrAvg - djc) / djc) * 100;
+    // Seuil 5 % pour écarter les variations mineures
+    if (pctVsDjc <= -5) return { kind: "doux" as const, djrAvg, djc, pctVsDjc };
+    if (pctVsDjc >= 5) return { kind: "rigoureux" as const, djrAvg, djc, pctVsDjc };
+    return { kind: "normal" as const, djrAvg, djc, pctVsDjc };
+  }, [comparableSites]);
 
   // ─── Narratif ────────────────────────────────────────────────────
   // On lead avec un VERDICT global (pas un ratio de sites), puis on raconte
@@ -191,6 +211,51 @@ export default function InsightHero({ contractId, yearType }: Props) {
     return { headline, detail, cta, tone };
   }, [summary, total, worst, best, contractId]);
 
+  // ─── Contexte climatique ajouté au narratif ───────────────────────
+  // On le sort quand il change la lecture des résultats : hiver doux +
+  // dérive = zéro excuse possible. Hiver rigoureux + éco = perf notable.
+  const climateContext = useMemo((): React.ReactNode => {
+    if (!climate || !summary || climate.kind === "normal") return null;
+    const djrStr = Math.round(climate.djrAvg).toLocaleString("fr-FR");
+    const djcStr = Math.round(climate.djc).toLocaleString("fr-FR");
+    const pctStr = Math.round(Math.abs(climate.pctVsDjc));
+
+    if (climate.kind === "doux" && summary.deltaPercent >= 5) {
+      return (
+        <>
+          Hiver plus doux que la cible (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>, −{pctStr} %) : ces dérives sont
+          <strong className="text-primary-dark"> 100 % comportementales</strong>, aucune excuse météo.
+        </>
+      );
+    }
+    if (climate.kind === "doux" && summary.deltaPercent <= -5) {
+      return (
+        <>
+          À noter : l&apos;hiver a été −{pctStr} % plus doux (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>).
+          Une partie de l&apos;économie est attribuable au climat — la N&apos;B en tient compte mais reste un signal à lire avec ce contexte.
+        </>
+      );
+    }
+    if (climate.kind === "rigoureux" && summary.deltaPercent >= 5) {
+      return (
+        <>
+          Hiver plus rigoureux que la cible (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>, +{pctStr} %) :
+          la N&apos;B est déjà ajustée climatiquement, la dérive restante est
+          <strong className="text-primary-dark"> bien d&apos;origine exploitation</strong>.
+        </>
+      );
+    }
+    if (climate.kind === "rigoureux" && summary.deltaPercent <= -5) {
+      return (
+        <>
+          Performance remarquable : <strong className="text-emerald-700">économie malgré un hiver +{pctStr} % plus rigoureux</strong>{" "}
+          (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>).
+        </>
+      );
+    }
+    return null;
+  }, [climate, summary]);
+
   if (isLoading && !data) {
     return (
       <div className="bg-white rounded-xl border border-gray-200/80 p-12 flex items-center justify-center min-h-[280px]">
@@ -248,6 +313,11 @@ export default function InsightHero({ contractId, yearType }: Props) {
         <p className="text-[15px] text-text-secondary mt-3 leading-relaxed max-w-3xl">
           {insight.detail}
         </p>
+        {climateContext && (
+          <div className="mt-4 text-[13px] text-text-secondary border-l-2 border-gray-200 pl-3 max-w-3xl">
+            {climateContext}
+          </div>
+        )}
       </div>
 
       {/* Gauge distribution ────────────────────────────────────── */}
