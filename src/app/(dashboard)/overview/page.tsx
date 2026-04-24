@@ -29,8 +29,7 @@ import { QUICK_ACTIONS } from "@/components/overview/constants";
 import { StatsCards } from "@/components/overview/StatsCards";
 import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
-import ConsoHeatmap from "@/components/overview/ConsoHeatmap";
-import ActionPanel from "@/components/overview/ActionPanel";
+import InsightHero from "@/components/overview/InsightHero";
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -238,12 +237,11 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <ConsoHeatmap
+    <div className="max-w-4xl mx-auto">
+      <InsightHero
         contractId={selectedContract.id}
         yearType={selectedContract.yearType ?? "HEATING_SEASON"}
       />
-      <ActionPanel contract={selectedContract} />
     </div>
   );
 }
