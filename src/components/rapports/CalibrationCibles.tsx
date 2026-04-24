@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
 import { fetcher } from "@/lib/swr-fetcher";
 import { diagnose, type SeasonPoint, type Verdict } from "@/lib/signature-energetique";
@@ -45,7 +45,7 @@ export default function CalibrationCibles() {
 
   if (!selectedContract) {
     return (
-      <div className="bg-white border border-gray-200/80 rounded-xl p-8 text-center text-sm text-text-secondary">
+      <div className="bg-white border border-gray-200/80 rounded-lg p-8 text-center text-sm text-text-secondary">
         Sélectionne un contrat pour voir le diagnostic de calibration.
       </div>
     );
@@ -54,7 +54,7 @@ export default function CalibrationCibles() {
   return <CalibrationInner contract={selectedContract} />;
 }
 
-function CalibrationInner({ contract }: { contract: { id: string; reference: string; title: string; startDate: string } }) {
+function CalibrationInner({ contract }: { contract: { id: string; reference: string; startDate: string } }) {
   const cid = contract.id;
   const currentY = currentHeatingSeasonYear();
   const contractStartYear = new Date(contract.startDate).getFullYear();
@@ -64,7 +64,6 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
     [currentY]
   );
 
-  // Hooks fixes (6) — clé null si saison antérieure à début de contrat
   const r0 = useSWR<AnalyticsResponse>(years[0] >= contractStartYear ? url(cid, years[0]) : null, fetcher);
   const r1 = useSWR<AnalyticsResponse>(years[1] >= contractStartYear ? url(cid, years[1]) : null, fetcher);
   const r2 = useSWR<AnalyticsResponse>(years[2] >= contractStartYear ? url(cid, years[2]) : null, fetcher);
@@ -110,21 +109,42 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
   );
 
   const sorted = useMemo(() => {
-    const order: Record<string, number> = { LACHE: 0, SERREE: 1, unstable: 2, insufficient: 3, OK: 4 };
+    const order: Record<string, number> = { LACHE: 0, SERREE: 1, unstable: 2, OK: 3, insufficient: 4 };
     return [...diagnoses].sort((a, b) => {
       const ka = a.verdict.kind === "calibrated" ? a.verdict.severity : a.verdict.kind;
       const kb = b.verdict.kind === "calibrated" ? b.verdict.severity : b.verdict.kind;
       const rankDiff = (order[ka] ?? 99) - (order[kb] ?? 99);
       if (rankDiff !== 0) return rankDiff;
-      // entre deux "lâches" ou "serrées" : trier par amplitude décroissante
       if (a.verdict.kind === "calibrated" && b.verdict.kind === "calibrated") {
         return Math.abs(b.verdict.deltaMwh) - Math.abs(a.verdict.deltaMwh);
       }
-      return 0;
+      return a.siteName.localeCompare(b.siteName);
     });
   }, [diagnoses]);
 
-  const summary = useMemo(() => {
+  type Filter = "all" | "flagged" | "ok" | "unstable";
+  const [filter, setFilter] = useState<Filter>("flagged");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const filtered = useMemo(() => {
+    return sorted.filter((d) => {
+      if (filter === "all") return true;
+      if (filter === "flagged") {
+        return d.verdict.kind === "calibrated" && d.verdict.severity !== "OK";
+      }
+      if (filter === "ok") return d.verdict.kind === "calibrated" && d.verdict.severity === "OK";
+      if (filter === "unstable") return d.verdict.kind !== "calibrated";
+      return true;
+    });
+  }, [sorted, filter]);
+
+  // Default selection : premier de la liste filtrée
+  const selected = useMemo(
+    () => filtered.find((d) => d.siteId === selectedId) ?? filtered[0] ?? null,
+    [filtered, selectedId]
+  );
+
+  const counts = useMemo(() => {
     let lache = 0, serree = 0, ok = 0, unstable = 0, insufficient = 0;
     diagnoses.forEach(({ verdict }) => {
       if (verdict.kind === "calibrated") {
@@ -134,139 +154,202 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
       } else if (verdict.kind === "unstable") unstable++;
       else insufficient++;
     });
-    return { lache, serree, ok, unstable, insufficient, total: diagnoses.length };
+    return { lache, serree, ok, unstable, insufficient, flagged: lache + serree };
   }, [diagnoses]);
 
   return (
-    <div className="space-y-6">
-      {/* Header ─────────────────────────────────────────────────── */}
-      <header className="bg-white border border-gray-200/80 rounded-xl px-8 py-6">
-        <div className="text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold mb-2">
-          Rapport · Expertise AMO
+    <div className="space-y-4">
+      {/* Header ligne 1 + filters ──────────────────────────────── */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Link href="/rapports" className="text-gray-400 hover:text-primary-dark">
+            <ArrowLeft size={16} />
+          </Link>
+          <h1 className="text-lg font-semibold text-primary-dark">
+            Calibration des cibles NB
+          </h1>
+          <span className="text-xs text-text-secondary">
+            · {contract.reference} · {diagnoses.length} sites
+          </span>
         </div>
-        <h1 className="text-2xl font-semibold text-primary-dark tracking-tight">
-          Calibration des cibles NB
-        </h1>
-        <p className="text-sm text-text-secondary mt-2 max-w-2xl">
-          Diagnostic par signature énergétique : pour chaque site, on vérifie si la cible NB contractuelle
-          est cohérente avec la performance réellement observée sur l&apos;historique. Contrat
-          <strong className="text-primary-dark"> {contract.reference}</strong> · max {MAX_YEARS_BACK} saisons analysées.
-        </p>
-      </header>
+        <div className="flex items-center gap-0.5 text-xs bg-gray-50 border border-gray-200 rounded-lg p-0.5">
+          <FilterBtn active={filter === "flagged"} onClick={() => setFilter("flagged")}>
+            À réviser <CountDot>{counts.flagged}</CountDot>
+          </FilterBtn>
+          <FilterBtn active={filter === "unstable"} onClick={() => setFilter("unstable")}>
+            Instables <CountDot>{counts.unstable + counts.insufficient}</CountDot>
+          </FilterBtn>
+          <FilterBtn active={filter === "ok"} onClick={() => setFilter("ok")}>
+            OK <CountDot>{counts.ok}</CountDot>
+          </FilterBtn>
+          <FilterBtn active={filter === "all"} onClick={() => setFilter("all")}>
+            Toutes <CountDot>{diagnoses.length}</CountDot>
+          </FilterBtn>
+        </div>
+      </div>
 
       {loading ? (
-        <div className="bg-white border border-gray-200/80 rounded-xl py-16 flex items-center justify-center">
+        <div className="bg-white border border-gray-200/80 rounded-lg py-16 flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
         </div>
       ) : diagnoses.length === 0 ? (
-        <div className="bg-white border border-gray-200/80 rounded-xl py-12 text-center text-sm text-text-secondary">
+        <div className="bg-white border border-gray-200/80 rounded-lg py-12 text-center text-sm text-text-secondary">
           Aucune donnée exploitable pour diagnostiquer les cibles de ce contrat.
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white border border-gray-200/80 rounded-lg py-12 text-center text-sm text-text-secondary">
+          Aucun site dans cette catégorie.
+        </div>
       ) : (
-        <>
-          {/* Résumé ─────────────────────────────────────────────── */}
-          <div className="bg-white border border-gray-200/80 rounded-xl px-8 py-5">
-            <div className="text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold mb-3">
-              Synthèse — {summary.total} sites avec cible
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-              <Tile count={summary.lache}  label="cible lâche"     tone="amber" />
-              <Tile count={summary.serree} label="cible serrée"    tone="rose"  />
-              <Tile count={summary.ok}     label="bien calibrée"   tone="emerald" />
-              <Tile count={summary.unstable}     label="signature instable" tone="gray" />
-              <Tile count={summary.insufficient} label="données insuffisantes" tone="gray" />
+        <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4">
+          {/* Liste compacte ─────────────────────────────────── */}
+          <div className="bg-white border border-gray-200/80 rounded-lg overflow-hidden">
+            <div className="max-h-[calc(100vh-180px)] overflow-auto divide-y divide-gray-100">
+              {filtered.map(({ siteId, siteName, verdict }) => {
+                const active = selected?.siteId === siteId;
+                return (
+                  <button
+                    key={siteId}
+                    onClick={() => setSelectedId(siteId)}
+                    className={`w-full text-left px-3 py-2.5 flex items-center gap-2 transition-colors ${
+                      active ? "bg-accent/5 border-l-2 border-accent" : "hover:bg-gray-50 border-l-2 border-transparent"
+                    }`}
+                  >
+                    <Dot verdict={verdict} />
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-[13px] font-medium truncate ${active ? "text-accent" : "text-primary-dark"}`}>
+                        {siteName}
+                      </div>
+                      <div className="text-[11px] text-text-secondary tabular-nums">
+                        <VerdictInline verdict={verdict} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Liste sites ───────────────────────────────────────── */}
-          <div className="space-y-3">
-            {sorted.map(({ siteId, siteName, verdict, points }) => (
-              <SiteCard key={siteId} siteId={siteId} siteName={siteName} verdict={verdict} points={points} />
-            ))}
+          {/* Détail ────────────────────────────────────────── */}
+          <div className="bg-white border border-gray-200/80 rounded-lg overflow-hidden">
+            {selected ? <DetailPane site={selected} /> : null}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-// ─── Tile de synthèse ────────────────────────────────────────────
+// ─── Sous-composants ─────────────────────────────────────────────
 
-function Tile({
-  count,
-  label,
-  tone,
+function FilterBtn({
+  active,
+  onClick,
+  children,
 }: {
-  count: number;
-  label: string;
-  tone: "amber" | "rose" | "emerald" | "gray";
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
 }) {
-  const toneClass = {
-    amber: "text-amber-700",
-    rose: "text-rose-700",
-    emerald: "text-emerald-700",
-    gray: "text-gray-500",
-  }[tone];
   return (
-    <div>
-      <div className={`text-2xl font-semibold tabular-nums ${toneClass}`}>{count}</div>
-      <div className="text-[11px] uppercase tracking-wider text-text-secondary font-medium mt-0.5">
-        {label}
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      className={`px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1 ${
+        active ? "bg-white shadow-sm text-primary-dark" : "text-text-secondary hover:text-primary-dark"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
-// ─── Carte par site ──────────────────────────────────────────────
+function CountDot({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="tabular-nums text-[10px] text-gray-400 font-semibold">
+      {children}
+    </span>
+  );
+}
 
-function SiteCard({
-  siteId,
-  siteName,
-  verdict,
-  points,
+function Dot({ verdict }: { verdict: Verdict }) {
+  const color =
+    verdict.kind === "calibrated" && verdict.severity === "LACHE" ? "bg-amber-500" :
+    verdict.kind === "calibrated" && verdict.severity === "SERREE" ? "bg-rose-500" :
+    verdict.kind === "calibrated" ? "bg-emerald-500" :
+    verdict.kind === "unstable" ? "bg-gray-400" :
+    "bg-gray-200";
+  return <span className={`w-2 h-2 rounded-full ${color} shrink-0`} />;
+}
+
+function VerdictInline({ verdict }: { verdict: Verdict }) {
+  if (verdict.kind === "insufficient") return <span>{verdict.count} sais · données insuff.</span>;
+  if (verdict.kind === "unstable") return <span>signature instable · R² {verdict.r2.toFixed(2)}</span>;
+  const sign = verdict.deltaMwh > 0 ? "+" : "";
+  const label = verdict.severity === "LACHE" ? "lâche" : verdict.severity === "SERREE" ? "serrée" : "OK";
+  return (
+    <span>
+      {sign}{verdict.deltaMwh.toFixed(0)} MWh · {label}
+    </span>
+  );
+}
+
+function DetailPane({
+  site,
 }: {
-  siteId: string;
-  siteName: string;
-  verdict: Verdict;
-  points: SeasonPoint[];
+  site: { siteId: string; siteName: string; verdict: Verdict; points: SeasonPoint[] };
 }) {
   return (
-    <div className="bg-white border border-gray-200/80 rounded-xl overflow-hidden">
+    <>
+      {/* Entête pane ─────────────────────────────────────────── */}
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/energy/sites/${siteId}`}
-            className="text-sm font-semibold text-primary-dark hover:text-accent transition-colors"
-          >
-            {siteName}
-          </Link>
-          <VerdictBadge verdict={verdict} />
+        <div className="flex items-center gap-3 min-w-0">
+          <h2 className="text-base font-semibold text-primary-dark truncate">
+            {site.siteName}
+          </h2>
+          <VerdictBadge verdict={site.verdict} />
         </div>
         <Link
-          href={`/energy/sites/${siteId}`}
-          className="text-xs text-text-secondary hover:text-primary-dark flex items-center gap-1"
+          href={`/energy/sites/${site.siteId}`}
+          className="text-xs text-text-secondary hover:text-primary-dark flex items-center gap-1 shrink-0"
         >
           Voir le site <ArrowRight size={12} />
         </Link>
       </div>
 
-      <div className="px-6 py-5 grid md:grid-cols-[380px_1fr] gap-6">
+      {/* Contenu ─────────────────────────────────────────────── */}
+      <div className="p-6 grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
+        {/* Scatter principal */}
         <div>
-          <SignatureChart points={points} verdict={verdict} />
+          <SignatureChart points={site.points} verdict={site.verdict} />
+          <p className="text-[11px] text-text-secondary italic border-l-2 border-gray-100 pl-3 mt-3">
+            {site.verdict.kind === "calibrated"
+              ? `${site.verdict.method}${
+                  site.verdict.excludedPoints.length > 0
+                    ? ` · Exclues : ${site.verdict.excludedPoints.map((p) => `${p.year - 1}-${p.year}`).join(", ")}`
+                    : ""
+                }`
+              : site.verdict.kind === "unstable"
+              ? `Signature non linéaire (R²=${site.verdict.r2.toFixed(2)}) — pas de calibration possible`
+              : `${site.verdict.count} saison${site.verdict.count > 1 ? "s" : ""} exploitable${
+                  site.verdict.count > 1 ? "s" : ""
+                } · minimum requis : 3`}
+          </p>
         </div>
-        <div className="space-y-3">
-          <DiagnosticBody verdict={verdict} points={points} />
+
+        {/* Panel chiffres + reco */}
+        <div className="space-y-5">
+          <DiagnosticPanel site={site} />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   if (verdict.kind === "insufficient") {
     return (
-      <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-500">
-        {verdict.count} saison{verdict.count > 1 ? "s" : ""} · insuffisant
+      <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+        Données insuffisantes
       </span>
     );
   }
@@ -278,9 +361,9 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
     );
   }
   const m = {
-    LACHE:   { bg: "bg-amber-100",   text: "text-amber-800",   label: "Cible trop lâche" },
-    SERREE:  { bg: "bg-rose-100",    text: "text-rose-800",    label: "Cible trop serrée" },
-    OK:      { bg: "bg-emerald-100", text: "text-emerald-800", label: "Bien calibrée" },
+    LACHE:  { bg: "bg-amber-100",   text: "text-amber-800",   label: "Cible trop lâche" },
+    SERREE: { bg: "bg-rose-100",    text: "text-rose-800",    label: "Cible trop serrée" },
+    OK:     { bg: "bg-emerald-100", text: "text-emerald-800", label: "Bien calibrée" },
   }[verdict.severity];
   return (
     <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${m.bg} ${m.text}`}>
@@ -289,102 +372,95 @@ function VerdictBadge({ verdict }: { verdict: Verdict }) {
   );
 }
 
-function DiagnosticBody({ verdict, points }: { verdict: Verdict; points: SeasonPoint[] }) {
-  if (verdict.kind === "insufficient") {
+function DiagnosticPanel({
+  site,
+}: {
+  site: { verdict: Verdict; points: SeasonPoint[] };
+}) {
+  if (site.verdict.kind === "insufficient") {
     return (
       <p className="text-sm text-text-secondary">
-        Seulement <strong>{verdict.count} saison{verdict.count > 1 ? "s" : ""}</strong> de données exploitables
-        — le diagnostic nécessite au moins 3 saisons. Revenir dans {3 - verdict.count} saison{3 - verdict.count > 1 ? "s" : ""}.
+        Diagnostic impossible : {site.verdict.count} saison{site.verdict.count > 1 ? "s" : ""} dispo, 3 minimum requises.
+        Revenir dans {3 - site.verdict.count} saison{3 - site.verdict.count > 1 ? "s" : ""}.
       </p>
     );
   }
-  if (verdict.kind === "unstable") {
+  if (site.verdict.kind === "unstable") {
     return (
-      <>
-        <p className="text-sm text-text-secondary">
-          La relation NC/DJR est peu linéaire (R² = <strong className="tabular-nums">{verdict.r2.toFixed(2)}</strong>) —
-          le site a probablement connu des changements de régime (rénovation, changement d&apos;usage, incidents).
-        </p>
-        <p className="text-sm text-text-secondary">
-          Pas de calibration automatique possible. À investiguer manuellement avant de toucher à la cible.
-        </p>
-      </>
+      <p className="text-sm text-text-secondary">
+        La relation NC/DJR est trop bruitée (R² {site.verdict.r2.toFixed(2)}). Probable changement de régime
+        (rénovation, changement d&apos;usage, incidents). Investiguer manuellement avant toute action.
+      </p>
     );
   }
-
-  const current = points[0].currentNb;
-  const absDelta = Math.abs(verdict.deltaMwh);
-  const arrow = verdict.severity === "LACHE" ? "durcir" : verdict.severity === "SERREE" ? "renégocier à la hausse" : null;
-
+  const v = site.verdict;
+  const current = site.points[0].currentNb;
+  const reco = v.severity === "LACHE" ? "durcir la cible" : v.severity === "SERREE" ? "renégocier à la hausse" : null;
   return (
     <>
-      <div className="grid grid-cols-3 gap-4 text-xs">
-        <KeyValue label="Cible actuelle"  value={`${current.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} MWh`} />
-        <KeyValue label="Cible référence" value={`${verdict.nbRefMwh.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} MWh`} />
-        <KeyValue
+      <div className="space-y-3">
+        <Metric label="Cible actuelle" value={`${current.toFixed(0)} MWh`} />
+        <Metric label="Cible référence (signature)" value={`${v.nbRefMwh.toFixed(0)} MWh`} highlight />
+        <Metric
           label="Écart"
-          value={`${verdict.deltaMwh > 0 ? "+" : ""}${verdict.deltaMwh.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} MWh`}
-          valueTone={verdict.severity === "LACHE" ? "amber" : verdict.severity === "SERREE" ? "rose" : "gray"}
-          sub={`${verdict.deltaPct > 0 ? "+" : ""}${verdict.deltaPct.toFixed(1)}%`}
+          value={`${v.deltaMwh > 0 ? "+" : ""}${v.deltaMwh.toFixed(0)} MWh`}
+          sub={`${v.deltaPct > 0 ? "+" : ""}${v.deltaPct.toFixed(1)}%`}
+          tone={v.severity === "LACHE" ? "amber" : v.severity === "SERREE" ? "rose" : "gray"}
         />
+        <Metric label="R²" value={v.r2.toFixed(2)} sub={`${v.usedPoints.length} saisons`} />
       </div>
-      {arrow && (
-        <p className="text-sm text-text-secondary">
-          Sur <strong className="text-primary-dark">{verdict.usedPoints.length} saisons retenues</strong>, la performance
-          réelle correspond à une cible <strong className="text-primary-dark tabular-nums">{verdict.nbRefMwh.toFixed(0)} MWh</strong>.
-          La cible actuelle est {verdict.severity === "LACHE" ? "au-dessus" : "en-dessous"} de <strong className="text-primary-dark tabular-nums">{absDelta.toFixed(0)} MWh ({Math.abs(verdict.deltaPct).toFixed(1)}%)</strong>.
-          Recommandation : <strong className="text-primary-dark">{arrow}</strong>.
-        </p>
+      {reco && (
+        <div className="pt-4 border-t border-gray-100">
+          <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1">
+            Recommandation
+          </div>
+          <p className="text-sm text-primary-dark">
+            <strong>{reco.charAt(0).toUpperCase() + reco.slice(1)}</strong>{" "}
+            vers <strong className="tabular-nums">{v.nbRefMwh.toFixed(0)} MWh</strong>.
+          </p>
+        </div>
       )}
-      {!arrow && (
-        <p className="text-sm text-text-secondary">
-          Cible cohérente avec l&apos;historique (écart ≤ 10 %). Rien à changer pour le moment.
-        </p>
-      )}
-      <p className="text-xs text-text-secondary italic border-l-2 border-gray-100 pl-3 mt-3">
-        {verdict.method}.
-        {verdict.excludedPoints.length > 0 && (
-          <> Saisons exclues : {verdict.excludedPoints.map((p) => `${p.year - 1}-${p.year}`).join(", ")}.</>
-        )}
-      </p>
     </>
   );
 }
 
-function KeyValue({
+function Metric({
   label,
   value,
   sub,
-  valueTone = "primary",
+  tone = "gray",
+  highlight = false,
 }: {
   label: string;
   value: string;
   sub?: string;
-  valueTone?: "primary" | "amber" | "rose" | "gray";
+  tone?: "gray" | "amber" | "rose";
+  highlight?: boolean;
 }) {
   const toneClass = {
-    primary: "text-primary-dark",
+    gray: "text-primary-dark",
     amber: "text-amber-700",
     rose: "text-rose-700",
-    gray: "text-gray-500",
-  }[valueTone];
+  }[tone];
   return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1">{label}</div>
-      <div className={`text-sm font-semibold tabular-nums ${toneClass}`}>
-        {value}
-        {sub && <span className="text-[11px] text-text-secondary font-normal ml-1">({sub})</span>}
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-[11px] text-text-secondary uppercase tracking-wider font-medium">{label}</span>
+      <div className="text-right">
+        <span className={`text-sm font-semibold tabular-nums ${toneClass} ${highlight ? "bg-accent/10 px-1.5 rounded" : ""}`}>
+          {value}
+        </span>
+        {sub && <span className="text-[11px] text-text-secondary ml-1.5 tabular-nums">{sub}</span>}
       </div>
     </div>
   );
 }
 
-// ─── Scatter plot SVG ────────────────────────────────────────────
+// ─── Scatter plot ────────────────────────────────────────────────
 
 function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: Verdict }) {
   if (points.length === 0) return null;
 
-  const W = 360, H = 180, P = 28;
+  const W = 520, H = 280, P = 40;
   const djcVal = points[0].djc;
   const allX = [...points.map((p) => p.djr), djcVal];
   const allY = [
@@ -401,7 +477,6 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
   const xScale = (v: number) => P + ((v - xMin) / (xMax - xMin)) * (W - 2 * P);
   const yScale = (v: number) => H - P - ((v - yMin) / (yMax - yMin)) * (H - 2 * P);
 
-  // regression line
   let lineSeg: null | { x1: number; y1: number; x2: number; y2: number } = null;
   if (verdict.kind === "calibrated") {
     const x1 = xMin, x2 = xMax;
@@ -418,34 +493,53 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
   const nbRefY = verdict.kind === "calibrated" ? yScale(verdict.nbRefMwh) : null;
   const currentNbY = yScale(points[0].currentNb);
 
+  // Gridlines Y : 3 niveaux
+  const yTicks = [yMin, (yMin + yMax) / 2, yMax];
+
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img">
+        {/* Gridlines */}
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={P} y1={yScale(t)} x2={W - P} y2={yScale(t)} stroke="#f3f4f6" />
+            <text x={P - 6} y={yScale(t) + 3} fontSize={9} fill="#9ca3af" textAnchor="end" fontFamily="ui-sans-serif">
+              {Math.round(t).toLocaleString("fr-FR")}
+            </text>
+          </g>
+        ))}
         {/* Axes */}
-        <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#e5e7eb" />
-        <line x1={P} y1={P} x2={P} y2={H - P} stroke="#e5e7eb" />
+        <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#d1d5db" />
+        <line x1={P} y1={P} x2={P} y2={H - P} stroke="#d1d5db" />
+
         {/* DJC vertical marker */}
-        <line x1={djcX} y1={P} x2={djcX} y2={H - P} stroke="#9ca3af" strokeDasharray="2 3" />
-        <text x={djcX + 3} y={P + 10} fontSize={9} fill="#6b7280" fontFamily="ui-sans-serif">DJC</text>
-        {/* Current NB horizontal */}
-        <line x1={P} y1={currentNbY} x2={W - P} y2={currentNbY} stroke="#f59e0b" strokeDasharray="2 3" opacity={0.6} />
-        <text x={W - P - 3} y={currentNbY - 3} fontSize={9} fill="#b45309" textAnchor="end" fontFamily="ui-sans-serif">
-          NB actuel
+        <line x1={djcX} y1={P} x2={djcX} y2={H - P} stroke="#9ca3af" strokeDasharray="3 3" />
+        <text x={djcX + 4} y={P + 10} fontSize={10} fill="#6b7280" fontFamily="ui-sans-serif">
+          DJC {Math.round(djcVal).toLocaleString("fr-FR")}
         </text>
+
+        {/* Current NB horizontal */}
+        <line x1={P} y1={currentNbY} x2={W - P} y2={currentNbY} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.6} />
+        <text x={W - P - 4} y={currentNbY - 4} fontSize={10} fill="#b45309" textAnchor="end" fontFamily="ui-sans-serif">
+          NB actuel {points[0].currentNb.toFixed(0)}
+        </text>
+
         {/* Regression line */}
         {lineSeg && (
-          <line x1={lineSeg.x1} y1={lineSeg.y1} x2={lineSeg.x2} y2={lineSeg.y2} stroke="#0f172a" strokeWidth={1.2} />
+          <line x1={lineSeg.x1} y1={lineSeg.y1} x2={lineSeg.x2} y2={lineSeg.y2} stroke="#0f172a" strokeWidth={1.5} />
         )}
-        {/* NB_ref point (intersection régression × DJC) */}
-        {nbRefY !== null && (
+
+        {/* NB_ref point */}
+        {nbRefY !== null && verdict.kind === "calibrated" && (
           <g>
-            <circle cx={djcX} cy={nbRefY} r={5} fill="#0f172a" />
-            <circle cx={djcX} cy={nbRefY} r={9} fill="none" stroke="#0f172a" strokeOpacity={0.3} />
-            <text x={djcX + 8} y={nbRefY - 6} fontSize={9} fill="#0f172a" fontWeight={600} fontFamily="ui-sans-serif">
-              NB réf
+            <circle cx={djcX} cy={nbRefY} r={6} fill="#0f172a" />
+            <circle cx={djcX} cy={nbRefY} r={10} fill="none" stroke="#0f172a" strokeOpacity={0.25} strokeWidth={1} />
+            <text x={djcX + 10} y={nbRefY - 8} fontSize={10} fill="#0f172a" fontWeight={600} fontFamily="ui-sans-serif">
+              NB réf {verdict.nbRefMwh.toFixed(0)}
             </text>
           </g>
         )}
+
         {/* Data points */}
         {points.map((p) => {
           const excluded = excludedYears.has(p.year);
@@ -454,34 +548,33 @@ function SignatureChart({ points, verdict }: { points: SeasonPoint[]; verdict: V
               <circle
                 cx={xScale(p.djr)}
                 cy={yScale(p.nc / 1000)}
-                r={4}
-                fill={excluded ? "#d1d5db" : "#0ea5e9"}
+                r={5}
+                fill={excluded ? "#e5e7eb" : "#0ea5e9"}
                 stroke={excluded ? "#9ca3af" : "#0369a1"}
-                strokeWidth={1}
+                strokeWidth={1.5}
               />
+              <text
+                x={xScale(p.djr)}
+                y={yScale(p.nc / 1000) - 9}
+                fontSize={9}
+                fill={excluded ? "#9ca3af" : "#0369a1"}
+                textAnchor="middle"
+                fontFamily="ui-sans-serif"
+              >
+                {`${p.year - 1}-${p.year.toString().slice(2)}`}
+              </text>
             </g>
           );
         })}
+
         {/* Axis labels */}
-        <text x={W / 2} y={H - 4} fontSize={9} fill="#9ca3af" textAnchor="middle" fontFamily="ui-sans-serif">
-          DJU (DJR)
+        <text x={W / 2} y={H - 6} fontSize={10} fill="#9ca3af" textAnchor="middle" fontFamily="ui-sans-serif">
+          DJU (DJR saison)
         </text>
-        <text x={8} y={H / 2} fontSize={9} fill="#9ca3af" transform={`rotate(-90, 8, ${H / 2})`} fontFamily="ui-sans-serif">
+        <text x={14} y={H / 2} fontSize={10} fill="#9ca3af" transform={`rotate(-90, 14, ${H / 2})`} fontFamily="ui-sans-serif">
           NC (MWh)
         </text>
       </svg>
-      <div className="mt-2 flex items-center gap-3 text-[10px] text-text-secondary">
-        <span className="inline-flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-sky-500 border border-sky-700" />
-          saison retenue
-        </span>
-        {verdict.kind === "calibrated" && verdict.excludedPoints.length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-gray-300 border border-gray-400" />
-            saison exclue
-          </span>
-        )}
-      </div>
     </div>
   );
 }

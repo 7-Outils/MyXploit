@@ -11,7 +11,10 @@ import {
   Send,
   Pencil,
   Filter,
+  Sliders,
+  ChevronRight,
 } from "lucide-react";
+import { useContract } from "@/contexts/ContractContext";
 
 interface DeliverableItem {
   id: string;
@@ -50,6 +53,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<{
 };
 
 export default function RapportsPage() {
+  const { selectedContract } = useContract();
   const [deliverables, setDeliverables] = useState<DeliverableItem[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,6 +128,32 @@ export default function RapportsPage() {
           Rapports & Livrables
         </h1>
         <p className="text-gray-500 mt-1">Vue croisee de tous les livrables</p>
+      </div>
+
+      {/* Rapports d'expertise — sous-rapports analytiques */}
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-text-secondary font-semibold mb-2">
+          Rapports d&apos;expertise
+        </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Link
+            href={selectedContract ? `/rapports/calibration-cibles?contract=${selectedContract.id}` : "/rapports/calibration-cibles"}
+            className="group bg-white border border-gray-200 hover:border-accent/50 rounded-lg px-4 py-3 flex items-start gap-3 transition-colors"
+          >
+            <div className="w-9 h-9 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
+              <Sliders size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-primary-dark flex items-center gap-1 group-hover:text-accent">
+                Calibration des cibles NB
+                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">
+                Diagnostic par signature énergétique — cibles trop lâches ou trop serrées
+              </p>
+            </div>
+          </Link>
+        </div>
       </div>
 
       {/* Stats cards */}
