@@ -66,14 +66,17 @@ export default function InsightHero({ contractId, yearType }: Props) {
     [data]
   );
 
+  // On trie par IMPACT (MWh absolu), pas par %. Un gros site à +5 % pèse
+  // souvent plus qu'un petit à +30 %, et c'est l'impact qui compte pour
+  // l'intéressement, les pénalités et la facture finale.
   const worst = useMemo(() => {
     const inDepassement = comparableSites.filter((s) => s.status === "DEPASSEMENT");
-    return inDepassement.sort((a, b) => b.deltaPercent - a.deltaPercent)[0] ?? null;
+    return inDepassement.sort((a, b) => b.delta - a.delta)[0] ?? null;
   }, [comparableSites]);
 
   const best = useMemo(() => {
     const inEconomie = comparableSites.filter((s) => s.status === "ECONOMIE");
-    return inEconomie.sort((a, b) => a.deltaPercent - b.deltaPercent)[0] ?? null;
+    return inEconomie.sort((a, b) => a.delta - b.delta)[0] ?? null;
   }, [comparableSites]);
 
   const periodLabel = yearType === "CIVIL" ? `${year}` : `${year - 1}—${year}`;
@@ -142,19 +145,21 @@ export default function InsightHero({ contractId, yearType }: Props) {
       detail = tone === "good" ? (
         <>
           Malgré <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
-          <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
-          <span className="text-text-secondary">(+{fmtMwh(worst.delta)} MWh)</span>,
+          <span className="text-text-secondary">
+            (+<span className="tabular-nums">{fmtMwh(worst.delta)}</span> MWh · {fmtPct(worst.deltaPercent)})
+          </span>,
           les {eco} sites en économie tirent le contrat vers le bas.
         </>
       ) : (
         <>
-          Un seul site en cause : <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
-          <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
-          <span className="text-text-secondary">(+{fmtMwh(worst.delta)} MWh vs cible)</span>.
+          Un seul site en cause : <strong className="text-primary-dark">{worst.siteName}</strong>,{" "}
+          <strong className="text-amber-800 tabular-nums">+{fmtMwh(worst.delta)} MWh</strong>{" "}
+          <span className="text-text-secondary">(soit {fmtPct(worst.deltaPercent)} vs cible)</span>.
         </>
       );
     } else if (dep >= 2 && worst) {
-      // Plusieurs dérives : on nomme la pire, on contextualise l'ampleur
+      // Plusieurs dérives : on nomme l'impact le plus lourd (MWh absolu),
+      // pas le % le plus élevé — un gros site à +5 % coûte plus qu'un petit à +30 %.
       const compensation = eco > 0 && globalDelta < 5
         ? (
           <>
@@ -165,10 +170,10 @@ export default function InsightHero({ contractId, yearType }: Props) {
         : null;
       detail = (
         <>
-          <strong className="text-primary-dark tabular-nums">{dep} sites en dérive</strong>,
-          mené par <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
-          <span className="tabular-nums">{fmtPct(worst.deltaPercent)}</span>{" "}
-          <span className="text-text-secondary">(+{fmtMwh(worst.delta)} MWh)</span>.
+          <strong className="text-primary-dark tabular-nums">{dep} sites en dérive</strong>.
+          Impact principal : <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
+          <strong className="text-amber-800 tabular-nums">+{fmtMwh(worst.delta)} MWh</strong>{" "}
+          <span className="text-text-secondary">(soit {fmtPct(worst.deltaPercent)} vs cible)</span>.
           {compensation}
         </>
       );
