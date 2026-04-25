@@ -14,7 +14,10 @@ type WorkStatus =
 interface WorkOrder {
   id: string;
   status: WorkStatus;
+  planifiedDate: string | null;
+  startDate: string | null;
   completionDate: string | null;
+  createdAt: string;
   quote: {
     reference: string;
     title: string | null;
@@ -27,17 +30,30 @@ interface Props {
   contractId: string;
 }
 
-const ACTIONABLE_STATUSES: WorkStatus[] = ["TERMINE", "ATTENTE_ATTACHEMENT", "ATTENTE_LEVEE"];
+const OPEN_STATUSES: WorkStatus[] = [
+  "PLANIFIE", "EN_COURS",
+  "TERMINE", "ATTENTE_ATTACHEMENT", "ATTENTE_LEVEE",
+];
 
-const STATUS_LABEL: Record<string, { label: string; reason: string }> = {
-  TERMINE:             { label: "à clôturer",   reason: "prêt pour clôture administrative" },
-  ATTENTE_ATTACHEMENT: { label: "sans pj",      reason: "en attente d'attachement (preuve d'exécution)" },
-  ATTENTE_LEVEE:       { label: "réserves",     reason: "réserves non levées" },
+const STATUS_REASON: Record<string, string> = {
+  PLANIFIE:            "planifié",
+  EN_COURS:            "en cours d'exécution",
+  TERMINE:             "prêt pour clôture",
+  ATTENTE_ATTACHEMENT: "en attente d'attachement",
+  ATTENTE_LEVEE:       "réserves non levées",
 };
 
 function daysSince(iso: string | null): number | null {
   if (!iso) return null;
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
+}
+
+function tone(oldestDays: number | null) {
+  const urgent = oldestDays !== null && oldestDays > 60;
+  const warning = oldestDays !== null && oldestDays > 30;
+  if (urgent) return { border: "border-rose-200/70", emphasis: "text-rose-700" };
+  if (warning) return { border: "border-amber-200/60", emphasis: "text-amber-700" };
+  return { border: "border-gray-200/80", emphasis: "text-primary-dark" };
 }
 
 export default function WorkOrdersToClose({ contractId }: Props) {
@@ -48,42 +64,50 @@ export default function WorkOrdersToClose({ contractId }: Props) {
 
   const stats = useMemo(() => {
     const list = Array.isArray(data?.workOrders) ? data!.workOrders : [];
-    const open = list.filter((w) => ACTIONABLE_STATUSES.includes(w.status));
+    const open = list.filter((w) => OPEN_STATUSES.includes(w.status));
     if (open.length === 0) return null;
+
+    const finishedAwaitingClosure = open.filter((w) =>
+      w.status === "TERMINE" || w.status === "ATTENTE_ATTACHEMENT" || w.status === "ATTENTE_LEVEE"
+    );
+    const inProgress = open.filter((w) => w.status === "PLANIFIE" || w.status === "EN_COURS");
 
     const byStatus = open.reduce<Record<string, WorkOrder[]>>((acc, w) => {
       (acc[w.status] = acc[w.status] || []).push(w);
       return acc;
     }, {});
 
-    // Oldest by completionDate (ou createdAt si pas de completionDate — on n'a que completionDate ici)
-    const sortedByOld = [...open].sort((a, b) => {
-      const da = a.completionDate ? new Date(a.completionDate).getTime() : Infinity;
-      const db = b.completionDate ? new Date(b.completionDate).getTime() : Infinity;
-      return da - db;
-    });
-    const oldest = sortedByOld[0];
-    const oldestDays = daysSince(oldest?.completionDate ?? null);
+    // Plus ancien par completionDate (chantiers finis) sinon par createdAt
+    const refDate = (w: WorkOrder) =>
+      w.completionDate ? new Date(w.completionDate).getTime() : new Date(w.createdAt).getTime();
+    const oldest = [...open].sort((a, b) => refDate(a) - refDate(b))[0];
+    const oldestDays = daysSince(
+      oldest?.completionDate ?? oldest?.createdAt ?? null
+    );
 
     const totalAmount = open.reduce((s, w) => s + (w.quote.amountHT ?? 0), 0);
 
-    return { open, byStatus, oldest, oldestDays, totalAmount, count: open.length };
+    return { open, byStatus, oldest, oldestDays, totalAmount, count: open.length, finishedAwaitingClosure, inProgress };
   }, [data]);
 
   if (!stats) return null;
 
-  const { count, byStatus, oldest, oldestDays, totalAmount } = stats;
+  const { count, byStatus, oldest, oldestDays, totalAmount, finishedAwaitingClosure, inProgress } = stats;
+  const finishedCount = finishedAwaitingClosure.length;
+  const inProgressCount = inProgress.length;
 
-  // Tone selon urgence (âge du plus vieux)
-  const urgent = oldestDays !== null && oldestDays > 60;
-  const warning = oldestDays !== null && oldestDays > 30;
-  const tone =
-    urgent ? { border: "border-rose-200/70", emphasis: "text-rose-700" }
-    : warning ? { border: "border-amber-200/60", emphasis: "text-amber-700" }
-    : { border: "border-gray-200/80", emphasis: "text-primary-dark" };
+  // Headline qui s'adapte au mix
+  const headline =
+    finishedCount > 0 && inProgressCount > 0
+      ? <><span className={`tabular-nums ${tone(oldestDays).emphasis}`}>{count}</span> chantiers ouverts <span className="text-text-secondary text-[18px] font-normal">— {finishedCount} à clôturer, {inProgressCount} en cours.</span></>
+      : finishedCount > 0
+      ? <><span className={`tabular-nums ${tone(oldestDays).emphasis}`}>{finishedCount}</span> travaux terminés attendent leur clôture.</>
+      : <><span className={`tabular-nums ${tone(oldestDays).emphasis}`}>{inProgressCount}</span> chantiers en cours d&apos;exécution.</>;
+
+  const t = tone(oldestDays);
 
   return (
-    <section className={`bg-white rounded-xl border ${tone.border} overflow-hidden`}>
+    <section className={`bg-white rounded-xl border ${t.border} overflow-hidden`}>
       <div className="px-8 py-6">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold mb-2">
           <Wrench size={12} />
@@ -91,7 +115,7 @@ export default function WorkOrdersToClose({ contractId }: Props) {
         </div>
 
         <h2 className="text-[22px] leading-[1.2] font-semibold text-primary-dark tracking-tight max-w-3xl">
-          <span className={`tabular-nums ${tone.emphasis}`}>{count}</span> travaux terminés attendent leur clôture.
+          {headline}
         </h2>
 
         <p className="text-[14px] text-text-secondary mt-3 leading-relaxed max-w-3xl">
@@ -99,12 +123,11 @@ export default function WorkOrdersToClose({ contractId }: Props) {
             <>
               Le plus ancien :{" "}
               <strong className="text-primary-dark">{oldest.quote.title || oldest.quote.reference}</strong>{" "}
-              sur <strong className="text-primary-dark">{oldest.quote.site.name}</strong>, terminé{" "}
+              sur <strong className="text-primary-dark">{oldest.quote.site.name}</strong>,{" "}
+              {oldest.completionDate ? "terminé" : "ouvert"}{" "}
               <strong className="text-primary-dark tabular-nums">il y a {oldestDays} j</strong>.
             </>
-          ) : (
-            <>Aucune date de fin renseignée pour le plus ancien.</>
-          )}
+          ) : null}
           {" "}
           Détail :{" "}
           {Object.entries(byStatus)
@@ -112,13 +135,13 @@ export default function WorkOrdersToClose({ contractId }: Props) {
             .map(([status, items], i, arr) => (
               <span key={status}>
                 <strong className="text-primary-dark tabular-nums">{items.length}</strong>{" "}
-                <span>{STATUS_LABEL[status]?.reason ?? status.toLowerCase()}</span>
+                <span>{STATUS_REASON[status] ?? status.toLowerCase()}</span>
                 {i < arr.length - 1 ? ", " : "."}
               </span>
             ))}
           {totalAmount > 0 && (
             <>
-              {" "}Montant cumulé non comptabilisé en P3 :{" "}
+              {" "}Montant cumulé engagé non comptabilisé en P3 :{" "}
               <strong className="text-primary-dark tabular-nums">
                 {Math.round(totalAmount).toLocaleString("fr-FR")} €
               </strong>.
