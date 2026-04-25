@@ -30,6 +30,7 @@ import { StatsCards } from "@/components/overview/StatsCards";
 import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
 import InsightHero from "@/components/overview/InsightHero";
+import WorkOrdersToClose from "@/components/overview/WorkOrdersToClose";
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -237,11 +238,12 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto space-y-4">
       <InsightHero
         contractId={selectedContract.id}
         yearType={selectedContract.yearType ?? "HEATING_SEASON"}
       />
+      <WorkOrdersToClose contractId={selectedContract.id} />
     </div>
   );
 }
