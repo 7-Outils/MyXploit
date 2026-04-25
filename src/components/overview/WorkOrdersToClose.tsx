@@ -96,69 +96,65 @@ export default function WorkOrdersToClose({ contractId }: Props) {
   const finishedCount = finishedAwaitingClosure.length;
   const inProgressCount = inProgress.length;
 
-  // Headline qui s'adapte au mix
-  const headline =
-    finishedCount > 0 && inProgressCount > 0
-      ? <><span className={`tabular-nums ${tone(oldestDays).emphasis}`}>{count}</span> chantiers ouverts <span className="text-text-secondary text-[18px] font-normal">— {finishedCount} à clôturer, {inProgressCount} en cours.</span></>
-      : finishedCount > 0
-      ? <><span className={`tabular-nums ${tone(oldestDays).emphasis}`}>{finishedCount}</span> travaux terminés attendent leur clôture.</>
-      : <><span className={`tabular-nums ${tone(oldestDays).emphasis}`}>{inProgressCount}</span> chantiers en cours d&apos;exécution.</>;
-
   const t = tone(oldestDays);
 
   return (
-    <section className={`bg-white rounded-xl border ${t.border} overflow-hidden`}>
-      <div className="px-8 py-6">
-        <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold mb-2">
-          <Wrench size={12} />
-          <span>Suivi travaux</span>
+    <Link
+      href={`/exploitation?tab=suivi-p3&contractId=${contractId}`}
+      className={`group bg-white rounded-xl border ${t.border} hover:border-accent/50 px-5 py-4 flex items-center gap-4 transition-colors`}
+    >
+      <div className="w-10 h-10 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
+        <Wrench size={16} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${t.emphasis}`}>
+            Suivi travaux
+          </span>
+          <span className={`text-sm font-semibold tabular-nums ${t.emphasis}`}>
+            {headlineText({ count, finishedCount, inProgressCount })}
+          </span>
         </div>
-
-        <h2 className="text-[22px] leading-[1.2] font-semibold text-primary-dark tracking-tight max-w-3xl">
-          {headline}
-        </h2>
-
-        <p className="text-[14px] text-text-secondary mt-3 leading-relaxed max-w-3xl">
-          {oldest && oldestDays !== null && oldest.quote.site ? (
+        <p className="text-[12px] text-text-secondary mt-1 leading-snug">
+          {oldest && oldestDays !== null && oldest.quote.site && (
             <>
-              Le plus ancien :{" "}
-              <strong className="text-primary-dark">{oldest.quote.title || oldest.quote.reference}</strong>{" "}
-              sur <strong className="text-primary-dark">{oldest.quote.site.name}</strong>,{" "}
-              {oldest.completionDate ? "terminé" : "ouvert"}{" "}
-              <strong className="text-primary-dark tabular-nums">il y a {oldestDays} j</strong>.
+              Plus ancien : <strong className="text-primary-dark">{oldest.quote.title || oldest.quote.reference}</strong>{" "}
+              ({oldest.quote.site.name}) <span className="tabular-nums">il y a {oldestDays} j</span>.
             </>
-          ) : null}
+          )}
           {" "}
-          Détail :{" "}
           {Object.entries(byStatus)
             .sort(([a], [b]) => (a === "ATTENTE_LEVEE" ? -1 : b === "ATTENTE_LEVEE" ? 1 : 0))
             .map(([status, items], i, arr) => (
               <span key={status}>
-                <strong className="text-primary-dark tabular-nums">{items.length}</strong>{" "}
-                <span>{STATUS_REASON[status] ?? status.toLowerCase()}</span>
-                {i < arr.length - 1 ? ", " : "."}
+                <span className="tabular-nums font-semibold text-primary-dark">{items.length}</span>{" "}
+                {STATUS_REASON[status] ?? status.toLowerCase()}
+                {i < arr.length - 1 ? " · " : ""}
               </span>
             ))}
           {totalAmount > 0 && (
             <>
-              {" "}Montant cumulé engagé non comptabilisé en P3 :{" "}
-              <strong className="text-primary-dark tabular-nums">
+              {" · "}
+              <span className="tabular-nums font-semibold text-primary-dark">
                 {Math.round(totalAmount).toLocaleString("fr-FR")} €
-              </strong>.
+              </span> engagés
             </>
           )}
         </p>
       </div>
 
-      <div className="px-8 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end">
-        <Link
-          href={`/exploitation?tab=suivi-p3&contractId=${contractId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-primary-dark font-medium hover:text-accent transition-colors"
-        >
-          Ouvrir le suivi P3
-          <ArrowRight size={14} />
-        </Link>
-      </div>
-    </section>
+      <ArrowRight size={16} className="text-gray-300 group-hover:text-accent transition-colors shrink-0" />
+    </Link>
   );
+}
+
+function headlineText({ count, finishedCount, inProgressCount }: { count: number; finishedCount: number; inProgressCount: number }) {
+  if (finishedCount > 0 && inProgressCount > 0) {
+    return `${count} chantiers ouverts (${finishedCount} à clôturer, ${inProgressCount} en cours)`;
+  }
+  if (finishedCount > 0) {
+    return `${finishedCount} travaux à clôturer`;
+  }
+  return `${inProgressCount} chantier${inProgressCount > 1 ? "s" : ""} en cours`;
 }
