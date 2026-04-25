@@ -56,9 +56,17 @@ function fmtPct(v: number, d = 0): string {
 }
 
 export default function InsightHero({ contractId, yearType }: Props) {
-  const [year, setYear] = useState<number>(() =>
-    yearType === "CIVIL" ? new Date().getFullYear() : currentHeatingSeasonYear()
-  );
+  // Par défaut, on affiche la dernière saison complète et non la saison en
+  // cours : sinon DJR partiel (~50 % de l'historique) crée un faux verdict
+  // 'économie' (ex : −47 % à mi-saison parce que le froid n'est pas encore tombé).
+  const [year, setYear] = useState<number>(() => {
+    if (yearType === "CIVIL") {
+      const now = new Date();
+      // Année civile précédente si on est au 1er semestre
+      return now.getMonth() < 6 ? now.getFullYear() - 1 : now.getFullYear();
+    }
+    return currentHeatingSeasonYear() - 1;
+  });
 
   const key = `/api/consumptions/analytics?contractId=${contractId}&year=${year}&yearType=${yearType}`;
   const { data, isLoading } = useSWR<AnalyticsResponse>(key, fetcher);
