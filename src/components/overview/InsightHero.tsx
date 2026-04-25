@@ -338,13 +338,7 @@ export default function InsightHero({ contractId, yearType }: Props) {
       </div>
 
       {/* CTA footer ─────────────────────────────────────────────── */}
-      <div className="px-8 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between gap-4">
-        <Link
-          href={`/rapports/calibration-cibles?contract=${contractId}`}
-          className="text-xs text-text-secondary hover:text-primary-dark transition-colors"
-        >
-          Diagnostic calibration des cibles →
-        </Link>
+      <div className="px-8 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end">
         <Link
           href={insight.cta.href}
           className="inline-flex items-center gap-1.5 text-sm text-primary-dark font-medium hover:text-accent transition-colors"
