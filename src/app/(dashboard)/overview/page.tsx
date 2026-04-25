@@ -30,8 +30,6 @@ import { StatsCards } from "@/components/overview/StatsCards";
 import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
 import InsightHero from "@/components/overview/InsightHero";
-import Link from "next/link";
-import { Sliders, ChevronRight } from "lucide-react";
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -239,34 +237,11 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="max-w-4xl mx-auto">
       <InsightHero
         contractId={selectedContract.id}
         yearType={selectedContract.yearType ?? "HEATING_SEASON"}
       />
-
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.18em] text-text-secondary font-semibold mb-2">
-          Rapports d&apos;expertise
-        </div>
-        <Link
-          href={`/rapports/calibration-cibles?contract=${selectedContract.id}`}
-          className="group bg-white border border-gray-200/80 hover:border-accent/50 rounded-xl px-5 py-4 flex items-center gap-4 transition-colors"
-        >
-          <div className="w-10 h-10 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
-            <Sliders size={18} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-primary-dark group-hover:text-accent">
-              Calibration des cibles NB
-            </div>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Diagnostic par signature énergétique — cibles trop lâches ou trop serrées
-            </p>
-          </div>
-          <ChevronRight size={16} className="text-gray-300 group-hover:text-accent transition-colors shrink-0" />
-        </Link>
-      </div>
     </div>
   );
 }
