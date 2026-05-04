@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
 import {
   BarChart3,
@@ -41,11 +43,7 @@ function EnergyPageContent() {
   // Contract from global context
   const { selectedContract, isLoading: loadingContracts } = useContract();
 
-  // Data states
-  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(false);
+  // Data via SWR : cache cross-page → revisite = instant.
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
 
   // Modals
@@ -145,45 +143,28 @@ function EnergyPageContent() {
   }, [selectedContract, availableYears, selectedYear]);
 
 
-  const fetchData = useCallback(async () => {
-    if (!selectedContract) return;
+  // SWR pour les 3 fetches : cache cross-page → revisiter /energy = instant.
+  // readingsVersion suffixe la key pour forcer un re-fetch après import/save.
+  const sitesKey = selectedContract
+    ? `/api/contracts/${selectedContract.id}/sites?v=${readingsVersion}`
+    : null;
+  const analyticsKey = selectedContract
+    ? `/api/consumptions/analytics?year=${selectedYear}&contractId=${selectedContract.id}&yearType=${yearType}&v=${readingsVersion}`
+    : null;
+  const alertsKey = selectedContract ? "/api/alerts?type=DERIVE_CONSOMMATION" : null;
 
-    try {
-      setLoading(true);
+  const { data: sitesData, isLoading: sitesLoading } = useSWR<Site[]>(sitesKey, fetcher);
+  const { data: analyticsData, isLoading: analyticsLoadingSWR } = useSWR<AnalyticsData>(
+    analyticsKey,
+    fetcher,
+    { keepPreviousData: true }
+  );
+  const { data: alertsData } = useSWR<Alert[]>(alertsKey, fetcher);
 
-      const sitesRes = await fetch(`/api/contracts/${selectedContract.id}/sites`);
-      const sitesData = await sitesRes.json();
-      setSites(Array.isArray(sitesData) ? sitesData : []);
-
-      const params = new URLSearchParams();
-      params.set("year", selectedYear.toString());
-      params.set("contractId", selectedContract.id);
-      params.set("yearType", yearType);
-
-      const [analyticsRes, alertsRes] = await Promise.all([
-        fetch(`/api/consumptions/analytics?${params}`),
-        fetch("/api/alerts?type=DERIVE_CONSOMMATION"),
-      ]);
-
-      const [analyticsData, alertsData] = await Promise.all([
-        analyticsRes.json(),
-        alertsRes.json(),
-      ]);
-
-      if (analyticsRes.ok) setAnalytics(analyticsData);
-      setAlerts(Array.isArray(alertsData) ? alertsData : []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedYear, selectedContract, yearType, readingsVersion]);
-
-  useEffect(() => {
-    if (selectedContract) {
-      fetchData();
-    }
-  }, [fetchData, selectedContract]);
+  const sites = useMemo(() => (Array.isArray(sitesData) ? sitesData : []), [sitesData]);
+  const alerts = useMemo(() => (Array.isArray(alertsData) ? alertsData : []), [alertsData]);
+  const analytics = analyticsData ?? null;
+  const loading = sitesLoading || analyticsLoadingSWR;
 
   // First step: preview the import
   const handleIdexImport = async (file: File, importType: "ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET") => {
@@ -246,8 +227,8 @@ function EnergyPageContent() {
       if (response.ok) {
         setIdexImportResult(result);
         if (result.imported > 0 || result.updated > 0) {
+          // setReadingsVersion change la SWR key → re-fetch auto
           setReadingsVersion((v) => v + 1);
-          await fetchData();
         }
       } else {
         alert(result.error || "Erreur lors de l'import");
@@ -375,7 +356,7 @@ function EnergyPageContent() {
           onClose={() => setShowCreateModal(false)}
           onSaved={() => {
             setShowCreateModal(false);
-            fetchData();
+            // SWR key inclut readingsVersion → re-fetch auto
             setReadingsVersion((v) => v + 1);
           }}
         />
