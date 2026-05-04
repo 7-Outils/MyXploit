@@ -8,7 +8,6 @@ import * as echarts from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
 import { GridComponent, TooltipComponent, MarkLineComponent, LegendComponent } from "echarts/components";
 import { CanvasRenderer } from "echarts/renderers";
-import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { prorateAcrossMonths } from "@/lib/date-prorate";
 import { addDays } from "date-fns";
@@ -852,14 +851,20 @@ export function RelevesContent({
 
         <div className="flex-1" />
 
-        <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
-          <Flame size={16} className="mr-2" />
-          Import Exploitant
-        </Button>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Plus size={16} className="mr-2" />
-          Saisir relevé
-        </Button>
+        <button
+          onClick={() => setShowIdexImportModal(true)}
+          title="Import Exploitant"
+          className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          <Flame size={16} />
+        </button>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          title="Saisir relevé"
+          className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
+        >
+          <Plus size={16} />
+        </button>
       </div>
 
       {/* KPIs dynamiques — une card par fluide énergétique présent */}
