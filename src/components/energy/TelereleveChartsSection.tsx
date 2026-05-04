@@ -131,6 +131,12 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
   } | null>(null);
   const [djuMonthly, setDjuMonthly] = useState<Map<string, number>>(new Map());
 
+  // Reset le cache djuMonthly quand le site change — sinon on mélangerait
+  // les DJU de sites avec des stations météo différentes.
+  useEffect(() => {
+    setDjuMonthly(new Map());
+  }, [selectedSiteId]);
+
   useEffect(() => {
     if (!selectedSiteId) {
       setSiteContext(null);
@@ -231,7 +237,14 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
           merged.months.sort((a, b) => a.month.localeCompare(b.month));
         }
         setSiteContext(merged);
-        setDjuMonthly(djuByMonth);
+        // Merge plutôt que replace : si une fetch revient avec moins de mois
+        // (ex: Open-Meteo timeout sur une vieille saison, ou un site sans
+        // HeatingPeriod), on ne perd pas la couverture acquise précédemment.
+        setDjuMonthly((prev) => {
+          const next = new Map(prev);
+          for (const [k, v] of djuByMonth) next.set(k, v);
+          return next;
+        });
       })
       .finally(() => {
         if (!cancelled) setAnalyticsLoading(false);
