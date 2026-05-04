@@ -420,20 +420,19 @@ export async function getMonthlyDjuFromCache(
         fetchStart,
         fetchEnd,
       );
-      // Upsert chaque jour individuellement (pas de createMany skipDuplicates
-      // sur composite PK avec Neon dans toutes les versions).
-      for (const d of daily) {
-        await prisma.dailyDju.upsert({
-          where: { stationCode_date: { stationCode, date: new Date(d.date) } },
-          create: {
+      // Batch insert (1 round-trip pour N jours).
+      if (daily.length > 0) {
+        await prisma.dailyDju.createMany({
+          data: daily.map((d) => ({
             stationCode,
             date: new Date(d.date),
             dju: d.dju,
-          },
-          update: { dju: d.dju },
+          })),
+          skipDuplicates: true,
         });
-        // Ajoute au résultat en mémoire pour éviter une 2e lecture DB.
-        rows.push({ date: new Date(d.date), dju: d.dju });
+        for (const d of daily) {
+          rows.push({ date: new Date(d.date), dju: d.dju });
+        }
       }
     } catch (err) {
       console.error(`[dju-cache] backfill failed for ${stationCode}:`, err);
@@ -508,17 +507,19 @@ export async function syncDailyDjuCache(): Promise<{
         fromIso,
         todayIso,
       );
-      for (const d of daily) {
-        await prisma.dailyDju.upsert({
-          where: { stationCode_date: { stationCode, date: new Date(d.date) } },
-          create: {
+      // Batch insert : 1 round-trip pour 1825 jours au lieu de 1825 upserts.
+      // skipDuplicates protège contre les conflicts si la table avait
+      // déjà des entrées pour ces dates (ex: re-run après partial failure).
+      if (daily.length > 0) {
+        const created = await prisma.dailyDju.createMany({
+          data: daily.map((d) => ({
             stationCode,
             date: new Date(d.date),
             dju: d.dju,
-          },
-          update: { dju: d.dju },
+          })),
+          skipDuplicates: true,
         });
-        result.daysAdded++;
+        result.daysAdded += created.count;
       }
       result.stationsSynced++;
     } catch (err) {
