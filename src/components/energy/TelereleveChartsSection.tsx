@@ -166,35 +166,30 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     const years: number[] = [];
     for (let y = startYear - 1; y <= endYear; y++) years.push(y);
 
-    // Fetch analytics AND DJU in parallel for each year
+    // Fetch analytics par année (besoin du yearType pour le NB)
+    // et UNE seule fetch DJU sur toute la fenêtre visible (bcp plus rapide
+    // que N appels Open-Meteo).
     const analyticsPromises = years.map((y) =>
       fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}&yearType=${yearType}`)
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null)
     );
-    const djuPromises = years.map((y) =>
-      // fullRange=1 : on récupère tous les mois de la saison (capé à today),
-      // pas seulement la fenêtre HeatingPeriod du site. Indispensable pour
-      // les sites en chauffage continu (piscines) où l'allumage est saisi
-      // tardivement ou pas du tout. L'été est filtré côté chart via MIN_DJU.
-      fetch(`/api/dju?siteId=${selectedSiteId}&year=${y}&fullRange=1`)
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null)
-    );
+    // Étend d'un an avant le début pour les comparaisons N-1.
+    const djuStart = `${start.getFullYear() - 1}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+    const djuPromise = fetch(
+      `/api/dju/monthly?siteId=${selectedSiteId}&start=${djuStart}&end=${dateTo}`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
 
-    Promise.all([Promise.all(analyticsPromises), Promise.all(djuPromises)])
-      .then(([analyticsResponses, djuResponses]) => {
+    Promise.all([Promise.all(analyticsPromises), djuPromise])
+      .then(([analyticsResponses, djuResponse]) => {
         if (cancelled) return;
 
         // Build DJU lookup: month → dju value (from API, not from consumption records)
         const djuByMonth = new Map<string, number>();
-        for (const djuResp of djuResponses) {
-          if (!djuResp?.sites) continue;
-          const siteDju = djuResp.sites.find(
-            (s: { siteId: string }) => s.siteId === selectedSiteId
-          );
-          if (!siteDju?.monthlyData) continue;
-          for (const m of siteDju.monthlyData) {
+        if (djuResponse?.monthlyData) {
+          for (const m of djuResponse.monthlyData) {
             if (m.dju > 0) djuByMonth.set(m.month, m.dju);
           }
         }
