@@ -239,13 +239,17 @@ export default function OverviewPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      <InsightHero
-        contractId={selectedContract.id}
-        yearType={selectedContract.yearType ?? "HEATING_SEASON"}
-      />
-      <WorkOrdersToClose contractId={selectedContract.id} />
-      <UpcomingMeetings contractId={selectedContract.id} />
+    <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="lg:col-span-8">
+        <InsightHero
+          contractId={selectedContract.id}
+          yearType={selectedContract.yearType ?? "HEATING_SEASON"}
+        />
+      </div>
+      <aside className="lg:col-span-4 flex flex-col gap-3">
+        <WorkOrdersToClose contractId={selectedContract.id} />
+        <UpcomingMeetings contractId={selectedContract.id} />
+      </aside>
     </div>
   );
 }
