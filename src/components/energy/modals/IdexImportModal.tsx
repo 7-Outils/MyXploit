@@ -65,10 +65,32 @@ export function IdexImportModal({
   const [manualMappings, setManualMappings] = useState<Record<string, string>>({});
   const [savingMappings, setSavingMappings] = useState(false);
   const [mappingsSaved, setMappingsSaved] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  // Sans preventDefault, le navigateur ouvre/télécharge le fichier dropé.
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && /\.(xlsx|xls)$/i.test(file.name)) {
       setSelectedFile(file);
     }
   };
@@ -231,9 +253,16 @@ export function IdexImportModal({
 
           {/* Upload */}
           {!importResult && (
-            <label className="block cursor-pointer">
+            <label
+              className="block cursor-pointer"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-                selectedFile ? "border-accent bg-accent/5" : "border-gray-300 hover:border-accent"
+                isDragging ? "border-accent bg-accent/10"
+                : selectedFile ? "border-accent bg-accent/5"
+                : "border-gray-300 hover:border-accent"
               }`}>
                 <FileSpreadsheet className={`w-12 h-12 mx-auto mb-4 ${selectedFile ? "text-accent" : "text-gray-400"}`} />
                 {selectedFile ? (
