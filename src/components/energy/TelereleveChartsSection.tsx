@@ -70,32 +70,15 @@ function startOfCurrentMonthIso(): string {
 }
 
 export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON" }: Props) {
-  // ─── Sites of the contract that have a PCE/PDL ──────────────────────
-  const [sites, setSites] = useState<SiteSummary[]>([]);
-  const [loadingSites, setLoadingSites] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoadingSites(true);
-    fetch(`/api/contracts/${contractId}/sites`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: SiteSummary[]) => {
-        if (cancelled) return;
-        const withMeter = (data || []).filter(
-          (s) => s.pce !== null || s.pdl !== null
-        );
-        setSites(withMeter);
-      })
-      .catch(() => {
-        if (!cancelled) setSites([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingSites(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [contractId]);
+  // ─── Sites of the contract that have a PCE/PDL (SWR cross-page cache) ──
+  const { data: sitesData, isLoading: loadingSites } = useSWR<SiteSummary[]>(
+    contractId ? `/api/contracts/${contractId}/sites` : null,
+    fetcher
+  );
+  const sites = useMemo(
+    () => (Array.isArray(sitesData) ? sitesData.filter((s) => s.pce !== null || s.pdl !== null) : []),
+    [sitesData]
+  );
 
   // ─── Shared state — selected site + date range + frequency ─────────
   // Default to "this month so far" with monthly frequency — both charts
