@@ -110,6 +110,9 @@ export default function AEImportModal({ onClose, contractId }: AEImportModalProp
       const response = await fetch(url, { method: "POST", body: formData });
       const result = await response.json();
       if (!response.ok) { setError(result.error || (isUpdate ? "Erreur lors de la mise à jour" : "Erreur lors de la création")); return; }
+      if (!isUpdate && result?.contract?.id && typeof window !== "undefined") {
+        localStorage.setItem("myxploit-selected-contract-id", result.contract.id);
+      }
       handleClose();
       window.location.reload();
     } catch (err) {

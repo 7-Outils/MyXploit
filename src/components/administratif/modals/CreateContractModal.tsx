@@ -38,6 +38,10 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
         }),
       });
       if (response.ok) {
+        const created = await response.json();
+        if (created?.id && typeof window !== "undefined") {
+          localStorage.setItem("myxploit-selected-contract-id", created.id);
+        }
         onClose();
         window.location.reload();
       }
