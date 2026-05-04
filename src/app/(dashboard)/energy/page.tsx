@@ -31,6 +31,12 @@ function EnergyPageContent() {
 
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  // Lazy-mount des onglets : un onglet ne se mount QUE la 1re fois qu'on
+  // y va. Avant, les 3 tabs étaient mountés en parallèle et chacun fetchait
+  // ses données (analytics ×5, sites ×4, etc.) → 70s de blocage au load.
+  // Le set est conservé pour qu'un onglet visité reste mounted (pas de
+  // re-fetch au tab-switch).
+  const [mountedTabs, setMountedTabs] = useState<Set<Tab>>(() => new Set([initialTab]));
 
   // Contract from global context
   const { selectedContract, isLoading: loadingContracts } = useContract();
@@ -88,6 +94,7 @@ function EnergyPageContent() {
   // Tab change handler — update state + URL without triggering a navigation
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
+    setMountedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
     const params = new URLSearchParams(window.location.search);
     params.set("tab", tab);
     window.history.replaceState(null, "", `/energy?${params.toString()}`);
@@ -325,34 +332,40 @@ function EnergyPageContent() {
         </div>
       </div>
 
-      {/* Synthèse — show previous data while refetching instead of unmounting */}
+      {/* Lazy-mount: un onglet ne se mount qu'à la 1re visite, puis reste
+          mounted (display:none) pour éviter le re-fetch au tab-switch. */}
       <div style={{ display: activeTab === "synthese" ? "block" : "none" }}>
-        {analytics ? (
-          <SyntheseContent
-            analytics={analytics}
-            activeAlerts={activeAlerts}
-            setShowIdexImportModal={setShowIdexImportModal}
-            setShowCreateModal={setShowCreateModal}
-          />
-        ) : loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-accent" />
-          </div>
-        ) : null}
+        {mountedTabs.has("synthese") && (
+          analytics ? (
+            <SyntheseContent
+              analytics={analytics}
+              activeAlerts={activeAlerts}
+              setShowIdexImportModal={setShowIdexImportModal}
+              setShowCreateModal={setShowCreateModal}
+            />
+          ) : loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+            </div>
+          ) : null
+        )}
       </div>
 
-      {/* Relevés + Télérelève stay mounted (hidden) to avoid refetching on tab switch */}
       <div style={{ display: activeTab === "sites" ? "block" : "none" }}>
-        <RelevesContent
-          contractId={selectedContract?.id || null}
-          setShowIdexImportModal={setShowIdexImportModal}
-          setShowCreateModal={setShowCreateModal}
-          refreshKey={readingsVersion}
-        />
+        {mountedTabs.has("sites") && (
+          <RelevesContent
+            contractId={selectedContract?.id || null}
+            setShowIdexImportModal={setShowIdexImportModal}
+            setShowCreateModal={setShowCreateModal}
+            refreshKey={readingsVersion}
+          />
+        )}
       </div>
 
       <div style={{ display: activeTab === "telereleve" ? "block" : "none" }}>
-        <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
+        {mountedTabs.has("telereleve") && (
+          <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
+        )}
       </div>
 
       {/* Modals */}
