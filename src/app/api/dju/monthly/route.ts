@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { getMonthlyDjuForStation } from "@/lib/dju-sync";
+import { getMonthlyDjuFromCache } from "@/lib/dju-sync";
 
 // Endpoint léger : DJU mensuel pour un site sur une plage de dates arbitraire.
 // Une seule fetch Open-Meteo au lieu d'une par année — utilisé par le chart
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split("T")[0];
     const cappedEnd = end > today ? today : end;
 
-    const byMonth = await getMonthlyDjuForStation(
+    const byMonth = await getMonthlyDjuFromCache(
       site.stationMeteo,
       site.postalCode,
       start,
@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
     );
 
     const monthlyData = Array.from(byMonth.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, dju]) => ({ month, dju: Math.round(dju) }));
+      .sort((a: [string, number], b: [string, number]) => a[0].localeCompare(b[0]))
+      .map(([month, dju]: [string, number]) => ({ month, dju: Math.round(dju) }));
 
     return NextResponse.json({ monthlyData });
   } catch (error) {

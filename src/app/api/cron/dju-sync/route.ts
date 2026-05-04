@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { syncDjuForOrg, type DjuSyncResult } from "@/lib/dju-sync";
+import {
+  syncDjuForOrg,
+  syncDailyDjuCache,
+  type DjuSyncResult,
+} from "@/lib/dju-sync";
 
 /**
  * Nightly Vercel Cron — refreshes the DJU réels (degree-days) on every
@@ -33,7 +37,20 @@ export async function GET(request: NextRequest) {
   const startedAt = new Date();
   console.log(`[cron dju-sync] start ${startedAt.toISOString()}`);
 
-  // ─── List every org that has at least one consumption record ──────
+  // ─── 1) Seed/refresh le cache DailyDju (mutualisé entre orgs) ──────
+  // Lecture instantanée depuis la DB pour les chart télérelève.
+  let cacheResult: { stationsSynced: number; daysAdded: number; errors: string[] } | null = null;
+  try {
+    cacheResult = await syncDailyDjuCache();
+    console.log(
+      `[cron dju-sync] cache: ${cacheResult.stationsSynced} stations, ${cacheResult.daysAdded} days added, ${cacheResult.errors.length} error(s)`
+    );
+  } catch (err) {
+    console.error("[cron dju-sync] cache sync failed:", err);
+    cacheResult = { stationsSynced: 0, daysAdded: 0, errors: [String(err)] };
+  }
+
+  // ─── 2) List every org that has at least one consumption record ──────
   // No need to scope on EnergyProvider — DJU is computed from postal codes
   // and applies to manual imports too, not just GRDF/Enedis sync data.
   const orgsRaw = await prisma.consumption.findMany({
@@ -95,6 +112,7 @@ export async function GET(request: NextRequest) {
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - startedAt.getTime(),
+    cache: cacheResult,
     orgs: {
       total: orgIds.length,
       success: successOrgs,

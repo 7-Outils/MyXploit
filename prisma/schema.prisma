@@ -2208,3 +2208,20 @@ model WorkEvent {
 
   @@map("work_events")
 }
+
+// Cache jour-par-jour des DJU (degree-days) par station météo.
+// Évite de re-fetch Open-Meteo à chaque interaction utilisateur :
+// le cron quotidien remplit cette table, les API lisent depuis ici (~50 ms
+// au lieu de 1-2 s par requête Open-Meteo).
+// Mutualisée entre toutes les orgs : une seule entrée par (station, date).
+model DailyDju {
+  stationCode String
+  date        DateTime @db.Date
+  dju         Float // base 18°C (chauffage)
+  updatedAt   DateTime @updatedAt
+
+  @@id([stationCode, date])
+  @@index([stationCode, date])
+  @@map("daily_dju")
+}
+

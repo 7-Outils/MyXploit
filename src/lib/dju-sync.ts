@@ -364,6 +364,174 @@ export interface DjuSyncResult {
 }
 
 /**
+ * Récupère le DJU mensuel d'une station depuis le cache DB DailyDju.
+ * Si des jours récents manquent (entre dernière entrée et today), les fetch
+ * depuis Open-Meteo et upsert avant de retourner le résultat.
+ *
+ * Beaucoup plus rapide que `getMonthlyDjuForStation` (qui hit Open-Meteo
+ * à chaque appel) : un SELECT en DB ~50 ms vs 1-2 s par fetch externe.
+ */
+export async function getMonthlyDjuFromCache(
+  stationMeteo: string | null,
+  postalCode: string | null,
+  startDate: string, // YYYY-MM-DD
+  endDate: string,
+): Promise<Map<string, number>> {
+  const stationCode =
+    resolveStationKey(stationMeteo) ?? getStationFromPostalCode(postalCode);
+  const coords = WEATHER_STATIONS[stationCode];
+  if (!coords) return new Map();
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const today = new Date();
+  const cappedEnd = end > today ? today : end;
+
+  // 1) Lecture cache DB
+  const rows = await prisma.dailyDju.findMany({
+    where: {
+      stationCode,
+      date: { gte: start, lte: cappedEnd },
+    },
+    select: { date: true, dju: true },
+  });
+
+  // 2) Détection des jours manquants → backfill Open-Meteo
+  const havePerDate = new Set(
+    rows.map((r) => r.date.toISOString().split("T")[0]),
+  );
+  const missing: string[] = [];
+  const cur = new Date(start);
+  while (cur <= cappedEnd) {
+    const iso = cur.toISOString().split("T")[0];
+    if (!havePerDate.has(iso)) missing.push(iso);
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+
+  if (missing.length > 0) {
+    // On ne fetch QUE la plage manquante (gros saut OK : Open-Meteo accepte
+    // une plage continue ; on ré-extrait ensuite par jour côté upsert).
+    const fetchStart = missing[0];
+    const fetchEnd = missing[missing.length - 1];
+    try {
+      const daily = await fetchWeatherData(
+        coords.lat,
+        coords.lon,
+        fetchStart,
+        fetchEnd,
+      );
+      // Upsert chaque jour individuellement (pas de createMany skipDuplicates
+      // sur composite PK avec Neon dans toutes les versions).
+      for (const d of daily) {
+        await prisma.dailyDju.upsert({
+          where: { stationCode_date: { stationCode, date: new Date(d.date) } },
+          create: {
+            stationCode,
+            date: new Date(d.date),
+            dju: d.dju,
+          },
+          update: { dju: d.dju },
+        });
+        // Ajoute au résultat en mémoire pour éviter une 2e lecture DB.
+        rows.push({ date: new Date(d.date), dju: d.dju });
+      }
+    } catch (err) {
+      console.error(`[dju-cache] backfill failed for ${stationCode}:`, err);
+      // En cas d'échec backfill, on retourne ce qu'on a en cache.
+    }
+  }
+
+  // 3) Agrégation mensuelle
+  const byMonth = new Map<string, number>();
+  for (const r of rows) {
+    const iso = r.date.toISOString().split("T")[0];
+    const m = iso.substring(0, 7);
+    byMonth.set(m, (byMonth.get(m) ?? 0) + r.dju);
+  }
+  return byMonth;
+}
+
+/**
+ * Sync proactif (cron) : pour chaque station déjà utilisée par au moins un
+ * site, remplit le cache DailyDju jusqu'à hier.
+ * Idempotent — peut tourner plusieurs fois par jour.
+ */
+export async function syncDailyDjuCache(): Promise<{
+  stationsSynced: number;
+  daysAdded: number;
+  errors: string[];
+}> {
+  const result = { stationsSynced: 0, daysAdded: 0, errors: [] as string[] };
+
+  // Récupère toutes les stations en usage (via Site.stationMeteo + postalCode)
+  const sites = await prisma.site.findMany({
+    select: { stationMeteo: true, postalCode: true },
+  });
+  const stationCodes = new Set<string>();
+  for (const s of sites) {
+    const code =
+      resolveStationKey(s.stationMeteo) ?? getStationFromPostalCode(s.postalCode);
+    if (WEATHER_STATIONS[code]) stationCodes.add(code);
+  }
+
+  const today = new Date();
+  const todayIso = today.toISOString().split("T")[0];
+
+  for (const stationCode of stationCodes) {
+    const coords = WEATHER_STATIONS[stationCode];
+    if (!coords) continue;
+
+    try {
+      // Trouve la dernière date connue, ou il y a 5 ans par défaut.
+      const last = await prisma.dailyDju.findFirst({
+        where: { stationCode },
+        orderBy: { date: "desc" },
+        select: { date: true },
+      });
+      let from: Date;
+      if (last) {
+        from = new Date(last.date);
+        from.setUTCDate(from.getUTCDate() + 1); // jour suivant
+      } else {
+        from = new Date(today);
+        from.setUTCFullYear(from.getUTCFullYear() - 5);
+      }
+      if (from > today) {
+        result.stationsSynced++;
+        continue; // déjà à jour
+      }
+      const fromIso = from.toISOString().split("T")[0];
+
+      const daily = await fetchWeatherData(
+        coords.lat,
+        coords.lon,
+        fromIso,
+        todayIso,
+      );
+      for (const d of daily) {
+        await prisma.dailyDju.upsert({
+          where: { stationCode_date: { stationCode, date: new Date(d.date) } },
+          create: {
+            stationCode,
+            date: new Date(d.date),
+            dju: d.dju,
+          },
+          update: { dju: d.dju },
+        });
+        result.daysAdded++;
+      }
+      result.stationsSynced++;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[dju-cache] sync ${stationCode} failed:`, msg);
+      result.errors.push(`${stationCode}: ${msg}`);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Synchronize DJU réels for consumptions of given sites
  * @param siteIds - Array of site IDs to sync
  * @param organizationId - Organization ID for filtering
