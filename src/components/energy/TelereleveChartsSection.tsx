@@ -167,7 +167,11 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
         .catch(() => null)
     );
     const djuPromises = years.map((y) =>
-      fetch(`/api/dju?siteId=${selectedSiteId}&year=${y}`)
+      // fullRange=1 : on récupère tous les mois de la saison (capé à today),
+      // pas seulement la fenêtre HeatingPeriod du site. Indispensable pour
+      // les sites en chauffage continu (piscines) où l'allumage est saisi
+      // tardivement ou pas du tout. L'été est filtré côté chart via MIN_DJU.
+      fetch(`/api/dju?siteId=${selectedSiteId}&year=${y}&fullRange=1`)
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null)
     );

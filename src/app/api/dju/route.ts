@@ -361,6 +361,11 @@ export async function GET(request: NextRequest) {
     const year = searchParams.get("year")
       ? parseInt(searchParams.get("year")!)
       : new Date().getFullYear();
+    // Mode "full range" : ignore HeatingPeriod et renvoie le DJU sur toute la
+    // saison [jul N-1, jun N] capé à today. Utile pour les sites en
+    // chauffage continu (piscines) où le ratio kWh/DJU se gate via MIN_DJU
+    // côté client, pas via la période d'allumage.
+    const fullRange = searchParams.get("fullRange") === "1";
 
     if (!contractId && !siteId) {
       return NextResponse.json(
@@ -558,7 +563,12 @@ export async function GET(request: NextRequest) {
       // le refactor 432ce3d). HeatingSeason est gardé seulement pour le NB.
       const sitePeriods = heatingPeriodsBySite.get(site.id) ?? [];
 
-      if (sitePeriods.length > 0) {
+      if (fullRange) {
+        // Mode chauffage continu : on couvre toute la saison [seasonStart, min(seasonEnd, today)].
+        // Le client gate l'été via MIN_DJU.
+        siteStartDate = seasonStart;
+        siteEndDate = seasonEnd > today ? today : seasonEnd;
+      } else if (sitePeriods.length > 0) {
         // Période la plus tôt possible (intersection saison)
         const earliest = sitePeriods[0].startDate;
         siteStartDate = earliest < seasonStart ? seasonStart : earliest;
