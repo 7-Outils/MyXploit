@@ -31,6 +31,7 @@ import { AdminDashboard } from "@/components/overview/sections/AdminDashboard";
 import { ActivitySection } from "@/components/overview/sections/ActivitySection";
 import InsightHero from "@/components/overview/InsightHero";
 import WorkOrdersToClose from "@/components/overview/WorkOrdersToClose";
+import UpcomingMeetings from "@/components/overview/UpcomingMeetings";
 
 export default function OverviewPage() {
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -244,6 +245,7 @@ export default function OverviewPage() {
         yearType={selectedContract.yearType ?? "HEATING_SEASON"}
       />
       <WorkOrdersToClose contractId={selectedContract.id} />
+      <UpcomingMeetings contractId={selectedContract.id} />
     </div>
   );
 }
