@@ -3,13 +3,17 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/invoices - List all invoices
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
+    const contractId = new URL(request.url).searchParams.get("contractId");
 
     const invoices = await prisma.invoice.findMany({
-      where: { organizationId: effectiveOrgId },
+      where: {
+        organizationId: effectiveOrgId,
+        ...(contractId ? { contractId } : {}),
+      },
       include: {
         site: { select: { id: true, name: true } },
         contract: { select: { id: true, reference: true, provider: true } },
