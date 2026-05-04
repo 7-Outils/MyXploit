@@ -104,7 +104,7 @@ export const technicalAuditCreateSchema = z.object({
 
 // Meeting validation
 export const meetingCreateSchema = z.object({
-  type: z.enum(["REUNION_EXPLOITATION", "VISITE_SITE", "COMITE_PILOTAGE", "AUTRE"]),
+  type: z.enum(["EXPLOITATION", "TRAVAUX", "BILAN_ANNUEL", "URGENCE", "AUTRE"]),
   title: z.string().min(1).max(MAX_STRING_LENGTH),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
