@@ -153,7 +153,14 @@ export function TelereleveBuildingChart({
     }
     let cancelled = false;
     setLoadingRecords(true);
-    fetch(`/api/consumptions?siteId=${selectedSiteId}`)
+    // Fenêtre élargie d'1 an avant pour permettre la comparaison N-1
+    // côté chart (vs N-1 KPIs et detect natural granularity).
+    const startD = new Date(dateFrom);
+    startD.setUTCFullYear(startD.getUTCFullYear() - 1);
+    const startIso = startD.toISOString().split("T")[0];
+    fetch(
+      `/api/consumptions?siteId=${selectedSiteId}&start=${startIso}&end=${dateTo}`
+    )
       .then((r) => (r.ok ? r.json() : []))
       .then((data: ConsumptionRecord[]) => {
         if (cancelled) return;
@@ -169,7 +176,7 @@ export function TelereleveBuildingChart({
     return () => {
       cancelled = true;
     };
-  }, [selectedSiteId]);
+  }, [selectedSiteId, dateFrom, dateTo]);
 
   // ─── Energy types available for the selected site ────────────────────
   const availableEnergies = useMemo(() => {

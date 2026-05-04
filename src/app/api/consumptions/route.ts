@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const siteId = searchParams.get("siteId");
     const contractId = searchParams.get("contractId");
+    const start = searchParams.get("start"); // YYYY-MM-DD
+    const end = searchParams.get("end"); // YYYY-MM-DD
 
     const where: Record<string, unknown> = { organizationId: effectiveOrgId };
 
@@ -18,6 +20,15 @@ export async function GET(request: NextRequest) {
     if (sourceParam) {
       const sources = sourceParam.split(",").map((s) => s.trim());
       where.source = sources.length === 1 ? sources[0] : { in: sources };
+    }
+
+    // Filter by date range — drastiquement plus rapide pour les sites avec
+    // des années de relevés télérelève. Le client passe la fenêtre visible.
+    if (start || end) {
+      where.period = {
+        ...(start ? { gte: new Date(start) } : {}),
+        ...(end ? { lte: new Date(end) } : {}),
+      };
     }
 
     if (siteId) {
