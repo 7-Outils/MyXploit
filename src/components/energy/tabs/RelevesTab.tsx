@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
-import { Building2, ChevronDown, ChevronUp, Check, Flame, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Building2, ChevronDown, ChevronUp, Check, Loader2, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
 import * as echarts from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
 import { GridComponent, TooltipComponent, MarkLineComponent, LegendComponent } from "echarts/components";
@@ -856,7 +856,7 @@ export function RelevesContent({
           title="Import Exploitant"
           className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
         >
-          <Flame size={16} />
+          <Upload size={16} />
         </button>
         <button
           onClick={() => setShowCreateModal(true)}
