@@ -492,6 +492,15 @@ export async function GET(request: NextRequest) {
     // Cap to today for Open-Meteo archive API (only historical data available)
     let globalEndDate = maxNeededDate > today ? today : maxNeededDate;
 
+    // Mode fullRange : on force la fenêtre à toute la saison (capée à today),
+    // même si aucun site n'a de HeatingPeriod ou de relevé sur la période.
+    // Sinon Open-Meteo ne fetch qu'1 jour → DJU presque vide → la ligne
+    // kWh/DJU côté client est masquée par le seuil MIN_DJU.
+    if (fullRange) {
+      globalStartDate = seasonStart;
+      globalEndDate = seasonEnd > today ? today : seasonEnd;
+    }
+
     const startDate = globalStartDate.toISOString().split("T")[0];
     const endDate = globalEndDate.toISOString().split("T")[0];
 
