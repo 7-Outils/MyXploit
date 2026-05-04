@@ -64,6 +64,11 @@ const FLUID_COLORS: Record<string, string> = {
   FIOUL: "#8b5cf6",
 };
 
+// Ordre de stack stable (bas → haut) pour que l'ECS soit toujours
+// au même endroit quel que soit l'ordre d'arrivée des relevés.
+// Chauffage en bas, ECS au-dessus, eau froide en dernier.
+const FLUID_STACK_ORDER = ["GAZ", "FIOUL", "CHALEUR", "ELECTRICITE", "EAU_CHAUDE", "EAU_FROIDE"];
+
 type SortKey = "date" | "site" | "meter" | "fluid";
 type SortDir = "asc" | "desc";
 
@@ -632,10 +637,16 @@ export function RelevesContent({
   }, [monthlyByFluid, nativeByFluid]);
 
   // Fluids énergétiques pour le stacked chart (exclut eau froide — non convertible)
-  const energyFluidsInFiltered = useMemo(
-    () => Array.from(monthlyByFluid.keys()),
-    [monthlyByFluid]
-  );
+  // Trié selon FLUID_STACK_ORDER pour que l'empilement soit stable (sinon l'ordre
+  // dépendait de l'ordre d'arrivée des relevés → ECS tantôt en haut tantôt en bas).
+  const energyFluidsInFiltered = useMemo(() => {
+    const present = Array.from(monthlyByFluid.keys());
+    return [...present].sort((a, b) => {
+      const ia = FLUID_STACK_ORDER.indexOf(a);
+      const ib = FLUID_STACK_ORDER.indexOf(b);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+  }, [monthlyByFluid]);
 
   // Cible mensuelle NB/12 adaptée au filtre:
   //   - filterSite spécifique → NB de ce site / 12
