@@ -69,18 +69,27 @@ export default function InsightHero({ contractId, yearType }: Props) {
   });
   const [autoAdvanced, setAutoAdvanced] = useState(false);
 
+  // Reset l'auto-advance quand on change de contrat — chaque contrat doit
+  // pouvoir réévaluer la meilleure saison à afficher au mount.
+  useEffect(() => {
+    setAutoAdvanced(false);
+  }, [contractId]);
+
   const key = `/api/consumptions/analytics?contractId=${contractId}&year=${year}&yearType=${yearType}`;
   const { data, isLoading } = useSWR<AnalyticsResponse>(key, fetcher);
 
-  // Si la saison par défaut (dernière complète) n'a aucune cible, on bascule
-  // automatiquement sur la saison en cours — sinon les contrats récents
-  // (cibles uniquement sur l'année en cours, ex: Bouffémont) affichent un
-  // faux empty state alors que les NB sont bien renseignés ailleurs.
+  // Si la saison par défaut (dernière complète) n'a aucun site comparable
+  // (ni cibles, ni conso suffisante), on bascule auto sur la saison en cours.
+  // Couvre les contrats récents (Bouffémont, cibles seulement sur l'année en cours)
+  // et les saisons passées sans relevés (tous les sites en INCOMPLET).
   // Auto-advance unique pour ne pas créer de boucle.
   useEffect(() => {
     if (autoAdvanced || isLoading || !data) return;
-    const hasAnyCible = (data.sites ?? []).some((s) => s.nb != null);
-    if (!hasAnyCible) {
+    const s = data.summary;
+    const usableSites = s
+      ? s.sitesEnEconomie + s.sitesObjectifAtteint + s.sitesEnDepassement
+      : 0;
+    if (usableSites === 0) {
       const next = yearType === "CIVIL"
         ? new Date().getFullYear()
         : currentHeatingSeasonYear();
