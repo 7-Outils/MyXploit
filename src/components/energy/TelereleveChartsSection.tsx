@@ -133,9 +133,12 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
 
   const yearsToFetch = useMemo(() => {
     if (!selectedSiteId || !dateFrom || !dateTo) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) return null;
     const start = new Date(dateFrom);
     const end = new Date(dateTo);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+    if (start.getFullYear() < 1900 || end.getFullYear() < 1900) return null;
     const yearOf = (d: Date) =>
       yearType === "CIVIL"
         ? d.getFullYear()
@@ -196,8 +199,12 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
   // DJU mensuel — extend d'1 an avant pour les comparaisons N-1.
   const djuKey = useMemo(() => {
     if (!selectedSiteId || !dateFrom || !dateTo) return null;
+    // Filtre sur les dates COMPLÈTES (YYYY-MM-DD) pour éviter de fetch
+    // quand l'input est en cours de frappe (ex: "20-04-01" parserait year=20).
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) return null;
     const start = new Date(dateFrom);
-    if (Number.isNaN(start.getTime())) return null;
+    if (Number.isNaN(start.getTime()) || start.getFullYear() < 1900) return null;
     const djuStart = `${start.getFullYear() - 1}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
     return `/api/dju/monthly?siteId=${selectedSiteId}&start=${djuStart}&end=${dateTo}`;
   }, [selectedSiteId, dateFrom, dateTo]);
