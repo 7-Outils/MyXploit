@@ -131,31 +131,35 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
     months: { month: string; nc: number; nbPrime: number; djr: number }[];
   };
 
-  const analyticsKey = useMemo(() => {
+  const yearsToFetch = useMemo(() => {
     if (!selectedSiteId || !dateFrom || !dateTo) return null;
     const start = new Date(dateFrom);
     const end = new Date(dateTo);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
-    // CIVIL: mois appartient à l'année calendaire. HEATING_SEASON: jul-déc → +1.
     const yearOf = (d: Date) =>
       yearType === "CIVIL"
         ? d.getFullYear()
         : d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
     const startYear = yearOf(start);
     const endYear = yearOf(end);
-    // 1 an avant le début pour les comparaisons N-1.
     const years: number[] = [];
     for (let y = startYear - 1; y <= endYear; y++) years.push(y);
-    return ["analytics-merge", selectedSiteId, yearType, years.join(",")] as const;
+    return years;
   }, [selectedSiteId, dateFrom, dateTo, yearType]);
+
+  // Cle string pour SWR : siteId + yearType + years joinés. Stable, simple.
+  const analyticsKey =
+    selectedSiteId && yearsToFetch
+      ? `analytics:${selectedSiteId}:${yearType}:${yearsToFetch.join(",")}`
+      : null;
 
   const { data: siteContext } = useSWR<SiteContext | null>(
     analyticsKey,
-    async ([, siteId, yt, yearsStr]) => {
-      const years = (yearsStr as string).split(",").map(Number);
+    async () => {
+      if (!selectedSiteId || !yearsToFetch) return null;
       const responses = await Promise.all(
-        years.map((y) =>
-          fetch(`/api/consumptions/analytics?siteId=${siteId}&year=${y}&yearType=${yt}`)
+        yearsToFetch.map((y) =>
+          fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}&yearType=${yearType}`)
             .then((r) => (r.ok ? r.json() : null))
             .catch(() => null)
         )
@@ -163,7 +167,7 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
       let merged: SiteContext | null = null;
       for (const resp of responses) {
         if (!resp || !resp.sites || resp.sites.length === 0) continue;
-        const sitePerf = resp.sites.find((s: { siteId: string }) => s.siteId === siteId);
+        const sitePerf = resp.sites.find((s: { siteId: string }) => s.siteId === selectedSiteId);
         if (!sitePerf) continue;
         if (!merged) {
           merged = {
