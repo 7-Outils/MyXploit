@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { EnergyUsage } from "@/generated/prisma/client";
-import { getDailyDjuForStation, resolveDjuContractuel, resolveStationKey, getStationFromPostalCode } from "@/lib/dju-sync";
+import { getDailyDjuFromCache, resolveDjuContractuel, resolveStationKey, getStationFromPostalCode } from "@/lib/dju-sync";
 
 // Force dynamic — never cache this route
 export const dynamic = "force-dynamic";
@@ -346,7 +346,7 @@ export async function GET(request: NextRequest) {
     const dailyDjuByStation = new Map<string, Map<string, number>>();
     await Promise.all(
       Array.from(stationGroups.values()).map(async (g) => {
-        const daily = await getDailyDjuForStation(
+        const daily = await getDailyDjuFromCache(
           g.key,
           null,
           toIso(g.spanStart),

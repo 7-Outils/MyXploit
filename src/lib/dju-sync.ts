@@ -364,6 +364,81 @@ export interface DjuSyncResult {
 }
 
 /**
+ * Récupère le DJU quotidien d'une station depuis le cache DB DailyDju.
+ * Si des jours récents manquent, les fetch depuis Open-Meteo et upsert.
+ *
+ * Drop-in remplaçant pour `getDailyDjuForStation` (Open-Meteo direct).
+ * Plus rapide (~50ms au lieu de 1-2s) car SELECT en DB.
+ */
+export async function getDailyDjuFromCache(
+  stationMeteo: string | null,
+  postalCode: string | null,
+  startDate: string,
+  endDate: string,
+): Promise<Map<string, number>> {
+  const stationCode =
+    resolveStationKey(stationMeteo) ?? getStationFromPostalCode(postalCode);
+  const coords = WEATHER_STATIONS[stationCode];
+  if (!coords) return new Map();
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const today = new Date();
+  const cappedEnd = end > today ? today : end;
+
+  // 1) Lecture cache DB
+  const rows = await prisma.dailyDju.findMany({
+    where: {
+      stationCode,
+      date: { gte: start, lte: cappedEnd },
+    },
+    select: { date: true, dju: true },
+  });
+
+  const byDay = new Map<string, number>();
+  for (const r of rows) {
+    byDay.set(r.date.toISOString().split("T")[0], r.dju);
+  }
+
+  // 2) Backfill jours manquants (limité au tail récent en pratique)
+  const missing: string[] = [];
+  const cur = new Date(start);
+  while (cur <= cappedEnd) {
+    const iso = cur.toISOString().split("T")[0];
+    if (!byDay.has(iso)) missing.push(iso);
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+
+  if (missing.length > 0) {
+    const fetchStart = missing[0];
+    const fetchEnd = missing[missing.length - 1];
+    try {
+      const daily = await fetchWeatherData(
+        coords.lat,
+        coords.lon,
+        fetchStart,
+        fetchEnd,
+      );
+      if (daily.length > 0) {
+        await prisma.dailyDju.createMany({
+          data: daily.map((d) => ({
+            stationCode,
+            date: new Date(d.date),
+            dju: d.dju,
+          })),
+          skipDuplicates: true,
+        });
+        for (const d of daily) byDay.set(d.date, d.dju);
+      }
+    } catch (err) {
+      console.error(`[dju-cache] daily backfill failed for ${stationCode}:`, err);
+    }
+  }
+
+  return byDay;
+}
+
+/**
  * Récupère le DJU mensuel d'une station depuis le cache DB DailyDju.
  * Si des jours récents manquent (entre dernière entrée et today), les fetch
  * depuis Open-Meteo et upsert avant de retourner le résultat.
