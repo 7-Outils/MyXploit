@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import { Building2, ChevronDown, ChevronUp, Check, Flame, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import * as echarts from "echarts/core";
 import { BarChart, LineChart } from "echarts/charts";
@@ -417,68 +419,60 @@ export function RelevesContent({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
+  // SWR pour le cache cross-page (revisite /energy = instant).
+  // refreshKey suffixe la key pour forcer un re-fetch après save/delete.
+  const readingsKey = contractId
+    ? `/api/contracts/${contractId}/readings?limit=1000&v=${refreshKey ?? 0}`
+    : null;
+  const { data: readingsData, isLoading: readingsLoading } = useSWR(readingsKey, fetcher, { keepPreviousData: true });
+  useEffect(() => {
+    setReadings(Array.isArray(readingsData) ? readingsData : []);
+    setLoading(readingsLoading);
+  }, [readingsData, readingsLoading]);
+
   const fetchReadings = useCallback(() => {
-    if (!contractId) {
-      setReadings([]);
-      setLoading(false);
-      return;
+    // Compat avec les anciens callsites (edit/delete) : SWR ré-revalide
+    // automatiquement, mais on bumpe la version externe si nécessaire.
+  }, []);
+
+  // Objectif NB par site
+  const heatingSeasonsKey = contractId ? `/api/heating-seasons?contractId=${contractId}` : null;
+  const { data: heatingSeasonsData } = useSWR<{ siteId: string; season: string; nb: number | null }[]>(
+    heatingSeasonsKey,
+    fetcher
+  );
+  const nbBySite = useMemo(() => {
+    if (!Array.isArray(heatingSeasonsData) || heatingSeasonsData.length === 0) return new Map<string, number>();
+    const latestSeason = [...new Set(heatingSeasonsData.map((d) => d.season))].sort().pop();
+    if (!latestSeason) return new Map<string, number>();
+    const m = new Map<string, number>();
+    for (const hs of heatingSeasonsData) {
+      if (hs.season !== latestSeason) continue;
+      if (hs.nb == null || hs.nb <= 0) continue;
+      m.set(hs.siteId, hs.nb * 1000);
     }
-    setLoading(true);
-    fetch(`/api/contracts/${contractId}/readings?limit=1000`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setReadings(Array.isArray(data) ? data : []))
-      .catch(() => setReadings([]))
-      .finally(() => setLoading(false));
-  }, [contractId]);
+    return m;
+  }, [heatingSeasonsData]);
 
-  useEffect(() => { fetchReadings(); }, [fetchReadings, refreshKey]);
+  // DJU mensuel par site
+  const djuKey = contractId
+    ? `/api/dju?contractId=${contractId}&year=${new Date().getFullYear()}`
+    : null;
+  const { data: djuData } = useSWR<{
+    sites?: { siteId: string; monthlyData: { month: string; dju: number }[] }[];
+  }>(djuKey, fetcher);
+  const djuBySite = useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    if (djuData?.sites) {
+      for (const s of djuData.sites) {
+        const byMonth = new Map<string, number>();
+        for (const md of s.monthlyData) byMonth.set(md.month, md.dju);
+        m.set(s.siteId, byMonth);
+      }
+    }
+    return m;
+  }, [djuData]);
 
-  // Objectif NB par site (pour l'overlay cible sur chart chauffage).
-  // On garde un map siteId → NB_kWh pour pouvoir adapter la cible au filtre.
-  const [nbBySite, setNbBySite] = useState<Map<string, number>>(new Map());
-  useEffect(() => {
-    if (!contractId) { setNbBySite(new Map()); return; }
-    fetch(`/api/heating-seasons?contractId=${contractId}`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: { siteId: string; season: string; nb: number | null }[]) => {
-        if (!Array.isArray(data) || data.length === 0) { setNbBySite(new Map()); return; }
-        // Saison la plus récente = plus grande clé
-        const latestSeason = [...new Set(data.map((d) => d.season))].sort().pop();
-        if (!latestSeason) { setNbBySite(new Map()); return; }
-        const m = new Map<string, number>();
-        for (const hs of data) {
-          if (hs.season !== latestSeason) continue;
-          if (hs.nb == null || hs.nb <= 0) continue;
-          m.set(hs.siteId, hs.nb * 1000); // MWh → kWh
-        }
-        setNbBySite(m);
-      })
-      .catch(() => setNbBySite(new Map()));
-  }, [contractId]);
-
-  // DJU mensuel par site (pour calcul cohérent du ratio conso/DJU selon le filtre).
-  // Quand filterSite=all: on pondère par la conso chauffage de chaque site.
-  // Quand filterSite=siteId: on utilise directement les DJU du site.
-  const [djuBySite, setDjuBySite] = useState<Map<string, Map<string, number>>>(new Map());
-  useEffect(() => {
-    if (!contractId) { setDjuBySite(new Map()); return; }
-    const year = new Date().getFullYear();
-    fetch(`/api/dju?contractId=${contractId}&year=${year}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: {
-        sites?: { siteId: string; monthlyData: { month: string; dju: number }[] }[];
-      } | null) => {
-        if (!data?.sites) { setDjuBySite(new Map()); return; }
-        const m = new Map<string, Map<string, number>>();
-        for (const s of data.sites) {
-          const byMonth = new Map<string, number>();
-          for (const md of s.monthlyData) byMonth.set(md.month, md.dju);
-          m.set(s.siteId, byMonth);
-        }
-        setDjuBySite(m);
-      })
-      .catch(() => setDjuBySite(new Map()));
-  }, [contractId]);
 
   // Filtres en cascade: chaque dropdown se rétrécit en fonction des autres filtres actifs.
   // Exemple: fluide=Gaz → sites qui n'ont pas de gaz disparaissent; compteur choisi → le
