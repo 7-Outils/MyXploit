@@ -57,7 +57,7 @@ export interface SitePerformance {
   mixteTotal: number;
   delta: number;
   deltaPercent: number;
-  status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
+  status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT" | "INCOMPLET";
   monthlyData: { month: string; nc: number; nbPrime: number; djr: number; ecs: number; ecsHeat: number }[];
   _debug?: {
     heatingSeasonNb: number | null;
@@ -75,6 +75,7 @@ export interface AnalyticsData {
   period: { start: string; end: string };
   summary: {
     totalSites: number;
+    sitesIncomplets?: number;
     totalNc: number;
     totalNbPrime: number;
     totalDelta: number;

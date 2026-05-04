@@ -474,9 +474,16 @@ export async function GET(request: NextRequest) {
         const delta = ncTotal - nbPrime;
         const deltaPercent = nbPrime > 0 ? (delta / nbPrime) * 100 : 0;
 
+        // Comparable only if we have both real consumption AND a valid heating
+        // signal. Without DJR, N'B falls back to raw NB (no normalization);
+        // without NC, the comparison is 0 vs target → fake -100% économie.
+        const isComparable = ncTotal > 0 && djrTotal > 0;
+
         // Performance status
-        let status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT";
-        if (deltaPercent < -5) {
+        let status: "ECONOMIE" | "OBJECTIF" | "DEPASSEMENT" | "INCOMPLET";
+        if (!isComparable) {
+          status = "INCOMPLET";
+        } else if (deltaPercent < -5) {
           status = "ECONOMIE";
         } else if (deltaPercent > 5) {
           status = "DEPASSEMENT";
@@ -529,9 +536,12 @@ export async function GET(request: NextRequest) {
       });
 
     // Global summary (values in kWh)
-    // Only include sites that have a N'B target for the NC/N'B comparison,
-    // otherwise sites without NB drag the totals and make the écart misleading.
-    const sitesWithTarget = sitePerformances.filter((s) => s.nbPrime > 0);
+    // Only include sites where the NC/N'B comparison is actually meaningful:
+    // a real NB target, real consumption (NC>0), and a valid heating signal
+    // (DJR>0 — otherwise N'B falls back to raw NB and the écart is bogus).
+    const sitesWithTarget = sitePerformances.filter(
+      (s) => s.nbPrime > 0 && s.status !== "INCOMPLET"
+    );
     const totalNc = sitesWithTarget.reduce((sum, s) => sum + s.nc, 0);
     const totalNbPrime = sitesWithTarget.reduce((sum, s) => sum + s.nbPrime, 0);
     const totalDelta = totalNc - totalNbPrime;
@@ -588,12 +598,19 @@ export async function GET(request: NextRequest) {
         end: endDate.toISOString(),
       },
       summary: (() => {
-        // On ne compte que les sites avec NB (comparaison NC/N'B possible).
-        // Les sites sans NB ont nbPrime=0 → deltaPercent=0 → auto-OBJECTIF,
-        // ce qui gonflait artificiellement les stats.
-        const comparable = sitePerformances.filter((s) => s.nb != null);
+        // On ne compte que les sites avec NB ET dont la comparaison NC/N'B est
+        // valide (NC>0 et DJR>0). Les sites INCOMPLET (pas de relevé, ou pas
+        // de saison de chauffe couvrant la période) ne doivent pas alimenter
+        // sitesEnEconomie : ils donnaient un faux -100% avant le fix.
+        const comparable = sitePerformances.filter(
+          (s) => s.nb != null && s.status !== "INCOMPLET"
+        );
+        const incomplets = sitePerformances.filter(
+          (s) => s.nb != null && s.status === "INCOMPLET"
+        ).length;
         return {
           totalSites: comparable.length,
+          sitesIncomplets: incomplets,
           totalNc: Math.round(totalNc),
           totalNbPrime: Math.round(totalNbPrime),
           totalDelta: Math.round(totalDelta),

@@ -186,8 +186,14 @@ export function SyntheseContent({
                         )}
                       </div>
                     </td>
-                    <td className={`px-6 py-4 text-right font-medium ${site.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {site.deltaPercent > 0 ? "+" : ""}{site.deltaPercent}%
+                    <td className={`px-6 py-4 text-right font-medium ${
+                      site.status === "INCOMPLET"
+                        ? "text-gray-400"
+                        : site.deltaPercent <= 0 ? "text-green-600" : "text-red-600"
+                    }`}>
+                      {site.status === "INCOMPLET"
+                        ? "—"
+                        : `${site.deltaPercent > 0 ? "+" : ""}${site.deltaPercent}%`}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span
@@ -196,10 +202,18 @@ export function SyntheseContent({
                             ? "bg-green-100 text-green-700"
                             : site.status === "DEPASSEMENT"
                             ? "bg-red-100 text-red-700"
+                            : site.status === "INCOMPLET"
+                            ? "bg-amber-50 text-amber-700"
                             : "bg-blue-100 text-blue-700"
                         }`}
                       >
-                        {site.status === "ECONOMIE" ? "Économie" : site.status === "DEPASSEMENT" ? "Dépassement" : "Objectif"}
+                        {site.status === "ECONOMIE"
+                          ? "Économie"
+                          : site.status === "DEPASSEMENT"
+                          ? "Dépassement"
+                          : site.status === "INCOMPLET"
+                          ? "Données manquantes"
+                          : "Objectif"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">

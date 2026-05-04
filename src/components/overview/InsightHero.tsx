@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { ArrowRight, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
@@ -67,9 +67,29 @@ export default function InsightHero({ contractId, yearType }: Props) {
     }
     return currentHeatingSeasonYear() - 1;
   });
+  const [autoAdvanced, setAutoAdvanced] = useState(false);
 
   const key = `/api/consumptions/analytics?contractId=${contractId}&year=${year}&yearType=${yearType}`;
   const { data, isLoading } = useSWR<AnalyticsResponse>(key, fetcher);
+
+  // Si la saison par défaut (dernière complète) n'a aucune cible, on bascule
+  // automatiquement sur la saison en cours — sinon les contrats récents
+  // (cibles uniquement sur l'année en cours, ex: Bouffémont) affichent un
+  // faux empty state alors que les NB sont bien renseignés ailleurs.
+  // Auto-advance unique pour ne pas créer de boucle.
+  useEffect(() => {
+    if (autoAdvanced || isLoading || !data) return;
+    const hasAnyCible = (data.sites ?? []).some((s) => s.nb != null);
+    if (!hasAnyCible) {
+      const next = yearType === "CIVIL"
+        ? new Date().getFullYear()
+        : currentHeatingSeasonYear();
+      if (year < next) {
+        setYear(next);
+        setAutoAdvanced(true);
+      }
+    }
+  }, [data, isLoading, year, yearType, autoAdvanced]);
 
   const comparableSites = useMemo(
     () => (data?.sites ?? []).filter((s) => s.nb != null),
@@ -274,10 +294,32 @@ export default function InsightHero({ contractId, yearType }: Props) {
 
   if (!summary || total === 0 || !insight) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200/80 p-12 text-center min-h-[280px] flex flex-col items-center justify-center">
-        <div className="text-sm text-text-secondary max-w-sm">
-          Aucun site avec cible énergétique (NB) renseignée pour cette saison.
-          Renseigne les cibles dans <Link href="/contrat?tab=cibles" className="text-accent hover:underline">Contrat &gt; Cibles</Link> pour voir l&apos;état du contrat.
+      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden min-h-[280px] flex flex-col">
+        <div className="flex items-center justify-between px-8 pt-6 pb-2">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold">
+            Saison <span className="tabular-nums ml-1 text-primary-dark">{periodLabel}</span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => { setYear(year - 1); setAutoAdvanced(true); }}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => { setYear(year + 1); setAutoAdvanced(true); }}
+              disabled={!canNext}
+              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-sm text-text-secondary max-w-sm text-center">
+            Aucun site avec cible énergétique (NB) renseignée pour <span className="tabular-nums">{periodLabel}</span>.
+            Renseigne les cibles dans <Link href="/contrat?tab=cibles" className="text-accent hover:underline">Contrat &gt; Cibles</Link>, ou navigue vers une autre saison ci-dessus.
+          </div>
         </div>
       </div>
     );
