@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import useSWR from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import type { LucideIcon } from "lucide-react";
 import {
   Loader2,
@@ -142,44 +144,34 @@ export function TelereleveBuildingChart({
     [sites, selectedSiteId]
   );
 
-  // ─── Records for the selected site ───────────────────────────────────
-  const [records, setRecords] = useState<ConsumptionRecord[]>([]);
-  const [loadingRecords, setLoadingRecords] = useState(false);
-
-  useEffect(() => {
-    if (!selectedSiteId) {
-      setRecords([]);
-      return;
-    }
-    let cancelled = false;
-    setLoadingRecords(true);
-    // Fenêtre fixe de 5 ans en arrière → 1 seule fetch par site, le chart
-    // filtre ensuite côté client (instantané) sur la fenêtre [dateFrom, dateTo].
-    // On évite ainsi de re-fetch à chaque changement de date.
+  // ─── Records for the selected site (SWR cache) ──────────────────────
+  // Fenêtre fixe de 5 ans en arrière, le chart filtre ensuite côté client
+  // sur [dateFrom, dateTo]. SWR avec keepPreviousData garde l'ancien chart
+  // affiché pendant le re-fetch d'un nouveau site → pas de blank.
+  const recordsKey = useMemo(() => {
+    if (!selectedSiteId) return null;
     const today = new Date();
     const wideStart = new Date(today);
     wideStart.setUTCFullYear(wideStart.getUTCFullYear() - 5);
     const startIso = wideStart.toISOString().split("T")[0];
     const endIso = today.toISOString().split("T")[0];
-    fetch(
-      `/api/consumptions?siteId=${selectedSiteId}&start=${startIso}&end=${endIso}`
-    )
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: ConsumptionRecord[]) => {
-        if (cancelled) return;
-        // Distributor data only (sync-imported, no exploitant meter name)
-        setRecords((data || []).filter((c) => c.meterName === null));
-      })
-      .catch(() => {
-        if (!cancelled) setRecords([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingRecords(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    return `/api/consumptions?siteId=${selectedSiteId}&start=${startIso}&end=${endIso}&lite=1`;
   }, [selectedSiteId]);
+
+  const { data: rawRecords, isLoading: isFirstLoad } = useSWR<ConsumptionRecord[]>(
+    recordsKey,
+    fetcher,
+    { keepPreviousData: true, dedupingInterval: 60_000 }
+  );
+
+  const records = useMemo(
+    // Distributor data only (sync-imported, no exploitant meter name)
+    () => (rawRecords ?? []).filter((c) => c.meterName === null),
+    [rawRecords]
+  );
+  // Ne montre le spinner QUE pour le 1er chargement (pas de previous data
+  // à afficher) — sinon keepPreviousData rend l'ancien chart visible.
+  const loadingRecords = isFirstLoad && !rawRecords;
 
   // ─── Energy types available for the selected site ────────────────────
   const availableEnergies = useMemo(() => {

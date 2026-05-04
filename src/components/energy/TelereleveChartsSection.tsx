@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import useSWR, { preload } from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
 import {
   Loader2,
   Wifi,
@@ -117,138 +119,100 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
 
 
 
-  // ─── Analytics monthly data — fetched once at the section level ─────
+  // ─── Analytics + DJU mensuel (SWR — cache automatique, transition douce) ─
   // Both charts (GRDF on the left, signature ratio on the right) consume
-  // the same monthly aggregates: nc, nbPrime, djr per month. We fetch
-  // here once and pass them down so we don't double-call /api/consumptions/analytics.
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [siteContext, setSiteContext] = useState<{
+  // les mêmes monthly aggregates. SWR cache par cle composite et renvoie
+  // les données précédentes pendant qu'il revalide → pas de blank.
+  type SiteContext = {
     nb: number | null;
     djuContractuel: number | null;
     djuContractuelExplicit: number | null;
     stationMeteo: string | null;
     months: { month: string; nc: number; nbPrime: number; djr: number }[];
-  } | null>(null);
-  const [djuMonthly, setDjuMonthly] = useState<Map<string, number>>(new Map());
+  };
 
-  // Reset le cache djuMonthly quand le site change — sinon on mélangerait
-  // les DJU de sites avec des stations météo différentes.
-  useEffect(() => {
-    setDjuMonthly(new Map());
-  }, [selectedSiteId]);
-
-  useEffect(() => {
-    if (!selectedSiteId) {
-      setSiteContext(null);
-      return;
-    }
-    let cancelled = false;
-    setAnalyticsLoading(true);
-
-    // Compute the heating-season years that overlap [dateFrom, dateTo]
+  const analyticsKey = useMemo(() => {
+    if (!selectedSiteId || !dateFrom || !dateTo) return null;
     const start = new Date(dateFrom);
     const end = new Date(dateTo);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      setAnalyticsLoading(false);
-      return;
-    }
-    // CIVIL: chaque mois appartient à son année calendaire (Jan-Dec).
-    // HEATING_SEASON: la saison démarre en juillet, donc jul–déc YYYY
-    // appartient à la saison YYYY+1 (ex. jul 2023 → saison 2024).
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+    // CIVIL: mois appartient à l'année calendaire. HEATING_SEASON: jul-déc → +1.
     const yearOf = (d: Date) =>
       yearType === "CIVIL"
         ? d.getFullYear()
         : d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
     const startYear = yearOf(start);
     const endYear = yearOf(end);
-    // Always fetch one extra year BEFORE the visible range so the
-    // KPIs can compute "vs N-1" by looking at the same months one year ago.
+    // 1 an avant le début pour les comparaisons N-1.
     const years: number[] = [];
     for (let y = startYear - 1; y <= endYear; y++) years.push(y);
-
-    // Fetch analytics par année (besoin du yearType pour le NB)
-    // et UNE seule fetch DJU sur toute la fenêtre visible (bcp plus rapide
-    // que N appels Open-Meteo).
-    const analyticsPromises = years.map((y) =>
-      fetch(`/api/consumptions/analytics?siteId=${selectedSiteId}&year=${y}&yearType=${yearType}`)
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null)
-    );
-    // Étend d'un an avant le début pour les comparaisons N-1.
-    const djuStart = `${start.getFullYear() - 1}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
-    const djuPromise = fetch(
-      `/api/dju/monthly?siteId=${selectedSiteId}&start=${djuStart}&end=${dateTo}`
-    )
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
-
-    Promise.all([Promise.all(analyticsPromises), djuPromise])
-      .then(([analyticsResponses, djuResponse]) => {
-        if (cancelled) return;
-
-        // Build DJU lookup: month → dju value (from API, not from consumption records)
-        const djuByMonth = new Map<string, number>();
-        if (djuResponse?.monthlyData) {
-          for (const m of djuResponse.monthlyData) {
-            if (m.dju > 0) djuByMonth.set(m.month, m.dju);
-          }
-        }
-
-        // Merge analytics responses
-        let merged: typeof siteContext = null;
-        for (const resp of analyticsResponses) {
-          if (!resp || !resp.sites || resp.sites.length === 0) continue;
-          const sitePerf = resp.sites.find(
-            (s: { siteId: string }) => s.siteId === selectedSiteId
-          );
-          if (!sitePerf) continue;
-          if (!merged) {
-            merged = {
-              nb: sitePerf.nb,
-              djuContractuel: sitePerf.djuContractuel,
-              djuContractuelExplicit: sitePerf.djuContractuelExplicit,
-              stationMeteo: sitePerf.stationMeteo,
-              months: [...sitePerf.monthlyData],
-            };
-          } else {
-            const seen = new Set(merged.months.map((m) => m.month));
-            for (const m of sitePerf.monthlyData) {
-              if (!seen.has(m.month)) {
-                merged.months.push(m);
-                seen.add(m.month);
-              }
-            }
-          }
-        }
-
-        // Inject fresh DJU values from the DJU API into monthly data
-        if (merged) {
-          for (const m of merged.months) {
-            const freshDjr = djuByMonth.get(m.month);
-            if (freshDjr !== undefined) {
-              m.djr = freshDjr;
-            }
-          }
-          merged.months.sort((a, b) => a.month.localeCompare(b.month));
-        }
-        setSiteContext(merged);
-        // Merge plutôt que replace : si une fetch revient avec moins de mois
-        // (ex: Open-Meteo timeout sur une vieille saison, ou un site sans
-        // HeatingPeriod), on ne perd pas la couverture acquise précédemment.
-        setDjuMonthly((prev) => {
-          const next = new Map(prev);
-          for (const [k, v] of djuByMonth) next.set(k, v);
-          return next;
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setAnalyticsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    return ["analytics-merge", selectedSiteId, yearType, years.join(",")] as const;
   }, [selectedSiteId, dateFrom, dateTo, yearType]);
+
+  const { data: siteContext } = useSWR<SiteContext | null>(
+    analyticsKey,
+    async ([, siteId, yt, yearsStr]) => {
+      const years = (yearsStr as string).split(",").map(Number);
+      const responses = await Promise.all(
+        years.map((y) =>
+          fetch(`/api/consumptions/analytics?siteId=${siteId}&year=${y}&yearType=${yt}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null)
+        )
+      );
+      let merged: SiteContext | null = null;
+      for (const resp of responses) {
+        if (!resp || !resp.sites || resp.sites.length === 0) continue;
+        const sitePerf = resp.sites.find((s: { siteId: string }) => s.siteId === siteId);
+        if (!sitePerf) continue;
+        if (!merged) {
+          merged = {
+            nb: sitePerf.nb,
+            djuContractuel: sitePerf.djuContractuel,
+            djuContractuelExplicit: sitePerf.djuContractuelExplicit,
+            stationMeteo: sitePerf.stationMeteo,
+            months: [...sitePerf.monthlyData],
+          };
+        } else {
+          const seen = new Set(merged.months.map((m) => m.month));
+          for (const m of sitePerf.monthlyData) {
+            if (!seen.has(m.month)) {
+              merged.months.push(m);
+              seen.add(m.month);
+            }
+          }
+        }
+      }
+      if (merged) merged.months.sort((a, b) => a.month.localeCompare(b.month));
+      return merged;
+    },
+    { keepPreviousData: true, dedupingInterval: 60_000 }
+  );
+
+  // DJU mensuel — extend d'1 an avant pour les comparaisons N-1.
+  const djuKey = useMemo(() => {
+    if (!selectedSiteId || !dateFrom || !dateTo) return null;
+    const start = new Date(dateFrom);
+    if (Number.isNaN(start.getTime())) return null;
+    const djuStart = `${start.getFullYear() - 1}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+    return `/api/dju/monthly?siteId=${selectedSiteId}&start=${djuStart}&end=${dateTo}`;
+  }, [selectedSiteId, dateFrom, dateTo]);
+
+  const { data: djuResponse } = useSWR<{ monthlyData: { month: string; dju: number }[] } | null>(
+    djuKey,
+    fetcher,
+    { keepPreviousData: true, dedupingInterval: 60_000 }
+  );
+
+  const djuMonthly = useMemo(() => {
+    const m = new Map<string, number>();
+    if (djuResponse?.monthlyData) {
+      for (const dm of djuResponse.monthlyData) {
+        if (dm.dju > 0) m.set(dm.month, dm.dju);
+      }
+    }
+    return m;
+  }, [djuResponse]);
 
   // Months that overlap [dateFrom, dateTo]. A month is included as soon as
   // any of its days falls within the range — this handles partial months
@@ -354,6 +318,23 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
             <select
               value={selectedSiteId || ""}
               onChange={(e) => setSelectedSiteId(e.target.value)}
+              onFocus={() => {
+                // Prefetch les autres sites du contrat dès qu'on ouvre le select
+                // → cliquer sur un autre site déclenche un cache hit instantané.
+                // Limité aux 6 premiers pour ne pas saturer si gros contrat.
+                const today = new Date();
+                const wideStart = new Date(today);
+                wideStart.setUTCFullYear(wideStart.getUTCFullYear() - 5);
+                const startIso = wideStart.toISOString().split("T")[0];
+                const endIso = today.toISOString().split("T")[0];
+                for (const s of sites.slice(0, 6)) {
+                  if (s.id === selectedSiteId) continue;
+                  preload(
+                    `/api/consumptions?siteId=${s.id}&start=${startIso}&end=${endIso}&lite=1`,
+                    fetcher
+                  );
+                }
+              }}
               className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
             >
               {sites.map((s) => (

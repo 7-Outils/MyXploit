@@ -42,15 +42,33 @@ export async function GET(request: NextRequest) {
       where.siteId = { in: contractSites.map((cs) => cs.siteId) };
     }
 
-    const consumptions = await prisma.consumption.findMany({
-      where,
-      include: {
-        site: {
-          select: { id: true, name: true },
-        },
-      },
-      orderBy: { period: "desc" },
-    });
+    // ?lite=1 → payload réduit pour les charts télérelève (drop ~50% du JSON).
+    // Le chart n'a besoin que de ces champs ; les autres consommateurs
+    // (EnergyTab, etc.) gardent l'include complet par défaut.
+    const lite = searchParams.get("lite") === "1";
+    const consumptions = lite
+      ? await prisma.consumption.findMany({
+          where,
+          select: {
+            id: true,
+            period: true,
+            quantity: true,
+            unit: true,
+            energyType: true,
+            usage: true,
+            source: true,
+            meterName: true,
+            djuReel: true,
+          },
+          orderBy: { period: "desc" },
+        })
+      : await prisma.consumption.findMany({
+          where,
+          include: {
+            site: { select: { id: true, name: true } },
+          },
+          orderBy: { period: "desc" },
+        });
 
     return NextResponse.json(consumptions);
   } catch (error) {
