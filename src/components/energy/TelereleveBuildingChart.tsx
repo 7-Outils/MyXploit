@@ -153,13 +153,16 @@ export function TelereleveBuildingChart({
     }
     let cancelled = false;
     setLoadingRecords(true);
-    // Fenêtre élargie d'1 an avant pour permettre la comparaison N-1
-    // côté chart (vs N-1 KPIs et detect natural granularity).
-    const startD = new Date(dateFrom);
-    startD.setUTCFullYear(startD.getUTCFullYear() - 1);
-    const startIso = startD.toISOString().split("T")[0];
+    // Fenêtre fixe de 5 ans en arrière → 1 seule fetch par site, le chart
+    // filtre ensuite côté client (instantané) sur la fenêtre [dateFrom, dateTo].
+    // On évite ainsi de re-fetch à chaque changement de date.
+    const today = new Date();
+    const wideStart = new Date(today);
+    wideStart.setUTCFullYear(wideStart.getUTCFullYear() - 5);
+    const startIso = wideStart.toISOString().split("T")[0];
+    const endIso = today.toISOString().split("T")[0];
     fetch(
-      `/api/consumptions?siteId=${selectedSiteId}&start=${startIso}&end=${dateTo}`
+      `/api/consumptions?siteId=${selectedSiteId}&start=${startIso}&end=${endIso}`
     )
       .then((r) => (r.ok ? r.json() : []))
       .then((data: ConsumptionRecord[]) => {
@@ -176,7 +179,7 @@ export function TelereleveBuildingChart({
     return () => {
       cancelled = true;
     };
-  }, [selectedSiteId, dateFrom, dateTo]);
+  }, [selectedSiteId]);
 
   // ─── Energy types available for the selected site ────────────────────
   const availableEnergies = useMemo(() => {
