@@ -603,7 +603,7 @@ export function TelereleveBuildingChart({
           : []),
       ],
     };
-  }, [buckets, chartColor, selectedSite, frequency, monthlyData]);
+  }, [buckets, chartColor, selectedSite, frequency, monthlyData, djuByMonth]);
 
   // ─── CSV export ──────────────────────────────────────────────────────
   const handleExportCsv = useCallback(() => {
