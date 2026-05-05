@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
-import { Loader2, Check, AlertCircle, Plus, Trash2, RotateCcw } from "lucide-react";
+import { Loader2, Check, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 type Prefix = "P1" | "P2" | "P3";
 type Frequency = "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
@@ -34,35 +34,35 @@ const FREQUENCY_COUNT: Record<Frequency, number> = {
   ANNUEL: 1,
 };
 
-const FREQUENCY_LABEL: Record<Frequency, string> = {
+const FREQUENCY_SHORT: Record<Frequency, string> = {
   MENSUEL: "Mensuel",
-  TRIMESTRIEL: "Trimestriel",
-  SEMESTRIEL: "Semestriel",
+  TRIMESTRIEL: "Trim.",
+  SEMESTRIEL: "Sem.",
   ANNUEL: "Annuel",
 };
 
 const PREFIX_LABEL: Record<Prefix, string> = {
-  P1: "P1 — Énergie",
-  P2: "P2 — Petit entretien",
-  P3: "P3 — Gros entretien (GER)",
+  P1: "Énergie",
+  P2: "Petit entretien",
+  P3: "Gros entretien (GER)",
+};
+
+const PREFIX_COLOR: Record<Prefix, string> = {
+  P1: "#f59e0b",
+  P2: "#3b82f6",
+  P3: "#8b5cf6",
 };
 
 const MONTHS_FR = ["Janv", "Févr", "Mars", "Avril", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"];
 
 function defaultsFor(prefix: Prefix, contractStartMonth: number): Omit<Schedule, "id"> {
   const freq: Frequency = prefix === "P1" ? "MENSUEL" : "TRIMESTRIEL";
-  const count = FREQUENCY_COUNT[freq];
-  const eq = +(100 / count).toFixed(2);
-  const installments: Installment[] = Array.from({ length: count }, (_, i) => ({
-    order: i + 1,
-    percentage: i === count - 1 ? +(100 - eq * (count - 1)).toFixed(2) : eq, // ajuste le dernier pour que ça somme exactement à 100
-  }));
   return {
     prefix,
     frequency: freq,
     startMonth: contractStartMonth,
     enabled: true,
-    installments,
+    installments: equalize(FREQUENCY_COUNT[freq]),
   };
 }
 
@@ -74,25 +74,286 @@ function equalize(count: number): Installment[] {
   }));
 }
 
-// Mois de l'échéance n°i (1-based) en partant de startMonth, avec un pas dépendant de la fréquence
 function installmentMonth(i: number, frequency: Frequency, startMonth: number): number {
   const stepByFreq: Record<Frequency, number> = { MENSUEL: 1, TRIMESTRIEL: 3, SEMESTRIEL: 6, ANNUEL: 12 };
-  const step = stepByFreq[frequency];
-  return ((startMonth - 1 + (i - 1) * step) % 12) + 1;
+  return ((startMonth - 1 + (i - 1) * stepByFreq[frequency]) % 12) + 1;
 }
 
 function formatEuro(n: number): string {
   return n.toLocaleString("fr-FR", { maximumFractionDigits: 0 }) + " €";
 }
 
+/* ─────────────────────── Single schedule card ─────────────────────── */
+
+function ScheduleCard({
+  prefix,
+  draft,
+  budget,
+  onChange,
+  saving,
+  saved,
+}: {
+  prefix: Prefix;
+  draft: Omit<Schedule, "id">;
+  budget: number;
+  onChange: (next: Omit<Schedule, "id">) => void;
+  saving: boolean;
+  saved: boolean;
+}) {
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const totalPct = draft.installments.reduce((s, it) => s + Number(it.percentage || 0), 0);
+  const totalOk = Math.abs(totalPct - 100) < 0.01;
+  const installmentAmount = budget > 0 ? budget / draft.installments.length : 0;
+  const isUniform = draft.installments.every((it) => Math.abs(it.percentage - draft.installments[0].percentage) < 0.5);
+
+  const setFrequency = (f: Frequency) => {
+    onChange({ ...draft, frequency: f, installments: equalize(FREQUENCY_COUNT[f]) });
+  };
+
+  const tickPositions = useMemo(
+    () =>
+      draft.installments.map((_, i) =>
+        ((installmentMonth(i + 1, draft.frequency, draft.startMonth) - 1) / 12) * 100
+      ),
+    [draft.installments, draft.frequency, draft.startMonth]
+  );
+
+  return (
+    <div
+      className={`rounded-xl border p-5 transition-all ${
+        draft.enabled
+          ? "bg-white border-gray-200"
+          : "bg-gray-50 border-gray-200 border-dashed"
+      }`}
+    >
+      {/* Header: prefix + label + budget + toggle */}
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-semibold text-sm"
+            style={{ backgroundColor: draft.enabled ? PREFIX_COLOR[prefix] : "#cbd5e1" }}
+          >
+            {prefix}
+          </div>
+          <div>
+            <h3 className={`text-base font-semibold ${draft.enabled ? "text-primary-dark" : "text-gray-400"}`}>
+              {PREFIX_LABEL[prefix]}
+            </h3>
+            <p className="text-xs text-text-secondary">
+              {budget > 0 ? `${formatEuro(budget)} / an` : "Budget annuel non renseigné"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {saving && <Loader2 size={14} className="animate-spin text-text-secondary" />}
+          {saved && !saving && (
+            <span className="text-xs text-green-600 inline-flex items-center gap-0.5">
+              <Check size={14} />
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => onChange({ ...draft, enabled: !draft.enabled })}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              draft.enabled ? "bg-accent" : "bg-gray-200"
+            }`}
+            role="switch"
+            aria-checked={draft.enabled}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                draft.enabled ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {!draft.enabled ? (
+        <p className="text-sm text-text-secondary">
+          Pas de calendrier — les factures pour ce P seront saisies librement.
+        </p>
+      ) : (
+        <>
+          {/* Choix UNIQUE = fréquence */}
+          <div className="inline-flex rounded-lg border border-gray-200 bg-white overflow-hidden text-sm w-full">
+            {(Object.keys(FREQUENCY_SHORT) as Frequency[]).map((f, idx) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFrequency(f)}
+                className={`flex-1 px-3 py-2 transition-colors ${idx > 0 ? "border-l border-gray-200" : ""} ${
+                  draft.frequency === f
+                    ? "bg-accent text-white font-medium"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {FREQUENCY_SHORT[f]}
+              </button>
+            ))}
+          </div>
+
+          {/* Résumé en plain text */}
+          <p className="text-sm text-primary-dark mt-3">
+            <span className="font-medium">{draft.installments.length}</span> acompte{draft.installments.length > 1 ? "s" : ""} de{" "}
+            <span className="font-medium">
+              {isUniform ? `${(100 / draft.installments.length).toFixed(draft.installments.length === 12 ? 2 : 0)} %` : "% variables"}
+            </span>
+            {budget > 0 && isUniform && (
+              <span className="text-text-secondary"> · {formatEuro(installmentAmount)} chacun</span>
+            )}
+          </p>
+
+          {/* Timeline visuelle */}
+          <div className="relative h-10 mt-3">
+            {/* axe */}
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-gray-200" />
+            {/* labels mois (12 cases) */}
+            <div className="absolute inset-0 flex pointer-events-none">
+              {MONTHS_FR.map((m, i) => (
+                <div key={i} className="flex-1 flex items-end justify-center">
+                  <span className="text-[9px] text-gray-400">{m[0]}</span>
+                </div>
+              ))}
+            </div>
+            {/* dots */}
+            {tickPositions.map((leftPct, i) => (
+              <div
+                key={i}
+                className="absolute top-[18%] -translate-x-1/2"
+                style={{
+                  left: `calc(${leftPct}% + ${(50 / 12)}%)`, // centre dans la case du mois
+                }}
+              >
+                <div
+                  className="w-3 h-3 rounded-full border-2 border-white shadow-sm"
+                  style={{ backgroundColor: PREFIX_COLOR[prefix] }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Personnaliser */}
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            className="mt-4 text-xs text-text-secondary hover:text-primary-dark inline-flex items-center gap-1"
+          >
+            {advancedOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            Personnaliser
+          </button>
+
+          {advancedOpen && (
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+              {/* Mois de début */}
+              <div className="flex items-center gap-3">
+                <label className="text-xs text-text-secondary w-32">Premier acompte</label>
+                <select
+                  value={draft.startMonth}
+                  onChange={(e) => onChange({ ...draft, startMonth: Number(e.target.value) })}
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm bg-white"
+                >
+                  {MONTHS_FR.map((m, i) => (
+                    <option key={i} value={i + 1}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Échéances éditables */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-text-secondary">Répartition par acompte</span>
+                  {!totalOk && (
+                    <span className="text-xs text-red-600 inline-flex items-center gap-1">
+                      <AlertCircle size={12} />
+                      Total {totalPct.toFixed(2)} % (doit être 100)
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {draft.installments.map((it, i) => {
+                    const month = installmentMonth(i + 1, draft.frequency, draft.startMonth);
+                    const amount = budget > 0 ? (budget * it.percentage) / 100 : 0;
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className="text-text-secondary w-8">#{i + 1}</span>
+                        <span className="text-primary-dark w-14">{MONTHS_FR[month - 1]}</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          value={it.percentage}
+                          onChange={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            const next = draft.installments.map((x, j) =>
+                              j === i ? { ...x, percentage: v } : x
+                            );
+                            onChange({ ...draft, installments: next });
+                          }}
+                          className="w-20 px-2 py-1 text-right text-sm border border-gray-200 rounded font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        />
+                        <span className="text-xs text-text-secondary w-3">%</span>
+                        <span className="flex-1 text-right text-text-secondary text-xs">
+                          {amount > 0 ? formatEuro(amount) : ""}
+                        </span>
+                        {draft.installments.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = draft.installments
+                                .filter((_, j) => j !== i)
+                                .map((x, j) => ({ ...x, order: j + 1 }));
+                              onChange({ ...draft, installments: next });
+                            }}
+                            className="p-1 text-gray-300 hover:text-red-500"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChange({
+                        ...draft,
+                        installments: [
+                          ...draft.installments,
+                          { order: draft.installments.length + 1, percentage: 0 },
+                        ],
+                      })
+                    }
+                    className="text-xs text-accent hover:underline inline-flex items-center gap-1 mt-1"
+                  >
+                    <Plus size={12} />
+                    Ajouter un acompte
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────── Main tab ─────────────────────── */
+
 export default function ContractBillingTab({ contractId }: { contractId: string }) {
-  const [activePrefix, setActivePrefix] = useState<Prefix>("P3");
-  const [draft, setDraft] = useState<Record<Prefix, Omit<Schedule, "id"> | null>>({
+  const [drafts, setDrafts] = useState<Record<Prefix, Omit<Schedule, "id"> | null>>({
     P1: null,
     P2: null,
     P3: null,
   });
-  const [saving, setSaving] = useState(false);
+  const [savingPrefix, setSavingPrefix] = useState<Prefix | null>(null);
   const [savedFlash, setSavedFlash] = useState<Prefix | null>(null);
 
   const { data: contract } = useSWR<ContractMeta>(`/api/contracts/${contractId}`, fetcher);
@@ -103,7 +364,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
   const contractStartMonth = contract?.yearStartMonth ?? 7;
 
-  // Hydrate le draft à partir des schedules existants (ou defaults si rien en base)
+  // Hydrate
   useEffect(() => {
     if (!schedules) return;
     const byPrefix: Record<Prefix, Omit<Schedule, "id"> | null> = { P1: null, P2: null, P3: null };
@@ -119,7 +380,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
           }
         : defaultsFor(p, contractStartMonth);
     }
-    setDraft(byPrefix);
+    setDrafts(byPrefix);
   }, [schedules, contractStartMonth]);
 
   const annualBudgetByP = useMemo(() => {
@@ -129,6 +390,40 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
     return { P1: sum("amountP1"), P2: sum("amountP2"), P3: sum("amountP3") } as Record<Prefix, number>;
   }, [contract]);
 
+  // Auto-save debounced par P (500ms après le dernier changement, et seulement si total = 100%)
+  const debounceRef = useRef<Record<Prefix, ReturnType<typeof setTimeout> | null>>({
+    P1: null,
+    P2: null,
+    P3: null,
+  });
+
+  const persist = async (p: Prefix, payload: Omit<Schedule, "id">) => {
+    setSavingPrefix(p);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/billing-schedules`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await mutate();
+        setSavedFlash(p);
+        setTimeout(() => setSavedFlash((cur) => (cur === p ? null : cur)), 1500);
+      }
+    } finally {
+      setSavingPrefix((cur) => (cur === p ? null : cur));
+    }
+  };
+
+  const handleChange = (p: Prefix, next: Omit<Schedule, "id">) => {
+    setDrafts((d) => ({ ...d, [p]: next }));
+    if (debounceRef.current[p]) clearTimeout(debounceRef.current[p]!);
+    // Skip save si désactivé+vide ou si total != 100
+    const totalOk = Math.abs(next.installments.reduce((s, it) => s + Number(it.percentage || 0), 0) - 100) < 0.01;
+    if (next.enabled && !totalOk) return; // attend que l'utilisateur corrige
+    debounceRef.current[p] = setTimeout(() => persist(p, next), 500);
+  };
+
   if (isLoading && !schedules) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -137,353 +432,28 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
     );
   }
 
-  const current = draft[activePrefix];
-  if (!current) return null;
-
-  const totalPct = current.installments.reduce((s, it) => s + Number(it.percentage || 0), 0);
-  const totalOk = Math.abs(totalPct - 100) < 0.01;
-  const annualBudget = annualBudgetByP[activePrefix];
-
-  const updateCurrent = (patch: Partial<Omit<Schedule, "id">>) => {
-    setDraft((d) => ({ ...d, [activePrefix]: { ...d[activePrefix]!, ...patch } }));
-  };
-
-  const setFrequency = (freq: Frequency) => {
-    const count = FREQUENCY_COUNT[freq];
-    updateCurrent({ frequency: freq, installments: equalize(count) });
-  };
-
-  const setInstallmentPct = (idx: number, value: number) => {
-    const next = current.installments.map((it, i) => (i === idx ? { ...it, percentage: value } : it));
-    updateCurrent({ installments: next });
-  };
-
-  const addInstallment = () => {
-    const next = [...current.installments, { order: current.installments.length + 1, percentage: 0 }];
-    updateCurrent({ installments: next });
-  };
-
-  const removeInstallment = (idx: number) => {
-    if (current.installments.length <= 1) return;
-    const next = current.installments
-      .filter((_, i) => i !== idx)
-      .map((it, i) => ({ ...it, order: i + 1 }));
-    updateCurrent({ installments: next });
-  };
-
-  const equalizeAll = () => {
-    updateCurrent({ installments: equalize(current.installments.length) });
-  };
-
-  const resetToDefault = () => {
-    updateCurrent(defaultsFor(activePrefix, contractStartMonth));
-  };
-
-  const save = async () => {
-    if (current.enabled && !totalOk) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/billing-schedules`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(current),
-      });
-      if (res.ok) {
-        await mutate();
-        setSavedFlash(activePrefix);
-        setTimeout(() => setSavedFlash(null), 1800);
-      } else {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || "Erreur lors de l'enregistrement");
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const monthsTickPositions = current.installments.map((_, i) =>
-    ((installmentMonth(i + 1, current.frequency, current.startMonth) - 1) / 12) * 100
-  );
-
-  // Statut d'activation par P pour les pastilles dans le sélecteur
-  const enabledByPrefix: Record<Prefix, boolean> = {
-    P1: !!draft.P1?.enabled,
-    P2: !!draft.P2?.enabled,
-    P3: !!draft.P3?.enabled,
-  };
-
   return (
-    <div className="space-y-4">
-      {/* Sélecteur P + statut */}
-      <div className="flex items-center justify-between">
-        <div className="inline-flex bg-gray-100 rounded-lg p-1">
-          {(["P1", "P2", "P3"] as Prefix[]).map((p) => (
-            <button
-              key={p}
-              onClick={() => setActivePrefix(p)}
-              className={`relative px-4 py-1.5 text-sm rounded-md transition-colors ${
-                activePrefix === p
-                  ? "bg-white shadow text-primary-dark font-medium"
-                  : "text-text-secondary hover:text-primary-dark"
-              }`}
-            >
-              {p}
-              <span
-                className={`ml-2 inline-block w-1.5 h-1.5 rounded-full ${
-                  enabledByPrefix[p] ? "bg-green-500" : "bg-gray-300"
-                }`}
-              />
-            </button>
-          ))}
-        </div>
+    <div className="space-y-3">
+      {/* Hint en haut */}
+      <p className="text-xs text-text-secondary">
+        Choisissez la fréquence de facturation pour chaque P. Les changements sont enregistrés automatiquement.
+      </p>
 
-        <p className="text-xs text-text-secondary">
-          La période de répartition suit l&apos;année contractuelle (mois de début : {MONTHS_FR[contractStartMonth - 1]}).
-        </p>
-      </div>
-
-      {/* Carte principale */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-        {/* Header card */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold text-primary-dark">{PREFIX_LABEL[activePrefix]}</h3>
-            <p className="text-sm text-text-secondary mt-0.5">
-              Budget annuel total :{" "}
-              <span className="font-medium text-primary-dark">
-                {annualBudget > 0 ? formatEuro(annualBudget) : "non renseigné"}
-              </span>
-            </p>
-          </div>
-
-          {/* Toggle activation */}
-          <button
-            type="button"
-            onClick={() => updateCurrent({ enabled: !current.enabled })}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              current.enabled ? "bg-accent" : "bg-gray-200"
-            }`}
-            role="switch"
-            aria-checked={current.enabled}
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                current.enabled ? "translate-x-5" : "translate-x-0.5"
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Disabled state */}
-        {!current.enabled && (
-          <div className="rounded-lg bg-gray-50 border border-dashed border-gray-200 p-6 text-center text-sm text-text-secondary">
-            Calendrier désactivé pour ce P. Les factures pourront être saisies sans rattachement à une échéance.
-          </div>
-        )}
-
-        {current.enabled && (
-          <>
-            {/* Fréquence — segmented control */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
-                Fréquence
-              </label>
-              <div className="inline-flex rounded-lg border border-gray-200 bg-white overflow-hidden">
-                {(Object.keys(FREQUENCY_LABEL) as Frequency[]).map((f, idx) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setFrequency(f)}
-                    className={`px-4 py-2 text-sm transition-colors ${idx > 0 ? "border-l border-gray-200" : ""} ${
-                      current.frequency === f ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    {FREQUENCY_LABEL[f]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Mois de début */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
-                Mois de la première échéance
-              </label>
-              <select
-                value={current.startMonth}
-                onChange={(e) => updateCurrent({ startMonth: Number(e.target.value) })}
-                className="px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm bg-white w-44"
-              >
-                {MONTHS_FR.map((m, i) => (
-                  <option key={i} value={i + 1}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Échéances */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                  Échéances ({current.installments.length})
-                </label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={equalizeAll}
-                    className="text-xs text-accent hover:underline inline-flex items-center gap-1"
-                  >
-                    <RotateCcw size={12} />
-                    Égaliser
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addInstallment}
-                    className="text-xs text-accent hover:underline inline-flex items-center gap-1"
-                  >
-                    <Plus size={12} />
-                    Ajouter
-                  </button>
-                </div>
-              </div>
-
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">#</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Mois</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">%</th>
-                      <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Montant</th>
-                      <th className="w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {current.installments.map((it, i) => {
-                      const month = installmentMonth(i + 1, current.frequency, current.startMonth);
-                      const amount = annualBudget > 0 ? (annualBudget * it.percentage) / 100 : 0;
-                      return (
-                        <tr key={i} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-text-secondary">{i + 1}</td>
-                          <td className="px-3 py-2 text-primary-dark">{MONTHS_FR[month - 1]}</td>
-                          <td className="px-3 py-2">
-                            <div className="flex items-center justify-end gap-1">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={it.percentage}
-                                onChange={(e) => setInstallmentPct(i, Number(e.target.value) || 0)}
-                                className="w-20 px-2 py-1 text-right text-sm border border-gray-200 rounded font-mono focus:outline-none focus:ring-2 focus:ring-accent/20"
-                              />
-                              <span className="text-text-secondary text-xs">%</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono text-primary-dark">
-                            {amount > 0 ? formatEuro(amount) : "—"}
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            <button
-                              type="button"
-                              onClick={() => removeInstallment(i)}
-                              disabled={current.installments.length <= 1}
-                              className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed"
-                              title="Supprimer"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot className="bg-gray-50 border-t border-gray-200">
-                    <tr>
-                      <td colSpan={2} className="px-3 py-2 font-medium text-gray-700">
-                        Total
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <span
-                          className={`inline-flex items-center gap-1 font-mono font-medium ${
-                            totalOk ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {totalOk ? <Check size={14} /> : <AlertCircle size={14} />}
-                          {totalPct.toFixed(2)} %
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono text-gray-700">
-                        {annualBudget > 0 ? formatEuro(annualBudget) : "—"}
-                      </td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-
-            {/* Timeline visuelle */}
-            <div>
-              <label className="block text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
-                Calendrier annuel
-              </label>
-              <div className="relative h-12 rounded-lg bg-gradient-to-r from-gray-50 to-gray-50 border border-gray-200 px-3">
-                {/* axe central */}
-                <div className="absolute left-3 right-3 top-1/2 -translate-y-1/2 h-px bg-gray-300" />
-                {/* markers échéances */}
-                {monthsTickPositions.map((leftPct, i) => (
-                  <div
-                    key={i}
-                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
-                    style={{ left: `calc(${leftPct}% + 0.75rem - ${(leftPct / 100) * 1.5}rem)` }}
-                  >
-                    <div className="w-3 h-3 rounded-full bg-accent border-2 border-white shadow-sm" />
-                  </div>
-                ))}
-                {/* labels mois */}
-                <div className="absolute inset-x-3 bottom-0.5 flex justify-between text-[9px] text-gray-400 pointer-events-none">
-                  {MONTHS_FR.map((m, i) => (
-                    <span key={i} className="w-0 -translate-x-1/2">
-                      {m[0]}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={resetToDefault}
-            className="text-xs text-text-secondary hover:text-primary-dark inline-flex items-center gap-1"
-          >
-            <RotateCcw size={12} />
-            Réinitialiser aux valeurs par défaut
-          </button>
-          <div className="flex items-center gap-3">
-            {savedFlash === activePrefix && (
-              <span className="text-xs text-green-600 inline-flex items-center gap-1">
-                <Check size={14} />
-                Enregistré
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={save}
-              disabled={saving || (current.enabled && !totalOk)}
-              className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2"
-            >
-              {saving && <Loader2 size={14} className="animate-spin" />}
-              Enregistrer
-            </button>
-          </div>
-        </div>
-      </div>
+      {(["P1", "P2", "P3"] as Prefix[]).map((p) => {
+        const d = drafts[p];
+        if (!d) return null;
+        return (
+          <ScheduleCard
+            key={p}
+            prefix={p}
+            draft={d}
+            budget={annualBudgetByP[p]}
+            onChange={(next) => handleChange(p, next)}
+            saving={savingPrefix === p}
+            saved={savedFlash === p}
+          />
+        );
+      })}
     </div>
   );
 }
