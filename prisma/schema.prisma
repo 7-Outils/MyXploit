@@ -1170,8 +1170,53 @@ model Contract {
   meetings         Meeting[]
   userAssignments  UserContractAssignment[] // Assignations ingénieurs
   missionContracts MissionContract[] // Missions rattachées
+  billingSchedules BillingSchedule[] // Calendrier de facturation par P
 
   @@map("contracts")
+}
+
+// Préfixe de prestation (P1 énergie, P2 entretien, P3 GER)
+enum BillingPrefix {
+  P1
+  P2
+  P3
+}
+
+// Calendrier de facturation pour un P d'un contrat (1 par couple contract×prefix).
+// La période sur laquelle s'étalent les échéances hérite de Contract.yearType.
+model BillingSchedule {
+  id           String        @id @default(cuid())
+  contractId   String
+  prefix       BillingPrefix
+  // Fréquence des échéances; détermine le nombre d'installments suggéré (12/4/2/1).
+  frequency    BillingFrequency
+  // Mois (1-12) de la première échéance dans la période; defaut = mois de début de l'année contractuelle.
+  startMonth   Int
+  // Activation : si false, pas d'échéancier — facturation libre.
+  enabled      Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  contract     Contract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  installments BillingInstallment[]
+
+  @@unique([contractId, prefix])
+  @@index([contractId])
+  @@map("billing_schedules")
+}
+
+// Une échéance dans un calendrier. La somme des percentages d'un schedule doit = 100.
+model BillingInstallment {
+  id         String  @id @default(cuid())
+  scheduleId String
+  order      Int     // 1..n, séquentiel
+  percentage Float   // 0-100, somme par schedule = 100
+
+  schedule BillingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, order])
+  @@index([scheduleId])
+  @@map("billing_installments")
 }
 
 // Table pivot pour la relation Contract-Site avec type et prestations par site
