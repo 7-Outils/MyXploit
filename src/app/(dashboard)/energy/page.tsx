@@ -323,6 +323,11 @@ function EnergyPageContent() {
               activeAlerts={activeAlerts}
               setShowIdexImportModal={setShowIdexImportModal}
               setShowCreateModal={setShowCreateModal}
+              contractRef={selectedContract?.reference}
+              contractTitle={selectedContract?.title}
+              contractProvider={selectedContract?.provider}
+              year={selectedYear}
+              yearLabel={isCivil ? `Année ${selectedYear}` : `Saison ${selectedYear - 1}/${selectedYear}`}
             />
           ) : loading ? (
             <div className="flex items-center justify-center py-12">
