@@ -60,7 +60,7 @@ export function SyntheseContent({
   return (
     <div className="space-y-6">
       {/* KPIs */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <StatsCard
           title="NC (Conso. réelle)"
           value={`${(analytics.summary.totalNc / 1000).toFixed(0)} MWh`}
@@ -126,7 +126,77 @@ export function SyntheseContent({
             ) : undefined
           }
         >
-          <div className="overflow-x-auto -mx-6 -my-6">
+          {/* Mobile: liste de cards */}
+          <div className="md:hidden -mx-6 -mb-6 -mt-2 divide-y divide-gray-100">
+            {analytics.sites
+              .filter((site) => site.nb != null)
+              .filter((site) => statusFilter == null || site.status === statusFilter)
+              .map((site) => {
+                const statusBg =
+                  site.status === "ECONOMIE"
+                    ? "bg-green-100 text-green-700"
+                    : site.status === "DEPASSEMENT"
+                    ? "bg-red-100 text-red-700"
+                    : site.status === "INCOMPLET"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-blue-100 text-blue-700";
+                const statusLabel =
+                  site.status === "ECONOMIE"
+                    ? "Économie"
+                    : site.status === "DEPASSEMENT"
+                    ? "Dépassement"
+                    : site.status === "INCOMPLET"
+                    ? "Incomplet"
+                    : "Objectif";
+                const deltaColor =
+                  site.status === "INCOMPLET"
+                    ? "text-gray-400"
+                    : site.deltaPercent <= 0
+                    ? "text-green-600"
+                    : "text-red-600";
+                return (
+                  <Link
+                    key={site.siteId}
+                    href={`/energy/sites/${site.siteId}`}
+                    className="block px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="font-medium text-primary-dark text-sm leading-snug flex-1 min-w-0 truncate">
+                        {site.siteName}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${statusBg}`}>
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                      <div>
+                        <p className="text-text-secondary uppercase tracking-wide text-[9px]">NC</p>
+                        <p className="font-medium text-primary-dark">
+                          {(site.nc / 1000).toFixed(1)} <span className="text-text-secondary">MWh</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary uppercase tracking-wide text-[9px]">N&apos;B</p>
+                        <p className="text-gray-600">
+                          {(site.nbPrime / 1000).toFixed(1)} <span className="text-text-secondary">MWh</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-text-secondary uppercase tracking-wide text-[9px]">Écart</p>
+                        <p className={`font-medium ${deltaColor}`}>
+                          {site.status === "INCOMPLET"
+                            ? "—"
+                            : `${site.deltaPercent > 0 ? "+" : ""}${site.deltaPercent}%`}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+          </div>
+
+          {/* Desktop: table classique */}
+          <div className="hidden md:block overflow-x-auto -mx-6 -my-6">
             <table className="w-full">
               <thead className="bg-background-secondary border-b border-gray-100">
                 <tr>

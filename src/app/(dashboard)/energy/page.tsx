@@ -281,9 +281,9 @@ function EnergyPageContent() {
   // Main content with tabs
   return (
     <div className="space-y-6">
-      {/* Tabs + toolbar on the same row */}
-      <div className="border-b border-gray-200 flex items-end justify-between">
-        <nav className="flex gap-8">
+      {/* Tabs + toolbar — empilés sur mobile, inline sur desktop */}
+      <div className="border-b border-gray-200 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-0">
+        <nav className="flex gap-6 sm:gap-8 overflow-x-auto -mb-px">
           {[
             { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
             { id: "sites" as Tab, label: "Relevés", icon: Building2 },
@@ -292,7 +292,7 @@ function EnergyPageContent() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 py-4 border-b-2 transition-colors ${
+              className={`flex items-center gap-2 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-sm sm:text-base ${
                 activeTab === tab.id
                   ? "border-accent text-accent font-medium"
                   : "border-transparent text-text-secondary hover:text-primary-dark"
@@ -302,7 +302,7 @@ function EnergyPageContent() {
             </button>
           ))}
         </nav>
-        <div className="flex items-center gap-2 pb-2">
+        <div className="flex items-center gap-2 pb-2 px-0">
           {activeTab !== "telereleve" && activeTab !== "sites" && (
             <select
               value={selectedYear}
