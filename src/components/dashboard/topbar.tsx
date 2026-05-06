@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell, LogOut, ChevronDown } from "lucide-react";
+import { Bell, LogOut, ChevronDown, Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ContractSelector } from "./ContractSelector";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 interface CurrentUser {
   firstName: string | null;
@@ -13,6 +14,7 @@ interface CurrentUser {
 
 export function Topbar() {
   const router = useRouter();
+  const { setMobileOpen } = useSidebar();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -80,9 +82,19 @@ export function Topbar() {
   ];
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 gap-2">
+      {/* Mobile burger */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+        aria-label="Ouvrir le menu"
+      >
+        <Menu size={22} />
+      </button>
+
       {/* Contract Selector */}
-      <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
         <ContractSelector />
       </div>
 

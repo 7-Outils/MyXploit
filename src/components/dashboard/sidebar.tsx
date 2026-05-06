@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import {
   LayoutDashboard,
   BarChart3,
@@ -16,6 +17,7 @@ import {
   MapPin,
   FolderKanban,
   ClipboardList,
+  X,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -53,8 +55,17 @@ const defaultNavigation: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { collapsed, toggle } = useSidebar();
+  const { collapsed, toggle, mobileOpen, setMobileOpen } = useSidebar();
   const { hasModule, userRole, isLoading } = usePermissions();
+
+  // Ferme le drawer mobile quand on change de page
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname, setMobileOpen]);
+
+  // Sur mobile, force la sidebar en mode "expanded" (pas en mode icône)
+  // — l'état `collapsed` ne s'applique qu'à partir de md.
+  const showLabels = !collapsed || mobileOpen;
 
   const isActive = (href: string) => {
     if (href === "/overview") return pathname === href || pathname === "/";
@@ -82,33 +93,58 @@ export function Sidebar() {
       });
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 h-screen bg-primary-dark flex flex-col transition-all duration-300 z-40",
-        collapsed ? "w-20" : "w-64"
+    <>
+      {/* Backdrop mobile */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
       )}
-    >
+
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-screen bg-primary-dark flex flex-col transition-transform duration-300 z-50 w-64",
+          // Desktop: largeur dépend de collapsed
+          collapsed ? "md:w-20" : "md:w-64",
+          // Mobile: hors-écran sauf si mobileOpen
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          // Desktop: toujours visible
+          "md:translate-x-0 md:transition-all"
+        )}
+      >
       {/* Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
-        {!collapsed && <Logo size="sm" variant="white" />}
-        {collapsed && (
+        {showLabels && <Logo size="sm" variant="white" />}
+        {!showLabels && (
           <div className="w-10 h-10 mx-auto">
             <Logo size="sm" showText={false} variant="white" />
           </div>
         )}
+        {/* Bouton fermer mobile */}
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white"
+          aria-label="Fermer le menu"
+        >
+          <X size={20} />
+        </button>
+        {/* Bouton collapse desktop */}
         <button
           onClick={toggle}
           className={cn(
-            "p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all",
+            "hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all",
             collapsed && "mx-auto rotate-180"
           )}
+          aria-label={collapsed ? "Déplier" : "Replier"}
         >
           <ChevronLeft size={18} />
         </button>
       </div>
 
       {/* Organization Switcher (SUPER_ADMIN only) */}
-      {!collapsed && isSuperAdmin && (
+      {showLabels && isSuperAdmin && (
         <div className="px-3 pt-4 pb-2">
           <OrganizationSwitcher />
         </div>
@@ -138,7 +174,7 @@ export function Sidebar() {
                     : "text-gray-400 group-hover:text-white"
                 )}
               />
-              {!collapsed && (
+              {showLabels && (
                 <span className="text-sm font-medium truncate">
                   {item.name}
                 </span>
@@ -160,7 +196,7 @@ export function Sidebar() {
             )}
           >
             <Shield size={20} className="flex-shrink-0" />
-            {!collapsed && (
+            {showLabels && (
               <span className="text-sm font-medium">Plateforme</span>
             )}
           </Link>
@@ -178,7 +214,7 @@ export function Sidebar() {
             )}
           >
             <Users size={20} className="flex-shrink-0" />
-            {!collapsed && (
+            {showLabels && (
               <span className="text-sm font-medium">Equipe</span>
             )}
           </Link>
@@ -200,6 +236,7 @@ export function Sidebar() {
           )}
         </Link>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
