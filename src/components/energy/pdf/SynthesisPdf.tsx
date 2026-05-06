@@ -4,256 +4,370 @@ import { Document, Page, Text, View, StyleSheet, pdf } from "@react-pdf/renderer
 import type { AnalyticsData, Alert } from "@/components/energy/types";
 
 interface SynthesisPdfData {
+  organizationName: string;
   contractRef: string;
-  contractTitle: string;
-  contractProvider: string;
   year: number;
   yearLabel: string;
   analytics: AnalyticsData;
   activeAlerts: Alert[];
 }
 
-const ink = "#0b0b0b";
-const muted = "#6b6b6b";
-const rule = "#cfcfcf";
-const ruleSoft = "#e8e8e8";
-const green = "#157a3c";
-const red = "#a31818";
+/* Palette alignée sur l'UI web (tailwind tokens utilisés dans SyntheseTab) */
+const C = {
+  pageBg: "#f8fafc",       // bg gris clair derrière les cards
+  cardBg: "#ffffff",
+  border: "#e5e7eb",       // border-gray-200
+  ink: "#0f172a",          // primary-dark
+  inkSoft: "#334155",
+  muted: "#6b7280",
+  mutedLight: "#9ca3af",
+  rowAlt: "#f9fafb",
+  // Accent
+  accent: "#6366f1",
+  // KPI icon hues (fond pastel + texte foncé)
+  orangeBg: "#fff7ed", orange: "#ea580c",
+  blueBg: "#eff6ff",   blue: "#2563eb",
+  greenBg: "#dcfce7",  green: "#16a34a", greenInk: "#15803d",
+  redBg: "#fee2e2",    red: "#dc2626",   redInk: "#b91c1c",
+  amberBg: "#fef3c7",  amber: "#d97706", amberInk: "#92400e",
+  indigoBg: "#eef2ff", indigo: "#4f46e5",
+};
+
+/* Format FR mais avec espace normal (la narrow no-break space n'est pas
+   dans la police par défaut → rendu en "/") */
+function nf(n: number, digits = 0): string {
+  return n
+    .toLocaleString("fr-FR", { maximumFractionDigits: digits, minimumFractionDigits: digits })
+    .replace(/ /g, " ")
+    .replace(/ /g, " ");
+}
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 48,
-    paddingBottom: 48,
-    paddingHorizontal: 48,
+    paddingTop: 24,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
     fontSize: 9,
-    color: ink,
+    color: C.ink,
     fontFamily: "Helvetica",
-    lineHeight: 1.4,
+    backgroundColor: C.pageBg,
   },
-  /* ─────── Cover header ─────── */
-  topMeta: {
+  /* ─── Carte enveloppe ─── */
+  card: {
+    backgroundColor: C.cardBg,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderStyle: "solid",
+    borderRadius: 8,
+  },
+  /* ─── Header ─── */
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    fontSize: 7,
-    color: muted,
+    alignItems: "flex-start",
+    padding: 18,
+    marginBottom: 12,
+  },
+  brand: {
+    fontSize: 7.5,
+    color: C.muted,
     textTransform: "uppercase",
     letterSpacing: 1.2,
-    marginBottom: 16,
+    marginBottom: 6,
   },
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontFamily: "Helvetica-Bold",
-    color: ink,
-    letterSpacing: -0.3,
+    color: C.ink,
   },
   subtitle: {
     fontSize: 10,
-    color: ink,
-    marginTop: 6,
+    color: C.inkSoft,
+    marginTop: 4,
   },
   exploitant: {
     fontSize: 9,
-    color: muted,
+    color: C.muted,
     marginTop: 2,
   },
-  ruleStrong: {
-    height: 1.5,
-    backgroundColor: ink,
-    marginTop: 18,
-    marginBottom: 4,
+  metaRight: {
+    alignItems: "flex-end",
   },
-  ruleThin: {
-    height: 0.5,
-    backgroundColor: rule,
-    marginBottom: 24,
+  metaPill: {
+    backgroundColor: C.indigoBg,
+    color: C.indigo,
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginBottom: 6,
   },
-  /* ─────── Executive summary ─────── */
-  execText: {
-    fontSize: 10,
-    color: ink,
-    lineHeight: 1.55,
-    marginBottom: 24,
+  metaDate: {
+    fontSize: 8,
+    color: C.muted,
   },
-  /* ─────── Section heading ─────── */
-  sectionHeader: {
+
+  /* ─── KPI grid ─── */
+  kpiRow: {
     flexDirection: "row",
-    alignItems: "baseline",
     gap: 8,
-    marginTop: 6,
     marginBottom: 12,
-    paddingBottom: 4,
-    borderBottomWidth: 0.5,
-    borderBottomColor: rule,
   },
-  sectionNum: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: muted,
+  kpiCard: {
+    flex: 1,
+    backgroundColor: C.cardBg,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderStyle: "solid",
+    borderRadius: 8,
+    padding: 12,
   },
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    color: ink,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  /* ─────── KPI strip — pas de boîtes ─────── */
-  kpiStrip: {
+  kpiTopRow: {
     flexDirection: "row",
-    marginBottom: 24,
-  },
-  kpiCol: {
-    flex: 1,
-    paddingRight: 8,
-  },
-  kpiColBordered: {
-    flex: 1,
-    paddingLeft: 12,
-    paddingRight: 8,
-    borderLeftWidth: 0.5,
-    borderLeftColor: ruleSoft,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
   },
   kpiLabel: {
-    fontSize: 6.5,
-    color: muted,
+    fontSize: 7,
+    color: C.muted,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    flex: 1,
+  },
+  kpiIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  kpiIconText: {
+    fontSize: 11,
+    fontFamily: "Helvetica-Bold",
   },
   kpiValue: {
     fontSize: 18,
     fontFamily: "Helvetica-Bold",
-    color: ink,
-    letterSpacing: -0.5,
+    color: C.ink,
+    letterSpacing: -0.3,
   },
   kpiUnit: {
     fontSize: 8,
-    color: muted,
+    color: C.muted,
+    marginTop: 3,
+  },
+  kpiChange: {
+    fontSize: 7.5,
+    marginTop: 4,
+    fontFamily: "Helvetica-Bold",
+  },
+
+  /* ─── Section card ─── */
+  sectionCard: {
+    backgroundColor: C.cardBg,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderStyle: "solid",
+    borderRadius: 8,
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  sectionHeader: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    color: C.ink,
+  },
+  sectionSubtitle: {
+    fontSize: 8,
+    color: C.muted,
     marginTop: 2,
   },
-  /* ─────── Table ─────── */
+
+  /* ─── Table ─── */
   trHead: {
     flexDirection: "row",
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: ink,
+    backgroundColor: C.rowAlt,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderTopWidth: 0.5,
+    borderTopColor: C.border,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
   },
   th: {
     fontSize: 6.5,
     fontFamily: "Helvetica-Bold",
-    color: ink,
+    color: C.muted,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
+    letterSpacing: 0.6,
   },
   tr: {
     flexDirection: "row",
-    paddingVertical: 5,
-    borderBottomWidth: 0.5,
-    borderBottomColor: ruleSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderBottomWidth: 0.3,
+    borderBottomColor: C.border,
+    alignItems: "center",
   },
   td: {
     fontSize: 8.5,
-    color: ink,
+    color: C.ink,
   },
   tdMono: {
     fontSize: 8.5,
-    color: ink,
+    color: C.inkSoft,
+    fontFamily: "Courier",
+  },
+  tdMonoStrong: {
+    fontSize: 8.5,
+    color: C.ink,
     fontFamily: "Courier",
   },
   trTotal: {
     flexDirection: "row",
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: C.rowAlt,
     borderTopWidth: 0.5,
-    borderTopColor: ink,
+    borderTopColor: C.border,
   },
-  /* ─────── Alerts ─────── */
-  alertRow: {
-    flexDirection: "row",
-    paddingVertical: 6,
-    borderBottomWidth: 0.5,
-    borderBottomColor: ruleSoft,
-  },
-  alertNum: {
-    width: 20,
-    fontSize: 8.5,
-    color: muted,
+  badge: {
+    fontSize: 7,
     fontFamily: "Helvetica-Bold",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    textAlign: "center",
   },
-  alertBody: {
-    flex: 1,
+
+  /* ─── Alertes ─── */
+  alertItem: {
+    marginHorizontal: 14,
+    marginVertical: 4,
+    paddingLeft: 10,
+    paddingVertical: 8,
+    paddingRight: 12,
+    borderLeftWidth: 3,
+    borderLeftStyle: "solid",
+    borderRadius: 4,
   },
   alertHead: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "baseline",
+    alignItems: "flex-start",
   },
   alertTitle: {
-    fontSize: 9,
+    fontSize: 9.5,
     fontFamily: "Helvetica-Bold",
-    color: ink,
-  },
-  alertPriority: {
-    fontSize: 6.5,
-    color: muted,
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    color: C.ink,
+    flex: 1,
+    paddingRight: 8,
   },
   alertMessage: {
     fontSize: 8,
-    color: muted,
+    color: C.muted,
     marginTop: 2,
   },
-  /* ─────── Footnote ─────── */
+
+  /* ─── Footnote ─── */
   footnote: {
     fontSize: 7,
-    color: muted,
-    marginTop: 16,
+    color: C.muted,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     fontStyle: "italic",
   },
-  /* ─────── Footer ─────── */
+
+  /* ─── Footer ─── */
   footer: {
     position: "absolute",
-    bottom: 24,
-    left: 48,
-    right: 48,
+    bottom: 16,
+    left: 24,
+    right: 24,
     flexDirection: "row",
     justifyContent: "space-between",
     fontSize: 7,
-    color: muted,
-    paddingTop: 6,
-    borderTopWidth: 0.3,
-    borderTopColor: rule,
+    color: C.muted,
   },
 });
 
-const STATUS_TEXT: Record<string, { label: string; color: string }> = {
-  ECONOMIE: { label: "Économie", color: green },
-  DEPASSEMENT: { label: "Dépassement", color: red },
-  OBJECTIF: { label: "Objectif", color: ink },
-  INCOMPLET: { label: "Incomplet", color: muted },
+const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  ECONOMIE: { bg: C.greenBg, color: C.greenInk, label: "Économie" },
+  DEPASSEMENT: { bg: C.redBg, color: C.redInk, label: "Dépassement" },
+  OBJECTIF: { bg: C.blueBg, color: C.blue, label: "Objectif" },
+  INCOMPLET: { bg: C.amberBg, color: C.amberInk, label: "Incomplet" },
 };
 
-function nf(n: number, digits = 0): string {
-  return n.toLocaleString("fr-FR", { maximumFractionDigits: digits, minimumFractionDigits: digits });
+const PRIORITY_STYLE: Record<string, { bg: string; border: string; tagBg: string; tagColor: string }> = {
+  CRITIQUE: { bg: "#fef2f2", border: C.red, tagBg: C.redBg, tagColor: C.redInk },
+  HAUTE: { bg: "#fffbeb", border: C.amber, tagBg: C.amberBg, tagColor: C.amberInk },
+  MOYENNE: { bg: "#eff6ff", border: C.blue, tagBg: C.blueBg, tagColor: C.blue },
+  BASSE: { bg: "#f9fafb", border: C.muted, tagBg: "#f3f4f6", tagColor: C.muted },
+};
+
+/* Première lettre majuscule */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function buildExecutiveSummary(s: AnalyticsData["summary"], yearLabel: string): string {
+function buildExecLine(s: AnalyticsData["summary"], yearLabel: string): string {
+  const ecartAbs = Math.abs(s.deltaPercent);
   const verb =
     s.status === "ECONOMIE"
       ? "présente une économie globale"
       : s.status === "DEPASSEMENT"
       ? "est en dépassement"
       : "est conforme à l'objectif";
-  const ecartAbs = Math.abs(s.deltaPercent);
-  const sitesPart =
-    s.sitesEnEconomie + s.sitesEnDepassement === 0
-      ? ""
-      : ` Sur ${s.totalSites} sites suivis, ${s.sitesEnEconomie} sont en économie et ${s.sitesEnDepassement} en dépassement.`;
-  return `Sur ${yearLabel.toLowerCase()}, le portefeuille ${verb} de ${ecartAbs} % par rapport à la consommation théorique N′B (référentiel climatique).${sitesPart}`;
+  return `Sur ${yearLabel.toLowerCase()}, le portefeuille ${verb} de ${ecartAbs} % par rapport à la consommation théorique N'B. Sur ${s.totalSites} sites suivis, ${s.sitesEnEconomie} sont en économie et ${s.sitesEnDepassement} en dépassement.`;
 }
 
+/* ─────────────── Composant KPI ─────────────── */
+function KpiCard({
+  label,
+  value,
+  unit,
+  iconLetter,
+  iconBg,
+  iconColor,
+  changeText,
+  changeColor,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  iconLetter: string;
+  iconBg: string;
+  iconColor: string;
+  changeText?: string;
+  changeColor?: string;
+}) {
+  return (
+    <View style={styles.kpiCard}>
+      <View style={styles.kpiTopRow}>
+        <Text style={styles.kpiLabel}>{label}</Text>
+        <View style={[styles.kpiIcon, { backgroundColor: iconBg }]}>
+          <Text style={[styles.kpiIconText, { color: iconColor }]}>{iconLetter}</Text>
+        </View>
+      </View>
+      <Text style={styles.kpiValue}>{value}</Text>
+      {unit && <Text style={styles.kpiUnit}>{unit}</Text>}
+      {changeText && (
+        <Text style={[styles.kpiChange, { color: changeColor ?? C.muted }]}>{changeText}</Text>
+      )}
+    </View>
+  );
+}
+
+/* ─────────────── Document ─────────────── */
 export function SynthesisDocument({ data }: { data: SynthesisPdfData }) {
-  const { contractRef, contractTitle, contractProvider, yearLabel, analytics, activeAlerts } = data;
+  const { organizationName, contractRef, yearLabel, analytics, activeAlerts } = data;
   const s = analytics.summary;
   const editedAt = new Date().toLocaleDateString("fr-FR", {
     day: "2-digit",
@@ -261,139 +375,118 @@ export function SynthesisDocument({ data }: { data: SynthesisPdfData }) {
     year: "numeric",
   });
   const sites = analytics.sites.filter((site) => site.nb != null);
-  const exec = buildExecutiveSummary(s, yearLabel);
+  const exec = buildExecLine(s, yearLabel);
+  const deltaPositive = s.deltaPercent <= 0;
 
   return (
     <Document
-      title={`Synthèse énergétique ${contractRef} ${yearLabel}`}
-      author="MyXploit"
+      title={`Bilan énergétique ${contractRef} ${yearLabel}`}
+      author={organizationName}
     >
       <Page size="A4" style={styles.page}>
-        {/* Top metadata band */}
-        <View style={styles.topMeta}>
-          <Text>MyXploit · Rapport de suivi</Text>
-          <Text>{yearLabel}</Text>
-        </View>
-
-        {/* Title block */}
-        <Text style={styles.title}>Synthèse énergétique</Text>
-        <Text style={styles.subtitle}>
-          {contractRef} — {contractTitle}
-        </Text>
-        <Text style={styles.exploitant}>Exploitant : {contractProvider}</Text>
-
-        <View style={styles.ruleStrong} />
-        <View style={styles.ruleThin} />
-
-        {/* Executive summary (1 paragraphe) */}
-        <Text style={styles.execText}>{exec}</Text>
-
-        {/* ── 1. KPIs ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionNum}>01</Text>
-          <Text style={styles.sectionTitle}>Indicateurs globaux</Text>
-        </View>
-
-        <View style={styles.kpiStrip}>
-          <View style={styles.kpiCol}>
-            <Text style={styles.kpiLabel}>Conso. réelle (NC)</Text>
-            <Text style={styles.kpiValue}>{nf(s.totalNc / 1000, 0)}</Text>
-            <Text style={styles.kpiUnit}>MWh</Text>
+        {/* ─── Header card ─── */}
+        <View style={[styles.card, styles.header]}>
+          <View style={{ flex: 1, paddingRight: 16 }}>
+            <Text style={styles.brand}>
+              {capitalize(organizationName)} · suivi énergétique via MyXploit
+            </Text>
+            <Text style={styles.title}>Bilan énergétique — {contractRef}</Text>
+            <Text style={[styles.subtitle, { marginTop: 10, lineHeight: 1.5 }]}>{exec}</Text>
           </View>
-          <View style={styles.kpiColBordered}>
-            <Text style={styles.kpiLabel}>Théorique (N&apos;B)</Text>
-            <Text style={styles.kpiValue}>{nf(s.totalNbPrime / 1000, 0)}</Text>
-            <Text style={styles.kpiUnit}>MWh</Text>
-          </View>
-          <View style={styles.kpiColBordered}>
-            <Text style={styles.kpiLabel}>Écart NC / N&apos;B</Text>
-            <Text
-              style={{
-                ...styles.kpiValue,
-                color: s.deltaPercent <= 0 ? green : red,
-              }}
-            >
-              {s.deltaPercent > 0 ? "+" : ""}
-              {s.deltaPercent}%
-            </Text>
-            <Text style={styles.kpiUnit}>
-              {s.status === "ECONOMIE"
-                ? "Économie"
-                : s.status === "DEPASSEMENT"
-                ? "Dépassement"
-                : "Objectif"}
-            </Text>
-          </View>
-          <View style={styles.kpiColBordered}>
-            <Text style={styles.kpiLabel}>Sites en économie</Text>
-            <Text style={styles.kpiValue}>
-              {s.sitesEnEconomie}
-              <Text style={{ fontSize: 10, color: muted }}>
-                {" / "}
-                {s.totalSites}
-              </Text>
-            </Text>
-            <Text style={styles.kpiUnit}>sur portefeuille</Text>
-          </View>
-          <View style={styles.kpiColBordered}>
-            <Text style={styles.kpiLabel}>Sites en dépassement</Text>
-            <Text
-              style={{
-                ...styles.kpiValue,
-                color: s.sitesEnDepassement > 0 ? red : ink,
-              }}
-            >
-              {s.sitesEnDepassement}
-              <Text style={{ fontSize: 10, color: muted }}>
-                {" / "}
-                {s.totalSites}
-              </Text>
-            </Text>
-            <Text style={styles.kpiUnit}>
-              {s.sitesEnDepassement > 0 ? "à surveiller" : "aucune dérive"}
-            </Text>
+          <View style={styles.metaRight}>
+            <Text style={styles.metaPill}>{yearLabel}</Text>
+            <Text style={styles.metaDate}>Édité le {editedAt}</Text>
           </View>
         </View>
 
-        {/* ── 2. Performance par site ── */}
+        {/* ─── KPI grid ─── */}
+        <View style={styles.kpiRow}>
+          <KpiCard
+            label="NC (Conso. réelle)"
+            value={`${nf(s.totalNc / 1000, 0)}`}
+            unit="MWh"
+            iconLetter="N"
+            iconBg={C.orangeBg}
+            iconColor={C.orange}
+          />
+          <KpiCard
+            label="N'B (Théorique)"
+            value={`${nf(s.totalNbPrime / 1000, 0)}`}
+            unit="MWh"
+            iconLetter="T"
+            iconBg={C.blueBg}
+            iconColor={C.blue}
+          />
+          <KpiCard
+            label="Écart NC / N'B"
+            value={`${s.deltaPercent > 0 ? "+" : ""}${s.deltaPercent}%`}
+            iconLetter={deltaPositive ? "↓" : "↑"}
+            iconBg={deltaPositive ? C.greenBg : C.redBg}
+            iconColor={deltaPositive ? C.greenInk : C.redInk}
+            changeText={
+              s.status === "ECONOMIE" ? "Économie" : s.status === "DEPASSEMENT" ? "Dépassement" : "Objectif atteint"
+            }
+            changeColor={deltaPositive ? C.greenInk : C.redInk}
+          />
+          <KpiCard
+            label="Sites en économie"
+            value={`${s.sitesEnEconomie}/${s.totalSites}`}
+            iconLetter="●"
+            iconBg={C.indigoBg}
+            iconColor={C.indigo}
+          />
+          <KpiCard
+            label="Sites en dépassement"
+            value={`${s.sitesEnDepassement}/${s.totalSites}`}
+            iconLetter="!"
+            iconBg={s.sitesEnDepassement > 0 ? C.redBg : C.greenBg}
+            iconColor={s.sitesEnDepassement > 0 ? C.redInk : C.greenInk}
+            changeText={s.sitesEnDepassement > 0 ? "À surveiller" : "Aucune dérive"}
+            changeColor={s.sitesEnDepassement > 0 ? C.redInk : C.greenInk}
+          />
+        </View>
+
+        {/* ─── Performance par site ─── */}
         {sites.length > 0 && (
-          <>
+          <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionNum}>02</Text>
               <Text style={styles.sectionTitle}>Performance par site</Text>
+              <Text style={styles.sectionSubtitle}>
+                {sites.length} site{sites.length > 1 ? "s" : ""} avec NB renseigné
+              </Text>
             </View>
 
             <View style={styles.trHead}>
               <Text style={[styles.th, { flex: 3 }]}>Site</Text>
-              <Text style={[styles.th, { flex: 1.1, textAlign: "right" }]}>NB</Text>
-              <Text style={[styles.th, { flex: 1, textAlign: "right" }]}>DJC</Text>
-              <Text style={[styles.th, { flex: 1, textAlign: "right" }]}>DJR</Text>
-              <Text style={[styles.th, { flex: 1.2, textAlign: "right" }]}>NC</Text>
-              <Text style={[styles.th, { flex: 1.2, textAlign: "right" }]}>N&apos;B</Text>
+              <Text style={[styles.th, { flex: 1, textAlign: "right" }]}>NB</Text>
+              <Text style={[styles.th, { flex: 0.9, textAlign: "right" }]}>DJC</Text>
+              <Text style={[styles.th, { flex: 0.9, textAlign: "right" }]}>DJR</Text>
+              <Text style={[styles.th, { flex: 1.1, textAlign: "right" }]}>NC (MWh)</Text>
+              <Text style={[styles.th, { flex: 1.1, textAlign: "right" }]}>N&apos;B (MWh)</Text>
               <Text style={[styles.th, { flex: 1, textAlign: "right" }]}>Écart</Text>
-              <Text style={[styles.th, { flex: 1.5, textAlign: "right" }]}>Statut</Text>
+              <Text style={[styles.th, { flex: 1.4, textAlign: "center" }]}>Statut</Text>
             </View>
 
             {sites.map((site) => {
-              const sl = STATUS_TEXT[site.status] ?? STATUS_TEXT.OBJECTIF;
+              const sb = STATUS_BADGE[site.status] ?? STATUS_BADGE.OBJECTIF;
               const deltaColor =
-                site.status === "INCOMPLET" ? muted : site.deltaPercent <= 0 ? green : red;
+                site.status === "INCOMPLET" ? C.muted : site.deltaPercent <= 0 ? C.greenInk : C.redInk;
               return (
                 <View key={site.siteId} style={styles.tr} wrap={false}>
                   <Text style={[styles.td, { flex: 3 }]}>{site.siteName}</Text>
-                  <Text style={[styles.tdMono, { flex: 1.1, textAlign: "right" }]}>
+                  <Text style={[styles.tdMono, { flex: 1, textAlign: "right" }]}>
                     {site.nb != null ? nf(site.nb) : "—"}
                   </Text>
-                  <Text style={[styles.tdMono, { flex: 1, textAlign: "right", color: muted }]}>
+                  <Text style={[styles.tdMono, { flex: 0.9, textAlign: "right", color: C.mutedLight }]}>
                     {site._debug?.usedDjuc ?? "—"}
                   </Text>
-                  <Text style={[styles.tdMono, { flex: 1, textAlign: "right", color: muted }]}>
+                  <Text style={[styles.tdMono, { flex: 0.9, textAlign: "right", color: C.mutedLight }]}>
                     {site._debug?.djrTotal ?? "—"}
                   </Text>
-                  <Text style={[styles.tdMono, { flex: 1.2, textAlign: "right" }]}>
+                  <Text style={[styles.tdMonoStrong, { flex: 1.1, textAlign: "right" }]}>
                     {nf(site.nc / 1000, 1)}
                   </Text>
-                  <Text style={[styles.tdMono, { flex: 1.2, textAlign: "right", color: muted }]}>
+                  <Text style={[styles.tdMono, { flex: 1.1, textAlign: "right" }]}>
                     {nf(site.nbPrime / 1000, 1)}
                   </Text>
                   <Text
@@ -411,43 +504,30 @@ export function SynthesisDocument({ data }: { data: SynthesisPdfData }) {
                       ? "—"
                       : `${site.deltaPercent > 0 ? "+" : ""}${site.deltaPercent}%`}
                   </Text>
-                  <Text
-                    style={[
-                      styles.td,
-                      {
-                        flex: 1.5,
-                        textAlign: "right",
-                        color: sl.color,
-                        fontFamily: site.status === "OBJECTIF" ? "Helvetica" : "Helvetica-Bold",
-                      },
-                    ]}
-                  >
-                    {sl.label}
-                  </Text>
+                  <View style={{ flex: 1.4, alignItems: "center" }}>
+                    <Text
+                      style={[
+                        styles.badge,
+                        { backgroundColor: sb.bg, color: sb.color },
+                      ]}
+                    >
+                      {sb.label}
+                    </Text>
+                  </View>
                 </View>
               );
             })}
 
-            {/* Totals */}
+            {/* Total row */}
             <View style={styles.trTotal}>
-              <Text style={[styles.td, { flex: 3, fontFamily: "Helvetica-Bold" }]}>Total</Text>
-              <Text style={[styles.tdMono, { flex: 1.1, textAlign: "right" }]}>—</Text>
+              <Text style={[styles.td, { flex: 3, fontFamily: "Helvetica-Bold" }]}>Total portefeuille</Text>
               <Text style={[styles.tdMono, { flex: 1, textAlign: "right" }]}>—</Text>
-              <Text style={[styles.tdMono, { flex: 1, textAlign: "right" }]}>—</Text>
-              <Text
-                style={[
-                  styles.tdMono,
-                  { flex: 1.2, textAlign: "right", fontFamily: "Helvetica-Bold" },
-                ]}
-              >
+              <Text style={[styles.tdMono, { flex: 0.9, textAlign: "right" }]}>—</Text>
+              <Text style={[styles.tdMono, { flex: 0.9, textAlign: "right" }]}>—</Text>
+              <Text style={[styles.tdMonoStrong, { flex: 1.1, textAlign: "right", fontFamily: "Helvetica-Bold" }]}>
                 {nf(s.totalNc / 1000, 1)}
               </Text>
-              <Text
-                style={[
-                  styles.tdMono,
-                  { flex: 1.2, textAlign: "right", color: muted },
-                ]}
-              >
+              <Text style={[styles.tdMono, { flex: 1.1, textAlign: "right" }]}>
                 {nf(s.totalNbPrime / 1000, 1)}
               </Text>
               <Text
@@ -456,7 +536,7 @@ export function SynthesisDocument({ data }: { data: SynthesisPdfData }) {
                   {
                     flex: 1,
                     textAlign: "right",
-                    color: s.deltaPercent <= 0 ? green : red,
+                    color: deltaPositive ? C.greenInk : C.redInk,
                     fontFamily: "Helvetica-Bold",
                   },
                 ]}
@@ -464,52 +544,68 @@ export function SynthesisDocument({ data }: { data: SynthesisPdfData }) {
                 {s.deltaPercent > 0 ? "+" : ""}
                 {s.deltaPercent}%
               </Text>
-              <Text style={[styles.td, { flex: 1.5, textAlign: "right" }]} />
+              <View style={{ flex: 1.4 }} />
             </View>
 
             <Text style={styles.footnote}>
-              Unités en MWh sauf indication. NB : objectif contractuel ; N&apos;B : objectif corrigé du climat
-              (DJR/DJC) ; NC : consommation réelle constatée. Écart négatif = économie.
+              Unités en MWh sauf NB (kWh). NB : objectif contractuel · N&apos;B : objectif corrigé du climat (DJR/DJC) ·
+              NC : consommation réelle constatée. Écart négatif = économie.
             </Text>
-          </>
+          </View>
         )}
 
-        {/* ── 3. Alertes ── */}
+        {/* ─── Alertes ─── */}
         {activeAlerts.length > 0 && (
-          <>
+          <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionNum}>03</Text>
-              <Text style={styles.sectionTitle}>Alertes en cours ({activeAlerts.length})</Text>
+              <Text style={styles.sectionTitle}>Alertes dérives actives</Text>
+              <Text style={styles.sectionSubtitle}>
+                {activeAlerts.length} alerte{activeAlerts.length > 1 ? "s" : ""} en cours
+              </Text>
             </View>
 
-            {activeAlerts.slice(0, 10).map((alert, idx) => (
-              <View key={alert.id} style={styles.alertRow} wrap={false}>
-                <Text style={styles.alertNum}>{String(idx + 1).padStart(2, "0")}</Text>
-                <View style={styles.alertBody}>
-                  <View style={styles.alertHead}>
-                    <Text style={styles.alertTitle}>{alert.title}</Text>
-                    <Text style={styles.alertPriority}>{alert.priority}</Text>
+            <View style={{ paddingBottom: 8 }}>
+              {activeAlerts.slice(0, 8).map((alert) => {
+                const ps = PRIORITY_STYLE[alert.priority] ?? PRIORITY_STYLE.MOYENNE;
+                return (
+                  <View
+                    key={alert.id}
+                    style={[
+                      styles.alertItem,
+                      { backgroundColor: ps.bg, borderLeftColor: ps.border },
+                    ]}
+                    wrap={false}
+                  >
+                    <View style={styles.alertHead}>
+                      <Text style={styles.alertTitle}>{alert.title}</Text>
+                      <Text
+                        style={[
+                          styles.badge,
+                          { backgroundColor: ps.tagBg, color: ps.tagColor },
+                        ]}
+                      >
+                        {alert.priority}
+                      </Text>
+                    </View>
+                    <Text style={styles.alertMessage}>{alert.message}</Text>
                   </View>
-                  <Text style={styles.alertMessage}>{alert.message}</Text>
-                </View>
-              </View>
-            ))}
-            {activeAlerts.length > 10 && (
-              <Text style={styles.footnote}>
-                + {activeAlerts.length - 10} autres alertes non listées dans ce rapport.
-              </Text>
-            )}
-          </>
+                );
+              })}
+              {activeAlerts.length > 8 && (
+                <Text style={[styles.footnote, { paddingVertical: 6 }]}>
+                  + {activeAlerts.length - 8} autres alertes non listées dans ce rapport.
+                </Text>
+              )}
+            </View>
+          </View>
         )}
 
-        {/* Footer fixed */}
+        {/* ─── Footer ─── */}
         <View style={styles.footer} fixed>
           <Text>
             {contractRef} · {yearLabel} · Édité le {editedAt}
           </Text>
-          <Text
-            render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-          />
+          <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
     </Document>

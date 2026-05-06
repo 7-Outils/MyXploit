@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import {
   BarChart3,
   Loader2,
@@ -43,6 +44,7 @@ function EnergyPageContent() {
 
   // Contract from global context
   const { selectedContract, isLoading: loadingContracts } = useContract();
+  const { user } = useUserProfile();
 
   // Data via SWR : cache cross-page → revisite = instant.
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -323,9 +325,8 @@ function EnergyPageContent() {
                 try {
                   const { exportSynthesisPdf } = await import("@/components/energy/pdf/SynthesisPdf");
                   await exportSynthesisPdf({
+                    organizationName: user?.organization?.name ?? "",
                     contractRef: selectedContract.reference,
-                    contractTitle: selectedContract.title,
-                    contractProvider: selectedContract.provider,
                     year: selectedYear,
                     yearLabel: isCivil
                       ? `Année ${selectedYear}`
