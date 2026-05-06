@@ -10,6 +10,7 @@ import {
   Loader2,
   Flame,
   Building2,
+  Download,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
@@ -45,6 +46,9 @@ function EnergyPageContent() {
 
   // Data via SWR : cache cross-page → revisite = instant.
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  // PDF export state
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -310,6 +314,43 @@ function EnergyPageContent() {
               ))}
             </select>
           )}
+          {activeTab === "synthese" && analytics && selectedContract && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (exportingPdf) return;
+                setExportingPdf(true);
+                try {
+                  const { exportSynthesisPdf } = await import("@/components/energy/pdf/SynthesisPdf");
+                  await exportSynthesisPdf({
+                    contractRef: selectedContract.reference,
+                    contractTitle: selectedContract.title,
+                    contractProvider: selectedContract.provider,
+                    year: selectedYear,
+                    yearLabel: isCivil
+                      ? `Année ${selectedYear}`
+                      : `Saison ${selectedYear - 1}/${selectedYear}`,
+                    analytics,
+                    activeAlerts,
+                  });
+                } catch (err) {
+                  console.error("Erreur export PDF:", err);
+                  alert("Erreur lors de la génération du PDF");
+                } finally {
+                  setExportingPdf(false);
+                }
+              }}
+              disabled={exportingPdf}
+              title="Exporter la synthèse en PDF"
+              className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {exportingPdf ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -323,11 +364,6 @@ function EnergyPageContent() {
               activeAlerts={activeAlerts}
               setShowIdexImportModal={setShowIdexImportModal}
               setShowCreateModal={setShowCreateModal}
-              contractRef={selectedContract?.reference}
-              contractTitle={selectedContract?.title}
-              contractProvider={selectedContract?.provider}
-              year={selectedYear}
-              yearLabel={isCivil ? `Année ${selectedYear}` : `Saison ${selectedYear - 1}/${selectedYear}`}
             />
           ) : loading ? (
             <div className="flex items-center justify-center py-12">

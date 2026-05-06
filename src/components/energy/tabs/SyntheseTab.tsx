@@ -6,11 +6,9 @@ import {
   AlertTriangle,
   BarChart3,
   Building2,
-  Download,
   ExternalLink,
   Flame,
   Info,
-  Loader2,
   Plus,
   ThermometerSun,
   TrendingDown,
@@ -27,44 +25,12 @@ export function SyntheseContent({
   activeAlerts,
   setShowIdexImportModal,
   setShowCreateModal,
-  contractRef,
-  contractTitle,
-  contractProvider,
-  year,
-  yearLabel,
 }: {
   analytics: AnalyticsData | null;
   activeAlerts: Alert[];
   setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
-  contractRef?: string;
-  contractTitle?: string;
-  contractProvider?: string;
-  year?: number;
-  yearLabel?: string;
 }) {
-  const [exporting, setExporting] = useState(false);
-  const handleExport = async () => {
-    if (!analytics || !contractRef) return;
-    setExporting(true);
-    try {
-      const { exportSynthesisPdf } = await import("@/components/energy/pdf/SynthesisPdf");
-      await exportSynthesisPdf({
-        contractRef,
-        contractTitle: contractTitle ?? "",
-        contractProvider: contractProvider ?? "",
-        year: year ?? new Date().getFullYear(),
-        yearLabel: yearLabel ?? `${year ?? new Date().getFullYear()}`,
-        analytics,
-        activeAlerts,
-      });
-    } catch (err) {
-      console.error("Erreur export PDF:", err);
-      alert("Erreur lors de la génération du PDF");
-    } finally {
-      setExporting(false);
-    }
-  };
   // Filtre par status cliqué sur une KPI (Économie / Dépassement)
   const [statusFilter, setStatusFilter] = useState<"ECONOMIE" | "DEPASSEMENT" | null>(null);
   const toggleStatus = (s: "ECONOMIE" | "DEPASSEMENT") =>
@@ -93,25 +59,6 @@ export function SyntheseContent({
 
   return (
     <div className="space-y-6">
-      {/* Header avec bouton export PDF */}
-      {contractRef && (
-        <div className="flex justify-end">
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            title="Exporter la synthèse en PDF"
-            className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {exporting ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Download size={16} />
-            )}
-            <span>Exporter PDF</span>
-          </button>
-        </div>
-      )}
-
       {/* KPIs */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
