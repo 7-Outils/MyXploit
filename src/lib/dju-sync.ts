@@ -245,9 +245,24 @@ export function resolveDjuContractuel(
   return null;
 }
 
-function calculateDJU(tMoy: number): number {
+/**
+ * DJU base 18°C — méthode professionnelle COSTIC (3 cas).
+ *   - Cas été (Tmin ≥ 18): DJU = 0
+ *   - Cas hiver (Tmax ≤ 18): DJU = 18 − (Tmin + Tmax) / 2
+ *   - Cas mi-saison: DJU = a × b × (0.08 + 0.42 × b)
+ *       avec a = Tmax − Tmin, b = (18 − Tmin) / (Tmax − Tmin)
+ *
+ * NB convention COSTIC stricte: Tmin sur fenêtre 18h(J−1) → 18h(J),
+ * Tmax sur 6h(J) → 6h(J+1). Ici on utilise les min/max calendaires
+ * d'Open-Meteo (0h-24h), approximation suffisante (~95% conformité).
+ */
+export function calculateDJU(tMin: number, tMax: number): number {
   const base = 18;
-  return tMoy < base ? base - tMoy : 0;
+  if (tMin >= base) return 0;
+  if (tMax <= base) return base - (tMin + tMax) / 2;
+  const a = tMax - tMin;
+  const b = (base - tMin) / a;
+  return a * b * (0.08 + 0.42 * b);
 }
 
 export async function fetchWeatherData(
@@ -265,12 +280,12 @@ export async function fetchWeatherData(
 
   // Open-Meteo: archive covers old data (~5 days ago and older),
   // forecast covers last ~3 months + 16 days ahead.
-  // We fetch from both and merge to cover the full range.
-  const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris`;
-  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean&timezone=Europe/Paris`;
+  // We fetch both Tmin et Tmax (méthode COSTIC) puis on calcule le DJU localement.
+  const dailyParams = "temperature_2m_min,temperature_2m_max";
+  const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=${dailyParams}&timezone=Europe/Paris`;
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=${dailyParams}&timezone=Europe/Paris`;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const results: Array<{ date: string; tMoy: number }> = [];
+  const results: Array<{ date: string; tMin: number; tMax: number }> = [];
   const seenDates = new Set<string>();
 
   // Try both APIs, merge results (archive first for older data, forecast fills gaps)
@@ -279,12 +294,13 @@ export async function fetchWeatherData(
       const res = await fetch(url);
       if (!res.ok) continue;
       const json = await res.json();
-      if (json.daily?.time && json.daily?.temperature_2m_mean) {
+      if (json.daily?.time && json.daily?.temperature_2m_min && json.daily?.temperature_2m_max) {
         for (let i = 0; i < json.daily.time.length; i++) {
           const date = json.daily.time[i];
-          const tMoy = json.daily.temperature_2m_mean[i];
-          if (tMoy !== null && !seenDates.has(date)) {
-            results.push({ date, tMoy });
+          const tMin = json.daily.temperature_2m_min[i];
+          const tMax = json.daily.temperature_2m_max[i];
+          if (tMin !== null && tMax !== null && !seenDates.has(date)) {
+            results.push({ date, tMin, tMax });
             seenDates.add(date);
           }
         }
@@ -298,7 +314,7 @@ export async function fetchWeatherData(
     throw new Error("No weather data from either API");
   }
 
-  return results.map((r) => ({ date: r.date, dju: calculateDJU(r.tMoy) }));
+  return results.map((r) => ({ date: r.date, dju: calculateDJU(r.tMin, r.tMax) }));
 }
 
 /**

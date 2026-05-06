@@ -306,10 +306,8 @@ interface DJUData {
   dju: number;
 }
 
-// Calculate DJU from temperature (base 18°C unified method)
-function calculateDJU(tMoy: number): number {
-  return Math.max(0, 18 - tMoy);
-}
+// DJU base 18°C — méthode professionnelle COSTIC (cf. lib/dju-sync.ts)
+import { calculateDJU } from "@/lib/dju-sync";
 
 // Fetch weather data from Open-Meteo
 async function fetchWeatherData(
@@ -342,7 +340,7 @@ async function fetchWeatherData(
       tMin,
       tMax,
       tMoy,
-      dju: calculateDJU(tMoy),
+      dju: calculateDJU(tMin, tMax),
     });
   }
 
