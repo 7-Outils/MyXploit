@@ -115,12 +115,11 @@ export async function GET(request: NextRequest) {
       cacheByDept.set(dept, []);
     }
 
-    // Récup uniquement les depts requis pour CE part, en série, 1.1s entre chaque
+    // Récup uniquement les depts requis pour CE part, EN PARALLÈLE.
+    // Avec ~25-30 reqs simultanées on reste sous le quota MF (50/min) et
+    // on tient largement en 10s même si Vercel applique son timeout par défaut.
     const deptList = Array.from(requiredDepts);
-    for (let i = 0; i < deptList.length; i++) {
-      if (i > 0) await new Promise((r) => setTimeout(r, 1100));
-      await fetchDeptStations(deptList[i]);
-    }
+    await Promise.all(deptList.map((d) => fetchDeptStations(d)));
 
     // 3. Pour chaque station du subset, trouve la MF la plus proche active
     const mapping: Record<string, { mfId: string; mfName: string; distanceKm: number; typePoste: number }> = {};
