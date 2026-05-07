@@ -308,14 +308,32 @@ interface DJUData {
 
 // DJU base 18°C — méthode professionnelle COSTIC (cf. lib/dju-sync.ts)
 import { calculateDJU } from "@/lib/dju-sync";
+import { fetchDjuFromMeteoFrance } from "@/lib/dju-meteo-france";
 
-// Fetch weather data from Open-Meteo
+// Fetch weather data : try Météo France (DJU CHAUFFAGISTE officiel) first,
+// fallback to Open-Meteo + COSTIC formula computed locally.
 async function fetchWeatherData(
   lat: number,
   lon: number,
   startDate: string,
-  endDate: string
+  endDate: string,
+  stationKey?: string
 ): Promise<DJUData[]> {
+  // 1) Météo France si station mappée + clé dispo
+  if (stationKey) {
+    try {
+      const mfMap = await fetchDjuFromMeteoFrance(stationKey, startDate, endDate);
+      if (mfMap.size > 0) {
+        return Array.from(mfMap.entries())
+          .map(([date, dju]) => ({ date, tMin: NaN, tMax: NaN, tMoy: NaN, dju }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      }
+    } catch (e) {
+      console.warn("[DJU] Météo France indisponible, fallback Open-Meteo:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 2) Fallback Open-Meteo + COSTIC local
   const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean&timezone=Europe/Paris`;
 
   const response = await fetch(url);
@@ -535,7 +553,8 @@ export async function GET(request: NextRequest) {
           stationInfo.lat,
           stationInfo.lon,
           startDate,
-          endDate
+          endDate,
+          stationCode
         );
         stationMap.set(stationCode, { ...stationInfo, djuData });
       } catch (error) {
@@ -941,7 +960,8 @@ export async function POST(request: NextRequest) {
           stationData.lat,
           stationData.lon,
           startDate.toISOString().split("T")[0],
-          fetchEndDate.toISOString().split("T")[0]
+          fetchEndDate.toISOString().split("T")[0],
+          stationCode
         );
 
         console.log(`[DJU Sync] ${site.name}: Got ${djuData.length} days of weather data`);

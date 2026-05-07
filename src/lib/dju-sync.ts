@@ -269,7 +269,8 @@ export async function fetchWeatherData(
   lat: number,
   lon: number,
   startDate: string,
-  endDate: string
+  endDate: string,
+  stationKey?: string
 ): Promise<Array<{ date: string; dju: number }>> {
   // Cap endDate to yesterday — weather APIs don't have today or future data
   const yesterday = new Date();
@@ -278,9 +279,23 @@ export async function fetchWeatherData(
   if (endDate > yesterdayIso) endDate = yesterdayIso;
   if (startDate > endDate) return [];
 
-  // Open-Meteo: archive covers old data (~5 days ago and older),
-  // forecast covers last ~3 months + 16 days ahead.
-  // We fetch both Tmin et Tmax (méthode COSTIC) puis on calcule le DJU localement.
+  // 1) Tente Météo France (DJU CHAUFFAGISTE = COSTIC officiel) si station mappée + clé dispo.
+  //    Renvoie Map vide en cas de souci → on fallback Open-Meteo.
+  if (stationKey) {
+    try {
+      const { fetchDjuFromMeteoFrance } = await import("./dju-meteo-france");
+      const mfMap = await fetchDjuFromMeteoFrance(stationKey, startDate, endDate);
+      if (mfMap.size > 0) {
+        return Array.from(mfMap.entries())
+          .map(([date, dju]) => ({ date, dju }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+      }
+    } catch (e) {
+      console.warn("[DJU] Météo France indisponible, fallback Open-Meteo:", e instanceof Error ? e.message : e);
+    }
+  }
+
+  // 2) Fallback Open-Meteo + formule COSTIC locale (Tmin/Tmax calendaire).
   const dailyParams = "temperature_2m_min,temperature_2m_max";
   const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=${dailyParams}&timezone=Europe/Paris`;
   const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&start_date=${startDate}&end_date=${endDate}&daily=${dailyParams}&timezone=Europe/Paris`;
@@ -335,7 +350,7 @@ export async function getDailyDjuForStation(
   if (!coords) return new Map();
 
   try {
-    const daily = await fetchWeatherData(coords.lat, coords.lon, startDate, endDate);
+    const daily = await fetchWeatherData(coords.lat, coords.lon, startDate, endDate, key);
     const byDay = new Map<string, number>();
     for (const d of daily) byDay.set(d.date, d.dju);
     return byDay;
@@ -360,7 +375,7 @@ export async function getMonthlyDjuForStation(
   if (!coords) return new Map();
 
   try {
-    const dailyData = await fetchWeatherData(coords.lat, coords.lon, startDate, endDate);
+    const dailyData = await fetchWeatherData(coords.lat, coords.lon, startDate, endDate, key);
     const byMonth = new Map<string, number>();
     for (const d of dailyData) {
       const key = d.date.substring(0, 7); // "YYYY-MM"
@@ -434,6 +449,7 @@ export async function getDailyDjuFromCache(
         coords.lon,
         fetchStart,
         fetchEnd,
+        stationCode,
       );
       if (daily.length > 0) {
         await prisma.dailyDju.createMany({
@@ -510,6 +526,7 @@ export async function getMonthlyDjuFromCache(
         coords.lon,
         fetchStart,
         fetchEnd,
+        stationCode,
       );
       // Batch insert (1 round-trip pour N jours).
       if (daily.length > 0) {
@@ -597,6 +614,7 @@ export async function syncDailyDjuCache(): Promise<{
         coords.lon,
         fromIso,
         todayIso,
+        stationCode,
       );
       // Batch insert : 1 round-trip pour 1825 jours au lieu de 1825 upserts.
       // skipDuplicates protège contre les conflicts si la table avait
@@ -710,7 +728,8 @@ export async function syncDjuForSites(
         stationData.lat,
         stationData.lon,
         startDate.toISOString().split("T")[0],
-        fetchEndDate.toISOString().split("T")[0]
+        fetchEndDate.toISOString().split("T")[0],
+        stationCode
       );
 
       // Index DJU by exact day for daily granularity
