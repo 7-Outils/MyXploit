@@ -21,14 +21,72 @@ const MF_BASE = "https://portail-api.meteofrance.fr/public/DPClim/v1";
  * la station correspondante dans le JSON retourné.
  */
 const MF_STATION_IDS: Record<string, string> = {
-  // Le Bourget = aéroport, station synoptique (typePoste 0), encore active.
-  // Rattachée à INSEE 95088 (Bonneuil-en-France, où passe la piste) côté MF,
-  // pas au 93 — la station "93013001 LE BOURGET VILLE" est fermée.
-  "LE-BOURGET": "95088001",
-  // Roissy CDG, synoptique active (Pontoise existe aussi: 95078001).
-  "ROISSY": "95527001",
-  // Pontoise-Aérodrome, synoptique active.
-  "PONTOISE-AERO": "95078001",
+  // Auto-découvert via /api/admin/dju-mf-auto-discover
+  // (station MF active la plus proche par dept, typePoste 0/1/2).
+  // Distance médiane ~1 km, max 12.9 km (REIMS = Prunay banlieue).
+  ABBEVILLE: "80001001", // ABBEVILLE (0.1 km, type 0)
+  AGEN: "47091001", // AGEN-LA GARENNE (0.4 km, type 0)
+  ANGERS: "49007011", // ANGERS VILLE (1.5 km, type 2)
+  AURILLAC: "15014001", // AURILLAC - VILL (2.7 km, type 2)
+  AUXERRE: "89295001", // AUXERRE-PERRIGNY (2.6 km, type 0)
+  BEAUVAIS: "60639001", // BEAUVAIS-TILLE (1.4 km, type 0)
+  BESANCON: "25056001", // BESANCON (0.7 km, type 0)
+  BORDEAUX: "33281001", // BORDEAUX-MERIGNAC (0 km, type 0)
+  BOURGES: "18033001", // BOURGES (0.7 km, type 0)
+  BREST: "29075001", // BREST-GUIPAVAS (2.1 km, type 0)
+  BRIVE: "19031008", // BRIVE (3.4 km, type 0)
+  CAEN: "14137001", // CAEN-CARPIQUET (0.9 km, type 0)
+  "CHARLEVILLE-MEZIERES": "08105005", // CHARLEVILLE-MEZ (5.3 km, type 0)
+  CHATEAUDUN: "28198001", // CHATEAUDUN (0.5 km, type 0)
+  CHATEAUROUX: "36063001", // CHATEAUROUX DEOLS (1.7 km, type 0)
+  "CLERMONT-FERRAND": "63113001", // CLERMONT-FD (0 km, type 0)
+  COGNAC: "16089001", // COGNAC (0.2 km, type 0)
+  DIJON: "21473001", // DIJON-LONGVIC (0.1 km, type 0)
+  EVREUX: "27347001", // EVREUX-HUEST (0.4 km, type 0)
+  GRENOBLE: "38384001", // GRENOBLE-ST GEOIRS (1.3 km, type 0)
+  "LA-ROCHELLE": "17300009", // LA ROCHELLE-ILE DE RE (4.3 km, type 0)
+  LAVAL: "53130008", // LAVAL-ETRONNIER (4.6 km, type 0)
+  "LE-BOURGET": "95088001", // LE BOURGET (1 km, type 0)
+  "LE-MANS": "72181001", // LE MANS (6.1 km, type 0)
+  LILLE: "59343001", // LILLE-LESQUIN (1.1 km, type 0)
+  LIMOGES: "87085006", // LIMOGES-BELLEGARDE (0.4 km, type 0)
+  LORIENT: "56185001", // LORIENT-LANN BIHOUE (0.4 km, type 0)
+  "LYON-BRON": "69029001", // LYON-BRON (0.8 km, type 0)
+  MARIGNANE: "13054001", // MARIGNANE (0.8 km, type 0)
+  MELUN: "77306001", // MELUN (1.6 km, type 0)
+  METZ: "57039001", // METZ-FRESCATY (1 km, type 1)
+  MONTELIMAR: "26198001", // MONTELIMAR (2.5 km, type 0)
+  MONTPELLIER: "34154001", // MONTPELLIER-AEROPORT (0.1 km, type 0)
+  MULHOUSE: "68224006", // MULHOUSE (11.1 km, type 1)
+  NANCY: "54526001", // NANCY-ESSEY (0.6 km, type 0)
+  NANTES: "44020001", // NANTES-BOUGUENAIS (0.4 km, type 0)
+  NEVERS: "58160001", // NEVERS-MARZY (0.3 km, type 0)
+  NICE: "06088001", // NICE (1.8 km, type 0)
+  NIMES: "30189001", // NIMES-COURBESSAC (0 km, type 0)
+  NIORT: "79191005", // NIORT (0.3 km, type 0)
+  ORANGE: "84087001", // ORANGE (3.8 km, type 0)
+  ORLEANS: "45055001", // ORLEANS (1.3 km, type 0)
+  ORLY: "91027002", // ORLY (0.3 km, type 0)
+  "PARIS-MONTSOURIS": "75114001", // PARIS-MONTSOURIS (0.1 km, type 0)
+  PAU: "64549001", // PAU-UZEIN (0.6 km, type 0)
+  PERPIGNAN: "66136001", // PERPIGNAN (0.4 km, type 0)
+  POITIERS: "86027001", // POITIERS-BIARD (0.9 km, type 0)
+  REIMS: "51449002", // REIMS-PRUNAY (12.9 km, type 0)
+  RENNES: "35281001", // RENNES-ST JACQUES (0 km, type 0)
+  ROUEN: "76116001", // ROUEN-BOOS (0.4 km, type 0)
+  "SAINT-BRIEUC": "22372001", // ST BRIEUC (0.3 km, type 0)
+  "SAINT-ETIENNE": "42005001", // ST ETIENNE-BOUTHEON (1.4 km, type 0)
+  "SAINT-QUENTIN": "02320001", // ST QUENTIN (0.5 km, type 0)
+  STRASBOURG: "67124001", // STRASBOURG-ENTZHEIM (0.2 km, type 0)
+  TOULON: "83137001", // TOULON (2.7 km, type 1)
+  TOULOUSE: "31069001", // TOULOUSE-BLAGNAC (1.3 km, type 0)
+  TOURS: "37179001", // TOURS (1.3 km, type 0)
+  TROYES: "10030001", // TROYES-BARBEREY (0.4 km, type 0)
+  VICHY: "03060001", // VICHY-CHARMEIL (0.5 km, type 0)
+  VILLACOUBLAY: "78640001", // VILLACOUBLAY (0.3 km, type 0)
+  // Stations non mappées (fallback Open-Meteo):
+  //   AJACCIO, BASTIA — MF refuse les codes dept 2A/2B
+  //   DUNKERQUE — pas dans DEPT_TO_STATION
 };
 
 /**
