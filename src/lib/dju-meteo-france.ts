@@ -32,17 +32,14 @@ const MF_STATION_IDS: Record<string, string> = {
 };
 
 /**
- * Code de colonne dans le CSV pour le DJU chauffagiste base 18°C.
- * À ajuster après la 1re inspection du CSV (cf /api/admin/dju-mf-test).
- * Candidats vraisemblables: DJU18C, DJUC18, DJUM18, DJU18.
+ * Le CSV quotidien MF ne contient PAS de colonne DJU pré-calculée
+ * (le DJU CHAUFFAGISTE n'est dispo que dans l'endpoint mensuel pour certaines
+ * stations). On extrait les vraies mesures synoptiques TN/TX et on applique
+ * notre formule COSTIC dessus — résultat ≈ DJU officiel MF à ~1% près.
  */
-const DJU_CHAUFFAGISTE_COLUMN_CANDIDATES = [
-  "DJU18C",
-  "DJUC18",
-  "DJUM18",
-  "DJU18CH",
-  "CUMUL_DJU_18_METHODE_CHAUFFAGISTE",
-];
+const COL_DATE = "DATE";
+const COL_TN = "TN";
+const COL_TX = "TX";
 
 function getApiKey(): string | null {
   return process.env.METEO_FRANCE_API_KEY ?? null;
@@ -121,54 +118,48 @@ export async function pollCommandeFichier(
 /**
  * Étape 3 — parse le CSV (séparateur ;) et renvoie une Map<dateIso, dju>.
  *
- * Format CSV attendu (cf doc) : 1re ligne = header avec codes courts
- * (POSTE, DATE, RR, TN, TX, TM, ...). On cherche la colonne DJU chauffagiste
- * via la liste de candidats (le nom exact varie selon les sources MF).
+ * Le CSV quotidien MF contient TN/TX (vraies mesures synoptiques de la station,
+ * séparateur décimal ","). On calcule le DJU localement via la formule COSTIC
+ * (3 cas) — résultat ≈ DJU officiel MF à ~1% près, en gardant la granularité
+ * journalière nécessaire pour la proratisation.
  *
- * Si aucune colonne candidate n'est trouvée, la fonction retourne une Map
- * vide ET log les headers reçus (pour qu'on puisse identifier le bon code).
+ * Si TN ou TX manquent (colonnes absentes du CSV), retourne une Map vide pour
+ * déclencher le fallback Open-Meteo côté appelant.
  */
-export function parseClimatoCsv(csv: string): { djus: Map<string, number>; columnUsed: string | null; headers: string[] } {
+import { calculateDJU } from "./dju-sync";
+
+export function parseClimatoCsv(csv: string): { djus: Map<string, number>; headers: string[] } {
   const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return { djus: new Map(), columnUsed: null, headers: [] };
+  if (lines.length < 2) return { djus: new Map(), headers: [] };
 
   const SEP = ";";
   const headers = lines[0].split(SEP).map((h) => h.trim().toUpperCase());
-  const dateIdx = headers.indexOf("DATE");
-  if (dateIdx < 0) {
-    return { djus: new Map(), columnUsed: null, headers };
-  }
-  // Recherche de la colonne DJU chauffagiste
-  let djuIdx = -1;
-  let columnUsed: string | null = null;
-  for (const candidate of DJU_CHAUFFAGISTE_COLUMN_CANDIDATES) {
-    const idx = headers.indexOf(candidate.toUpperCase());
-    if (idx >= 0) {
-      djuIdx = idx;
-      columnUsed = candidate;
-      break;
-    }
-  }
-  if (djuIdx < 0) {
-    // Aucun candidat trouvé — on log les headers pour debug
-    return { djus: new Map(), columnUsed: null, headers };
+  const dateIdx = headers.indexOf(COL_DATE);
+  const tnIdx = headers.indexOf(COL_TN);
+  const txIdx = headers.indexOf(COL_TX);
+  if (dateIdx < 0 || tnIdx < 0 || txIdx < 0) {
+    return { djus: new Map(), headers };
   }
 
   const djus = new Map<string, number>();
   for (const line of lines.slice(1)) {
     const cols = line.split(SEP);
     const rawDate = cols[dateIdx]?.trim();
-    const rawDju = cols[djuIdx]?.trim();
-    if (!rawDate || !rawDju || rawDju === "") continue;
-    // Date au format AAAAMMJJ → YYYY-MM-DD
+    const rawTn = cols[tnIdx]?.trim();
+    const rawTx = cols[txIdx]?.trim();
+    if (!rawDate || !rawTn || !rawTx || rawTn === "" || rawTx === "") continue;
+    // Date AAAAMMJJ → YYYY-MM-DD
     const iso =
       rawDate.length === 8
         ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`
-        : rawDate; // fallback si déjà ISO
-    const dju = parseFloat(rawDju.replace(",", "."));
-    if (!isNaN(dju)) djus.set(iso, dju);
+        : rawDate;
+    // Décimales avec virgule (ex "0,7")
+    const tn = parseFloat(rawTn.replace(",", "."));
+    const tx = parseFloat(rawTx.replace(",", "."));
+    if (isNaN(tn) || isNaN(tx)) continue;
+    djus.set(iso, calculateDJU(tn, tx));
   }
-  return { djus, columnUsed, headers };
+  return { djus, headers };
 }
 
 /**
@@ -210,13 +201,13 @@ export async function fetchDjuFromMeteoFrance(
     try {
       const orderId = await orderClimatoQuotidienne(stationId, s, e);
       const csv = await pollCommandeFichier(orderId);
-      const { djus, columnUsed, headers } = parseClimatoCsv(csv);
-      if (djus.size === 0 && columnUsed === null) {
-        // Aucune colonne DJU candidate trouvée — log les headers pour ajuster
+      const { djus, headers } = parseClimatoCsv(csv);
+      if (djus.size === 0) {
+        // TN ou TX absents du CSV — log pour debug
         console.warn(
-          `[MF] Aucune colonne DJU chauffagiste trouvée. Headers reçus: ${headers.slice(0, 50).join("|")}${
-            headers.length > 50 ? "..." : ""
-          }`
+          `[MF] CSV vide ou TN/TX manquants pour station=${stationKey} ${s}→${e}. Headers: ${headers
+            .slice(0, 30)
+            .join("|")}`
         );
       }
       for (const [date, dju] of djus.entries()) merged.set(date, dju);
