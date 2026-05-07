@@ -213,24 +213,35 @@ export async function GET(request: NextRequest) {
     }
 
     // Calcul DJR avec fenêtres COSTIC pour chaque jour de la période
-    const days: Array<{ date: string; tMin: number | null; tMax: number | null; dju: number; tMinHours: number; tMaxHours: number }> = [];
+    const days: Array<{ date: string; tMin: number | null; tMax: number | null; dju: number; djuRounded: number; tMinHours: number; tMaxHours: number }> = [];
     const cur = new Date(`${start}T00:00:00Z`);
     const stop = new Date(`${end}T00:00:00Z`);
     let djrSum = 0;
+    let djrSumWithDailyRounding = 0; // somme des Math.round(dju_jour) - méthode COSTIC publiée
     let daysWithData = 0;
     let daysIncomplete = 0;
     while (cur <= stop) {
       const dayIso = cur.toISOString().slice(0, 10);
       const { tMin, tMax, tMinHours, tMaxHours } = computeWindowedTminTmax(temps, dayIso);
       let dju = 0;
+      let djuRounded = 0;
       if (tMin !== null && tMax !== null) {
         dju = calculateDJU(tMin, tMax);
+        djuRounded = Math.round(dju);
         djrSum += dju;
+        djrSumWithDailyRounding += djuRounded;
         daysWithData++;
-        // Compte comme incomplet si on a < 20h sur 24h dans une fenêtre
         if (tMinHours < 20 || tMaxHours < 20) daysIncomplete++;
       }
-      days.push({ date: dayIso, tMin, tMax, dju: Math.round(dju * 1000) / 1000, tMinHours, tMaxHours });
+      days.push({
+        date: dayIso,
+        tMin,
+        tMax,
+        dju: Math.round(dju * 1000) / 1000,
+        djuRounded,
+        tMinHours,
+        tMaxHours,
+      });
       cur.setUTCDate(cur.getUTCDate() + 1);
     }
 
@@ -246,8 +257,8 @@ export async function GET(request: NextRequest) {
         daysWithData,
         daysIncomplete,
       },
-      djrSum: Math.round(djrSum * 100) / 100,
-      djrSumRounded: Math.round(djrSum),
+      djrSum: Math.round(djrSum * 100) / 100, // somme float (méthode actuelle)
+      djrSumWithDailyRounding, // somme des Math.round(dju) jour par jour (méthode COSTIC publiée)
       sampleDays: days.slice(0, 5).concat(days.slice(-5)),
     });
   } catch (error) {
