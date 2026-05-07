@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { WEATHER_STATIONS, DEPT_TO_STATION } from "@/lib/dju-sync";
 
+// ~50 départements × 1.1s throttle ≈ 55s d'exécution. Étend le timeout
+// par défaut Vercel (10s) pour éviter le 504.
+export const maxDuration = 90;
+
 /**
  * GET /api/admin/dju-mf-auto-discover
  *
@@ -57,32 +61,46 @@ export async function GET() {
       stationToDepts[station].push(dept);
     }
 
-    // 2. Fetch MF stations par département (cache + throttle 50 req/min)
+    // 2. Fetch MF stations par département avec throttle 1 req/sec (quota 50/min)
+    // + retry sur 429. On log toutes les erreurs HTTP pour debug.
     const cacheByDept = new Map<string, MfStation[]>();
-    async function getDeptStations(dept: string): Promise<MfStation[]> {
-      if (cacheByDept.has(dept)) return cacheByDept.get(dept)!;
+    const fetchErrors: Record<string, string> = {};
+    async function fetchDeptStations(dept: string): Promise<void> {
       const url = `${MF_BASE}/liste-stations/quotidienne?id-departement=${encodeURIComponent(dept)}`;
-      try {
-        const res = await fetch(url, { headers: { apikey: apiKey! } });
-        if (!res.ok) {
-          cacheByDept.set(dept, []);
-          return [];
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const res = await fetch(url, { headers: { apikey: apiKey! } });
+          if (res.status === 429 || res.status === 503) {
+            await new Promise((r) => setTimeout(r, 2500 * (attempt + 1)));
+            continue;
+          }
+          if (!res.ok) {
+            const txt = await res.text();
+            fetchErrors[dept] = `HTTP ${res.status}: ${txt.slice(0, 100)}`;
+            cacheByDept.set(dept, []);
+            return;
+          }
+          const data = (await res.json()) as MfStation[];
+          cacheByDept.set(dept, Array.isArray(data) ? data : []);
+          return;
+        } catch (e) {
+          fetchErrors[dept] = `EXCEPTION: ${e instanceof Error ? e.message : String(e)}`;
+          // On retente une fois sur exception
+          if (attempt === 2) {
+            cacheByDept.set(dept, []);
+            return;
+          }
         }
-        const data = (await res.json()) as MfStation[];
-        cacheByDept.set(dept, Array.isArray(data) ? data : []);
-        return cacheByDept.get(dept)!;
-      } catch {
-        cacheByDept.set(dept, []);
-        return [];
       }
+      fetchErrors[dept] = "max retries exceeded";
+      cacheByDept.set(dept, []);
     }
 
-    // Récup tous les depts uniques pour throttle global
+    // Récup tous les depts uniques en série, 1.1s entre chaque pour rester sous 50 req/min
     const allDepts = Array.from(new Set(Object.values(stationToDepts).flat()));
-    // Throttle: max 30 req/sec = bien sous quota 50/min
     for (let i = 0; i < allDepts.length; i++) {
-      await getDeptStations(allDepts[i]);
-      if (i % 10 === 9) await new Promise((r) => setTimeout(r, 100));
+      if (i > 0) await new Promise((r) => setTimeout(r, 1100));
+      await fetchDeptStations(allDepts[i]);
     }
 
     // 3. Pour chaque station COSTIC, trouve la MF la plus proche active
@@ -137,6 +155,8 @@ export async function GET() {
     return NextResponse.json({
       mappingCount: Object.keys(mapping).length,
       unmappedCount: unmapped.length,
+      deptsWithErrors: Object.keys(fetchErrors).length,
+      fetchErrors,
       mapping,
       unmapped,
       snippet,
