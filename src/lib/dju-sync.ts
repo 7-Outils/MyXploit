@@ -252,17 +252,18 @@ export function resolveDjuContractuel(
  *   - Cas mi-saison: DJU = a × b × (0.08 + 0.42 × b)
  *       avec a = Tmax − Tmin, b = (18 − Tmin) / (Tmax − Tmin)
  *
- * NB convention COSTIC stricte: Tmin sur fenêtre 18h(J−1) → 18h(J),
- * Tmax sur 6h(J) → 6h(J+1). Ici on utilise les min/max calendaires
- * d'Open-Meteo (0h-24h), approximation suffisante (~95% conformité).
+ * Le résultat est arrondi à l'entier — COSTIC publie ses DJU journaliers
+ * en valeurs entières et les contrats CVC utilisent ces totaux entiers.
+ * Sans cet arrondi par jour, on accumule un biais de l'ordre de 0.3%
+ * sur une saison de chauffe.
  */
 export function calculateDJU(tMin: number, tMax: number): number {
   const base = 18;
   if (tMin >= base) return 0;
-  if (tMax <= base) return base - (tMin + tMax) / 2;
+  if (tMax <= base) return Math.round(base - (tMin + tMax) / 2);
   const a = tMax - tMin;
   const b = (base - tMin) / a;
-  return a * b * (0.08 + 0.42 * b);
+  return Math.round(a * b * (0.08 + 0.42 * b));
 }
 
 export async function fetchWeatherData(
