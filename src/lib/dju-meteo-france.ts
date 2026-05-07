@@ -21,8 +21,14 @@ const MF_BASE = "https://portail-api.meteofrance.fr/public/DPClim/v1";
  * la station correspondante dans le JSON retourné.
  */
 const MF_STATION_IDS: Record<string, string> = {
-  // Le Bourget (dept 93, INSEE 93005). À confirmer à la 1re requête.
-  "LE-BOURGET": "93005001",
+  // Le Bourget = aéroport, station synoptique (typePoste 0), encore active.
+  // Rattachée à INSEE 95088 (Bonneuil-en-France, où passe la piste) côté MF,
+  // pas au 93 — la station "93013001 LE BOURGET VILLE" est fermée.
+  "LE-BOURGET": "95088001",
+  // Roissy CDG, synoptique active (Pontoise existe aussi: 95078001).
+  "ROISSY": "95527001",
+  // Pontoise-Aérodrome, synoptique active.
+  "PONTOISE-AERO": "95078001",
 };
 
 /**
