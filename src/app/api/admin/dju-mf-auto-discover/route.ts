@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { WEATHER_STATIONS, DEPT_TO_STATION } from "@/lib/dju-sync";
 
-// ~50 départements × 1.1s throttle ≈ 55s d'exécution. Étend le timeout
-// par défaut Vercel (10s) pour éviter le 504.
-export const maxDuration = 90;
+// Vercel Hobby plan: max 60s par fonction. À 1.1s/req on tient ~50 fetches.
+// On chunke donc le travail en 2 parts (?part=1 puis ?part=2).
+export const maxDuration = 60;
 
 /**
  * GET /api/admin/dju-mf-auto-discover
@@ -43,7 +43,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
     if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
@@ -54,11 +54,30 @@ export async function GET() {
       return NextResponse.json({ error: "METEO_FRANCE_API_KEY missing" }, { status: 500 });
     }
 
+    // Chunking: ?part=1|2 pour rester sous le timeout Vercel (60s)
+    const { searchParams } = new URL(request.url);
+    const part = parseInt(searchParams.get("part") ?? "1");
+    const totalParts = 2;
+
     // 1. Inverse mapping station -> [dept]
     const stationToDepts: Record<string, string[]> = {};
     for (const [dept, station] of Object.entries(DEPT_TO_STATION)) {
       if (!stationToDepts[station]) stationToDepts[station] = [];
       stationToDepts[station].push(dept);
+    }
+
+    // Subset des stations COSTIC pour ce part (split alphabétique stable)
+    const allStationKeys = Object.keys(WEATHER_STATIONS).sort();
+    const chunkSize = Math.ceil(allStationKeys.length / totalParts);
+    const subsetKeys = allStationKeys.slice((part - 1) * chunkSize, part * chunkSize);
+    if (subsetKeys.length === 0) {
+      return NextResponse.json({ error: `part=${part} hors limites (1..${totalParts})` }, { status: 400 });
+    }
+
+    // Depts à fetch UNIQUEMENT pour ce part
+    const requiredDepts = new Set<string>();
+    for (const key of subsetKeys) {
+      for (const dept of stationToDepts[key] ?? []) requiredDepts.add(dept);
     }
 
     // 2. Fetch MF stations par département avec throttle 1 req/sec (quota 50/min)
@@ -96,18 +115,19 @@ export async function GET() {
       cacheByDept.set(dept, []);
     }
 
-    // Récup tous les depts uniques en série, 1.1s entre chaque pour rester sous 50 req/min
-    const allDepts = Array.from(new Set(Object.values(stationToDepts).flat()));
-    for (let i = 0; i < allDepts.length; i++) {
+    // Récup uniquement les depts requis pour CE part, en série, 1.1s entre chaque
+    const deptList = Array.from(requiredDepts);
+    for (let i = 0; i < deptList.length; i++) {
       if (i > 0) await new Promise((r) => setTimeout(r, 1100));
-      await fetchDeptStations(allDepts[i]);
+      await fetchDeptStations(deptList[i]);
     }
 
-    // 3. Pour chaque station COSTIC, trouve la MF la plus proche active
+    // 3. Pour chaque station du subset, trouve la MF la plus proche active
     const mapping: Record<string, { mfId: string; mfName: string; distanceKm: number; typePoste: number }> = {};
     const unmapped: Array<{ stationKey: string; reason: string; depts: string[] }> = [];
 
-    for (const [stationKey, coords] of Object.entries(WEATHER_STATIONS)) {
+    for (const stationKey of subsetKeys) {
+      const coords = WEATHER_STATIONS[stationKey];
       const depts = stationToDepts[stationKey] ?? [];
       if (depts.length === 0) {
         unmapped.push({ stationKey, reason: "Aucun département ne pointe vers cette station dans DEPT_TO_STATION", depts: [] });
@@ -153,6 +173,10 @@ export async function GET() {
     const snippet = `const MF_STATION_IDS: Record<string, string> = {\n${lines.join("\n")}\n};`;
 
     return NextResponse.json({
+      part,
+      totalParts,
+      stationsInThisPart: subsetKeys.length,
+      deptsFetched: deptList.length,
       mappingCount: Object.keys(mapping).length,
       unmappedCount: unmapped.length,
       deptsWithErrors: Object.keys(fetchErrors).length,
