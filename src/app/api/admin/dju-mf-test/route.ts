@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { orderClimatoQuotidienne, pollCommandeFichier } from "@/lib/dju-meteo-france";
+import {
+  orderClimatoQuotidienne,
+  pollCommandeFichier,
+  parseClimatoCsv,
+} from "@/lib/dju-meteo-france";
 
 /**
  * GET /api/admin/dju-mf-test?stationId=XXX&start=YYYY-MM-DD&end=YYYY-MM-DD
@@ -48,15 +52,37 @@ export async function GET(request: NextRequest) {
       .map((h, i) => ({ index: i, name: h }))
       .filter((c) => c.name.toUpperCase().includes("DJU"));
 
+    // Parse complet : compte les jours avec donnée TN/TX, somme DJU calculée,
+    // et liste les dates manquantes par rapport à la plage demandée.
+    const { djus } = parseClimatoCsv(csv);
+    let djuSum = 0;
+    for (const v of djus.values()) djuSum += v;
+
+    const expectedDates: string[] = [];
+    const cur = new Date(start + "T00:00:00Z");
+    const stop = new Date(end + "T00:00:00Z");
+    while (cur <= stop) {
+      expectedDates.push(cur.toISOString().slice(0, 10));
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    const missingDates = expectedDates.filter((d) => !djus.has(d));
+
     return NextResponse.json({
       stationId,
       period: { start, end },
       timing: { orderMs, pollMs, totalMs: orderMs + pollMs },
       orderId,
       headerCount: headers.length,
-      headers,
-      djuColumns, // colonnes contenant "DJU" — c'est là qu'on cherche le bon code
+      djuColumns,
+      coverage: {
+        expectedDays: expectedDates.length,
+        daysWithData: djus.size,
+        missingCount: missingDates.length,
+        missingDates,
+      },
+      djrSum: Math.round(djuSum * 100) / 100, // somme calculée avec formule COSTIC
       sampleRows: sampleRows.map((row) => Object.fromEntries(headers.map((h, i) => [h, row[i] ?? null]))),
+      headers,
     });
   } catch (error) {
     console.error("[dju-mf-test] error:", error);
