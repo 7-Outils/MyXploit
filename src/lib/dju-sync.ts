@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 
 // Stations météo COSTIC avec coordonnées
-const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string }> = {
+export const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string }> = {
   "PARIS-MONTSOURIS": { lat: 48.8222, lon: 2.3378, name: "Paris-Montsouris" },
   "LE-BOURGET": { lat: 48.9694, lon: 2.4414, name: "Paris-Le Bourget" },
   ORLY: { lat: 48.7167, lon: 2.4, name: "Paris-Orly" },
@@ -68,7 +68,7 @@ const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string 
 };
 
 // Mapping département -> station météo
-const DEPT_TO_STATION: Record<string, string> = {
+export const DEPT_TO_STATION: Record<string, string> = {
   "75": "PARIS-MONTSOURIS", "77": "MELUN", "78": "VILLACOUBLAY",
   "91": "ORLY", "92": "PARIS-MONTSOURIS", "93": "LE-BOURGET",
   "94": "ORLY", "95": "LE-BOURGET", "02": "SAINT-QUENTIN",
