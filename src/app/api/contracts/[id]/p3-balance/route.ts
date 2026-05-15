@@ -5,6 +5,7 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 interface P3YearData {
   year: string;
   label: string;
+  contractYearIndex: number; // 1, 2, ... N (Année du contrat)
   invoices: {
     id: string;
     reference: string;
@@ -151,13 +152,13 @@ export async function GET(
         : contractEnd.getFullYear() - 1;
       for (let y = firstSeasonStart; y <= lastSeasonStart; y++) {
         const key = `${y}-${y + 1}`;
-        yearsMap.set(key, { year: key, label: `Saison ${y}/${y + 1}`, invoices: [], quotes: [], totalInvoices: 0, totalQuotes: 0, balance: 0, cumulativeBalance: 0 });
+        yearsMap.set(key, { year: key, label: `Saison ${y}/${y + 1}`, invoices: [], quotes: [], totalInvoices: 0, totalQuotes: 0, balance: 0, cumulativeBalance: 0, contractYearIndex: 0 });
       }
     } else {
       // Generate all civil years from startDate to endDate
       for (let y = contractStart.getFullYear(); y <= contractEnd.getFullYear(); y++) {
         const key = y.toString();
-        yearsMap.set(key, { year: key, label: `Année ${key}`, invoices: [], quotes: [], totalInvoices: 0, totalQuotes: 0, balance: 0, cumulativeBalance: 0 });
+        yearsMap.set(key, { year: key, label: `Année ${key}`, invoices: [], quotes: [], totalInvoices: 0, totalQuotes: 0, balance: 0, cumulativeBalance: 0, contractYearIndex: 0 });
       }
     }
 
@@ -168,6 +169,7 @@ export async function GET(
         yearsMap.set(yearKey, {
           year: yearKey,
           label: getYearLabel(yearKey),
+          contractYearIndex: 0,
           invoices: [],
           quotes: [],
           totalInvoices: 0,
@@ -194,6 +196,7 @@ export async function GET(
         yearsMap.set(yearKey, {
           year: yearKey,
           label: getYearLabel(yearKey),
+          contractYearIndex: 0,
           invoices: [],
           quotes: [],
           totalInvoices: 0,
@@ -223,7 +226,9 @@ export async function GET(
     );
 
     let cumulativeBalance = 0;
-    for (const yearData of sortedYears) {
+    for (let i = 0; i < sortedYears.length; i++) {
+      const yearData = sortedYears[i];
+      yearData.contractYearIndex = i + 1; // Année 1, 2, ... du contrat
       yearData.balance = yearData.totalInvoices - yearData.totalQuotes;
       cumulativeBalance += yearData.balance;
       yearData.cumulativeBalance = cumulativeBalance;

@@ -85,13 +85,19 @@ export async function GET(
       },
     });
 
-    // Get P3 validated quotes only
+    // Get P3 validated quotes - filtre aligné sur p3-balance:
+    // RÈGLE MÉTIER: ne compter que les travaux clôturés (= dépenses effectives)
+    // pour rester cohérent avec le décompte P3 par année.
     const quotes = await prisma.quote.findMany({
       where: {
         contractId,
         quoteType: "P3",
         status: { in: ["ACCEPTE", "COMMANDE", "FACTURE"] },
         organizationId: effectiveOrgId,
+        OR: [
+          { workOrder: { status: "CLOTURE" } },
+          { workOrder: null }, // rétrocompat anciens devis sans WorkOrder
+        ],
       },
       select: {
         siteId: true,

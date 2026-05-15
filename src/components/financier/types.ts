@@ -90,6 +90,7 @@ export interface FinancialData {
 export interface P3YearData {
   year: string;
   label: string;
+  contractYearIndex: number; // 1, 2, ... N (Année du contrat)
   invoices: { id: string; reference: string; issueDate: string; amount: number; siteName: string }[];
   quotes: { id: string; reference: string; title: string; issueDate: string; amountHT: number; status: string; siteName: string | null }[];
   totalInvoices: number;
