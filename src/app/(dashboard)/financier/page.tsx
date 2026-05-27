@@ -32,10 +32,18 @@ import DevisP3Content from "@/components/exploitation/DevisP3Content";
 import { ImportModal } from "@/components/financier/modals/ImportModal";
 import { InvoiceModal } from "@/components/financier/modals/InvoiceModal";
 
+import { sortTabsAlpha } from "@/lib/utils";
+
+const FINANCIER_TABS = sortTabsAlpha([
+  { id: "facturation" as Tab, label: "Facturation", icon: Receipt },
+  { id: "decompte-p3" as Tab, label: "Solde P3", icon: PiggyBank },
+  { id: "devis" as Tab, label: "Devis", icon: FileText },
+]);
+
 function FinancierPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as Tab) || "facturation";
+  const initialTab = (searchParams.get("tab") as Tab) || FINANCIER_TABS[0].id;
 
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -354,11 +362,7 @@ function FinancierPageContent() {
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="flex gap-8">
-          {[
-            { id: "facturation" as Tab, label: "Facturation", icon: Receipt },
-            { id: "decompte-p3" as Tab, label: "Solde P3", icon: PiggyBank },
-            { id: "devis" as Tab, label: "Devis", icon: FileText },
-          ].map((tab) => (
+          {FINANCIER_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}

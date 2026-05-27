@@ -10,6 +10,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { sortTabsAlpha } from "@/lib/utils";
 
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
 import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab";
@@ -20,6 +21,16 @@ import AEImportModal from "@/components/administratif/modals/AEImportModal";
 import type { Contract } from "@/components/administratif/types";
 import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
 import type { Site } from "@/components/energy/types";
+
+type ContratTab = "sites" | "cibles" | "avenants" | "revision" | "montants";
+
+const CONTRAT_TABS = sortTabsAlpha([
+  { id: "sites" as ContratTab, label: "Sites" },
+  { id: "cibles" as ContratTab, label: "Cibles" },
+  { id: "avenants" as ContratTab, label: "Avenants" },
+  { id: "revision" as ContratTab, label: "Révision" },
+  { id: "montants" as ContratTab, label: "Montants" },
+]);
 
 function AdministratifContent() {
   const { selectedContract, isLoading: loadingContracts } = useContract();
@@ -36,7 +47,7 @@ function AdministratifContent() {
   const energySites = energySitesData ?? [];
   const fetchDetail = async () => { await Promise.all([mutateDetail(), mutateSites()]); };
 
-  const [activeTab, setActiveTab] = useState<"sites" | "cibles" | "avenants" | "revision" | "montants">("sites");
+  const [activeTab, setActiveTab] = useState<ContratTab>(CONTRAT_TABS[0].id);
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [showAEImportModal, setShowAEImportModal] = useState(false);
 
@@ -77,54 +88,35 @@ function AdministratifContent() {
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab("sites")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "sites" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          Sites ({contractSites.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("cibles")}
-          onMouseEnter={() => selectedContract && preload(`/api/heating-seasons?contractId=${selectedContract.id}`, fetcher)}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "cibles" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          Cibles
-        </button>
-        <button
-          onClick={() => setActiveTab("avenants")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "avenants" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          Avenants ({contractDetail?.avenants?.length || 0})
-        </button>
-        <button
-          onClick={() => setActiveTab("revision")}
-          onMouseEnter={() => {
-            if (!selectedContract) return;
-            preload(`/api/contracts/${selectedContract.id}/revision-indices`, fetcher);
-            preload(`/api/contracts/${selectedContract.id}/revision-formulas`, fetcher);
-            preload(`/api/contracts/${selectedContract.id}/revision-pending`, fetcher);
-          }}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "revision" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          Révision
-        </button>
-        <button
-          onClick={() => setActiveTab("montants")}
-          onMouseEnter={() => selectedContract && preload(`/api/contracts/${selectedContract.id}/amounts-timeline`, fetcher)}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "montants" ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
-          }`}
-        >
-          Montants
-        </button>
+        {CONTRAT_TABS.map((tab) => {
+          const count =
+            tab.id === "sites" ? contractSites.length
+              : tab.id === "avenants" ? (contractDetail?.avenants?.length || 0)
+              : null;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              onMouseEnter={() => {
+                if (!selectedContract) return;
+                if (tab.id === "cibles") {
+                  preload(`/api/heating-seasons?contractId=${selectedContract.id}`, fetcher);
+                } else if (tab.id === "revision") {
+                  preload(`/api/contracts/${selectedContract.id}/revision-indices`, fetcher);
+                  preload(`/api/contracts/${selectedContract.id}/revision-formulas`, fetcher);
+                  preload(`/api/contracts/${selectedContract.id}/revision-pending`, fetcher);
+                } else if (tab.id === "montants") {
+                  preload(`/api/contracts/${selectedContract.id}/amounts-timeline`, fetcher);
+                }
+              }}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
+              }`}
+            >
+              {tab.label}{count !== null ? ` (${count})` : ""}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab Content */}

@@ -18,6 +18,7 @@ import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModa
 import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
 import { RelevesContent } from "@/components/energy/tabs/RelevesTab";
+import { sortTabsAlpha } from "@/lib/utils";
 
 // Types and constants live in their own files now — see
 // src/components/energy/types.ts and src/components/energy/constants.ts
@@ -28,10 +29,15 @@ import type {
   EnergyTab as Tab,
 } from "@/components/energy/types";
 
+const ENERGY_TABS = sortTabsAlpha([
+  { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
+  { id: "sites" as Tab, label: "Relevés", icon: Building2 },
+  { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
+]);
 
 function EnergyPageContent() {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as Tab) || "synthese";
+  const initialTab = (searchParams.get("tab") as Tab) || ENERGY_TABS[0].id;
 
   // Tab state
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -284,11 +290,7 @@ function EnergyPageContent() {
       {/* Tabs + toolbar — empilés sur mobile, inline sur desktop */}
       <div className="border-b border-gray-200 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-0">
         <nav className="flex gap-6 sm:gap-8 overflow-x-auto -mb-px">
-          {[
-            { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
-            { id: "sites" as Tab, label: "Relevés", icon: Building2 },
-            { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
-          ].map((tab) => (
+          {ENERGY_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
