@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
         djuContractuel: true,
         startDate: true,
         endDate: true,
+        lastReleveDate: true,
       },
     });
     const heatingSeasonMap = new Map(
@@ -126,7 +127,10 @@ export async function GET(request: NextRequest) {
     const intervalsBySite = new Map<string, Interval[]>();
     for (const hp of allHeatingPeriods) {
       const hpStart = hp.startDate;
-      const hpEnd = hp.endDate ?? todayDate;
+      // Période en cours (pas d'arrêt) : on borne au DERNIER RELEVÉ du site, pas à aujourd'hui,
+      // pour ne pas compter des DJU sur des mois non relevés.
+      const lastReleve = heatingSeasonMap.get(hp.siteId)?.lastReleveDate ?? null;
+      const hpEnd = hp.endDate ?? lastReleve ?? todayDate;
       const iStart = hpStart > qStart ? hpStart : qStart;
       const iEnd = hpEnd < qEnd ? hpEnd : qEnd;
       if (iStart >= iEnd) continue;
@@ -364,17 +368,13 @@ export async function GET(request: NextRequest) {
       dailyDjuBySite.set(site.id, dailyDjuByStation.get(stationKey) ?? new Map());
     }
 
-    // Inject DJR into site data — only days within heating intervals.
-    // Pour les sites SANS télérelève (relevés exploitant sparse), on cap le DJR
-    // aux mois effectivement couverts par la consommation. Sinon N'B projette
-    // sur toute la saison de chauffe (≥6 mois) alors que NC ne couvre que les
-    // mois avec relevés (2-3 mois), et l'écart devient absurde.
+    // Inject DJR into site data — DJU réels sommés sur TOUTE la période de chauffe
+    // (de l'allumage à l'arrêt, ou au dernier relevé si encore allumé — cf. construction
+    // des intervalles). Pas de plafonnement aux mois avec conso : le DJR reflète la
+    // période de chauffe, indépendamment de la couverture des relevés.
     siteMap.forEach((siteData) => {
       const daily = dailyDjuBySite.get(siteData.site.id);
       if (!daily) return;
-
-      const hasTelereleve = sitesWithTelereleve.has(siteData.site.id);
-      const coveredMonths = hasTelereleve ? null : siteData.months;
 
       // Reset monthly DJR and total
       siteData.months.forEach((m) => { m.djr = 0; });
@@ -384,8 +384,6 @@ export async function GET(request: NextRequest) {
         const d = new Date(dateIso);
         if (!isHeatingDay(siteData.site.id, d)) continue;
         const monthKey = dateIso.substring(0, 7); // YYYY-MM
-        // Cap DJR aux mois couverts par des relevés exploitant
-        if (coveredMonths && !coveredMonths.has(monthKey)) continue;
         total += dju;
         const monthData = siteData.months.get(monthKey);
         if (monthData) monthData.djr += dju;
