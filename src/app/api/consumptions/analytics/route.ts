@@ -131,7 +131,11 @@ export async function GET(request: NextRequest) {
       // pour ne pas compter des DJU sur des mois non relevés.
       const lastReleve = heatingSeasonMap.get(hp.siteId)?.lastReleveDate ?? null;
       const hpEnd = hp.endDate ?? lastReleve ?? todayDate;
-      const iStart = hpStart > qStart ? hpStart : qStart;
+      const rawStart = hpStart > qStart ? hpStart : qStart;
+      // Inclure le JOUR d'allumage en entier : l'évènement porte une heure (ex. 16:00),
+      // mais les DJU journaliers sont datés à minuit. Sans ce floor, le jour d'allumage
+      // serait exclu (00:00 < 16:00) et le calcul démarrerait au lendemain.
+      const iStart = new Date(Date.UTC(rawStart.getUTCFullYear(), rawStart.getUTCMonth(), rawStart.getUTCDate()));
       const iEnd = hpEnd < qEnd ? hpEnd : qEnd;
       if (iStart >= iEnd) continue;
       const list = intervalsBySite.get(hp.siteId) || [];
