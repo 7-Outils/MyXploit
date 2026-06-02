@@ -216,7 +216,7 @@ function EnergyPageContent() {
   };
 
   // Second step: confirm and execute the import
-  const handleConfirmIdexImport = async () => {
+  const handleConfirmIdexImport = async (userMappings: Record<string, string> = {}) => {
     if (!selectedContract || !pendingImportFile) return;
 
     setImportingIdex(true);
@@ -226,6 +226,13 @@ function EnergyPageContent() {
       formData.append("file", pendingImportFile);
       formData.append("contractId", selectedContract.id);
       formData.append("importType", pendingImportType); // Pass import type
+      // Correspondances manuelles (mapping + sites créés) -> import sans re-lancer l'aperçu
+      const cleanMappings = Object.fromEntries(
+        Object.entries(userMappings).filter(([, siteId]) => siteId)
+      );
+      if (Object.keys(cleanMappings).length > 0) {
+        formData.append("userMappings", JSON.stringify(cleanMappings));
+      }
       // No preview flag = actual import
 
       const response = await fetch("/api/consumptions/import-idex", {
@@ -411,6 +418,7 @@ function EnergyPageContent() {
         <IdexImportModal
           importing={importingIdex}
           importResult={idexImportResult}
+          contractId={selectedContract.id}
           onImport={handleIdexImport}
           onConfirmImport={handleConfirmIdexImport}
           onClose={closeIdexImportModal}

@@ -89,6 +89,19 @@ export async function POST(request: NextRequest) {
     const previewMode = formData.get("preview") === "true";
     const importType = (formData.get("importType") as string) || "RELEVE_MENSUEL";
 
+    // Correspondances manuelles excelName -> siteId (mapping + sites créés depuis l'aperçu).
+    // Permet d'importer sans re-lancer l'aperçu : on force le rattachement choisi par l'utilisateur.
+    let userMappings: Record<string, string> = {};
+    const userMappingsRaw = formData.get("userMappings") as string | null;
+    if (userMappingsRaw) {
+      try {
+        const parsed = JSON.parse(userMappingsRaw);
+        if (parsed && typeof parsed === "object") userMappings = parsed;
+      } catch {
+        // mapping illisible -> on ignore et on retombe sur le matching auto
+      }
+    }
+
     if (!file) {
       return NextResponse.json(
         { error: "Aucun fichier fourni" },
@@ -114,6 +127,7 @@ export async function POST(request: NextRequest) {
 
     // Get header row and find column indices
     const headers = rawData[0].map((h) => String(h).toLowerCase().trim());
+    const norm = (h: string) => h.normalize("NFD").replace(/[̀-ͯ]/g, "");
     const colIndices = {
       dateReleve: headers.findIndex((h) => h.includes("date") && h.includes("releve")),
       nomInstallation: headers.findIndex((h) => h.includes("installation") || h.includes("site")),
@@ -125,10 +139,41 @@ export async function POST(request: NextRequest) {
       etat: headers.findIndex((h) => h.includes("etat") || h.includes("état")),
     };
 
+    // --- Support des exploitants "relevé d'index" (pas de colonne Conso) ---
+    // Certains exploitants ne fournissent pas la conso mais 2 colonnes Index + Ancien index.
+    // On la calcule : conso = index - ancien index. Détection isolée pour NE PAS toucher le format iDEX,
+    // qui se reconnaît à sa colonne Conso (si Conso existe -> chemin iDEX inchangé).
+    const ancienIndexCol = headers.findIndex((h) => h.includes("ancien") && h.includes("index"));
+    const codeCol = headers.findIndex((h) => h === "code");
+    const isIndexFormat =
+      colIndices.conso === -1 && colIndices.index !== -1 && ancienIndexCol !== -1;
+
+    if (isIndexFormat) {
+      // Installation : préférer l'en-tête exact "site"/"installation" (pas "code site")
+      const siteExact = headers.findIndex(
+        (h) => h === "site" || h === "installation" || h === "nom installation"
+      );
+      if (siteExact !== -1) colIndices.nomInstallation = siteExact;
+      // Date : en-tête simplement "date" (sans "relevé")
+      if (colIndices.dateReleve === -1)
+        colIndices.dateReleve = headers.findIndex((h) => h.includes("date"));
+      // Fluide : colonne "Energie" ("Eau froide", "Gaz naturel", "Eau chaude sanitaire"...)
+      if (colIndices.fluide === -1)
+        colIndices.fluide = headers.findIndex((h) => norm(h).includes("energie"));
+      // État : colonne "Evenement" (COUPURE...) à défaut d'une vraie colonne état
+      if (colIndices.etat === -1)
+        colIndices.etat = headers.findIndex((h) => norm(h).includes("evenement"));
+    }
+
     // Validate required columns
-    if (colIndices.nomInstallation === -1 || colIndices.conso === -1) {
+    const hasConso = colIndices.conso !== -1;
+    const hasIndexPair = colIndices.index !== -1 && ancienIndexCol !== -1;
+    if (colIndices.nomInstallation === -1 || (!hasConso && !hasIndexPair)) {
       return NextResponse.json(
-        { error: "Colonnes requises non trouvées (Installation, Conso)" },
+        {
+          error:
+            "Colonnes requises non trouvées : il faut une colonne Installation/Site, et soit une colonne Conso, soit le couple Index + Ancien index.",
+        },
         { status: 400 }
       );
     }
@@ -172,6 +217,9 @@ export async function POST(request: NextRequest) {
     });
 
     console.log("Loaded site aliases:", siteAliases.length, siteAliases.map(a => ({ alias: a.alias, siteName: a.site.name })));
+
+    // Lookup siteId -> site (pour résoudre les correspondances manuelles forcées)
+    const siteById = new Map(sites.map((s) => [s.id, s]));
 
     // Create lookup maps for site matching
     const siteMatchers = createSiteMatchers(sites, siteAliases);
@@ -235,14 +283,40 @@ export async function POST(request: NextRequest) {
       const rowNum = i + 1;
 
       try {
+        const fluideVal = String(row[colIndices.fluide] || "").trim();
+        const idxCurrent = Number(row[colIndices.index]) || 0;
+
+        // Conso : fournie directement (iDEX) ou calculée index - ancien index (format relevé d'index)
+        let consoVal: number;
+        let meterName: string;
+        let uniteVal: string;
+        if (isIndexFormat) {
+          const idxAncien = Number(row[ancienIndexCol]) || 0;
+          // Règle sûre contre les valeurs aberrantes :
+          // - ancien index vide (1er relevé) OU index < ancien (coupure / changement de compteur) => conso 0,
+          //   on garde quand même l'index pour l'historique.
+          consoVal = idxAncien > 0 && idxCurrent >= idxAncien ? idxCurrent - idxAncien : 0;
+          // Nom compteur lisible + unique : "<énergie> (<id compteur ou code>)"
+          const ref =
+            String(row[colIndices.nomCompteur] || "").trim() ||
+            (codeCol !== -1 ? String(row[codeCol] || "").trim() : "");
+          meterName = fluideVal ? `${fluideVal}${ref ? ` (${ref})` : ""}` : ref || "Compteur";
+          // "M3 sans décimale" -> "M3" pour la normalisation d'unité
+          uniteVal = String(row[colIndices.unite] || "m3").trim().split(/\s+/)[0] || "m3";
+        } else {
+          consoVal = Number(row[colIndices.conso]) || 0;
+          meterName = String(row[colIndices.nomCompteur] || "").trim();
+          uniteVal = String(row[colIndices.unite] || "m3").trim();
+        }
+
         const exploitantRow: ExploitantRow = {
           dateReleve: Number(row[colIndices.dateReleve]) || 0,
           nomInstallation: String(row[colIndices.nomInstallation] || "").trim(),
-          nomCompteur: String(row[colIndices.nomCompteur] || "").trim(),
-          index: Number(row[colIndices.index]) || 0,
-          conso: Number(row[colIndices.conso]) || 0,
-          unite: String(row[colIndices.unite] || "m3").trim(),
-          fluide: String(row[colIndices.fluide] || "").trim(),
+          nomCompteur: meterName,
+          index: idxCurrent,
+          conso: consoVal,
+          unite: uniteVal,
+          fluide: fluideVal,
           etat: String(row[colIndices.etat] || "").trim().toUpperCase(),
         };
 
@@ -255,8 +329,12 @@ export async function POST(request: NextRequest) {
           console.log(`[DEBUG FURMANECK] Excel name: "${exploitantRow.nomInstallation}"`);
         }
 
-        // Match site
-        const siteMatch = matchSite(exploitantRow.nomInstallation, siteMatchers);
+        // Match site : correspondance manuelle forcée (mapping/site créé) prioritaire, sinon matching auto
+        const forcedSiteId = userMappings[exploitantRow.nomInstallation];
+        const forcedSite = forcedSiteId ? siteById.get(forcedSiteId) : undefined;
+        const siteMatch = forcedSite
+          ? { siteId: forcedSite.id, siteName: forcedSite.name, confidence: 1, suggestions: [] }
+          : matchSite(exploitantRow.nomInstallation, siteMatchers);
 
         // Debug logging for FURMANECK - AFTER site matching
         if (exploitantRow.nomInstallation.toLowerCase().includes("furmaneck") || exploitantRow.nomInstallation.toLowerCase().includes("furman")) {

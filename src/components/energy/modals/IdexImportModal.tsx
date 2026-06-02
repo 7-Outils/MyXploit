@@ -9,20 +9,37 @@ import {
   FileSpreadsheet,
   Flame,
   Loader2,
+  Plus,
   Save,
   Snowflake,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// Devine le type de site à partir de son nom (le reste est complété plus tard dans la fiche)
+function guessSiteType(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("lycée") || n.includes("lycee")) return "LYCEE";
+  if (n.includes("collège") || n.includes("college")) return "COLLEGE";
+  if (n.includes("école") || n.includes("ecole") || n.startsWith("g.s") || n.includes("groupe scolaire") || n.includes("maternelle") || n.includes("primaire")) return "ECOLE";
+  if (n.includes("mairie") || n.includes("hôtel de ville") || n.includes("hotel de ville")) return "MAIRIE";
+  if (n.includes("hôpital") || n.includes("hopital") || n.includes("ehpad")) return "HOPITAL";
+  if (n.includes("gymnase") || n.includes("salle de sport")) return "GYMNASE";
+  if (n.includes("piscine")) return "PISCINE";
+  if (n.includes("médiathèque") || n.includes("mediatheque") || n.includes("bibliothèque") || n.includes("bibliotheque")) return "MEDIATHEQUE";
+  return "AUTRE";
+}
+
 export function IdexImportModal({
   importing,
   importResult,
+  contractId,
   onImport,
   onConfirmImport,
   onClose,
 }: {
   importing: boolean;
+  contractId: string;
   importResult: {
     mode: "preview" | "import";
     imported?: number;
@@ -57,7 +74,7 @@ export function IdexImportModal({
     }>;
   } | null;
   onImport: (file: File, importType: "ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET") => void;
-  onConfirmImport: () => void;
+  onConfirmImport: (userMappings: Record<string, string>) => void;
   onClose: () => void;
 }) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -66,6 +83,10 @@ export function IdexImportModal({
   const [savingMappings, setSavingMappings] = useState(false);
   const [mappingsSaved, setMappingsSaved] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  // Sites créés à la volée depuis le mapping (nom seul, rattachés au contrat)
+  const [createdSites, setCreatedSites] = useState<Array<{ id: string; name: string }>>([]);
+  const [creatingSite, setCreatingSite] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -108,6 +129,47 @@ export function IdexImportModal({
     }));
   };
 
+  // Crée un site depuis le nom Excel (type deviné, énergie/adresse à compléter plus tard),
+  // le rattache au contrat, puis le sélectionne automatiquement dans le mapping.
+  const handleCreateSite = async (excelName: string) => {
+    setCreatingSite(excelName);
+    setCreateError(null);
+    try {
+      const siteRes = await fetch("/api/sites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: excelName,
+          type: guessSiteType(excelName),
+          energyType: "AUTRE",
+          address: "",
+          city: "",
+          postalCode: "",
+        }),
+      });
+      const site = await siteRes.json();
+      if (!siteRes.ok) {
+        setCreateError(site.error || "Erreur lors de la création du site");
+        return;
+      }
+
+      // Rattachement au contrat courant (sinon le site n'est pas pris en compte à l'import)
+      await fetch(`/api/contracts/${contractId}/sites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: site.id, contractType: "MC" }),
+      });
+
+      setCreatedSites(prev => [...prev, { id: site.id, name: site.name }]);
+      setManualMappings(prev => ({ ...prev, [excelName]: site.id }));
+    } catch (error) {
+      console.error("Error creating site from mapping:", error);
+      setCreateError("Erreur lors de la création du site");
+    } finally {
+      setCreatingSite(null);
+    }
+  };
+
   const handleSaveMappings = async () => {
     const mappingsToSave = Object.entries(manualMappings).filter(([, siteId]) => siteId);
     if (mappingsToSave.length === 0) return;
@@ -147,7 +209,11 @@ export function IdexImportModal({
   const matchedSites = importResult
     ? Object.entries(importResult.siteMatches).filter(([, v]) => v.matched)
     : [];
-  const availableSites = importResult?.availableSites || [];
+  const availableSites = [
+    ...(importResult?.availableSites || []),
+    ...createdSites.filter(cs => !(importResult?.availableSites || []).some(a => a.id === cs.id)),
+  ];
+  const createdSiteIds = new Set(createdSites.map(s => s.id));
   const hasMappingsToSave = Object.values(manualMappings).some(v => v);
 
   // Debug
@@ -350,39 +416,67 @@ export function IdexImportModal({
                   </p>
                   <div className="bg-amber-50 rounded-lg p-3 max-h-48 overflow-y-auto">
                     <div className="space-y-3">
-                      {unmatchedSites.map((site) => (
+                      {unmatchedSites.map((site) => {
+                        const mappedTo = manualMappings[site.excelName];
+                        const isCreated = mappedTo ? createdSiteIds.has(mappedTo) : false;
+                        return (
                         <div key={site.excelName} className="border-b border-amber-200 pb-2 last:border-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-amber-900 truncate">{site.excelName}</p>
-                              <p className="text-xs text-amber-600">{site.rowCount} ligne(s)</p>
+                              <p className="text-xs text-amber-600">
+                                {site.rowCount} ligne(s)
+                                {isCreated && <span className="text-green-700 font-medium"> · site créé</span>}
+                              </p>
                             </div>
-                            <select
-                              className="text-xs border border-amber-300 rounded px-2 py-1 bg-white max-w-[200px]"
-                              value={manualMappings[site.excelName] || ""}
-                              onChange={(e) => handleMappingChange(site.excelName, e.target.value)}
-                            >
-                              <option value="">-- Sélectionner --</option>
-                              {site.suggestions.length > 0 && (
-                                <optgroup label="Suggestions">
-                                  {site.suggestions.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.name} ({Math.round(s.score * 100)}%)
-                                    </option>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <select
+                                className="text-xs border border-amber-300 rounded px-2 py-1 bg-white max-w-[180px]"
+                                value={manualMappings[site.excelName] || ""}
+                                onChange={(e) => handleMappingChange(site.excelName, e.target.value)}
+                              >
+                                <option value="">-- Sélectionner --</option>
+                                {site.suggestions.length > 0 && (
+                                  <optgroup label="Suggestions">
+                                    {site.suggestions.map((s) => (
+                                      <option key={s.id} value={s.id}>
+                                        {s.name} ({Math.round(s.score * 100)}%)
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                <optgroup label="Tous les sites">
+                                  {availableSites.map((s) => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
                                   ))}
                                 </optgroup>
+                              </select>
+                              {!mappedTo && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCreateSite(site.excelName)}
+                                  disabled={creatingSite === site.excelName}
+                                  title="Créer le site avec ce nom (le reste à compléter plus tard)"
+                                  className="flex items-center gap-1 text-xs text-accent border border-accent/40 rounded px-2 py-1 hover:bg-accent/10 disabled:opacity-50"
+                                >
+                                  {creatingSite === site.excelName ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                  ) : (
+                                    <Plus size={12} />
+                                  )}
+                                  Créer
+                                </button>
                               )}
-                              <optgroup label="Tous les sites">
-                                {availableSites.map((s) => (
-                                  <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                              </optgroup>
-                            </select>
+                            </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
+                  {createError && (
+                    <p className="mt-2 text-xs text-red-600">{createError}</p>
+                  )}
                   {hasMappingsToSave && (
                     <div className="mt-3">
                       <Button
@@ -460,7 +554,7 @@ export function IdexImportModal({
                 <Button variant="outline" onClick={onClose}>Annuler</Button>
                 <Button
                   className="flex-1 relative"
-                  onClick={onConfirmImport}
+                  onClick={() => onConfirmImport(manualMappings)}
                   disabled={importing}
                 >
                   <span className={`flex items-center justify-center gap-2 ${importing ? "invisible" : ""}`}>
