@@ -16,6 +16,26 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// Certains exploitants mettent un libellé composite dans la colonne Site :
+// "NOM - CODE 14 - 2 PLACE DE LA LIBERATION - 95460 - EZANVILLE".
+// On en extrait un nom propre + adresse / CP / ville (sinon on garde le libellé brut comme nom).
+function parseSiteLabel(label: string): { name: string; address: string; postalCode: string; city: string } {
+  const parts = label.split(/\s*-\s*/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return { name: label.trim(), address: "", postalCode: "", city: "" };
+
+  const codeIdx = parts.findIndex(p => /^code\b/i.test(p));
+  const postalIdx = parts.findIndex(p => /^\d{5}$/.test(p));
+
+  const name = codeIdx > 0 ? parts.slice(0, codeIdx).join(" - ") : parts[0];
+  const postalCode = postalIdx !== -1 ? parts[postalIdx] : "";
+  const city = postalIdx !== -1 && parts[postalIdx + 1] ? parts[postalIdx + 1] : "";
+  const addrStart = codeIdx !== -1 ? codeIdx + 1 : 1;
+  const addrEnd = postalIdx !== -1 ? postalIdx : parts.length;
+  const address = addrStart < addrEnd ? parts.slice(addrStart, addrEnd).join(" - ") : "";
+
+  return { name: name || label.trim(), address, postalCode, city };
+}
+
 // Devine le type de site à partir de son nom (le reste est complété plus tard dans la fiche)
 function guessSiteType(name: string): string {
   const n = name.toLowerCase();
@@ -135,16 +155,17 @@ export function IdexImportModal({
     setCreatingSite(excelName);
     setCreateError(null);
     try {
+      const { name, address, postalCode, city } = parseSiteLabel(excelName);
       const siteRes = await fetch("/api/sites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: excelName,
-          type: guessSiteType(excelName),
+          name,
+          type: guessSiteType(name),
           energyType: "AUTRE",
-          address: "",
-          city: "",
-          postalCode: "",
+          address,
+          city,
+          postalCode,
         }),
       });
       const site = await siteRes.json();
@@ -158,6 +179,13 @@ export function IdexImportModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ siteId: site.id, contractType: "MC" }),
+      });
+
+      // Alias libellé complet -> site, pour que les prochains imports le reconnaissent direct
+      await fetch("/api/site-aliases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([{ alias: excelName, siteId: site.id, source: "EXPLOITANT" }]),
       });
 
       setCreatedSites(prev => [...prev, { id: site.id, name: site.name }]);
