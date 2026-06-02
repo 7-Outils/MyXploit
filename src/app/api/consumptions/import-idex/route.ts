@@ -277,6 +277,35 @@ export async function POST(request: NextRequest) {
     // Track max relevé date per site (for updating HeatingSeason.lastReleveDate)
     const maxReleveDateBySite = new Map<string, Date>();
 
+    // ── Conso par différence d'index successifs (format "relevé d'index") ──
+    // Beaucoup d'exploitants laissent "Ancien index" vide mais fournissent plusieurs
+    // relevés datés par compteur. La conso d'un relevé = index - index du relevé
+    // précédent du même compteur (trié par date). Pré-calcul ici, utilisé dans la boucle.
+    const consoByRowIndex = new Map<number, number>();
+    if (isIndexFormat) {
+      const readingsByMeter = new Map<string, { rowIdx: number; date: number; index: number }[]>();
+      for (let i = 1; i < rawData.length; i++) {
+        const row = rawData[i];
+        const meterKey = String(row[colIndices.nomCompteur] ?? "").trim();
+        const idx = Number(row[colIndices.index]) || 0;
+        const dateSerial = Number(row[colIndices.dateReleve]) || 0;
+        if (!meterKey || !idx || !dateSerial) continue;
+        const list = readingsByMeter.get(meterKey) || [];
+        list.push({ rowIdx: i, date: dateSerial, index: idx });
+        readingsByMeter.set(meterKey, list);
+      }
+      for (const list of readingsByMeter.values()) {
+        list.sort((a, b) => a.date - b.date); // chronologique
+        // 1er relevé du compteur : pas de précédent -> conso 0 (baseline), on garde l'index
+        if (list.length > 0) consoByRowIndex.set(list[0].rowIdx, 0);
+        for (let k = 1; k < list.length; k++) {
+          const diff = list[k].index - list[k - 1].index;
+          // remise à zéro / index incohérent -> 0 (on garde l'index pour l'historique)
+          consoByRowIndex.set(list[k].rowIdx, diff >= 0 ? diff : 0);
+        }
+      }
+    }
+
     // Process data rows - collect all meter data
     for (let i = 1; i < rawData.length; i++) {
       const row = rawData[i];
@@ -292,10 +321,14 @@ export async function POST(request: NextRequest) {
         let uniteVal: string;
         if (isIndexFormat) {
           const idxAncien = Number(row[ancienIndexCol]) || 0;
-          // Règle sûre contre les valeurs aberrantes :
-          // - ancien index vide (1er relevé) OU index < ancien (coupure / changement de compteur) => conso 0,
-          //   on garde quand même l'index pour l'historique.
-          consoVal = idxAncien > 0 && idxCurrent >= idxAncien ? idxCurrent - idxAncien : 0;
+          // Conso = index - ancien index si la colonne "Ancien index" est remplie ;
+          // sinon = index - index du relevé précédent du même compteur (pré-calculé).
+          // Index < ancien (coupure / changement de compteur) => 0, on garde l'index.
+          if (idxAncien > 0) {
+            consoVal = idxCurrent >= idxAncien ? idxCurrent - idxAncien : 0;
+          } else {
+            consoVal = consoByRowIndex.get(i) ?? 0;
+          }
           // Nom compteur lisible + unique : "<énergie> (<id compteur ou code>)"
           const ref =
             String(row[colIndices.nomCompteur] || "").trim() ||
