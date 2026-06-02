@@ -21,6 +21,7 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
     yearType: "HEATING_SEASON" as YearType,
     billingFrequency: "TRIMESTRIEL" as BillingFrequency,
     djuContractuel: "",
+    isPublic: true, // Secteur public par défaut (collectivités) — P4 alors interdit
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +82,32 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
               <label className="block text-sm font-medium text-primary-dark mb-1">Date fin *</label>
               <input type="text" required placeholder="31/12/2035" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-primary-dark mb-1">Secteur</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isPublic: true })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                  formData.isPublic ? "border-accent bg-accent/10 text-primary-dark" : "border-gray-200 bg-white text-gray-600 hover:border-accent/40"
+                }`}
+              >
+                Public
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, isPublic: false })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                  !formData.isPublic ? "border-accent bg-accent/10 text-primary-dark" : "border-gray-200 bg-white text-gray-600 hover:border-accent/40"
+                }`}
+              >
+                Privé
+              </button>
+            </div>
+            <p className="text-xs text-text-secondary mt-1">
+              {formData.isPublic ? "Marché public — P4 (financement) interdit." : "Marché privé — P4 autorisé."}
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

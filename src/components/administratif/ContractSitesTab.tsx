@@ -77,6 +77,7 @@ interface Contract {
   id: string;
   reference: string;
   status: string;
+  isPublic?: boolean; // Secteur public -> P4 (financement) interdit
   contractSites: ContractSite[];
 }
 
@@ -640,7 +641,11 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                 <p className="text-sm font-medium text-primary-dark mb-3">Paramètres du contrat pour ce site</p>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-primary-dark mb-1">Type de contrat *</label>
-                  <select required value={siteFormData.contractType} onChange={(e) => setSiteFormData({ ...siteFormData, contractType: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                  <select required value={siteFormData.contractType} onChange={(e) => {
+                    const v = e.target.value;
+                    // MTI (Marché Tout Inclus) = P1+P2+P3 cochés par défaut
+                    setSiteFormData((prev) => ({ ...prev, contractType: v, ...(v === "MTI" ? { hasP1: true, hasP2: true, hasP3: true } : {}) }));
+                  }} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
                     {contractTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                   </select>
                 </div>
@@ -659,10 +664,12 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                       <input type="checkbox" checked={siteFormData.hasP3} onChange={(e) => setSiteFormData({ ...siteFormData, hasP3: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
                       <span className="text-sm text-primary-dark">P3 - Travaux</span>
                     </label>
-                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input type="checkbox" checked={siteFormData.hasP4} onChange={(e) => setSiteFormData({ ...siteFormData, hasP4: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
-                      <span className="text-sm text-primary-dark">P4 - Financement</span>
-                    </label>
+                    {!contract.isPublic && (
+                      <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="checkbox" checked={siteFormData.hasP4} onChange={(e) => setSiteFormData({ ...siteFormData, hasP4: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
+                        <span className="text-sm text-primary-dark">P4 - Financement</span>
+                      </label>
+                    )}
                   </div>
                 </div>
                 {(siteFormData.hasP2 || siteFormData.hasP3) && (
@@ -783,7 +790,11 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
             <form onSubmit={handleUpdateContractSite} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-primary-dark mb-1">Type de contrat</label>
-                <select value={editContractSiteFormData.contractType} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, contractType: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                <select value={editContractSiteFormData.contractType} onChange={(e) => {
+                  const v = e.target.value;
+                  // MTI (Marché Tout Inclus) = P1+P2+P3 cochés par défaut
+                  setEditContractSiteFormData((prev) => ({ ...prev, contractType: v, ...(v === "MTI" ? { hasP1: true, hasP2: true, hasP3: true } : {}) }));
+                }} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
                   {contractTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                 </select>
               </div>
@@ -802,10 +813,12 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                     <input type="checkbox" checked={editContractSiteFormData.hasP3} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP3: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
                     <span className="text-sm">P3 - Gros entretien</span>
                   </label>
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="checkbox" checked={editContractSiteFormData.hasP4} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP4: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
-                    <span className="text-sm">P4 - Financement</span>
-                  </label>
+                  {!contract.isPublic && (
+                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                      <input type="checkbox" checked={editContractSiteFormData.hasP4} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP4: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
+                      <span className="text-sm">P4 - Financement</span>
+                    </label>
+                  )}
                 </div>
               </div>
               <div className="border-t border-gray-100 pt-4">

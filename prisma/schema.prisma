@@ -1152,6 +1152,9 @@ model Contract {
   djuContractuel   Float?
   // Fréquence de facturation
   billingFrequency BillingFrequency @default(TRIMESTRIEL)
+  // Secteur : public (collectivité) ou privé. En public, P4 (financement) est interdit.
+  // Défaut false (privé) pour ne pas modifier les contrats existants ; le formulaire de création pré-sélectionne Public.
+  isPublic         Boolean          @default(false)
   organizationId   String
   clientId         String? // Client (collectivité) rattaché
   createdAt        DateTime         @default(now())

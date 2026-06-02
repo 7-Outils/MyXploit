@@ -181,7 +181,8 @@ export async function POST(
         hasP1: body.hasP1 || false,
         hasP2: body.hasP2 || false,
         hasP3: body.hasP3 || false,
-        hasP4: body.hasP4 || false,
+        // P4 (financement) interdit sur un contrat public
+        hasP4: contract.isPublic ? false : (body.hasP4 || false),
         amountP1: body.amountP1 ? parseFloat(body.amountP1) : null,
         amountP2: body.amountP2 ? parseFloat(body.amountP2) : null,
         amountP3: body.amountP3 ? parseFloat(body.amountP3) : null,
