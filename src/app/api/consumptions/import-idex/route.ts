@@ -404,7 +404,7 @@ export async function POST(request: NextRequest) {
           // Note: "marche" alone is too broad - matches "en marche" which means ON, not start
           // Only use specific start markers
           const heatingStartMarkers = ["mise_en_marche", "mise en marche", "allumage", "démarrage", "demarrage", "début chauffe", "debut chauffe"];
-          const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe", "mise a l'arret", "mise à l'arrêt"];
+          const heatingStopMarkers = ["arret", "arrêt", "extinction", "off", "stop", "fin chauffe", "mise a l'arret", "mise à l'arrêt", "coupure"];
 
           const isHeatingStart = heatingStartMarkers.some(marker => etatLower.includes(marker));
           const isHeatingStop = heatingStopMarkers.some(marker => etatLower.includes(marker));
