@@ -20,6 +20,9 @@ export async function GET() {
     const contracts = await prisma.contract.findMany({
       where,
       include: {
+        client: {
+          select: { id: true, name: true, city: true },
+        },
         contractSites: {
           include: {
             site: {
