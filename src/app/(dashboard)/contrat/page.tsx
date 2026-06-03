@@ -8,6 +8,7 @@ import {
   Loader2,
   FileSpreadsheet,
   Pencil,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sortTabsAlpha } from "@/lib/utils";
@@ -33,7 +34,7 @@ const CONTRAT_TABS = sortTabsAlpha([
 ]);
 
 function AdministratifContent() {
-  const { selectedContract, isLoading: loadingContracts } = useContract();
+  const { selectedContract, isLoading: loadingContracts, clearContract } = useContract();
   const contractKey = selectedContract?.id;
 
   const { data: contractDetailData, isLoading: loadingDetail, mutate: mutateDetail } = useSWR<Contract>(
@@ -50,6 +51,33 @@ function AdministratifContent() {
   const [activeTab, setActiveTab] = useState<ContratTab>(CONTRAT_TABS[0].id);
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [showAEImportModal, setShowAEImportModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteContract = async () => {
+    if (!selectedContract) return;
+    const ok = window.confirm(
+      `Supprimer définitivement le contrat « ${selectedContract.title || selectedContract.reference || ""} » ?\n\n` +
+        "Les sites partagés avec d'autres contrats sont conservés. " +
+        "Seuls les sites propres à ce contrat (et leurs données) seront supprimés.\n\nCette action est irréversible."
+    );
+    if (!ok) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/contracts/${selectedContract.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.alert(data.error || "Échec de la suppression du contrat.");
+        setIsDeleting(false);
+        return;
+      }
+      clearContract();
+      // Rechargement franc : le ContractProvider re-fetch la liste à jour
+      window.location.assign("/contrat");
+    } catch {
+      window.alert("Erreur réseau lors de la suppression.");
+      setIsDeleting(false);
+    }
+  };
 
   if (loadingContracts) {
     return (
@@ -83,6 +111,15 @@ function AdministratifContent() {
           <Button variant="outline" onClick={() => setShowAEImportModal(true)}>
             <FileSpreadsheet size={18} className="mr-2" />
             Importer AE
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDeleteContract}
+            disabled={isDeleting}
+            className="ml-auto text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+          >
+            {isDeleting ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Trash2 size={18} className="mr-2" />}
+            Supprimer
           </Button>
         </div>
 
