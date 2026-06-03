@@ -821,6 +821,8 @@ export async function POST(request: NextRequest) {
           yearStartDay: 1,
           status: "ACTIF",
           clientId: clientId || undefined,
+          // DJU contractuel détecté dans l'AE (feuille "Contrat") — était omis jusqu'ici
+          djuContractuel: detectedMetadata?.djuContractuel ?? null,
         },
       });
 
