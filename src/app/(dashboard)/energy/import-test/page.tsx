@@ -17,7 +17,8 @@
 import { useCallback, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { prorateAcrossMonths, periodKeyToDate } from "@/lib/date-prorate";
-import { Upload, FileSpreadsheet, AlertTriangle, Info } from "lucide-react";
+import { useContract } from "@/contexts/ContractContext";
+import { Upload, FileSpreadsheet, AlertTriangle, Info, Database, Loader2 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
 // Notions sémantiques universelles (indépendantes de l'exploitant)
@@ -130,6 +131,16 @@ function mapEnergy(
   return { energyType: "AUTRE", usage: "AUTRE", coef: null, outUnit: "?" };
 }
 
+// EnergyType/usage → MeterFluid (pour l'écriture en base).
+function energyToFluid(energyType: string, usage: string): string {
+  if (energyType === "RESEAU_CHALEUR") return "CHALEUR";
+  if (energyType === "GAZ") return "GAZ";
+  if (energyType === "ELECTRICITE") return "ELECTRICITE";
+  if (energyType === "FIOUL") return "FIOUL";
+  if (energyType === "EAU") return usage === "ECS" ? "EAU_CHAUDE" : "EAU_FROIDE";
+  return "EAU_FROIDE";
+}
+
 // Suggestion auto d'une colonne pour un champ donné.
 function suggestColumn(field: FieldKey, headers: string[], sample: unknown[][]): number {
   const h = headers.map(norm);
@@ -189,8 +200,17 @@ export default function ImportTestPage() {
   const [qEcs, setQEcs] = useState(0.13);
   const [error, setError] = useState<string>("");
 
+  // Écriture en base
+  const { contracts, selectedContract } = useContract();
+  const [targetContractId, setTargetContractId] = useState<string>("");
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<
+    | { error: string }
+    | { imported: number; updated: number; skipped: number; metersCreated: number; sitesImpacted: number; unmatchedSites: { name: string; count: number }[] }
+    | null
+  >(null);
+
   const dataRows = useMemo(() => allRows.slice(headerRow + 1).filter((r) => r.some((c) => c !== "" && c != null)), [allRows, headerRow]);
-  const sample = useMemo(() => dataRows.slice(0, 8), [dataRows]);
 
   const handleFile = useCallback((file: File) => {
     setError("");
@@ -297,6 +317,53 @@ export default function ImportTestPage() {
       .map((b) => ({ ...b, period: periodKeyToDate(b.periodIso), meterNames: Array.from(b.meters).join(", ") }))
       .sort((a, b) => a.site.localeCompare(b.site) || a.period.getTime() - b.period.getTime());
   }, [normalized, pcs, qEcs]);
+
+  // Lignes prêtes pour l'écriture en base (site + date + compteur + index requis)
+  const payloadRows = useMemo(
+    () =>
+      normalized
+        .filter((r) => r.site && r.date && r.compteur && r.index != null)
+        .map((r) => {
+          const { energyType, usage } = mapEnergy(r.compteur, r.fluide, pcs, qEcs);
+          return {
+            site: r.site,
+            date: r.date!.toISOString(),
+            meter: r.compteur,
+            fluid: energyToFluid(energyType, usage),
+            index: r.index,
+            unit: r.unite || "m³",
+          };
+        }),
+    [normalized, pcs, qEcs]
+  );
+
+  const handleImport = async () => {
+    const cid = targetContractId || selectedContract?.id;
+    if (!cid || payloadRows.length === 0) return;
+    const label = contracts.find((c) => c.id === cid)?.title || "";
+    if (
+      !window.confirm(
+        `Importer ${payloadRows.length} relevés dans le contrat « ${label} » ?\n\n` +
+          "Les consommations 'exploitant' des sites concernés seront recalculées à partir des relevés."
+      )
+    )
+      return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/consumptions/import-universal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractId: cid, rows: payloadRows }),
+      });
+      const data = await res.json();
+      setImportResult(res.ok ? data : { error: data.error || "Échec de l'import" });
+    } catch {
+      setImportResult({ error: "Erreur réseau." });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const missingRequired = FIELDS.filter((f) => f.required && (mapping[f.key] == null || mapping[f.key] < 0));
   const fmtDate = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : "—");
@@ -478,6 +545,69 @@ export default function ImportTestPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+          {/* Écriture en base */}
+          <div className="border-2 border-emerald-200 rounded-lg p-4 bg-emerald-50/40 space-y-3">
+            <div className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-sm font-semibold text-gray-800">Importer en base</h2>
+            </div>
+            <p className="text-xs text-gray-500">
+              Crée les compteurs + relevés et recalcule les consommations. Le PCS gaz / Q ECS de chaque
+              site (depuis son contrat) est appliqué automatiquement — le coef global ci-dessus ne sert
+              qu'à l'aperçu.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Contrat cible</label>
+                <select
+                  className="border rounded px-2 py-1.5 text-sm min-w-[16rem]"
+                  value={targetContractId || selectedContract?.id || ""}
+                  onChange={(e) => setTargetContractId(e.target.value)}
+                >
+                  <option value="">— Choisir un contrat —</option>
+                  {contracts.map((c) => (
+                    <option key={c.id} value={c.id}>{c.title || c.reference}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                disabled={
+                  importing ||
+                  missingRequired.length > 0 ||
+                  payloadRows.length === 0 ||
+                  !(targetContractId || selectedContract?.id)
+                }
+                onClick={handleImport}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                Importer {payloadRows.length} relevés
+              </button>
+            </div>
+
+            {importResult && "error" in importResult && (
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded p-3">
+                <AlertTriangle className="w-4 h-4" /> {importResult.error}
+              </div>
+            )}
+            {importResult && !("error" in importResult) && (
+              <div className="text-sm bg-white border rounded p-3 space-y-1">
+                <div className="font-medium text-emerald-700">Import terminé ✓</div>
+                <div className="text-gray-600">
+                  {importResult.imported} relevés créés · {importResult.updated} mis à jour ·{" "}
+                  {importResult.metersCreated} compteurs créés · {importResult.sitesImpacted} sites recalculés
+                  {importResult.skipped > 0 ? ` · ${importResult.skipped} ignorés` : ""}
+                </div>
+                {importResult.unmatchedSites.length > 0 && (
+                  <div className="text-amber-700">
+                    Sites non reconnus dans ce contrat (ignorés) :{" "}
+                    {importResult.unmatchedSites.map((s) => `${s.name} (${s.count})`).join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </>
       )}
