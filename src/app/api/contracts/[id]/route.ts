@@ -139,6 +139,9 @@ export async function PUT(
     if (body.yearStartDay !== undefined) updateData.yearStartDay = parseInt(body.yearStartDay);
     if (body.billingFrequency) updateData.billingFrequency = body.billingFrequency;
     if (body.djuContractuel !== undefined) updateData.djuContractuel = body.djuContractuel ? parseFloat(body.djuContractuel) : null;
+    // Rattachement à un client (collectivité). null = détacher.
+    const clientChanged = body.clientId !== undefined;
+    if (clientChanged) updateData.clientId = body.clientId || null;
 
     const contract = await prisma.contract.update({
       where: { id },
@@ -153,6 +156,18 @@ export async function PUT(
         },
       },
     });
+
+    // Quand on (dé)rattache le contrat à un client, on propage le client à tous
+    // ses sites — c'est ce qui fait remonter le compteur "X sites" sur la fiche client.
+    if (clientChanged) {
+      const siteIds = contract.contractSites.map((cs) => cs.site.id);
+      if (siteIds.length > 0) {
+        await prisma.site.updateMany({
+          where: { id: { in: siteIds }, organizationId: effectiveOrgId },
+          data: { clientId: body.clientId || null },
+        });
+      }
+    }
 
     return NextResponse.json(contract);
   } catch (error) {

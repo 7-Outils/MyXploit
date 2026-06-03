@@ -68,6 +68,12 @@ interface ContractSite {
   amountP36: number | null;
   coefficientPCS: number | null;
   coefficientQ: number | null;
+  p1Peg0: number | null;
+  p1Ticgn0: number | null;
+  p1Tvd0: number | null;
+  p1Cee0: number | null;
+  p1P0Unit: number | null;
+  p1TvdTarif: string | null;
   integrationDate: string | null;
   exitDate: string | null;
   site: Site;
@@ -166,6 +172,7 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
   const [editContractSiteFormData, setEditContractSiteFormData] = useState({
     contractType: "MC", hasP1: false, hasP2: false, hasP3: false, hasP4: false,
     amountP2: "", amountP3: "", coefficientPCS: "", coefficientQ: "",
+    p1Peg0: "", p1Ticgn0: "", p1Tvd0: "", p1Cee0: "", p1P0Unit: "", p1TvdTarif: "",
   });
 
   // Import sites modal
@@ -285,6 +292,12 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
       amountP3: contractSite.amountP3?.toString() || "",
       coefficientPCS: contractSite.coefficientPCS?.toString() || "10.5",
       coefficientQ: contractSite.coefficientQ?.toString() || "0.13",
+      p1Peg0: contractSite.p1Peg0?.toString() || "",
+      p1Ticgn0: contractSite.p1Ticgn0?.toString() || "",
+      p1Tvd0: contractSite.p1Tvd0?.toString() || "",
+      p1Cee0: contractSite.p1Cee0?.toString() || "",
+      p1P0Unit: contractSite.p1P0Unit?.toString() || "",
+      p1TvdTarif: contractSite.p1TvdTarif || "",
     });
     setShowEditContractSiteModal(true);
   };
@@ -305,6 +318,12 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
           amountP3: editContractSiteFormData.amountP3 || null,
           coefficientPCS: editContractSiteFormData.coefficientPCS || null,
           coefficientQ: editContractSiteFormData.coefficientQ || null,
+          p1Peg0: editContractSiteFormData.p1Peg0,
+          p1Ticgn0: editContractSiteFormData.p1Ticgn0,
+          p1Tvd0: editContractSiteFormData.p1Tvd0,
+          p1Cee0: editContractSiteFormData.p1Cee0,
+          p1P0Unit: editContractSiteFormData.p1P0Unit,
+          p1TvdTarif: editContractSiteFormData.p1TvdTarif,
         }),
       });
       if (response.ok) {
@@ -854,6 +873,36 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                     <p className="text-xs text-gray-500 mt-1">Énergie pour produire 1 m³ d&apos;ECS — typiquement 0.10 à 0.14 selon le contrat</p>
                   </div>
                 </div>
+                {editContractSiteFormData.hasP1 && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-sm font-semibold text-primary-dark mb-1">Barème P1 — décompte (€HT/MWh PCS)</p>
+                    <p className="text-xs text-gray-500 mb-3">Valeurs de base pour la révision indicielle. Normalement importées de la DPGF ; à compléter ici si besoin. P0 = marge exploitant (non révisée).</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {([
+                        ["p1Peg0", "PEG"],
+                        ["p1Ticgn0", "TICGN"],
+                        ["p1Tvd0", "TVD"],
+                        ["p1Cee0", "CEE"],
+                        ["p1P0Unit", "P0 (marge)"],
+                      ] as const).map(([field, label]) => (
+                        <div key={field}>
+                          <label className="block text-sm text-text-secondary mb-1">{label}</label>
+                          <input type="number" step="0.001" value={editContractSiteFormData[field]} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, [field]: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="0.000" />
+                        </div>
+                      ))}
+                      <div>
+                        <label className="block text-sm text-text-secondary mb-1">Tarif TVD (GRDF)</label>
+                        <select value={editContractSiteFormData.p1TvdTarif} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, p1TvdTarif: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                          <option value="">—</option>
+                          <option value="T1">T1</option>
+                          <option value="T2">T2</option>
+                          <option value="T3">T3</option>
+                          <option value="T4">T4</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowEditContractSiteModal(false); setEditingContractSiteId(null); }}>Annuler</Button>

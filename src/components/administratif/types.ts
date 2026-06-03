@@ -22,6 +22,12 @@ export interface ContractSite {
   amountP36: number | null;
   coefficientPCS: number | null;
   coefficientQ: number | null;
+  p1Peg0: number | null;
+  p1Ticgn0: number | null;
+  p1Tvd0: number | null;
+  p1Cee0: number | null;
+  p1P0Unit: number | null;
+  p1TvdTarif: string | null;
   integrationDate: string | null;
   exitDate: string | null;
   site: {

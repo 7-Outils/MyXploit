@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
-import { ContractType, EnergyType, NbUnit, SiteType } from "@/generated/prisma/client";
+import { ContractType, EnergyType, NbUnit, SiteType, TvdTarif } from "@/generated/prisma/client";
 
 // Determine NB unit based on energy type
 function getNbUnitForEnergyType(energyType: EnergyType): NbUnit {
@@ -60,6 +60,7 @@ interface P1Components {
   pu?: number;       // Prix Unitaire total (€/MWh)
   abonnement?: number; // Abonnement (€/an)
   locationCompteur?: number; // Location compteur (€/an)
+  tvdTarif?: "T1" | "T2" | "T3" | "T4"; // Tarif de distribution GRDF (pour révision TVD)
 }
 
 interface ParsedSite {
@@ -549,6 +550,7 @@ export async function POST(request: NextRequest) {
     const puColIndex = headers.findIndex(h => h && h.toLowerCase() === "pu");
     const abonnementColIndex = findColIndex(["abonnement"]);
     const locationCompteurColIndex = findColIndex(["location compteur", "location"]);
+    const tvdTarifColIndex = findColIndex(["tarif tvd", "tarif gaz", "tarif"]);
 
     // Coefficient Q (ECS) — colonne "qECS", "q ECS", "q_ecs" case-insensitive
     const qEcsColIndex = findColIndex(["qecs", "q ecs", "q_ecs"]);
@@ -627,6 +629,13 @@ export async function POST(request: NextRequest) {
       return isNaN(num) ? undefined : num;
     };
 
+    // Normalise un libellé de tarif GRDF vers T1/T2/T3/T4 (ex: "T3", "tarif t3", "3" → "T3")
+    const parseTvdTarif = (row: (string | number)[], idx: number): "T1" | "T2" | "T3" | "T4" | undefined => {
+      if (idx === -1) return undefined;
+      const m = String(row[idx] ?? "").match(/t?\s*([1-4])/i);
+      return m ? (`T${m[1]}` as "T1" | "T2" | "T3" | "T4") : undefined;
+    };
+
     // Parse all sites from file
     const parsedSites: ParsedSite[] = [];
 
@@ -663,6 +672,7 @@ export async function POST(request: NextRequest) {
         pu: parseNum(row, puColIndex),
         abonnement: parseNum(row, abonnementColIndex),
         locationCompteur: parseNum(row, locationCompteurColIndex),
+        tvdTarif: parseTvdTarif(row, tvdTarifColIndex),
       };
 
       // Parse P1 by year
@@ -914,6 +924,12 @@ export async function POST(request: NextRequest) {
         amountP38?: number;
         amountP39?: number;
         amountP310?: number;
+        p1Peg0?: number;
+        p1Ticgn0?: number;
+        p1Tvd0?: number;
+        p1Cee0?: number;
+        p1P0Unit?: number;
+        p1TvdTarif?: TvdTarif;
       }[] = [];
 
       // Prepare HeatingSeason data (NB values WITHOUT dates)
@@ -1048,6 +1064,13 @@ export async function POST(request: NextRequest) {
           amountP38: parsedSite.p3.p38,
           amountP39: parsedSite.p3.p39,
           amountP310: parsedSite.p3.p310,
+          // Barème P1 (décompte MTI) — valeurs de base parsées depuis la DPGF
+          p1Peg0: parsedSite.p1Components.peg,
+          p1Ticgn0: parsedSite.p1Components.ticgn,
+          p1Tvd0: parsedSite.p1Components.tvd,
+          p1Cee0: parsedSite.p1Components.cee,
+          p1P0Unit: parsedSite.p1Components.p0,
+          p1TvdTarif: parsedSite.p1Components.tvdTarif as TvdTarif | undefined,
         });
 
         // Create HeatingSeason records for each year with NB values (WITHOUT dates)

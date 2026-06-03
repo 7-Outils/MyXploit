@@ -1240,6 +1240,16 @@ model ContractSite {
   poolAnalysisWeeksPerYear    Int? // Semaines par an (ex: 40 si piscine fermée 12 semaines)
   poolAnalysisMinutesPerVisit Int?    @default(30) // Durée par passage en minutes
 
+  // === BARÈME P1 (décompte MTI) — valeurs de base €HT/MWh PCS ===
+  // Prix unitaires de base (P_0) servant au coef de révision indicielle additif (Σrev/Σbase).
+  // Parsés depuis la DPGF à la création du contrat. P0 = marge exploitant (NON révisée).
+  p1Peg0     Float? // PEG base €HT/MWh PCS
+  p1Ticgn0   Float? // TICGN base €HT/MWh PCS
+  p1Tvd0     Float? // TVD base €HT/MWh PCS (dépend du tarif T1-T4)
+  p1Cee0     Float? // CEE base €HT/MWh PCS
+  p1P0Unit   Float? // P0 marge exploitant €HT/MWh (non révisé)
+  p1TvdTarif TvdTarif? // Tarif de distribution GRDF du site (pour la révision TVD)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1258,6 +1268,14 @@ model ContractSite {
 // ============================================
 // AVENANTS (Modifications contractuelles)
 // ============================================
+
+// Tarif de distribution gaz GRDF (par site, selon volume) — sélectionne la série TVD pour la révision P1
+enum TvdTarif {
+  T1
+  T2
+  T3
+  T4
+}
 
 // Type de modification dans un avenant
 enum AvenantItemType {

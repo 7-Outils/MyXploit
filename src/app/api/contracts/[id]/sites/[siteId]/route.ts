@@ -72,6 +72,13 @@ export async function PUT(
         amountP3: body.amountP3 !== undefined ? (body.amountP3 ? parseFloat(body.amountP3) : null) : undefined,
         coefficientPCS: body.coefficientPCS !== undefined ? (body.coefficientPCS ? parseFloat(body.coefficientPCS) : null) : undefined,
         coefficientQ: body.coefficientQ !== undefined ? (body.coefficientQ ? parseFloat(body.coefficientQ) : null) : undefined,
+        // Barème P1 (décompte MTI) — édition manuelle si la DPGF est incomplète
+        p1Peg0: body.p1Peg0 !== undefined ? (body.p1Peg0 !== "" && body.p1Peg0 !== null ? parseFloat(body.p1Peg0) : null) : undefined,
+        p1Ticgn0: body.p1Ticgn0 !== undefined ? (body.p1Ticgn0 !== "" && body.p1Ticgn0 !== null ? parseFloat(body.p1Ticgn0) : null) : undefined,
+        p1Tvd0: body.p1Tvd0 !== undefined ? (body.p1Tvd0 !== "" && body.p1Tvd0 !== null ? parseFloat(body.p1Tvd0) : null) : undefined,
+        p1Cee0: body.p1Cee0 !== undefined ? (body.p1Cee0 !== "" && body.p1Cee0 !== null ? parseFloat(body.p1Cee0) : null) : undefined,
+        p1P0Unit: body.p1P0Unit !== undefined ? (body.p1P0Unit !== "" && body.p1P0Unit !== null ? parseFloat(body.p1P0Unit) : null) : undefined,
+        p1TvdTarif: body.p1TvdTarif !== undefined ? (body.p1TvdTarif || null) : undefined,
       },
       include: {
         site: {
