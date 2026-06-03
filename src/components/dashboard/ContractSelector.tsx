@@ -24,6 +24,12 @@ interface ClientGroup {
   contracts: Array<ReturnType<typeof useContract>["contracts"][number]>;
 }
 
+interface ClientSummary {
+  id: string;
+  name: string;
+  city?: string | null;
+}
+
 export function ContractSelector() {
   const router = useRouter();
   const { contracts, selectedContract, isLoading, selectContract } =
@@ -31,6 +37,7 @@ export function ContractSelector() {
   const [open, setOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAEModal, setShowAEModal] = useState(false);
+  const [clients, setClients] = useState<ClientSummary[]>([]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,13 +50,30 @@ export function ContractSelector() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  // Charge tous les clients pour afficher aussi ceux sans contrat rattaché
+  useEffect(() => {
+    fetch("/api/clients")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: ClientSummary[]) => setClients(data))
+      .catch(() => setClients([]));
+  }, []);
+
   if (isLoading) {
     return <div className="h-9 w-64 bg-gray-100 rounded-lg animate-pulse" />;
   }
 
-  // Regroupe les contrats par client (les contrats sans client tombent dans "Sans client")
+  // Un groupe par client (même à 0 contrat), + un groupe "Sans client" pour les orphelins.
   const groups: ClientGroup[] = [];
   const idx = new Map<string, ClientGroup>();
+
+  // Amorce : tous les clients existants, y compris ceux sans contrat
+  for (const cl of clients) {
+    const g: ClientGroup = { id: cl.id, name: cl.name, city: cl.city, contracts: [] };
+    idx.set(cl.id, g);
+    groups.push(g);
+  }
+
+  // Range les contrats dans leur client (ou "Sans client")
   for (const c of contracts) {
     const key = c.client?.id || "__none__";
     let g = idx.get(key);
@@ -65,7 +89,12 @@ export function ContractSelector() {
     }
     g.contracts.push(c);
   }
-  groups.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  // Tri alpha, mais "Sans client" toujours en dernier (bac à orphelins)
+  groups.sort((a, b) => {
+    if (a.id === "__none__") return 1;
+    if (b.id === "__none__") return -1;
+    return a.name.localeCompare(b.name, "fr");
+  });
 
   const currentClient = selectedContract?.client ?? null;
 
