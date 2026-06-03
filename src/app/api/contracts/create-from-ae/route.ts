@@ -844,53 +844,40 @@ export async function POST(request: NextRequest) {
         return `${seasonEndYear - 1}-${seasonEndYear}`;
       };
 
-      // ============ BATCH OPTIMIZATION ============
-      // Step 1: Create all new sites in batch (with details from Sites sheet if available)
+      // ============ Step 1: créer les nouveaux sites un par un ============
+      // IMPORTANT : on crée individuellement pour récupérer l'ID EXACT de chaque
+      // site. Un createMany + findMany({ name: { in: [...] } }) rapatrierait les
+      // homonymes d'AUTRES communes (ex: "Mairie", "Maison de la petite enfance"),
+      // qui se retrouveraient alors liés à ce contrat et taggés au client à tort.
       const newSitesToCreate = parsedSites.filter(s => !s.existingSite);
-      if (newSitesToCreate.length > 0) {
-        await tx.site.createMany({
-          data: newSitesToCreate.map(s => {
-            // Look for site details in the Sites sheet
-            const normalizedName = normalizeSiteName(s.siteName);
-            const details = siteDetailsMap.get(normalizedName);
-
-            return {
-              organizationId: effectiveOrgId,
-              name: s.siteName,
-              type: details?.type ? parseSiteType(details.type) : SiteType.AUTRE,
-              energyType: details?.energyType ? parseEnergyType(details.energyType) : EnergyType.GAZ,
-              address: details?.address || "",
-              postalCode: details?.postalCode || "",
-              city: details?.city || "",
-              surface: details?.surface,
-              surfaceChauffee: details?.surfaceChauffee,
-              pce: details?.pce,
-              pdl: details?.pdl,
-              rae: details?.rae,
-              // Use site-specific DJU/station if in Sites sheet, otherwise contract-level
-              djuContractuel: details?.djuContractuel || detectedMetadata?.djuContractuel,
-              stationMeteo: details?.stationMeteo || detectedMetadata?.stationMeteo,
-            };
-          }),
-        });
-      }
-
-      // Fetch created sites to get their IDs
-      const createdSites = newSitesToCreate.length > 0
-        ? await tx.site.findMany({
-            where: {
-              organizationId: effectiveOrgId,
-              name: { in: newSitesToCreate.map(s => s.siteName) },
-            },
-            select: { id: true, name: true, energyType: true },
-          })
-        : [];
-
-      // Build a map of site name to site info
       const siteNameToId = new Map<string, { id: string; energyType: string }>();
-      for (const site of createdSites) {
-        siteNameToId.set(site.name, { id: site.id, energyType: site.energyType });
-        createdSiteIds.push(site.id);
+      for (const s of newSitesToCreate) {
+        const normalizedName = normalizeSiteName(s.siteName);
+        const details = siteDetailsMap.get(normalizedName);
+
+        const created = await tx.site.create({
+          data: {
+            organizationId: effectiveOrgId,
+            name: s.siteName,
+            type: details?.type ? parseSiteType(details.type) : SiteType.AUTRE,
+            energyType: details?.energyType ? parseEnergyType(details.energyType) : EnergyType.GAZ,
+            address: details?.address || "",
+            postalCode: details?.postalCode || "",
+            city: details?.city || "",
+            surface: details?.surface,
+            surfaceChauffee: details?.surfaceChauffee,
+            pce: details?.pce,
+            pdl: details?.pdl,
+            rae: details?.rae,
+            // Use site-specific DJU/station if in Sites sheet, otherwise contract-level
+            djuContractuel: details?.djuContractuel || detectedMetadata?.djuContractuel,
+            stationMeteo: details?.stationMeteo || detectedMetadata?.stationMeteo,
+            clientId: clientId || undefined,
+          },
+          select: { id: true, energyType: true },
+        });
+        siteNameToId.set(s.siteName, { id: created.id, energyType: created.energyType });
+        createdSiteIds.push(created.id);
       }
 
       // Step 2: Prepare ContractSite data and HeatingSeason data
