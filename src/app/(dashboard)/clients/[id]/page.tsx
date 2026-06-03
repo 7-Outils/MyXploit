@@ -321,23 +321,24 @@ export default function ClientDetailPage() {
         <div className="flex items-center gap-1.5 pb-2">
           <button
             onClick={() => setShowCreateContract(true)}
-            className="flex items-center gap-1.5 h-9 px-3 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+            title="Nouveau contrat"
+            className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
           >
-            <Plus size={15} /> Nouveau contrat
+            <Plus size={16} />
           </button>
           <button
             onClick={() => setShowCreateAE(true)}
             title="Créer un contrat depuis un fichier AE"
-            className="h-9 px-3 flex items-center gap-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            <FileSpreadsheet size={15} /> Importer AE
+            <FileSpreadsheet size={16} />
           </button>
           <button
             onClick={openAttach}
             title="Rattacher un contrat existant"
-            className="h-9 px-3 flex items-center gap-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            <Link2 size={15} /> Rattacher
+            <Link2 size={16} />
           </button>
         </div>
       </div>
@@ -385,18 +386,7 @@ export default function ClientDetailPage() {
               <div className="p-10 text-center">
                 <FileText size={36} className="mx-auto text-gray-300 mb-3" />
                 <p className="text-gray-700 font-medium mb-1">Aucun contrat rattaché</p>
-                <p className="text-gray-400 text-sm mb-5">Crée un contrat, importe un AE, ou rattache un contrat existant à ce client.</p>
-                <div className="flex items-center justify-center gap-2">
-                  <button onClick={() => setShowCreateContract(true)} className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 text-sm font-medium">
-                    <Plus size={15} /> Nouveau contrat
-                  </button>
-                  <button onClick={() => setShowCreateAE(true)} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm">
-                    <FileSpreadsheet size={15} /> Importer AE
-                  </button>
-                  <button onClick={openAttach} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm">
-                    <Link2 size={15} /> Rattacher
-                  </button>
-                </div>
+                <p className="text-gray-400 text-sm">Utilise les actions en haut à droite : nouveau contrat, importer un AE, ou rattacher un contrat existant.</p>
               </div>
             ) : (
               <table className="w-full">
