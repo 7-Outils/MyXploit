@@ -614,7 +614,7 @@ export async function POST(request: NextRequest) {
     // Get existing sites for matching
     const existingSites = await prisma.site.findMany({
       where: { organizationId: effectiveOrgId },
-      select: { id: true, name: true, city: true, energyType: true },
+      select: { id: true, name: true, city: true, postalCode: true, energyType: true },
     });
 
     const siteMatchers = createSiteMatchers(existingSites);
@@ -703,8 +703,13 @@ export async function POST(request: NextRequest) {
         total: parseNum(row, p3TotalColIndex),
       };
 
-      // Try to match existing site
-      const siteMatch = matchSite(siteName, siteMatchers);
+      // Try to match existing site (nom exact + concordance géographique ville/CP)
+      const rowDetails = siteDetailsMap.get(normalizeSiteName(siteName));
+      const siteMatch = matchSite(
+        siteName,
+        { city: rowDetails?.city, postalCode: rowDetails?.postalCode },
+        siteMatchers
+      );
 
       parsedSites.push({
         row: rowNum,
@@ -1127,15 +1132,30 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper functions
-function createSiteMatchers(sites: { id: string; name: string }[]) {
-  const normalizedNames = new Map<string, { id: string; name: string }>();
+type SiteCandidate = { id: string; name: string; city?: string | null; postalCode?: string | null };
+
+function createSiteMatchers(sites: SiteCandidate[]) {
+  // Plusieurs sites peuvent partager le même nom normalisé (ex: "Mairie" dans
+  // deux communes). On les conserve TOUS pour départager ensuite par ville/CP.
+  const normalizedNames = new Map<string, SiteCandidate[]>();
 
   for (const site of sites) {
     const normalized = normalizeSiteName(site.name);
-    normalizedNames.set(normalized, { id: site.id, name: site.name });
+    const arr = normalizedNames.get(normalized) ?? [];
+    arr.push({ id: site.id, name: site.name, city: site.city, postalCode: site.postalCode });
+    normalizedNames.set(normalized, arr);
   }
 
   return { normalizedNames };
+}
+
+function normalizeLoc(s?: string | null): string {
+  return String(s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeSiteName(name: string): string {
@@ -1149,61 +1169,33 @@ function normalizeSiteName(name: string): string {
     .trim();
 }
 
-function similarity(a: string, b: string): number {
-  const maxLen = Math.max(a.length, b.length);
-  if (maxLen === 0) return 1;
-
-  const matrix: number[][] = [];
-  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
-  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
-
-  for (let i = 1; i <= b.length; i++) {
-    for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1,
-          matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
-        );
-      }
-    }
-  }
-  return 1 - matrix[b.length][a.length] / maxLen;
-}
-
 function matchSite(
   installationName: string,
+  incoming: { city?: string | null; postalCode?: string | null },
   matchers: ReturnType<typeof createSiteMatchers>
 ): { siteId?: string; siteName?: string } {
   const normalized = normalizeSiteName(installationName);
+  const candidates = matchers.normalizedNames.get(normalized);
+  if (!candidates || candidates.length === 0) return {};
 
-  // Exact match
-  const exact = matchers.normalizedNames.get(normalized);
-  if (exact) {
-    return { siteId: exact.id, siteName: exact.name };
-  }
+  // Concordance géographique EXIGÉE : on ne fusionne deux sites de même nom que
+  // si la ville OU le code postal coïncident. Évite de fusionner deux bâtiments
+  // homonymes de communes/clients différents (ex: "Mairie", "Bibliothèque").
+  const inCity = normalizeLoc(incoming.city);
+  const inCp = String(incoming.postalCode ?? "").trim();
 
-  // Partial match
-  for (const [siteName, site] of matchers.normalizedNames) {
-    if (normalized.includes(siteName) || siteName.includes(normalized)) {
+  for (const site of candidates) {
+    const sCity = normalizeLoc(site.city);
+    const sCp = String(site.postalCode ?? "").trim();
+    const cityMatch = inCity !== "" && sCity !== "" && inCity === sCity;
+    const cpMatch = inCp !== "" && sCp !== "" && inCp === sCp;
+    if (cityMatch || cpMatch) {
       return { siteId: site.id, siteName: site.name };
     }
   }
 
-  // Fuzzy match
-  let bestMatch: { site: { id: string; name: string }; score: number } | null = null;
-  for (const [siteName, site] of matchers.normalizedNames) {
-    const score = similarity(normalized, siteName);
-    if (score > 0.8 && (!bestMatch || score > bestMatch.score)) {
-      bestMatch = { site, score };
-    }
-  }
-
-  if (bestMatch) {
-    return { siteId: bestMatch.site.id, siteName: bestMatch.site.name };
-  }
-
+  // Nom identique mais aucune info ville/CP concordante (ou manquante des deux
+  // côtés) → on NE fusionne PAS : un nouveau site sera créé. Choix volontaire,
+  // côté prudent (mieux vaut un doublon qu'une conso héritée à tort).
   return {};
 }
