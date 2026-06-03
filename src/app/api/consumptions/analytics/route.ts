@@ -255,10 +255,15 @@ export async function GET(request: NextRequest) {
       const siteData = siteMap.get(consumption.siteId);
       if (!siteData) return;
 
-      // Filter: only count consumption whose month overlaps a heating interval.
-      // Using month-level overlap because GRDF/manual records store period as
-      // the 1st of the month to represent the entire month's consumption.
-      if (intervalsBySite.has(consumption.siteId) && !monthOverlapsHeating(consumption.siteId, consumption.period)) {
+      // Filtrage temporel du NC, cohérent avec DJR/N'B :
+      // - Site AVEC période de chauffe connue → ne garder que les mois de chauffe
+      //   (overlap au niveau mois car les consos sont datées au 1er du mois).
+      // - Site SANS période de chauffe → borner à la saison sélectionnée
+      //   [startDate, endDate]. Sinon le NC ramassait aussi la saison précédente
+      //   (les consos sont récupérées sur extendedStart = startDate − 1 an).
+      if (intervalsBySite.has(consumption.siteId)) {
+        if (!monthOverlapsHeating(consumption.siteId, consumption.period)) return;
+      } else if (consumption.period < startDate || consumption.period > endDate) {
         return;
       }
 
