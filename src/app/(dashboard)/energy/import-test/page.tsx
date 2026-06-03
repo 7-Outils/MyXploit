@@ -206,9 +206,19 @@ export default function ImportTestPage() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<
     | { error: string }
-    | { imported: number; updated: number; skipped: number; metersCreated: number; sitesImpacted: number; unmatchedSites: { name: string; count: number }[] }
+    | {
+        imported: number;
+        updated: number;
+        skipped: number;
+        metersCreated: number;
+        sitesImpacted: number;
+        unmatchedSites: { name: string; count: number; suggestionId: string | null }[];
+        contractSites: { id: string; name: string }[];
+      }
     | null
   >(null);
+  // Correspondances manuelles choisies pour les sites non reconnus : nomFichier → siteId
+  const [manualMappings, setManualMappings] = useState<Record<string, string>>({});
 
   const dataRows = useMemo(() => allRows.slice(headerRow + 1).filter((r) => r.some((c) => c !== "" && c != null)), [allRows, headerRow]);
 
@@ -337,6 +347,30 @@ export default function ImportTestPage() {
     [normalized, pcs, qEcs]
   );
 
+  const runImport = async (cid: string, siteMappings?: Record<string, string>) => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch("/api/consumptions/import-universal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractId: cid, rows: payloadRows, siteMappings }),
+      });
+      const data = await res.json();
+      setImportResult(res.ok ? data : { error: data.error || "Échec de l'import" });
+      // Pré-remplit les menus de correspondance avec la suggestion de chaque site non reconnu
+      if (res.ok && Array.isArray(data.unmatchedSites) && data.unmatchedSites.length > 0) {
+        const seed: Record<string, string> = {};
+        for (const s of data.unmatchedSites) if (s.suggestionId) seed[s.name] = s.suggestionId;
+        setManualMappings(seed);
+      }
+    } catch {
+      setImportResult({ error: "Erreur réseau." });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleImport = async () => {
     const cid = targetContractId || selectedContract?.id;
     if (!cid || payloadRows.length === 0) return;
@@ -348,21 +382,27 @@ export default function ImportTestPage() {
       )
     )
       return;
-    setImporting(true);
-    setImportResult(null);
+    setManualMappings({});
+    await runImport(cid);
+  };
+
+  // Mémorise les correspondances choisies (SiteAlias) puis ré-importe avec elles
+  const handleRemap = async () => {
+    const cid = targetContractId || selectedContract?.id;
+    if (!cid) return;
+    const entries = Object.entries(manualMappings).filter(([, sid]) => sid);
+    if (entries.length === 0) return;
+    // Persiste les alias pour les prochains imports
     try {
-      const res = await fetch("/api/consumptions/import-universal", {
+      await fetch("/api/site-aliases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contractId: cid, rows: payloadRows }),
+        body: JSON.stringify(entries.map(([alias, siteId]) => ({ alias, siteId, source: "EXPLOITANT" }))),
       });
-      const data = await res.json();
-      setImportResult(res.ok ? data : { error: data.error || "Échec de l'import" });
     } catch {
-      setImportResult({ error: "Erreur réseau." });
-    } finally {
-      setImporting(false);
+      /* la persistance échoue silencieusement : on ré-importe quand même */
     }
+    await runImport(cid, Object.fromEntries(entries));
   };
 
   const missingRequired = FIELDS.filter((f) => f.required && (mapping[f.key] == null || mapping[f.key] < 0));
@@ -609,9 +649,38 @@ export default function ImportTestPage() {
                   {importResult.skipped > 0 ? ` · ${importResult.skipped} ignorés` : ""}
                 </div>
                 {importResult.unmatchedSites.length > 0 && (
-                  <div className="text-amber-700">
-                    Sites non reconnus dans ce contrat (ignorés) :{" "}
-                    {importResult.unmatchedSites.map((s) => `${s.name} (${s.count})`).join(", ")}
+                  <div className="space-y-2 pt-2 border-t mt-2">
+                    <div className="text-amber-700 font-medium">
+                      {importResult.unmatchedSites.length} site(s) non reconnu(s) — associe-les manuellement :
+                    </div>
+                    {importResult.unmatchedSites.map((s) => (
+                      <div key={s.name} className="flex flex-wrap items-center gap-2">
+                        <span className="text-gray-700 min-w-[14rem]">
+                          {s.name} <span className="text-gray-400">({s.count} relevés)</span>
+                        </span>
+                        <span className="text-gray-400">→</span>
+                        <select
+                          className="border rounded px-2 py-1 text-sm min-w-[16rem]"
+                          value={manualMappings[s.name] ?? s.suggestionId ?? ""}
+                          onChange={(e) => setManualMappings((m) => ({ ...m, [s.name]: e.target.value }))}
+                        >
+                          <option value="">— Ne pas associer —</option>
+                          {"contractSites" in importResult &&
+                            importResult.contractSites.map((cs) => (
+                              <option key={cs.id} value={cs.id}>{cs.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={importing || Object.values(manualMappings).filter(Boolean).length === 0}
+                      onClick={handleRemap}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      Mémoriser les correspondances et ré-importer
+                    </button>
                   </div>
                 )}
               </div>
