@@ -131,6 +131,9 @@ export async function POST(request: NextRequest) {
     const sheet = workbook.Sheets[sheetName];
     const rawData = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, { header: 1 });
 
+    // Onglet "Sites" : DJC + station météo par site (pour rafraîchir à la mise à jour)
+    const siteDjuMap = parseSitesSheetDju(workbook);
+
     if (rawData.length < 2) {
       return NextResponse.json(
         { error: "Le fichier ne contient pas de données" },
@@ -423,6 +426,19 @@ export async function POST(request: NextRequest) {
               }
             }
           }
+
+          // Rafraîchit le DJC (+ station météo) du site depuis l'onglet "Sites".
+          // Mode mise à jour → on écrase la valeur existante avec celle de l'AE.
+          const djuInfo = siteDjuMap.get(normalizeSiteName(siteName));
+          if (djuInfo && (djuInfo.djuContractuel !== undefined || djuInfo.stationMeteo)) {
+            await prisma.site.update({
+              where: { id: siteMatch.siteId! },
+              data: {
+                ...(djuInfo.djuContractuel !== undefined ? { djuContractuel: djuInfo.djuContractuel } : {}),
+                ...(djuInfo.stationMeteo ? { stationMeteo: djuInfo.stationMeteo } : {}),
+              },
+            });
+          }
         } catch (error) {
           results.errors.push({
             row: rowNum,
@@ -540,6 +556,64 @@ function normalizeSiteName(name: string): string {
     .replace(/[-_]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// Lit l'onglet "Sites" de l'AE et renvoie, par nom de site normalis\u00e9,
+// le DJU contractuel (DJC) et la station m\u00e9t\u00e9o \u2014 pour les rafra\u00eechir \u00e0 la mise \u00e0 jour.
+function parseSitesSheetDju(
+  workbook: XLSX.WorkBook
+): Map<string, { djuContractuel?: number; stationMeteo?: string }> {
+  const map = new Map<string, { djuContractuel?: number; stationMeteo?: string }>();
+  const sheetName = workbook.SheetNames.find(
+    (n) => n.toLowerCase() === "sites" || n.toLowerCase() === "liste sites"
+  );
+  if (!sheetName) return map;
+
+  const rawData = XLSX.utils.sheet_to_json<(string | number)[]>(workbook.Sheets[sheetName], {
+    header: 1,
+  });
+  if (rawData.length < 2) return map;
+
+  const norm = (h: unknown) =>
+    String(h ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+  // Ligne d'en-t\u00eates (celle qui a une colonne nom)
+  let headerRowIndex = 0;
+  for (let i = 0; i < Math.min(15, rawData.length); i++) {
+    const lowers = (rawData[i] || []).map(norm);
+    if (lowers.some((h) => h === "libelle" || h === "nom" || h === "site" || h === "installation")) {
+      headerRowIndex = i;
+      break;
+    }
+  }
+  const headers = (rawData[headerRowIndex] || []).map(norm);
+  const nameCol = headers.findIndex(
+    (h) => h === "libelle" || h === "nom" || h === "site" || h === "installation"
+  );
+  const djuCol = headers.findIndex((h) => h.includes("dju"));
+  const stationCol = headers.findIndex((h) => h.includes("station") || h === "meteo");
+  if (nameCol === -1) return map;
+
+  for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+    const row = rawData[i];
+    if (!row) continue;
+    const name = String(row[nameCol] || "").trim();
+    if (!name) continue;
+    const entry: { djuContractuel?: number; stationMeteo?: string } = {};
+    if (djuCol !== -1) {
+      const v = row[djuCol];
+      const num = typeof v === "number" ? v : parseFloat(String(v || "").replace(",", ".").replace(/\s/g, ""));
+      if (!isNaN(num) && num > 0) entry.djuContractuel = Math.round(num);
+    }
+    if (stationCol !== -1) {
+      const s = String(row[stationCol] || "").trim();
+      if (s) entry.stationMeteo = s;
+    }
+    if (entry.djuContractuel !== undefined || entry.stationMeteo) {
+      map.set(normalizeSiteName(name), entry);
+    }
+  }
+  return map;
 }
 
 function similarity(a: string, b: string): number {
