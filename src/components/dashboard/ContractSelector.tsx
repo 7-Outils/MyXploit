@@ -114,15 +114,6 @@ export function ContractSelector() {
           <span className="font-medium truncate">
             {currentClient?.name || "Sélectionner un client"}
           </span>
-          {selectedContract && (
-            <>
-              <span className="text-gray-300">/</span>
-              <FileText size={13} className="text-gray-400 flex-shrink-0" />
-              <span className="text-gray-500 truncate">
-                {selectedContract.reference}
-              </span>
-            </>
-          )}
           <ChevronDown
             size={14}
             className={cn(
