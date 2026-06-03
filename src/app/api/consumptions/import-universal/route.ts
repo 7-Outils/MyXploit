@@ -167,6 +167,7 @@ export async function POST(request: NextRequest) {
       readingDate: Date;
       index: number | null;
       unit: string;
+      isReset?: boolean; // index qui repart à zéro = changement de compteur
     };
     const resolved: ResolvedRow[] = [];
     const unmatchedSites = new Map<string, number>(); // nom → nb lignes
@@ -192,6 +193,31 @@ export async function POST(request: NextRequest) {
         index: r.index,
         unit: r.unit || "m³",
       });
+    }
+
+    // 1b) Détection des changements de compteur : si l'index BAISSE entre deux
+    //     relevés successifs d'un même compteur, le nouveau relevé est une
+    //     nouvelle baseline → isReset=true (le moteur ne calculera pas le delta
+    //     négatif aberrant avec l'ancien index). Sinon : conso fantôme énorme.
+    let resetsDetected = 0;
+    {
+      const byMeter = new Map<string, ResolvedRow[]>();
+      for (const row of resolved) {
+        const k = `${row.siteId}|${row.meter}`;
+        if (!byMeter.has(k)) byMeter.set(k, []);
+        byMeter.get(k)!.push(row);
+      }
+      for (const list of byMeter.values()) {
+        list.sort((a, b) => a.readingDate.getTime() - b.readingDate.getTime());
+        let prevIndex: number | null = null;
+        for (const r of list) {
+          if (r.index != null && prevIndex != null && r.index < prevIndex) {
+            r.isReset = true;
+            resetsDetected++;
+          }
+          if (r.index != null) prevIndex = r.index;
+        }
+      }
     }
 
     // 2) Création / récupération des compteurs (clé siteId|meter)
@@ -259,7 +285,7 @@ export async function POST(request: NextRequest) {
       if (existing) {
         await prisma.meterReading.update({
           where: { id: existing.id },
-          data: { indexValue: row.index, unit: row.unit, notes: "Import exploitant (universel)" },
+          data: { indexValue: row.index, unit: row.unit, isReset: row.isReset ?? false, notes: "Import exploitant (universel)" },
         });
         updated++;
       } else {
@@ -269,6 +295,7 @@ export async function POST(request: NextRequest) {
             readingDate: row.readingDate,
             indexValue: row.index,
             unit: row.unit,
+            isReset: row.isReset ?? false,
             source: "MANUEL",
             notes: "Import exploitant (universel)",
           },
@@ -307,6 +334,7 @@ export async function POST(request: NextRequest) {
       metersCreated,
       sitesImpacted: impactedSites.size,
       djuUpdated,
+      resetsDetected,
       unmatchedSites: Array.from(unmatchedSites.entries()).map(([name, count]) => ({
         name,
         count,

@@ -213,6 +213,7 @@ export default function ImportTestPage() {
         metersCreated: number;
         sitesImpacted: number;
         djuUpdated: number;
+        resetsDetected: number;
         unmatchedSites: { name: string; count: number; suggestionId: string | null }[];
         contractSites: { id: string; name: string }[];
       }
@@ -648,6 +649,7 @@ export default function ImportTestPage() {
                   {importResult.imported} relevés créés · {importResult.updated} mis à jour ·{" "}
                   {importResult.metersCreated} compteurs créés · {importResult.sitesImpacted} sites recalculés ·{" "}
                   {importResult.djuUpdated} DJR synchronisés
+                  {importResult.resetsDetected > 0 ? ` · ${importResult.resetsDetected} changement(s) de compteur détecté(s)` : ""}
                   {importResult.skipped > 0 ? ` · ${importResult.skipped} ignorés` : ""}
                 </div>
                 {importResult.unmatchedSites.length > 0 && (
