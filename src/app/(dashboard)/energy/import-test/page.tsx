@@ -566,9 +566,17 @@ export default function ImportTestPage() {
                   onChange={(e) => setTargetContractId(e.target.value)}
                 >
                   <option value="">— Choisir un contrat —</option>
-                  {contracts.map((c) => (
-                    <option key={c.id} value={c.id}>{c.title || c.reference}</option>
-                  ))}
+                  {contracts.map((c) => {
+                    const parts = [
+                      c.client?.name,
+                      c.title || c.reference,
+                      c.reference && c.title ? c.reference : null,
+                      typeof c._count?.contractSites === "number" ? `${c._count.contractSites} sites` : null,
+                    ].filter(Boolean);
+                    return (
+                      <option key={c.id} value={c.id}>{parts.join(" · ")}</option>
+                    );
+                  })}
                 </select>
               </div>
               <button
