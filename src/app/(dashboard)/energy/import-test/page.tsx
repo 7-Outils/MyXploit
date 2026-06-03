@@ -214,6 +214,7 @@ export default function ImportTestPage() {
         sitesImpacted: number;
         djuUpdated: number;
         resetsDetected: number;
+        heatingPeriods: number;
         unmatchedSites: { name: string; count: number; suggestionId: string | null }[];
         contractSites: { id: string; name: string }[];
       }
@@ -648,7 +649,7 @@ export default function ImportTestPage() {
                 <div className="text-gray-600">
                   {importResult.imported} relevés créés · {importResult.updated} mis à jour ·{" "}
                   {importResult.metersCreated} compteurs créés · {importResult.sitesImpacted} sites recalculés ·{" "}
-                  {importResult.djuUpdated} DJR synchronisés
+                  {importResult.djuUpdated} DJR synchronisés · {importResult.heatingPeriods} période(s) de chauffe
                   {importResult.resetsDetected > 0 ? ` · ${importResult.resetsDetected} changement(s) de compteur détecté(s)` : ""}
                   {importResult.skipped > 0 ? ` · ${importResult.skipped} ignorés` : ""}
                 </div>

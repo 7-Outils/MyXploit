@@ -93,6 +93,30 @@ function computeMeterConversion(
   return { coefficient: null, convUnit: null };
 }
 
+// Crée/Met à jour la période de chauffe (allumage→arrêt) d'un site pour une saison.
+// Idempotent : retrouve la période existante dont l'allumage tombe dans la fenêtre
+// de saison (juillet→juin) et l'ajuste, sinon en crée une.
+async function upsertHeatingPeriod(siteId: string, start: Date, end: Date) {
+  const y = start.getMonth() >= 6 ? start.getFullYear() : start.getFullYear() - 1;
+  const seasonStart = new Date(Date.UTC(y, 6, 1)); // 1er juillet
+  const seasonEnd = new Date(Date.UTC(y + 1, 5, 30)); // 30 juin
+  const existing = await prisma.heatingPeriod.findFirst({
+    where: { siteId, startDate: { gte: seasonStart, lte: seasonEnd } },
+    orderBy: { startDate: "asc" },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.heatingPeriod.update({
+      where: { id: existing.id },
+      data: { startDate: start, endDate: end },
+    });
+  } else {
+    await prisma.heatingPeriod.create({
+      data: { siteId, startDate: start, endDate: end, notes: "Déduit de l'import exploitant (1er → dernier relevé)" },
+    });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
@@ -314,8 +338,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5) Synchro DJU (DJR) automatique pour les sites impactés — comme l'import
-    //    historique. Sans ça, les consos n'ont pas de djuReel → DJR = 0 en perf.
+    // 4b) Période de chauffe (allumage → arrêt) déduite des relevés, par site et
+    //     par saison (juillet→juin). C'EST elle qui fait sortir le DJR : l'analytics
+    //     somme les DJU météo uniquement sur les jours de chauffe (HeatingPeriod).
+    //     Hypothèse : le fichier couvre la saison → allumage = 1er relevé de chauffage,
+    //     arrêt = dernier. (Les compteurs ECS/eau sont exclus de ce calcul.)
+    let heatingPeriods = 0;
+    const seasonRanges = new Map<string, { siteId: string; start: Date; end: Date }>();
+    for (const row of resolved) {
+      if (row.fluid === "EAU_CHAUDE" || row.fluid === "EAU_FROIDE") continue; // pas l'ECS/eau
+      const y = row.readingDate.getMonth() >= 6 ? row.readingDate.getFullYear() : row.readingDate.getFullYear() - 1;
+      const key = `${row.siteId}|${y}`;
+      const ex = seasonRanges.get(key);
+      if (!ex) {
+        seasonRanges.set(key, { siteId: row.siteId, start: row.readingDate, end: row.readingDate });
+      } else {
+        if (row.readingDate < ex.start) ex.start = row.readingDate;
+        if (row.readingDate > ex.end) ex.end = row.readingDate;
+      }
+    }
+    for (const r of seasonRanges.values()) {
+      if (r.end > r.start) {
+        try {
+          await upsertHeatingPeriod(r.siteId, r.start, r.end);
+          heatingPeriods++;
+        } catch (err) {
+          console.error(`[import-universal] heating period site ${r.siteId}:`, err);
+        }
+      }
+    }
+
+    // 5) Synchro DJU : écrit Consumption.djuReel (utilisé par la fiche site / profil
+    //    thermique / conso mensuelle). NB : ce n'est PAS ce qui alimente le DJR du
+    //    tableau de perf (lui le recalcule depuis la météo sur les périodes de chauffe).
     let djuUpdated = 0;
     if (impactedSites.size > 0) {
       try {
@@ -335,6 +390,7 @@ export async function POST(request: NextRequest) {
       sitesImpacted: impactedSites.size,
       djuUpdated,
       resetsDetected,
+      heatingPeriods,
       unmatchedSites: Array.from(unmatchedSites.entries()).map(([name, count]) => ({
         name,
         count,
