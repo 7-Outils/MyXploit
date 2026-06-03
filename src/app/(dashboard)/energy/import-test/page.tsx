@@ -212,6 +212,7 @@ export default function ImportTestPage() {
         skipped: number;
         metersCreated: number;
         sitesImpacted: number;
+        djuUpdated: number;
         unmatchedSites: { name: string; count: number; suggestionId: string | null }[];
         contractSites: { id: string; name: string }[];
       }
@@ -645,7 +646,8 @@ export default function ImportTestPage() {
                 <div className="font-medium text-emerald-700">Import terminé ✓</div>
                 <div className="text-gray-600">
                   {importResult.imported} relevés créés · {importResult.updated} mis à jour ·{" "}
-                  {importResult.metersCreated} compteurs créés · {importResult.sitesImpacted} sites recalculés
+                  {importResult.metersCreated} compteurs créés · {importResult.sitesImpacted} sites recalculés ·{" "}
+                  {importResult.djuUpdated} DJR synchronisés
                   {importResult.skipped > 0 ? ` · ${importResult.skipped} ignorés` : ""}
                 </div>
                 {importResult.unmatchedSites.length > 0 && (

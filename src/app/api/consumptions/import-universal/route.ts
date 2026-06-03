@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { MeterFluid } from "@/generated/prisma/client";
 import { regenerateConsumptionForSite } from "@/lib/consumption-projector";
+import { syncDjuForSites } from "@/lib/dju-sync";
 
 /**
  * Import RELEVÉS exploitant — moteur universel (v2).
@@ -286,6 +287,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 5) Synchro DJU (DJR) automatique pour les sites impactés — comme l'import
+    //    historique. Sans ça, les consos n'ont pas de djuReel → DJR = 0 en perf.
+    let djuUpdated = 0;
+    if (impactedSites.size > 0) {
+      try {
+        const r = await syncDjuForSites(Array.from(impactedSites), effectiveOrgId, false);
+        djuUpdated = r.updated;
+      } catch (err) {
+        console.error("[import-universal] DJU sync:", err);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       imported,
@@ -293,6 +306,7 @@ export async function POST(request: NextRequest) {
       skipped,
       metersCreated,
       sitesImpacted: impactedSites.size,
+      djuUpdated,
       unmatchedSites: Array.from(unmatchedSites.entries()).map(([name, count]) => ({
         name,
         count,
