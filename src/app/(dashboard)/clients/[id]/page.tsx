@@ -17,7 +17,11 @@ import {
   Plus,
   Link2,
   Unlink,
+  FileSpreadsheet,
 } from "lucide-react";
+import EditContractModal from "@/components/administratif/modals/EditContractModal";
+import AEImportModal from "@/components/administratif/modals/AEImportModal";
+import type { Contract as FullContract } from "@/components/administratif/types";
 
 interface Site {
   id: string;
@@ -88,6 +92,10 @@ export default function ClientDetailPage() {
   const [loadingOrphans, setLoadingOrphans] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [attaching, setAttaching] = useState(false);
+
+  // Actions par contrat (Modifier / Importer AE)
+  const [editingContract, setEditingContract] = useState<FullContract | null>(null);
+  const [aeContractId, setAeContractId] = useState<string | null>(null);
 
   const fetchClient = useCallback(async () => {
     try {
@@ -168,6 +176,35 @@ export default function ClientDetailPage() {
       else alert("Erreur lors du détachement");
     } catch {
       alert("Erreur lors du détachement");
+    }
+  };
+
+  const openEdit = async (contractId: string) => {
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`);
+      if (res.ok) setEditingContract((await res.json()) as FullContract);
+      else alert("Impossible de charger le contrat");
+    } catch {
+      alert("Impossible de charger le contrat");
+    }
+  };
+
+  const handleDeleteContract = async (contractId: string, reference: string) => {
+    const ok = confirm(
+      `Supprimer définitivement le contrat « ${reference} » ?\n\n` +
+        "Les sites partagés avec d'autres contrats sont conservés. " +
+        "Seuls les sites propres à ce contrat (et leurs données) seront supprimés.\n\nCette action est irréversible."
+    );
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, { method: "DELETE" });
+      if (res.ok) await fetchClient();
+      else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Échec de la suppression du contrat");
+      }
+    } catch {
+      alert("Erreur réseau lors de la suppression");
     }
   };
 
@@ -393,14 +430,37 @@ export default function ClientDetailPage() {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-sm text-gray-600">{contract._count.contractSites}</td>
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          onClick={() => handleDetach(contract.id, contract.reference)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Détacher du client"
-                        >
-                          <Unlink size={16} />
-                        </button>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => openEdit(contract.id)}
+                            title="Modifier le contrat"
+                            className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            onClick={() => setAeContractId(contract.id)}
+                            title="Importer un AE dans ce contrat"
+                            className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                          >
+                            <FileSpreadsheet size={15} />
+                          </button>
+                          <button
+                            onClick={() => handleDetach(contract.id, contract.reference)}
+                            title="Détacher du client"
+                            className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                          >
+                            <Unlink size={15} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteContract(contract.id, contract.reference)}
+                            title="Supprimer le contrat"
+                            className="h-8 w-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -491,6 +551,24 @@ export default function ClientDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal édition contrat */}
+      {editingContract && (
+        <EditContractModal
+          contractId={editingContract.id}
+          contractDetail={editingContract}
+          onClose={() => setEditingContract(null)}
+          onUpdated={async () => { await fetchClient(); }}
+        />
+      )}
+
+      {/* Modal import AE sur un contrat existant */}
+      {aeContractId && (
+        <AEImportModal
+          contractId={aeContractId}
+          onClose={() => { setAeContractId(null); fetchClient(); }}
+        />
       )}
     </div>
   );

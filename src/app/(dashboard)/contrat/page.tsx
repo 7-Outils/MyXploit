@@ -6,11 +6,8 @@ import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
 import {
   Loader2,
-  FileSpreadsheet,
   Pencil,
-  Trash2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { sortTabsAlpha } from "@/lib/utils";
 
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
@@ -18,7 +15,6 @@ import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab"
 import ContractRevisionTab from "@/components/administratif/ContractRevisionTab";
 import ContractMontantsTab from "@/components/administratif/ContractMontantsTab";
 import EditContractModal from "@/components/administratif/modals/EditContractModal";
-import AEImportModal from "@/components/administratif/modals/AEImportModal";
 import type { Contract } from "@/components/administratif/types";
 import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
 import type { Site } from "@/components/energy/types";
@@ -34,7 +30,7 @@ const CONTRAT_TABS = sortTabsAlpha([
 ]);
 
 function AdministratifContent() {
-  const { selectedContract, isLoading: loadingContracts, clearContract } = useContract();
+  const { selectedContract, isLoading: loadingContracts } = useContract();
   const contractKey = selectedContract?.id;
 
   const { data: contractDetailData, isLoading: loadingDetail, mutate: mutateDetail } = useSWR<Contract>(
@@ -50,34 +46,6 @@ function AdministratifContent() {
 
   const [activeTab, setActiveTab] = useState<ContratTab>(CONTRAT_TABS[0].id);
   const [showEditContractModal, setShowEditContractModal] = useState(false);
-  const [showAEImportModal, setShowAEImportModal] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDeleteContract = async () => {
-    if (!selectedContract) return;
-    const ok = window.confirm(
-      `Supprimer définitivement le contrat « ${selectedContract.title || selectedContract.reference || ""} » ?\n\n` +
-        "Les sites partagés avec d'autres contrats sont conservés. " +
-        "Seuls les sites propres à ce contrat (et leurs données) seront supprimés.\n\nCette action est irréversible."
-    );
-    if (!ok) return;
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`/api/contracts/${selectedContract.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        window.alert(data.error || "Échec de la suppression du contrat.");
-        setIsDeleting(false);
-        return;
-      }
-      clearContract();
-      // Rechargement franc : le ContractProvider re-fetch la liste à jour
-      window.location.assign("/contrat");
-    } catch {
-      window.alert("Erreur réseau lors de la suppression.");
-      setIsDeleting(false);
-    }
-  };
 
   if (loadingContracts) {
     return (
@@ -103,28 +71,9 @@ function AdministratifContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowEditContractModal(true)}>
-            <Pencil size={18} className="mr-2" />
-            Modifier
-          </Button>
-          <Button variant="outline" onClick={() => setShowAEImportModal(true)}>
-            <FileSpreadsheet size={18} className="mr-2" />
-            Importer AE
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleDeleteContract}
-            disabled={isDeleting}
-            className="ml-auto text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-          >
-            {isDeleting ? <Loader2 size={18} className="mr-2 animate-spin" /> : <Trash2 size={18} className="mr-2" />}
-            Supprimer
-          </Button>
-        </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-200">
+      {/* Tabs + actions */}
+      <div className="border-b border-gray-200 flex items-end justify-between gap-2">
+      <div className="flex gap-2 -mb-px overflow-x-auto">
         {CONTRAT_TABS.map((tab) => {
           const count =
             tab.id === "sites" ? contractSites.length
@@ -154,6 +103,17 @@ function AdministratifContent() {
             </button>
           );
         })}
+      </div>
+        <div className="flex items-center gap-2 pb-2">
+          <button
+            type="button"
+            onClick={() => setShowEditContractModal(true)}
+            title="Modifier le contrat"
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}
@@ -215,7 +175,6 @@ function AdministratifContent() {
           onUpdated={fetchDetail}
         />
       )}
-      {showAEImportModal && <AEImportModal onClose={() => setShowAEImportModal(false)} contractId={selectedContract?.id} />}
     </div>
   );
 }
