@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import EditContractModal from "@/components/administratif/modals/EditContractModal";
 import AEImportModal from "@/components/administratif/modals/AEImportModal";
+import CreateContractModal from "@/components/administratif/modals/CreateContractModal";
 import type { Contract as FullContract } from "@/components/administratif/types";
 
 interface Site {
@@ -82,7 +83,7 @@ export default function ClientDetailPage() {
 
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"sites" | "contracts">("sites");
+  const [activeTab, setActiveTab] = useState<"contracts" | "sites">("contracts");
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ name: "", siret: "", contactName: "", contactEmail: "", contactPhone: "", city: "" });
 
@@ -93,9 +94,12 @@ export default function ClientDetailPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [attaching, setAttaching] = useState(false);
 
-  // Actions par contrat (Modifier / Importer AE)
+  // Actions par contrat (Modifier / Importer AE sur un contrat existant)
   const [editingContract, setEditingContract] = useState<FullContract | null>(null);
   const [aeContractId, setAeContractId] = useState<string | null>(null);
+  // Création d'un nouveau contrat rattaché à ce client
+  const [showCreateContract, setShowCreateContract] = useState(false);
+  const [showCreateAE, setShowCreateAE] = useState(false);
 
   const fetchClient = useCallback(async () => {
     try {
@@ -245,112 +249,108 @@ export default function ClientDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/clients" className="p-2 hover:bg-gray-100 rounded-lg">
-            <ArrowLeft size={20} className="text-gray-600" />
+    <div className="space-y-5">
+      {/* Header compact : identité + métriques inline + actions */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <Link href="/clients" className="p-2 -ml-2 hover:bg-gray-100 rounded-lg text-gray-500 mt-0.5">
+            <ArrowLeft size={18} />
           </Link>
-          <div>
+          <div className="min-w-0">
             {editing ? (
               <div className="flex items-center gap-2">
                 <input
                   value={editData.name}
                   onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                  className="text-2xl font-bold px-2 py-1 border border-gray-200 rounded-lg"
+                  className="text-xl font-bold px-2 py-1 border border-gray-200 rounded-lg"
                   autoFocus
                 />
                 <button onClick={handleSave} className="p-2 text-green-600 hover:bg-green-50 rounded-lg">
-                  <Check size={20} />
+                  <Check size={18} />
                 </button>
                 <button onClick={() => setEditing(false)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg">
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             ) : (
               <>
-                <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
-                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                  {client.city && <span className="flex items-center gap-1"><MapPin size={14} /> {client.city}</span>}
-                  {client.siret && <span>SIRET: {client.siret}</span>}
+                <h1 className="text-xl font-bold text-gray-900 truncate">{client.name}</h1>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-500">
+                  {client.city && <span className="flex items-center gap-1"><MapPin size={13} /> {client.city}</span>}
+                  {client.siret && <span className="text-gray-400">SIRET {client.siret}</span>}
+                  {client.contactName && <span className="text-gray-600 font-medium">{client.contactName}</span>}
+                  {client.contactEmail && <a href={`mailto:${client.contactEmail}`} className="flex items-center gap-1 hover:text-accent"><Mail size={13} /> {client.contactEmail}</a>}
+                  {client.contactPhone && <span className="flex items-center gap-1"><Phone size={13} /> {client.contactPhone}</span>}
+                </div>
+                <div className="flex items-center gap-4 mt-2 text-sm">
+                  <span className="flex items-center gap-1.5 text-gray-700"><FileText size={14} className="text-gray-400" /><strong className="font-semibold">{client._count.contracts}</strong> contrat{client._count.contracts > 1 ? "s" : ""}</span>
+                  <span className="flex items-center gap-1.5 text-gray-700"><MapPin size={14} className="text-gray-400" /><strong className="font-semibold">{client._count.sites}</strong> site{client._count.sites > 1 ? "s" : ""}</span>
                 </div>
               </>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setEditing(true)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Modifier">
-            <Pencil size={18} />
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <button onClick={() => setEditing(true)} title="Modifier le client" className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">
+            <Pencil size={16} />
           </button>
-          <button onClick={handleDelete} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer">
-            <Trash2 size={18} />
+          <button onClick={handleDelete} title="Supprimer le client" className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+            <Trash2 size={16} />
           </button>
         </div>
       </div>
 
-      {/* Contact Info */}
-      {(client.contactName || client.contactEmail || client.contactPhone) && (
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-6">
-          {client.contactName && (
-            <span className="text-sm text-gray-700 font-medium">{client.contactName}</span>
-          )}
-          {client.contactEmail && (
-            <span className="text-sm text-gray-500 flex items-center gap-1"><Mail size={14} /> {client.contactEmail}</span>
-          )}
-          {client.contactPhone && (
-            <span className="text-sm text-gray-500 flex items-center gap-1"><Phone size={14} /> {client.contactPhone}</span>
-          )}
+      {/* Tabs + actions */}
+      <div className="border-b border-gray-200 flex items-end justify-between gap-2">
+        <div className="flex gap-1 -mb-px">
+          {([
+            { id: "contracts" as const, label: "Contrats", count: client.contracts.length },
+            { id: "sites" as const, label: "Sites", count: client.sites.length },
+          ]).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id ? "border-accent text-accent" : "border-transparent text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
         </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-            <MapPin size={20} className="text-blue-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{client._count.sites}</p>
-            <p className="text-sm text-gray-600">Sites</p>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-            <FileText size={20} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{client._count.contracts}</p>
-            <p className="text-sm text-gray-600">Contrats</p>
-          </div>
+        <div className="flex items-center gap-1.5 pb-2">
+          <button
+            onClick={() => setShowCreateContract(true)}
+            className="flex items-center gap-1.5 h-9 px-3 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+          >
+            <Plus size={15} /> Nouveau contrat
+          </button>
+          <button
+            onClick={() => setShowCreateAE(true)}
+            title="Créer un contrat depuis un fichier AE"
+            className="h-9 px-3 flex items-center gap-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <FileSpreadsheet size={15} /> Importer AE
+          </button>
+          <button
+            onClick={openAttach}
+            title="Rattacher un contrat existant"
+            className="h-9 px-3 flex items-center gap-1.5 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Link2 size={15} /> Rattacher
+          </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setActiveTab("sites")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === "sites" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Sites ({client.sites.length})
-        </button>
-        <button
-          onClick={() => setActiveTab("contracts")}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === "contracts" ? "bg-white text-gray-900 shadow-sm" : "text-gray-600 hover:text-gray-900"
-          }`}
-        >
-          Contrats ({client.contracts.length})
-        </button>
-      </div>
-
-      {/* Tab Content */}
+      {/* Sites */}
       {activeTab === "sites" && (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {client.sites.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Aucun site rattache a ce client</div>
+            <div className="p-10 text-center">
+              <MapPin size={36} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500 text-sm">Aucun site rattaché à ce client.</p>
+              <p className="text-gray-400 text-xs mt-1">Les sites sont rattachés automatiquement via les contrats du client.</p>
+            </div>
           ) : (
             <table className="w-full">
               <thead>
@@ -378,29 +378,25 @@ export default function ClientDetailPage() {
         </div>
       )}
 
+      {/* Contrats */}
       {activeTab === "contracts" && (
-        <div className="space-y-3">
-          <div className="flex justify-end">
-            <button
-              onClick={openAttach}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-            >
-              <Link2 size={16} />
-              Rattacher un contrat
-            </button>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
             {client.contracts.length === 0 ? (
-              <div className="p-8 text-center">
-                <FileText size={40} className="mx-auto text-gray-300 mb-3" />
-                <p className="text-gray-500 mb-4">Aucun contrat rattaché à ce client</p>
-                <button
-                  onClick={openAttach}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90"
-                >
-                  <Plus size={16} />
-                  Rattacher un contrat existant
-                </button>
+              <div className="p-10 text-center">
+                <FileText size={36} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-700 font-medium mb-1">Aucun contrat rattaché</p>
+                <p className="text-gray-400 text-sm mb-5">Crée un contrat, importe un AE, ou rattache un contrat existant à ce client.</p>
+                <div className="flex items-center justify-center gap-2">
+                  <button onClick={() => setShowCreateContract(true)} className="inline-flex items-center gap-1.5 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 text-sm font-medium">
+                    <Plus size={15} /> Nouveau contrat
+                  </button>
+                  <button onClick={() => setShowCreateAE(true)} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm">
+                    <FileSpreadsheet size={15} /> Importer AE
+                  </button>
+                  <button onClick={openAttach} className="inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-sm">
+                    <Link2 size={15} /> Rattacher
+                  </button>
+                </div>
               </div>
             ) : (
               <table className="w-full">
@@ -467,7 +463,6 @@ export default function ClientDetailPage() {
                 </tbody>
               </table>
             )}
-          </div>
         </div>
       )}
 
@@ -568,6 +563,22 @@ export default function ClientDetailPage() {
         <AEImportModal
           contractId={aeContractId}
           onClose={() => { setAeContractId(null); fetchClient(); }}
+        />
+      )}
+
+      {/* Modal création d'un nouveau contrat rattaché au client */}
+      {showCreateContract && (
+        <CreateContractModal
+          clientId={clientId}
+          onClose={() => setShowCreateContract(false)}
+        />
+      )}
+
+      {/* Modal création d'un contrat depuis un AE, rattaché au client */}
+      {showCreateAE && (
+        <AEImportModal
+          clientId={clientId}
+          onClose={() => setShowCreateAE(false)}
         />
       )}
     </div>

@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         yearType: body.yearType || "HEATING_SEASON",
         billingFrequency: body.billingFrequency || "TRIMESTRIEL",
         isPublic: body.isPublic === true,
+        clientId: body.clientId || null,
       },
       include: {
         contractSites: {

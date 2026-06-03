@@ -8,9 +8,10 @@ import type { YearType, BillingFrequency } from "@/components/administratif/type
 
 interface CreateContractModalProps {
   onClose: () => void;
+  clientId?: string;
 }
 
-export default function CreateContractModal({ onClose }: CreateContractModalProps) {
+export default function CreateContractModal({ onClose, clientId }: CreateContractModalProps) {
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
     reference: "",
@@ -36,6 +37,7 @@ export default function CreateContractModal({ onClose }: CreateContractModalProp
           startDate: parseFrenchDate(formData.startDate),
           endDate: parseFrenchDate(formData.endDate),
           djuContractuel: formData.djuContractuel ? parseFloat(formData.djuContractuel) : null,
+          clientId: clientId || null,
         }),
       });
       if (response.ok) {

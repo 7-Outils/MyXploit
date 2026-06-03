@@ -27,9 +27,10 @@ interface AEImportPreview {
 interface AEImportModalProps {
   onClose: () => void;
   contractId?: string;
+  clientId?: string;
 }
 
-export default function AEImportModal({ onClose, contractId }: AEImportModalProps) {
+export default function AEImportModal({ onClose, contractId, clientId }: AEImportModalProps) {
   const isUpdate = !!contractId;
   const [importing, setImporting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -105,6 +106,7 @@ export default function AEImportModal({ onClose, contractId }: AEImportModalProp
         formData.append("endDate", parseFrenchDate(contractForm.endDate));
         formData.append("yearType", contractForm.yearType);
         formData.append("billingFrequency", contractForm.billingFrequency);
+        if (clientId) formData.append("clientId", clientId);
       }
       const url = isUpdate ? "/api/contracts/import-ae" : "/api/contracts/create-from-ae";
       const response = await fetch(url, { method: "POST", body: formData });

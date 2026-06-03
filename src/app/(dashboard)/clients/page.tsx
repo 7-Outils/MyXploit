@@ -11,7 +11,6 @@ import {
   MapPin,
   FileText,
   Phone,
-  Mail,
 } from "lucide-react";
 
 interface Client {
@@ -151,42 +150,59 @@ export default function ClientsPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((client) => (
-            <div
-              key={client.id}
-              onClick={() => router.push(`/clients/${client.id}`)}
-              className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition-shadow cursor-pointer"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                  <Building2 size={20} className="text-accent" />
-                </div>
-                {client.siret && (
-                  <span className="text-xs text-gray-400">SIRET: {client.siret}</span>
-                )}
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">{client.name}</h3>
-              {client.city && (
-                <p className="text-sm text-gray-500 flex items-center gap-1 mb-3">
-                  <MapPin size={14} /> {client.city}
-                </p>
-              )}
-              <div className="flex items-center gap-4 text-sm text-gray-600 pt-3 border-t border-gray-50">
-                <span className="flex items-center gap-1">
-                  <MapPin size={14} /> {client._count.sites} site{client._count.sites > 1 ? "s" : ""}
-                </span>
-                <span className="flex items-center gap-1">
-                  <FileText size={14} /> {client._count.contracts} contrat{client._count.contracts > 1 ? "s" : ""}
-                </span>
-              </div>
-              {client.contactName && (
-                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
-                  <Phone size={12} /> {client.contactName}
-                </p>
-              )}
-            </div>
-          ))}
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100 text-left text-xs font-semibold text-gray-500 uppercase">
+                <th className="px-5 py-3">Client</th>
+                <th className="px-5 py-3">Ville</th>
+                <th className="px-5 py-3">Contact</th>
+                <th className="px-5 py-3 text-right">Contrats</th>
+                <th className="px-5 py-3 text-right">Sites</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map((client) => (
+                <tr
+                  key={client.id}
+                  onClick={() => router.push(`/clients/${client.id}`)}
+                  className="hover:bg-gray-50 cursor-pointer"
+                >
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <Building2 size={16} className="text-accent" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{client.name}</p>
+                        {client.siret && <p className="text-xs text-gray-400">SIRET {client.siret}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3.5 text-sm text-gray-600">
+                    {client.city ? (
+                      <span className="flex items-center gap-1"><MapPin size={13} className="text-gray-400" /> {client.city}</span>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-5 py-3.5 text-sm text-gray-600">
+                    {client.contactName ? (
+                      <span className="flex items-center gap-1"><Phone size={13} className="text-gray-400" /> {client.contactName}</span>
+                    ) : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    <span className={`inline-flex items-center gap-1 text-sm ${client._count.contracts > 0 ? "text-gray-700 font-medium" : "text-gray-300"}`}>
+                      <FileText size={13} /> {client._count.contracts}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 text-right">
+                    <span className={`inline-flex items-center gap-1 text-sm ${client._count.sites > 0 ? "text-gray-700 font-medium" : "text-gray-300"}`}>
+                      <MapPin size={13} /> {client._count.sites}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

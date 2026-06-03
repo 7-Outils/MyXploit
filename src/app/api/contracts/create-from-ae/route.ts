@@ -422,6 +422,7 @@ export async function POST(request: NextRequest) {
     const endDate = formData.get("endDate") as string;
     const yearType = (formData.get("yearType") as string) || "HEATING_SEASON";
     const billingFrequency = (formData.get("billingFrequency") as string) || "TRIMESTRIEL";
+    const clientId = (formData.get("clientId") as string) || null;
 
     if (!file) {
       return NextResponse.json(
@@ -819,6 +820,7 @@ export async function POST(request: NextRequest) {
           yearStartMonth: yearType === "HEATING_SEASON" ? 7 : 1,
           yearStartDay: 1,
           status: "ACTIF",
+          clientId: clientId || undefined,
         },
       });
 
@@ -1118,6 +1120,17 @@ export async function POST(request: NextRequest) {
               nb: seasonData.nb,
               nbUnit: seasonData.nbUnit,
             },
+          });
+        }
+      }
+
+      // Rattache tous les sites du contrat au client (cohérent avec le PUT contrat)
+      if (clientId) {
+        const allSiteIds = [...createdSiteIds, ...linkedSiteIds];
+        if (allSiteIds.length > 0) {
+          await tx.site.updateMany({
+            where: { id: { in: allSiteIds }, organizationId: effectiveOrgId },
+            data: { clientId },
           });
         }
       }
