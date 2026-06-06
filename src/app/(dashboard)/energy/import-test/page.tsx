@@ -203,6 +203,7 @@ export default function ImportTestPage() {
   // Écriture en base
   const { contracts, selectedContract } = useContract();
   const [targetContractId, setTargetContractId] = useState<string>("");
+  const [importType, setImportType] = useState<"RELEVE_MENSUEL" | "ALLUMAGE" | "ARRET">("RELEVE_MENSUEL");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<
     | { error: string }
@@ -356,7 +357,7 @@ export default function ImportTestPage() {
       const res = await fetch("/api/consumptions/import-universal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contractId: cid, rows: payloadRows, siteMappings }),
+        body: JSON.stringify({ contractId: cid, rows: payloadRows, siteMappings, importType }),
       });
       const data = await res.json();
       setImportResult(res.ok ? data : { error: data.error || "Échec de l'import" });
@@ -600,6 +601,18 @@ export default function ImportTestPage() {
               qu'à l'aperçu.
             </p>
             <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Type d&apos;import</label>
+                <select
+                  className="border rounded px-2 py-1.5 text-sm"
+                  value={importType}
+                  onChange={(e) => setImportType(e.target.value as "RELEVE_MENSUEL" | "ALLUMAGE" | "ARRET")}
+                >
+                  <option value="RELEVE_MENSUEL">Relevé mensuel — conso, ne touche pas aux dates</option>
+                  <option value="ALLUMAGE">Allumage — pose la date de démarrage (1er relevé)</option>
+                  <option value="ARRET">Arrêt — clôture la saison (dernier relevé)</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Contrat cible</label>
                 <select

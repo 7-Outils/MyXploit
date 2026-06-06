@@ -92,28 +92,33 @@ function computeMeterConversion(
   return { coefficient: null, convUnit: null };
 }
 
-// Crée/Met à jour la période de chauffe (allumage→arrêt) d'un site pour une saison.
-// Idempotent : retrouve la période existante dont l'allumage tombe dans la fenêtre
-// de saison (juillet→juin) et l'ajuste, sinon en crée une.
-async function upsertHeatingPeriod(siteId: string, start: Date, end: Date) {
-  const y = start.getMonth() >= 6 ? start.getFullYear() : start.getFullYear() - 1;
-  const seasonStart = new Date(Date.UTC(y, 6, 1)); // 1er juillet
-  const seasonEnd = new Date(Date.UTC(y + 1, 5, 30)); // 30 juin
+// Allumage : ouvre une période de chauffe (endDate=null) à la date donnée.
+// Idempotent : ne recrée pas si une période démarre déjà exactement à cette date.
+// NON destructif : ne touche jamais une période existante.
+async function openHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
   const existing = await prisma.heatingPeriod.findFirst({
-    where: { siteId, startDate: { gte: seasonStart, lte: seasonEnd } },
-    orderBy: { startDate: "asc" },
+    where: { siteId, startDate: date },
     select: { id: true },
   });
-  if (existing) {
-    await prisma.heatingPeriod.update({
-      where: { id: existing.id },
-      data: { startDate: start, endDate: end },
-    });
-  } else {
-    await prisma.heatingPeriod.create({
-      data: { siteId, startDate: start, endDate: end, notes: "Déduit de l'import exploitant (1er → dernier relevé)" },
-    });
+  if (existing) return false;
+  await prisma.heatingPeriod.create({
+    data: { siteId, startDate: date, endDate: null, notes: "Allumage (import exploitant)" },
+  });
+  return true;
+}
+
+// Arrêt : clôture la période ouverte la plus récente (endDate=null) du site.
+async function closeHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
+  const open = await prisma.heatingPeriod.findFirst({
+    where: { siteId, endDate: null },
+    orderBy: { startDate: "desc" },
+    select: { id: true, startDate: true },
+  });
+  if (open && open.startDate <= date) {
+    await prisma.heatingPeriod.update({ where: { id: open.id }, data: { endDate: date } });
+    return true;
   }
+  return false;
 }
 
 export async function POST(request: NextRequest) {
@@ -129,6 +134,10 @@ export async function POST(request: NextRequest) {
     const contractId: string | undefined = body.contractId;
     const rows: IncomingRow[] = Array.isArray(body.rows) ? body.rows : [];
     // Correspondances manuelles fournies par l'UI : { nomDansFichier: siteId }
+    // Type d'import (comme l'ancien) : par défaut RELEVE_MENSUEL = ne touche pas aux dates.
+    const importType: string = ["ALLUMAGE", "ARRET", "RELEVE_MENSUEL"].includes(body.importType)
+      ? body.importType
+      : "RELEVE_MENSUEL";
     const siteMappings: Record<string, string> =
       body.siteMappings && typeof body.siteMappings === "object" ? body.siteMappings : {};
 
@@ -381,32 +390,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4b) Période de chauffe (allumage → arrêt) déduite des relevés, par site et
-    //     par saison (juillet→juin). C'EST elle qui fait sortir le DJR : l'analytics
-    //     somme les DJU météo uniquement sur les jours de chauffe (HeatingPeriod).
-    //     Hypothèse : le fichier couvre la saison → allumage = 1er relevé de chauffage,
-    //     arrêt = dernier. (Les compteurs ECS/eau sont exclus de ce calcul.)
+    // 4b) Dates de saison selon le TYPE d'import (comme l'ancien import) :
+    //     - RELEVE_MENSUEL (défaut) : ne touche JAMAIS aux dates (conso seulement).
+    //     - ALLUMAGE : ouvre une période de chauffe à la date du 1er relevé du site.
+    //     - ARRET    : clôture la période ouverte à la date du dernier relevé du site.
+    //     C'est la période de chauffe (HeatingPeriod) qui fait sortir le DJR du Synthèse.
+    //     Les compteurs ECS/eau sont exclus du calcul des bornes.
     let heatingPeriods = 0;
-    const seasonRanges = new Map<string, { siteId: string; start: Date; end: Date }>();
-    for (const row of resolved) {
-      if (row.fluid === "EAU_CHAUDE" || row.fluid === "EAU_FROIDE") continue; // pas l'ECS/eau
-      const y = row.readingDate.getMonth() >= 6 ? row.readingDate.getFullYear() : row.readingDate.getFullYear() - 1;
-      const key = `${row.siteId}|${y}`;
-      const ex = seasonRanges.get(key);
-      if (!ex) {
-        seasonRanges.set(key, { siteId: row.siteId, start: row.readingDate, end: row.readingDate });
-      } else {
-        if (row.readingDate < ex.start) ex.start = row.readingDate;
-        if (row.readingDate > ex.end) ex.end = row.readingDate;
+    if (importType === "ALLUMAGE" || importType === "ARRET") {
+      const rangeBySite = new Map<string, { start: Date; end: Date }>();
+      for (const row of resolved) {
+        if (row.fluid === "EAU_CHAUDE" || row.fluid === "EAU_FROIDE") continue;
+        const ex = rangeBySite.get(row.siteId);
+        if (!ex) rangeBySite.set(row.siteId, { start: row.readingDate, end: row.readingDate });
+        else {
+          if (row.readingDate < ex.start) ex.start = row.readingDate;
+          if (row.readingDate > ex.end) ex.end = row.readingDate;
+        }
       }
-    }
-    for (const r of seasonRanges.values()) {
-      if (r.end > r.start) {
+      for (const [siteId, r] of rangeBySite) {
         try {
-          await upsertHeatingPeriod(r.siteId, r.start, r.end);
-          heatingPeriods++;
+          const done =
+            importType === "ALLUMAGE"
+              ? await openHeatingPeriod(siteId, r.start)
+              : await closeHeatingPeriod(siteId, r.end);
+          if (done) heatingPeriods++;
         } catch (err) {
-          console.error(`[import-universal] heating period site ${r.siteId}:`, err);
+          console.error(`[import-universal] heating period site ${siteId}:`, err);
         }
       }
     }
