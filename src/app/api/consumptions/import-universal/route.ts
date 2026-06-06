@@ -3,7 +3,6 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { MeterFluid } from "@/generated/prisma/client";
 import { regenerateConsumptionForSite } from "@/lib/consumption-projector";
-import { syncDjuForSites } from "@/lib/dju-sync";
 
 /**
  * Import RELEVÉS exploitant — moteur universel (v2).
@@ -366,12 +365,19 @@ export async function POST(request: NextRequest) {
     const imported = readingsToCreate.length;
     const updated = readingsToUpdate.length;
 
-    // 4) Régénération des consommations (le moteur applique le PCS/Q par site)
-    for (const siteId of impactedSites) {
-      try {
-        await regenerateConsumptionForSite(siteId, effectiveOrgId);
-      } catch (err) {
-        console.error(`[import-universal] regen conso site ${siteId}:`, err);
+    // 4) Régénération des consommations (le moteur applique le PCS/Q par site).
+    //    Parallélisée par petits lots pour ne pas saturer le pool de connexions.
+    {
+      const siteList = Array.from(impactedSites);
+      const RCHUNK = 4;
+      for (let i = 0; i < siteList.length; i += RCHUNK) {
+        await Promise.all(
+          siteList.slice(i, i + RCHUNK).map((siteId) =>
+            regenerateConsumptionForSite(siteId, effectiveOrgId).catch((err) =>
+              console.error(`[import-universal] regen conso site ${siteId}:`, err)
+            )
+          )
+        );
       }
     }
 
@@ -405,18 +411,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5) Synchro DJU : écrit Consumption.djuReel (utilisé par la fiche site / profil
-    //    thermique / conso mensuelle). NB : ce n'est PAS ce qui alimente le DJR du
-    //    tableau de perf (lui le recalcule depuis la météo sur les périodes de chauffe).
-    let djuUpdated = 0;
-    if (impactedSites.size > 0) {
-      try {
-        const r = await syncDjuForSites(Array.from(impactedSites), effectiveOrgId, false);
-        djuUpdated = r.updated;
-      } catch (err) {
-        console.error("[import-universal] DJU sync:", err);
-      }
-    }
+    // Pas de synchro DJU ici : le DJR du tableau de perf est recalculé en direct
+    // depuis la météo sur les périodes de chauffe. Consumption.djuReel (vues
+    // secondaires : profil thermique / conso mensuelle) se remplit à la demande
+    // via la synchro DJU manuelle si besoin.
 
     return NextResponse.json({
       success: true,
@@ -425,7 +423,6 @@ export async function POST(request: NextRequest) {
       skipped,
       metersCreated,
       sitesImpacted: impactedSites.size,
-      djuUpdated,
       resetsDetected,
       heatingPeriods,
       unmatchedSites: Array.from(unmatchedSites.entries()).map(([name, count]) => ({
