@@ -92,30 +92,43 @@ function computeMeterConversion(
   return { coefficient: null, convUnit: null };
 }
 
-// Allumage : ouvre une période de chauffe (endDate=null) à la date donnée.
-// Idempotent : ne recrée pas si une période démarre déjà exactement à cette date.
-// NON destructif : ne touche jamais une période existante.
+// Fenêtre de saison (juillet → juin) contenant une date.
+function seasonWindow(date: Date): { start: Date; end: Date } {
+  const y = date.getMonth() >= 6 ? date.getFullYear() : date.getFullYear() - 1;
+  return { start: new Date(Date.UTC(y, 6, 1)), end: new Date(Date.UTC(y + 1, 5, 30)) };
+}
+
+// Allumage : pose la date de démarrage de la saison. UNE SEULE période par saison :
+// si une période existe déjà pour cette saison, on met à jour son allumage (geste
+// délibéré de l'utilisateur) au lieu d'en créer une 2e (sinon → doublons).
 async function openHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
+  const w = seasonWindow(date);
   const existing = await prisma.heatingPeriod.findFirst({
-    where: { siteId, startDate: date },
+    where: { siteId, startDate: { gte: w.start, lte: w.end } },
+    orderBy: { startDate: "asc" },
     select: { id: true },
   });
-  if (existing) return false;
+  if (existing) {
+    await prisma.heatingPeriod.update({ where: { id: existing.id }, data: { startDate: date } });
+    return false;
+  }
   await prisma.heatingPeriod.create({
     data: { siteId, startDate: date, endDate: null, notes: "Allumage (import exploitant)" },
   });
   return true;
 }
 
-// Arrêt : clôture la période ouverte la plus récente (endDate=null) du site.
+// Arrêt : clôture la période de la saison (celle dont l'allumage tombe dans la même
+// fenêtre), qu'elle soit déjà close ou non. Ne crée rien s'il n'y a pas de période.
 async function closeHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
-  const open = await prisma.heatingPeriod.findFirst({
-    where: { siteId, endDate: null },
-    orderBy: { startDate: "desc" },
+  const w = seasonWindow(date);
+  const period = await prisma.heatingPeriod.findFirst({
+    where: { siteId, startDate: { gte: w.start, lte: w.end } },
+    orderBy: { startDate: "asc" },
     select: { id: true, startDate: true },
   });
-  if (open && open.startDate <= date) {
-    await prisma.heatingPeriod.update({ where: { id: open.id }, data: { endDate: date } });
+  if (period && period.startDate <= date) {
+    await prisma.heatingPeriod.update({ where: { id: period.id }, data: { endDate: date } });
     return true;
   }
   return false;
