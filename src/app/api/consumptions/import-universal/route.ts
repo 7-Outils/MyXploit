@@ -237,7 +237,8 @@ export async function POST(request: NextRequest) {
         continue;
       }
       const d = new Date(r.date);
-      if (!r.meter || isNaN(d.getTime()) || r.index == null) {
+      // index ≤ 0 = ligne vide/marqueur → ignorée (sinon delta absurde 0 → N)
+      if (!r.meter || isNaN(d.getTime()) || r.index == null || r.index <= 0) {
         skipped++;
         continue;
       }

@@ -104,6 +104,13 @@ function parseNumber(v: unknown): number | null {
   return isNaN(n) ? null : n;
 }
 
+// Index ≤ 0 = ligne vide / marqueur → traité comme "pas d'index" (évite les
+// deltas absurdes du genre 0 → 45386).
+function parseIndex(v: unknown): number | null {
+  const n = parseNumber(v);
+  return n != null && n > 0 ? n : null;
+}
+
 // Devine (energyType, usage, coef→kWh) — réplique la sémantique du projector.
 function mapEnergy(
   compteur: string,
@@ -304,7 +311,7 @@ export default function ImportTestPage() {
       site: col("site") >= 0 ? String(r[col("site")] ?? "").trim() : "",
       date: col("dateReleve") >= 0 ? parseCellDate(r[col("dateReleve")]) : null,
       compteur: col("compteur") >= 0 ? String(r[col("compteur")] ?? "").trim() : "",
-      index: col("index") >= 0 ? parseNumber(r[col("index")]) : null,
+      index: col("index") >= 0 ? parseIndex(r[col("index")]) : null,
       conso: col("conso") >= 0 ? parseNumber(r[col("conso")]) : null,
       fluide: col("fluide") >= 0 ? String(r[col("fluide")] ?? "").trim() : "",
       unite: col("unite") >= 0 ? String(r[col("unite")] ?? "").trim() : "",
