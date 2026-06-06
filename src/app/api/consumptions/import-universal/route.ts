@@ -98,18 +98,33 @@ function seasonWindow(date: Date): { start: Date; end: Date } {
   return { start: new Date(Date.UTC(y, 6, 1)), end: new Date(Date.UTC(y + 1, 5, 30)) };
 }
 
-// Allumage : pose la date de démarrage de la saison. UNE SEULE période par saison :
-// si une période existe déjà pour cette saison, on met à jour son allumage (geste
-// délibéré de l'utilisateur) au lieu d'en créer une 2e (sinon → doublons).
-async function openHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
-  const w = seasonWindow(date);
-  const existing = await prisma.heatingPeriod.findFirst({
+// Récupère les périodes de la saison, et CONSOLIDE : s'il y en a plusieurs
+// (doublons), garde la première et supprime les autres. Renvoie celle à garder.
+async function consolidateSeasonPeriods(
+  siteId: string,
+  w: { start: Date; end: Date }
+): Promise<{ id: string; startDate: Date; endDate: Date | null } | null> {
+  const periods = await prisma.heatingPeriod.findMany({
     where: { siteId, startDate: { gte: w.start, lte: w.end } },
     orderBy: { startDate: "asc" },
-    select: { id: true },
+    select: { id: true, startDate: true, endDate: true },
   });
-  if (existing) {
-    await prisma.heatingPeriod.update({ where: { id: existing.id }, data: { startDate: date } });
+  if (periods.length === 0) return null;
+  if (periods.length > 1) {
+    await prisma.heatingPeriod.deleteMany({
+      where: { id: { in: periods.slice(1).map((p) => p.id) } },
+    });
+  }
+  return periods[0];
+}
+
+// Allumage : pose la date de démarrage de la saison. UNE SEULE période par saison
+// (consolide les doublons éventuels), met à jour son allumage, ou en crée une.
+async function openHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
+  const w = seasonWindow(date);
+  const keep = await consolidateSeasonPeriods(siteId, w);
+  if (keep) {
+    await prisma.heatingPeriod.update({ where: { id: keep.id }, data: { startDate: date } });
     return false;
   }
   await prisma.heatingPeriod.create({
@@ -118,17 +133,13 @@ async function openHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
   return true;
 }
 
-// Arrêt : clôture la période de la saison (celle dont l'allumage tombe dans la même
-// fenêtre), qu'elle soit déjà close ou non. Ne crée rien s'il n'y a pas de période.
+// Arrêt : clôture la période de la saison (consolide les doublons d'abord).
+// Ne crée rien s'il n'y a pas de période (faire l'allumage d'abord).
 async function closeHeatingPeriod(siteId: string, date: Date): Promise<boolean> {
   const w = seasonWindow(date);
-  const period = await prisma.heatingPeriod.findFirst({
-    where: { siteId, startDate: { gte: w.start, lte: w.end } },
-    orderBy: { startDate: "asc" },
-    select: { id: true, startDate: true },
-  });
-  if (period && period.startDate <= date) {
-    await prisma.heatingPeriod.update({ where: { id: period.id }, data: { endDate: date } });
+  const keep = await consolidateSeasonPeriods(siteId, w);
+  if (keep && keep.startDate <= date) {
+    await prisma.heatingPeriod.update({ where: { id: keep.id }, data: { endDate: date } });
     return true;
   }
   return false;
