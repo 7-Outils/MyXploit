@@ -252,82 +252,119 @@ export async function POST(request: NextRequest) {
       if (!uniqueMeters.has(key)) uniqueMeters.set(key, row);
     }
 
+    // Écritures BATCHÉES (sinon ~2 requêtes/relevé en série → timeout sur gros fichiers).
+    // Compteurs : 1 fetch groupé → createMany des manquants → refetch des ids.
     let metersCreated = 0;
+    const existingMeters = await prisma.meter.findMany({
+      where: { siteId: { in: Array.from(siteIds) } },
+      select: { id: true, siteId: true, name: true, conversionCoefficient: true },
+    });
+    const meterByKey = new Map<string, { id: string; conversionCoefficient: number | null }>();
+    for (const em of existingMeters) meterByKey.set(`${em.siteId}|${em.name}`, em);
+
+    const metersToCreate: Array<Record<string, unknown>> = [];
+    const coefBackfill: Array<{ id: string; coefficient: number; convUnit: string | null }> = [];
     for (const m of uniqueMeters.values()) {
-      const existing = await prisma.meter.findFirst({
-        where: { siteId: m.siteId, name: m.meter },
-        select: { id: true, conversionCoefficient: true },
-      });
+      const key = `${m.siteId}|${m.meter}`;
       const { coefficient, convUnit } = computeMeterConversion(
         m.fluid,
         m.unit,
         sitePcs.get(m.siteId) ?? DEFAULT_PCS,
         siteQ.get(m.siteId) ?? DEFAULT_Q
       );
-      if (existing) {
-        meterIdByKey.set(`${m.siteId}|${m.meter}`, existing.id);
-        if (coefficient != null && existing.conversionCoefficient == null) {
-          await prisma.meter.update({
-            where: { id: existing.id },
-            data: { conversionCoefficient: coefficient, conversionUnit: convUnit },
-          });
+      const ex = meterByKey.get(key);
+      if (ex) {
+        meterIdByKey.set(key, ex.id);
+        if (coefficient != null && ex.conversionCoefficient == null) {
+          coefBackfill.push({ id: ex.id, coefficient, convUnit });
         }
       } else {
-        const created = await prisma.meter.create({
-          data: {
-            siteId: m.siteId,
-            name: m.meter,
-            fluid: m.fluid,
-            type: "DIVISIONNAIRE",
-            dataSource: "MANUEL",
-            unit: m.unit,
-            conversionCoefficient: coefficient,
-            conversionUnit: convUnit,
-            isActive: true,
-          },
-          select: { id: true },
+        metersToCreate.push({
+          siteId: m.siteId,
+          name: m.meter,
+          fluid: m.fluid,
+          type: "DIVISIONNAIRE",
+          dataSource: "MANUEL",
+          unit: m.unit,
+          conversionCoefficient: coefficient,
+          conversionUnit: convUnit,
+          isActive: true,
         });
-        meterIdByKey.set(`${m.siteId}|${m.meter}`, created.id);
-        metersCreated++;
       }
     }
+    if (metersToCreate.length > 0) {
+      await prisma.meter.createMany({ data: metersToCreate as never });
+      metersCreated = metersToCreate.length;
+      const refetched = await prisma.meter.findMany({
+        where: { siteId: { in: Array.from(siteIds) } },
+        select: { id: true, siteId: true, name: true },
+      });
+      for (const em of refetched) meterIdByKey.set(`${em.siteId}|${em.name}`, em.id);
+    }
+    await Promise.all(
+      coefBackfill.map((b) =>
+        prisma.meter.update({
+          where: { id: b.id },
+          data: { conversionCoefficient: b.coefficient, conversionUnit: b.convUnit },
+        })
+      )
+    );
 
-    // 3) Upsert MeterReading (source de vérité) + sites impactés
+    // 3) MeterReading : 1 fetch groupé → createMany (nouveaux) → update (modifiés seulement)
     const impactedSites = new Set<string>();
-    let imported = 0;
-    let updated = 0;
+    const allMeterIds = Array.from(new Set(Array.from(meterIdByKey.values())));
+    const existingReadings = await prisma.meterReading.findMany({
+      where: { meterId: { in: allMeterIds } },
+      select: { id: true, meterId: true, readingDate: true, indexValue: true, isReset: true },
+    });
+    const readingByKey = new Map<string, { id: string; indexValue: number | null; isReset: boolean }>();
+    for (const er of existingReadings) {
+      readingByKey.set(`${er.meterId}|${er.readingDate.getTime()}`, er);
+    }
+
+    const readingsToCreate: Array<Record<string, unknown>> = [];
+    const readingsToUpdate: Array<{ id: string; index: number | null; isReset: boolean; unit: string }> = [];
     for (const row of resolved) {
       const meterId = meterIdByKey.get(`${row.siteId}|${row.meter}`);
       if (!meterId) {
         skipped++;
         continue;
       }
-      const existing = await prisma.meterReading.findFirst({
-        where: { meterId, readingDate: row.readingDate },
-        select: { id: true },
-      });
-      if (existing) {
-        await prisma.meterReading.update({
-          where: { id: existing.id },
-          data: { indexValue: row.index, unit: row.unit, isReset: row.isReset ?? false, notes: "Import exploitant (universel)" },
-        });
-        updated++;
-      } else {
-        await prisma.meterReading.create({
-          data: {
-            meterId,
-            readingDate: row.readingDate,
-            indexValue: row.index,
-            unit: row.unit,
-            isReset: row.isReset ?? false,
-            source: "MANUEL",
-            notes: "Import exploitant (universel)",
-          },
-        });
-        imported++;
-      }
       impactedSites.add(row.siteId);
+      const isReset = row.isReset ?? false;
+      const ex = readingByKey.get(`${meterId}|${row.readingDate.getTime()}`);
+      if (ex) {
+        if (ex.indexValue !== row.index || ex.isReset !== isReset) {
+          readingsToUpdate.push({ id: ex.id, index: row.index, isReset, unit: row.unit });
+        }
+      } else {
+        readingsToCreate.push({
+          meterId,
+          readingDate: row.readingDate,
+          indexValue: row.index,
+          unit: row.unit,
+          isReset,
+          source: "MANUEL",
+          notes: "Import exploitant (universel)",
+        });
+      }
     }
+    if (readingsToCreate.length > 0) {
+      await prisma.meterReading.createMany({ data: readingsToCreate as never });
+    }
+    const CHUNK = 25;
+    for (let i = 0; i < readingsToUpdate.length; i += CHUNK) {
+      await Promise.all(
+        readingsToUpdate.slice(i, i + CHUNK).map((u) =>
+          prisma.meterReading.update({
+            where: { id: u.id },
+            data: { indexValue: u.index, isReset: u.isReset, unit: u.unit, notes: "Import exploitant (universel)" },
+          })
+        )
+      );
+    }
+    const imported = readingsToCreate.length;
+    const updated = readingsToUpdate.length;
 
     // 4) Régénération des consommations (le moteur applique le PCS/Q par site)
     for (const siteId of impactedSites) {
