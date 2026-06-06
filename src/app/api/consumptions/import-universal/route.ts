@@ -354,7 +354,10 @@ export async function POST(request: NextRequest) {
       readingByKey.set(`${er.meterId}|${er.readingDate.getTime()}`, er);
     }
 
-    const readingsToCreate: Array<Record<string, unknown>> = [];
+    // Dédoublonnage DANS le lot par (compteur, date) : un même fichier peut contenir
+    // 2 lignes même compteur/même date → sinon createMany viole la contrainte unique
+    // (meterId, readingDate). On garde la DERNIÈRE occurrence.
+    const createByKey = new Map<string, Record<string, unknown>>();
     const readingsToUpdate: Array<{ id: string; index: number | null; isReset: boolean; unit: string }> = [];
     for (const row of resolved) {
       const meterId = meterIdByKey.get(`${row.siteId}|${row.meter}`);
@@ -364,13 +367,14 @@ export async function POST(request: NextRequest) {
       }
       impactedSites.add(row.siteId);
       const isReset = row.isReset ?? false;
-      const ex = readingByKey.get(`${meterId}|${row.readingDate.getTime()}`);
+      const key = `${meterId}|${row.readingDate.getTime()}`;
+      const ex = readingByKey.get(key);
       if (ex) {
         if (ex.indexValue !== row.index || ex.isReset !== isReset) {
           readingsToUpdate.push({ id: ex.id, index: row.index, isReset, unit: row.unit });
         }
       } else {
-        readingsToCreate.push({
+        createByKey.set(key, {
           meterId,
           readingDate: row.readingDate,
           indexValue: row.index,
@@ -381,8 +385,9 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+    const readingsToCreate = Array.from(createByKey.values());
     if (readingsToCreate.length > 0) {
-      await prisma.meterReading.createMany({ data: readingsToCreate as never });
+      await prisma.meterReading.createMany({ data: readingsToCreate as never, skipDuplicates: true });
     }
     const CHUNK = 25;
     for (let i = 0; i < readingsToUpdate.length; i += CHUNK) {

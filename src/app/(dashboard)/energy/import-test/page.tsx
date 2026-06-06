@@ -14,7 +14,7 @@
  * l'aperçu est fidèle au kWh près.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { prorateAcrossMonths, periodKeyToDate } from "@/lib/date-prorate";
 import { useContract } from "@/contexts/ContractContext";
@@ -177,6 +177,33 @@ function suggestColumn(field: FieldKey, headers: string[], sample: unknown[][]):
   }
 }
 
+// Mémorisation du mapping par signature des en-têtes (localStorage navigateur).
+const MAP_STORE = "myxploit-import-mapping:";
+function signatureOf(headers: string[]): string {
+  return headers.map((h) => norm(h)).filter(Boolean).sort().join("|");
+}
+// Auto-détection + override par le mapping mémorisé (si la trame a déjà été mappée).
+function loadMapping(hdrs: string[], body: unknown[][]): Record<FieldKey, number> {
+  const m = {} as Record<FieldKey, number>;
+  for (const f of FIELDS) m[f.key] = suggestColumn(f.key, hdrs, body);
+  try {
+    const saved = localStorage.getItem(MAP_STORE + signatureOf(hdrs));
+    if (saved) {
+      const byName = JSON.parse(saved) as Record<string, string>;
+      for (const f of FIELDS) {
+        const name = byName[f.key];
+        if (name) {
+          const idx = hdrs.findIndex((h) => h === name);
+          if (idx >= 0) m[f.key] = idx;
+        }
+      }
+    }
+  } catch {
+    /* localStorage indispo ou JSON cassé → on garde l'auto-détection */
+  }
+  return m;
+}
+
 // ---------------------------------------------------------------------------
 // Composant
 // ---------------------------------------------------------------------------
@@ -225,6 +252,21 @@ export default function ImportTestPage() {
 
   const dataRows = useMemo(() => allRows.slice(headerRow + 1).filter((r) => r.some((c) => c !== "" && c != null)), [allRows, headerRow]);
 
+  // Mémorise le mapping (par signature d'en-têtes) dès qu'il change → ré-appliqué au prochain fichier identique
+  useEffect(() => {
+    if (!headers.length) return;
+    try {
+      const byName: Record<string, string> = {};
+      for (const f of FIELDS) {
+        const idx = mapping[f.key];
+        if (idx != null && idx >= 0 && headers[idx]) byName[f.key] = headers[idx];
+      }
+      localStorage.setItem(MAP_STORE + signatureOf(headers), JSON.stringify(byName));
+    } catch {
+      /* localStorage indispo → tant pis, pas de mémorisation */
+    }
+  }, [mapping, headers]);
+
   const handleFile = useCallback((file: File) => {
     setError("");
     const reader = new FileReader();
@@ -241,8 +283,7 @@ export default function ImportTestPage() {
         const hr = detectHeaderRow(rows as unknown[][]);
         const hdrs = (rows[hr] as unknown[]).map((c) => String(c ?? "").trim());
         const body = (rows as unknown[][]).slice(hr + 1, hr + 9);
-        const auto: Record<FieldKey, number> = {} as Record<FieldKey, number>;
-        for (const f of FIELDS) auto[f.key] = suggestColumn(f.key, hdrs, body);
+        const auto = loadMapping(hdrs, body);
         setAllRows(rows as unknown[][]);
         setHeaderRow(hr);
         setHeaders(hdrs);
@@ -460,9 +501,7 @@ export default function ImportTestPage() {
                   setHeaderRow(hr);
                   setHeaders(hdrs);
                   const body = allRows.slice(hr + 1, hr + 9);
-                  const auto = { ...mapping };
-                  for (const f of FIELDS) auto[f.key] = suggestColumn(f.key, hdrs, body);
-                  setMapping(auto);
+                  setMapping(loadMapping(hdrs, body));
                 }}
               >
                 {allRows.slice(0, 15).map((_, i) => (
