@@ -29,6 +29,17 @@ type IncomingRow = {
 const DEFAULT_PCS = 10.5; // kWh/m³ (gaz, 20 mbar)
 const DEFAULT_Q = 0.12; // MWh/m³ (ECS volumétrique)
 
+// Normalise les libellés d'unité ("M3 sans décimales", "m3", "Nm3"… → "m³"). Générique.
+function normalizeUnit(u: string): string {
+  if (!u) return "";
+  const s = u.toLowerCase().replace(/[\s.,]/g, "");
+  if (s.includes("m3") || s.includes("m³")) return "m³";
+  if (s.includes("mwh")) return "MWh";
+  if (s.includes("kwh")) return "kWh";
+  if (s === "l" || s.includes("litre")) return "L";
+  return u;
+}
+
 function normalizeSiteName(name: string): string {
   return String(name ?? "")
     .toLowerCase()
@@ -248,7 +259,7 @@ export async function POST(request: NextRequest) {
         fluid: r.fluid,
         readingDate: d,
         index: r.index,
-        unit: r.unit || "m³",
+        unit: normalizeUnit(r.unit) || "m³",
       });
     }
 
@@ -290,13 +301,13 @@ export async function POST(request: NextRequest) {
     let metersCreated = 0;
     const existingMeters = await prisma.meter.findMany({
       where: { siteId: { in: Array.from(siteIds) } },
-      select: { id: true, siteId: true, name: true, conversionCoefficient: true },
+      select: { id: true, siteId: true, name: true, conversionCoefficient: true, unit: true },
     });
-    const meterByKey = new Map<string, { id: string; conversionCoefficient: number | null }>();
+    const meterByKey = new Map<string, { id: string; conversionCoefficient: number | null; unit: string }>();
     for (const em of existingMeters) meterByKey.set(`${em.siteId}|${em.name}`, em);
 
     const metersToCreate: Array<Record<string, unknown>> = [];
-    const coefBackfill: Array<{ id: string; coefficient: number; convUnit: string | null }> = [];
+    const meterUpdates: Array<{ id: string; data: Record<string, unknown> }> = [];
     for (const m of uniqueMeters.values()) {
       const key = `${m.siteId}|${m.meter}`;
       const { coefficient, convUnit } = computeMeterConversion(
@@ -308,9 +319,13 @@ export async function POST(request: NextRequest) {
       const ex = meterByKey.get(key);
       if (ex) {
         meterIdByKey.set(key, ex.id);
+        const data: Record<string, unknown> = {};
         if (coefficient != null && ex.conversionCoefficient == null) {
-          coefBackfill.push({ id: ex.id, coefficient, convUnit });
+          data.conversionCoefficient = coefficient;
+          data.conversionUnit = convUnit;
         }
+        if (ex.unit !== m.unit) data.unit = m.unit; // normalise l'unité ("M3 sans décimales" → "m³")
+        if (Object.keys(data).length > 0) meterUpdates.push({ id: ex.id, data });
       } else {
         metersToCreate.push({
           siteId: m.siteId,
@@ -335,12 +350,7 @@ export async function POST(request: NextRequest) {
       for (const em of refetched) meterIdByKey.set(`${em.siteId}|${em.name}`, em.id);
     }
     await Promise.all(
-      coefBackfill.map((b) =>
-        prisma.meter.update({
-          where: { id: b.id },
-          data: { conversionCoefficient: b.coefficient, conversionUnit: b.convUnit },
-        })
-      )
+      meterUpdates.map((u) => prisma.meter.update({ where: { id: u.id }, data: u.data }))
     );
 
     // 3) MeterReading : 1 fetch groupé → createMany (nouveaux) → update (modifiés seulement)
@@ -348,9 +358,9 @@ export async function POST(request: NextRequest) {
     const allMeterIds = Array.from(new Set(Array.from(meterIdByKey.values())));
     const existingReadings = await prisma.meterReading.findMany({
       where: { meterId: { in: allMeterIds } },
-      select: { id: true, meterId: true, readingDate: true, indexValue: true, isReset: true },
+      select: { id: true, meterId: true, readingDate: true, indexValue: true, isReset: true, unit: true },
     });
-    const readingByKey = new Map<string, { id: string; indexValue: number | null; isReset: boolean }>();
+    const readingByKey = new Map<string, { id: string; indexValue: number | null; isReset: boolean; unit: string }>();
     for (const er of existingReadings) {
       readingByKey.set(`${er.meterId}|${er.readingDate.getTime()}`, er);
     }
@@ -371,7 +381,7 @@ export async function POST(request: NextRequest) {
       const key = `${meterId}|${row.readingDate.getTime()}`;
       const ex = readingByKey.get(key);
       if (ex) {
-        if (ex.indexValue !== row.index || ex.isReset !== isReset) {
+        if (ex.indexValue !== row.index || ex.isReset !== isReset || ex.unit !== row.unit) {
           readingsToUpdate.push({ id: ex.id, index: row.index, isReset, unit: row.unit });
         }
       } else {

@@ -111,6 +111,17 @@ function parseIndex(v: unknown): number | null {
   return n != null && n > 0 ? n : null;
 }
 
+// Normalise les libellés d'unité ("M3 sans décimales", "m3"... → "m³").
+function normalizeUnit(u: string): string {
+  if (!u) return "";
+  const s = u.toLowerCase().replace(/[\s.,]/g, "");
+  if (s.includes("m3") || s.includes("m³")) return "m³";
+  if (s.includes("mwh")) return "MWh";
+  if (s.includes("kwh")) return "kWh";
+  if (s === "l" || s.includes("litre")) return "L";
+  return u;
+}
+
 // Devine (energyType, usage, coef→kWh) — réplique la sémantique du projector.
 function mapEnergy(
   compteur: string,
@@ -314,7 +325,7 @@ export default function ImportTestPage() {
       index: col("index") >= 0 ? parseIndex(r[col("index")]) : null,
       conso: col("conso") >= 0 ? parseNumber(r[col("conso")]) : null,
       fluide: col("fluide") >= 0 ? String(r[col("fluide")] ?? "").trim() : "",
-      unite: col("unite") >= 0 ? String(r[col("unite")] ?? "").trim() : "",
+      unite: col("unite") >= 0 ? normalizeUnit(String(r[col("unite")] ?? "").trim()) : "",
     }));
   }, [dataRows, headers, mapping]);
 
