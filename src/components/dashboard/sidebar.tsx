@@ -9,7 +9,6 @@ import {
   Euro,
   FileText,
   Wrench,
-  Settings,
   ChevronLeft,
   Shield,
   Building2,
@@ -222,34 +221,19 @@ export function Sidebar() {
         )}
 
 
-        {/* Outils + Paramètres en icônes seules (tooltip au survol).
-            flex-wrap → côte à côte en mode déplié, empilés en mode replié. */}
-        <div className="flex flex-wrap gap-1">
-          <Link
-            href="/outils/dju"
-            title="Calculateur DJU"
-            className={cn(
-              "h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200",
-              isActive("/outils/dju")
-                ? "bg-accent text-white"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
-            )}
-          >
-            <Thermometer size={20} className="flex-shrink-0" />
-          </Link>
-          <Link
-            href="/settings"
-            title="Paramètres"
-            className={cn(
-              "h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200",
-              pathname === "/settings"
-                ? "bg-accent text-white"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
-            )}
-          >
-            <Settings size={20} className="flex-shrink-0" />
-          </Link>
-        </div>
+        {/* Calculateur DJU — icône seule (Paramètres est dans le menu user). */}
+        <Link
+          href="/outils/dju"
+          title="Calculateur DJU"
+          className={cn(
+            "h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200",
+            isActive("/outils/dju")
+              ? "bg-accent text-white"
+              : "text-gray-400 hover:text-white hover:bg-white/10"
+          )}
+        >
+          <Thermometer size={20} className="flex-shrink-0" />
+        </Link>
       </div>
       </aside>
     </>

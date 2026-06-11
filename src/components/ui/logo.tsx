@@ -30,7 +30,7 @@ export function Logo({ className, size = "md", showText = true, variant = "defau
 
     return (
       <span className={cn("font-bold", iconSizes[size], textColor, className)}>
-        M<span className={accentColor}>x</span>
+        M<span className={accentColor}>X</span>
       </span>
     );
   }

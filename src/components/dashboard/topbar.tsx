@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell, LogOut, ChevronDown, Menu } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Bell, LogOut, ChevronDown, Menu, Settings } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ContractSelector } from "./ContractSelector";
 import { useSidebar } from "@/contexts/SidebarContext";
@@ -19,20 +20,35 @@ export function Topbar() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        // /api/auth/me renvoie l'objet user à plat (pas { user: ... })
         const data = await res.json();
-        if (data?.user) {
-          setCurrentUser(data.user);
-        }
+        if (data?.id || data?.email) setCurrentUser(data);
       } catch (error) {
         console.error("Error fetching user:", error);
       }
     };
     fetchUser();
   }, []);
+
+  // Ferme les menus déroulants au clic en dehors
+  useEffect(() => {
+    if (!showNotifications && !showUserMenu) return;
+    const onMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (notifRef.current && !notifRef.current.contains(t)) setShowNotifications(false);
+      if (userRef.current && !userRef.current.contains(t)) setShowUserMenu(false);
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [showNotifications, showUserMenu]);
 
   const handleLogout = async () => {
     try {
@@ -49,10 +65,14 @@ export function Topbar() {
       return `${currentUser.firstName[0]}${currentUser.lastName[0]}`.toUpperCase();
     }
     if (currentUser?.firstName) {
-      return currentUser.firstName[0].toUpperCase();
+      return currentUser.firstName.slice(0, 2).toUpperCase();
     }
     if (currentUser?.email) {
-      return currentUser.email[0].toUpperCase();
+      // Déduit 2 initiales du début de l'e-mail (ex. settouti.hamza → SH)
+      const local = currentUser.email.split("@")[0];
+      const parts = local.split(/[._-]+/).filter(Boolean);
+      if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+      return local.slice(0, 2).toUpperCase();
     }
     return "U";
   };
@@ -101,9 +121,9 @@ export function Topbar() {
       {/* Right side */}
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => setShowNotifications((v) => !v)}
             className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Bell size={20} />
@@ -147,9 +167,9 @@ export function Topbar() {
         </div>
 
         {/* User Profile Menu */}
-        <div className="relative">
+        <div className="relative" ref={userRef}>
           <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
+            onClick={() => setShowUserMenu((v) => !v)}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center text-white text-sm font-medium">
@@ -169,6 +189,14 @@ export function Topbar() {
                 </p>
               </div>
               <div className="py-1">
+                <Link
+                  href="/settings"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full px-4 py-2 text-left text-sm text-text-primary hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Settings size={16} className="text-text-secondary" />
+                  Paramètres
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
