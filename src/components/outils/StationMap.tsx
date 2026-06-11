@@ -62,6 +62,7 @@ type View = { k: number; tx: number; ty: number };
 export function StationMap({ stations, selected, onSelect }: Props) {
   const [hover, setHover] = useState<string | null>(null);
   const [rings, setRings] = useState<[number, number][][]>([]);
+  const [deptRings, setDeptRings] = useState<[number, number][][]>([]);
   const [view, setView] = useState<View>({ k: 1, tx: 0, ty: 0 });
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -71,10 +72,14 @@ export function StationMap({ stations, selected, onSelect }: Props) {
 
   useEffect(() => {
     let alive = true;
-    fetch("/france-metropole.json")
-      .then((r) => r.json())
-      .then((data: [number, number][][]) => {
-        if (alive) setRings(data);
+    Promise.all([
+      fetch("/france-metropole.json").then((r) => r.json()),
+      fetch("/france-departements.json").then((r) => r.json()),
+    ])
+      .then(([metro, depts]: [[number, number][][], [number, number][][]]) => {
+        if (!alive) return;
+        setRings(metro);
+        setDeptRings(depts);
       })
       .catch(() => {});
     return () => {
@@ -83,6 +88,7 @@ export function StationMap({ stations, selected, onSelect }: Props) {
   }, []);
 
   const paths = useMemo(() => rings.map(toPath), [rings]);
+  const deptPaths = useMemo(() => deptRings.map(toPath), [deptRings]);
 
   // Empêche le contenu de sortir entièrement du cadre quand on pan/zoome.
   const clampView = useCallback((k: number, tx: number, ty: number): View => {
@@ -171,8 +177,20 @@ export function StationMap({ stations, selected, onSelect }: Props) {
       >
         {/* Géographie : translatée + scalée par le zoom */}
         <g transform={`translate(${view.tx},${view.ty}) scale(${view.k})`}>
+          {/* Fond pays (continent + Corse + îles) */}
           {paths.map((d, i) => (
             <path key={i} d={d} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1 / view.k} />
+          ))}
+          {/* Séparations départementales (traits fins, sans remplissage) */}
+          {deptPaths.map((d, i) => (
+            <path
+              key={`dep-${i}`}
+              d={d}
+              fill="none"
+              stroke="#D7DEE6"
+              strokeWidth={0.5 / view.k}
+              strokeLinejoin="round"
+            />
           ))}
         </g>
 
