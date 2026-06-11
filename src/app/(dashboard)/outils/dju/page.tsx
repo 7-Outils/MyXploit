@@ -81,27 +81,18 @@ export default function DjuToolPage() {
   }, [result]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* En-tête */}
       <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
           <Thermometer size={20} className="text-accent" />
         </div>
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">
-            Calculateur DJU
-          </h1>
-          <p className="text-sm text-text-muted">
-            Degrés Jours Unifiés base 18°C — méthode COSTIC (Météo France, sinon
-            Open-Meteo)
-          </p>
-        </div>
+        <h1 className="text-xl font-semibold text-text-primary">Calculateur DJU</h1>
       </div>
 
-      {/* Formulaire */}
+      {/* Barre de contrôles : mode + période + calcul */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-soft p-5">
-        {/* Barre de contrôles : mode + période */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           {/* Mode de localisation */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide">
@@ -131,46 +122,52 @@ export default function DjuToolPage() {
             </div>
           </div>
 
-          {/* Période */}
+          {/* Période : un seul champ regroupant les deux dates */}
           <div className="space-y-2">
             <label className="flex items-center gap-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide">
-              <CalendarRange size={13} /> Période (allumage → arrêt)
+              <CalendarRange size={13} /> Période
             </label>
-            <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-gray-300 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
               <input
                 type="date"
                 value={start}
+                max={end || undefined}
                 onChange={(e) => setDates((d) => ({ ...d, start: e.target.value }))}
-                className="h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                className="bg-transparent text-sm outline-none text-text-primary"
               />
               <span className="text-text-muted text-sm">→</span>
               <input
                 type="date"
                 value={end}
+                min={start || undefined}
                 onChange={(e) => setDates((d) => ({ ...d, end: e.target.value }))}
-                className="h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                className="bg-transparent text-sm outline-none text-text-primary"
               />
             </div>
           </div>
-        </div>
 
-        {/* Sélecteur de station : carte cliquable ou saisie code postal */}
-        <div className="mt-4">
+          {/* Bouton calcul, à côté des dates */}
+          <button
+            onClick={handleCalculate}
+            disabled={!canSubmit || loading}
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Thermometer size={16} />}
+            Calculer
+          </button>
+
+          {error && <span className="text-sm text-red-600 self-center">{error}</span>}
+        </div>
+      </div>
+
+      {/* Carte à gauche, résultat à droite */}
+      <div className="grid grid-cols-1 lg:grid-cols-[480px_1fr] gap-6 items-start">
+        {/* Colonne gauche : carte (ou saisie code postal) */}
+        <div>
           {mode === "station" ? (
-            <div className="flex flex-col items-center">
-              <div className="w-full max-w-[520px]">
-                <StationMap
-                  stations={stations}
-                  selected={station}
-                  onSelect={setStation}
-                />
-              </div>
-              <p className="text-xs text-text-muted mt-1">
-                Cliquez une station sur la carte
-              </p>
-            </div>
+            <StationMap stations={stations} selected={station} onSelect={setStation} />
           ) : (
-            <div className="max-w-xs">
+            <div>
               <input
                 type="text"
                 inputMode="numeric"
@@ -180,101 +177,95 @@ export default function DjuToolPage() {
                 className="w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
               />
               <p className="mt-1 text-xs text-text-muted">
-                La station COSTIC la plus proche sera utilisée.
+                La station Météo France la plus proche sera utilisée.
               </p>
             </div>
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-3 border-t border-gray-100 pt-4">
-          <button
-            onClick={handleCalculate}
-            disabled={!canSubmit || loading}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Thermometer size={16} />}
-            Calculer
-          </button>
-          {error && <span className="text-sm text-red-600">{error}</span>}
+        {/* Colonne droite : résultat */}
+        <div>
+          {result ? (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-soft overflow-hidden">
+              {/* KPIs */}
+              <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 border-b border-gray-100">
+                <div className="p-5">
+                  <div className="text-xs text-text-muted uppercase tracking-wide">DJU total</div>
+                  <div className="mt-1 text-3xl font-semibold text-accent tabular-nums">
+                    {result.djuTotal.toLocaleString("fr-FR")}
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="text-xs text-text-muted uppercase tracking-wide">Station</div>
+                  <div className="mt-1 text-sm font-medium text-text-primary">{result.station}</div>
+                  <div className="text-xs text-text-muted">{result.days} jours</div>
+                </div>
+                <div className="p-5">
+                  <div className="text-xs text-text-muted uppercase tracking-wide">Trentenaire</div>
+                  <div className="mt-1 text-sm font-medium text-text-primary tabular-nums">
+                    {result.djuTrentenaire ? result.djuTrentenaire.toLocaleString("fr-FR") : "—"}
+                  </div>
+                  <div className="text-xs text-text-muted">moyenne annuelle</div>
+                </div>
+                <div className="p-5">
+                  <div className="text-xs text-text-muted uppercase tracking-wide">Écart trentenaire</div>
+                  {ecart ? (
+                    <div
+                      className={`mt-1 text-sm font-medium tabular-nums ${
+                        ecart.diff >= 0 ? "text-orange-600" : "text-blue-600"
+                      }`}
+                    >
+                      {ecart.diff >= 0 ? "+" : ""}
+                      {ecart.diff.toLocaleString("fr-FR")} ({ecart.pct >= 0 ? "+" : ""}
+                      {ecart.pct}%)
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-sm text-text-muted">—</div>
+                  )}
+                  <div className="text-xs text-text-muted">
+                    {ecart && ecart.diff >= 0 ? "plus froid" : ecart ? "plus doux" : ""}
+                  </div>
+                </div>
+              </div>
+
+              {/* Détail mensuel */}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-text-muted uppercase tracking-wide bg-gray-50">
+                    <th className="text-left font-medium px-5 py-2.5">Mois</th>
+                    <th className="text-right font-medium px-5 py-2.5">Jours</th>
+                    <th className="text-right font-medium px-5 py-2.5">DJU</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {result.monthlyData.map((m) => (
+                    <tr key={m.month} className="hover:bg-gray-50/50">
+                      <td className="px-5 py-2 text-text-primary">{m.label}</td>
+                      <td className="px-5 py-2 text-right text-text-secondary tabular-nums">{m.days}</td>
+                      <td className="px-5 py-2 text-right font-medium text-text-primary tabular-nums">
+                        {m.dju.toLocaleString("fr-FR")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-gray-200 font-semibold bg-gray-50/50">
+                    <td className="px-5 py-2.5 text-text-primary">Total</td>
+                    <td className="px-5 py-2.5 text-right text-text-secondary tabular-nums">{result.days}</td>
+                    <td className="px-5 py-2.5 text-right text-accent tabular-nums">
+                      {result.djuTotal.toLocaleString("fr-FR")}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ) : (
+            <div className="h-full min-h-[200px] rounded-xl border border-dashed border-gray-200 flex items-center justify-center text-sm text-text-muted">
+              Choisissez une station et une période, puis cliquez sur Calculer.
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Résultat */}
-      {result && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-soft overflow-hidden">
-          {/* KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
-            <div className="p-5">
-              <div className="text-xs text-text-muted uppercase tracking-wide">DJU total</div>
-              <div className="mt-1 text-3xl font-semibold text-accent tabular-nums">
-                {result.djuTotal.toLocaleString("fr-FR")}
-              </div>
-            </div>
-            <div className="p-5">
-              <div className="text-xs text-text-muted uppercase tracking-wide">Station</div>
-              <div className="mt-1 text-sm font-medium text-text-primary">{result.station}</div>
-              <div className="text-xs text-text-muted">{result.days} jours</div>
-            </div>
-            <div className="p-5">
-              <div className="text-xs text-text-muted uppercase tracking-wide">Trentenaire</div>
-              <div className="mt-1 text-sm font-medium text-text-primary tabular-nums">
-                {result.djuTrentenaire ? result.djuTrentenaire.toLocaleString("fr-FR") : "—"}
-              </div>
-              <div className="text-xs text-text-muted">moyenne annuelle</div>
-            </div>
-            <div className="p-5">
-              <div className="text-xs text-text-muted uppercase tracking-wide">Écart trentenaire</div>
-              {ecart ? (
-                <div
-                  className={`mt-1 text-sm font-medium tabular-nums ${
-                    ecart.diff >= 0 ? "text-orange-600" : "text-blue-600"
-                  }`}
-                >
-                  {ecart.diff >= 0 ? "+" : ""}
-                  {ecart.diff.toLocaleString("fr-FR")} ({ecart.pct >= 0 ? "+" : ""}
-                  {ecart.pct}%)
-                </div>
-              ) : (
-                <div className="mt-1 text-sm text-text-muted">—</div>
-              )}
-              <div className="text-xs text-text-muted">
-                {ecart && ecart.diff >= 0 ? "plus froid" : ecart ? "plus doux" : ""}
-              </div>
-            </div>
-          </div>
-
-          {/* Détail mensuel */}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-text-muted uppercase tracking-wide bg-gray-50">
-                <th className="text-left font-medium px-5 py-2.5">Mois</th>
-                <th className="text-right font-medium px-5 py-2.5">Jours</th>
-                <th className="text-right font-medium px-5 py-2.5">DJU</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {result.monthlyData.map((m) => (
-                <tr key={m.month} className="hover:bg-gray-50/50">
-                  <td className="px-5 py-2 text-text-primary">{m.label}</td>
-                  <td className="px-5 py-2 text-right text-text-secondary tabular-nums">{m.days}</td>
-                  <td className="px-5 py-2 text-right font-medium text-text-primary tabular-nums">
-                    {m.dju.toLocaleString("fr-FR")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-gray-200 font-semibold bg-gray-50/50">
-                <td className="px-5 py-2.5 text-text-primary">Total</td>
-                <td className="px-5 py-2.5 text-right text-text-secondary tabular-nums">{result.days}</td>
-                <td className="px-5 py-2.5 text-right text-accent tabular-nums">
-                  {result.djuTotal.toLocaleString("fr-FR")}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      )}
     </div>
   );
 }

@@ -5,8 +5,8 @@ import {
   DJU_TRENTENAIRES,
   resolveStationKey,
   getStationFromPostalCode,
-  getDailyDjuForStation,
 } from "@/lib/dju-sync";
+import { fetchDjuFromMeteoFrance } from "@/lib/dju-meteo-france";
 
 export const dynamic = "force-dynamic";
 
@@ -82,14 +82,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // DJU journaliers (Map<date, dju>) — Météo France puis fallback Open-Meteo
-    const byDay = await getDailyDjuForStation(stationKey, postalCode, start, end);
+    // DJU journaliers (Map<date, dju>) — Météo France UNIQUEMENT (DPClim, formule
+    // COSTIC). Pas de fallback Open-Meteo : on veut la donnée officielle MF.
+    const byDay = await fetchDjuFromMeteoFrance(stationKey, start, end);
 
     if (byDay.size === 0) {
       return NextResponse.json(
         {
           error:
-            "Aucune donnée météo disponible pour cette période (données historiques uniquement, jusqu'à hier).",
+            "Aucune donnée Météo France pour cette station/période (station non couverte par Météo France, ou données pas encore publiées).",
         },
         { status: 422 }
       );

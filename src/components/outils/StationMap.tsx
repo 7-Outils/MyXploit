@@ -165,7 +165,7 @@ export function StationMap({ stations, selected, onSelect }: Props) {
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className={`w-full h-auto select-none touch-none rounded-xl border border-gray-200 bg-white ${
+        className={`w-full h-auto select-none touch-none ${
           grabbing ? "cursor-grabbing" : zoomed ? "cursor-grab" : "cursor-default"
         }`}
         role="img"
