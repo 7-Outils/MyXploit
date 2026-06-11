@@ -1,0 +1,144 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
+import {
+  WEATHER_STATIONS,
+  DJU_TRENTENAIRES,
+  resolveStationKey,
+  getStationFromPostalCode,
+  getDailyDjuForStation,
+} from "@/lib/dju-sync";
+
+export const dynamic = "force-dynamic";
+
+const MONTH_LABELS = [
+  "Jan", "Fév", "Mar", "Avr", "Mai", "Jun",
+  "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc",
+];
+
+function monthLabel(month: string): string {
+  const m = parseInt(month.split("-")[1], 10);
+  return `${MONTH_LABELS[m - 1] || month} ${month.split("-")[0]}`;
+}
+
+/**
+ * GET /api/dju/calculate
+ *
+ * Outil de calcul DJU autonome (Boîte à outils). Deux modes :
+ *   - ?list=1 → renvoie la liste des stations COSTIC (pour le <select>).
+ *   - ?station=ORLY|?postalCode=91270 &start=YYYY-MM-DD &end=YYYY-MM-DD
+ *       → DJU base 18°C (Météo France si dispo, sinon Open-Meteo + COSTIC).
+ */
+export async function GET(request: NextRequest) {
+  try {
+    await requireAuth();
+    const { searchParams } = new URL(request.url);
+
+    // Mode liste des stations (pour peupler le menu déroulant côté client)
+    if (searchParams.get("list") === "1") {
+      const stations = Object.entries(WEATHER_STATIONS)
+        .map(([key, { name, lat, lon }]) => ({
+          key,
+          name,
+          lat,
+          lon,
+          djuTrentenaire: DJU_TRENTENAIRES[key] ?? null,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "fr"));
+      return NextResponse.json({ stations });
+    }
+
+    const station = searchParams.get("station");
+    const postalCode = searchParams.get("postalCode");
+    const start = searchParams.get("start");
+    const end = searchParams.get("end");
+
+    if (!start || !end) {
+      return NextResponse.json(
+        { error: "Dates 'start' et 'end' requises (format YYYY-MM-DD)" },
+        { status: 400 }
+      );
+    }
+    if (start > end) {
+      return NextResponse.json(
+        { error: "La date de début doit être antérieure à la date de fin" },
+        { status: 400 }
+      );
+    }
+    if (!station && !postalCode) {
+      return NextResponse.json(
+        { error: "Station ou code postal requis" },
+        { status: 400 }
+      );
+    }
+
+    // Résolution de la station (clé explicite prioritaire, sinon code postal)
+    const stationKey =
+      resolveStationKey(station) ?? getStationFromPostalCode(postalCode);
+    const coords = WEATHER_STATIONS[stationKey];
+    if (!coords) {
+      return NextResponse.json(
+        { error: "Station météo introuvable" },
+        { status: 404 }
+      );
+    }
+
+    // DJU journaliers (Map<date, dju>) — Météo France puis fallback Open-Meteo
+    const byDay = await getDailyDjuForStation(stationKey, postalCode, start, end);
+
+    if (byDay.size === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Aucune donnée météo disponible pour cette période (données historiques uniquement, jusqu'à hier).",
+        },
+        { status: 422 }
+      );
+    }
+
+    // Agrégats
+    let total = 0;
+    const monthly = new Map<string, { dju: number; days: number }>();
+    const dates = [...byDay.keys()].sort();
+    for (const date of dates) {
+      const dju = byDay.get(date)!;
+      total += dju;
+      const m = date.substring(0, 7); // YYYY-MM
+      const cur = monthly.get(m) ?? { dju: 0, days: 0 };
+      cur.dju += dju;
+      cur.days += 1;
+      monthly.set(m, cur);
+    }
+
+    const monthlyData = [...monthly.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, v]) => ({
+        month,
+        label: monthLabel(month),
+        dju: Math.round(v.dju),
+        days: v.days,
+      }));
+
+    return NextResponse.json(
+      {
+        station: coords.name,
+        stationKey,
+        djuTrentenaire: DJU_TRENTENAIRES[stationKey] ?? null,
+        period: { start: dates[0], end: dates[dates.length - 1] },
+        days: byDay.size,
+        djuTotal: Math.round(total),
+        monthlyData,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Error calculating DJU:", error);
+    return NextResponse.json(
+      { error: "Erreur lors du calcul des DJU" },
+      { status: 500 }
+    );
+  }
+}
