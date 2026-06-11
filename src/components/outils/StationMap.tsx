@@ -8,7 +8,6 @@ export type Station = {
   name: string;
   lat: number;
   lon: number;
-  djuTrentenaire: number | null;
 };
 
 type Props = {
@@ -62,6 +61,7 @@ type View = { k: number; tx: number; ty: number };
 
 export function StationMap({ stations, selected, onSelect }: Props) {
   const [hover, setHover] = useState<string | null>(null);
+  const [hoverDept, setHoverDept] = useState<number | null>(null);
   const [rings, setRings] = useState<[number, number][][]>([]);
   const [deptRings, setDeptRings] = useState<[number, number][][]>([]);
   const [view, setView] = useState<View>({ k: 1, tx: 0, ty: 0 });
@@ -187,10 +187,14 @@ export function StationMap({ stations, selected, onSelect }: Props) {
             <path
               key={`dep-${i}`}
               d={d}
-              fill="none"
-              stroke="#D7DEE6"
-              strokeWidth={0.5 / view.k}
+              fill="#3A7E85"
+              fillOpacity={hoverDept === i ? 0.12 : 0}
+              stroke={hoverDept === i ? "#3A7E85" : "#D7DEE6"}
+              strokeWidth={(hoverDept === i ? 1 : 0.5) / view.k}
               strokeLinejoin="round"
+              style={{ pointerEvents: "all" }}
+              onMouseEnter={() => setHoverDept(i)}
+              onMouseLeave={() => setHoverDept((h) => (h === i ? null : h))}
             />
           ))}
         </g>
@@ -235,11 +239,6 @@ export function StationMap({ stations, selected, onSelect }: Props) {
           <div className="text-sm font-medium text-text-primary">
             {activeStation.name}
           </div>
-          {activeStation.djuTrentenaire != null && (
-            <div className="text-xs text-text-muted">
-              DJU trentenaire {activeStation.djuTrentenaire.toLocaleString("fr-FR")}
-            </div>
-          )}
         </div>
       )}
 

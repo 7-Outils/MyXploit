@@ -9,7 +9,6 @@ import { StationMap, type Station } from "@/components/outils/StationMap";
 type CalcResult = {
   station: string;
   stationKey: string;
-  djuTrentenaire: number | null;
   period: { start: string; end: string };
   days: number;
   djuTotal: number;
@@ -72,13 +71,6 @@ export default function DjuToolPage() {
     !!start &&
     !!end &&
     (mode === "station" ? !!station : /^\d{5}$/.test(postalCode));
-
-  const ecart = useMemo(() => {
-    if (!result?.djuTrentenaire) return null;
-    const diff = result.djuTotal - result.djuTrentenaire;
-    const pct = Math.round((diff / result.djuTrentenaire) * 100);
-    return { diff, pct };
-  }, [result]);
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -175,7 +167,7 @@ export default function DjuToolPage() {
           {result ? (
             <div className="bg-white rounded-xl border border-gray-200 shadow-soft overflow-hidden">
               {/* KPIs */}
-              <div className="grid grid-cols-2 divide-x divide-y divide-gray-100 border-b border-gray-100">
+              <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
                 <div className="p-5">
                   <div className="text-xs text-text-muted uppercase tracking-wide">DJU total</div>
                   <div className="mt-1 text-3xl font-semibold text-accent tabular-nums">
@@ -186,32 +178,6 @@ export default function DjuToolPage() {
                   <div className="text-xs text-text-muted uppercase tracking-wide">Station</div>
                   <div className="mt-1 text-sm font-medium text-text-primary">{result.station}</div>
                   <div className="text-xs text-text-muted">{result.days} jours</div>
-                </div>
-                <div className="p-5">
-                  <div className="text-xs text-text-muted uppercase tracking-wide">Trentenaire</div>
-                  <div className="mt-1 text-sm font-medium text-text-primary tabular-nums">
-                    {result.djuTrentenaire ? result.djuTrentenaire.toLocaleString("fr-FR") : "—"}
-                  </div>
-                  <div className="text-xs text-text-muted">moyenne annuelle</div>
-                </div>
-                <div className="p-5">
-                  <div className="text-xs text-text-muted uppercase tracking-wide">Écart trentenaire</div>
-                  {ecart ? (
-                    <div
-                      className={`mt-1 text-sm font-medium tabular-nums ${
-                        ecart.diff >= 0 ? "text-orange-600" : "text-blue-600"
-                      }`}
-                    >
-                      {ecart.diff >= 0 ? "+" : ""}
-                      {ecart.diff.toLocaleString("fr-FR")} ({ecart.pct >= 0 ? "+" : ""}
-                      {ecart.pct}%)
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-sm text-text-muted">—</div>
-                  )}
-                  <div className="text-xs text-text-muted">
-                    {ecart && ecart.diff >= 0 ? "plus froid" : ecart ? "plus doux" : ""}
-                  </div>
                 </div>
               </div>
 

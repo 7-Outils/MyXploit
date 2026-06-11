@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import {
   WEATHER_STATIONS,
-  DJU_TRENTENAIRES,
   resolveStationKey,
   getStationFromPostalCode,
 } from "@/lib/dju-sync";
@@ -27,9 +26,9 @@ function monthLabel(month: string): string {
  * GET /api/dju/calculate
  *
  * Outil de calcul DJU autonome (Boîte à outils). Deux modes :
- *   - ?list=1 → renvoie la liste des stations COSTIC (pour le <select>).
+ *   - ?list=1 → liste des stations couvertes par Météo France (pour la carte).
  *   - ?station=ORLY|?postalCode=91270 &start=YYYY-MM-DD &end=YYYY-MM-DD
- *       → DJU base 18°C (Météo France si dispo, sinon Open-Meteo + COSTIC).
+ *       → DJU base 18°C, méthode COSTIC, données Météo France (DPClim).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -46,7 +45,6 @@ export async function GET(request: NextRequest) {
           name,
           lat,
           lon,
-          djuTrentenaire: DJU_TRENTENAIRES[key] ?? null,
         }))
         .sort((a, b) => a.name.localeCompare(b.name, "fr"));
       return NextResponse.json({ stations });
@@ -128,7 +126,6 @@ export async function GET(request: NextRequest) {
       {
         station: coords.name,
         stationKey,
-        djuTrentenaire: DJU_TRENTENAIRES[stationKey] ?? null,
         period: { start: dates[0], end: dates[dates.length - 1] },
         days: byDay.size,
         djuTotal: Math.round(total),
