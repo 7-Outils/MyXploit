@@ -56,8 +56,7 @@ const defaultNavigation: NavItem[] = [
 
 // Boîte à outils — utilitaires transverses, accessibles à tous les rôles.
 const toolsNavigation: NavItem[] = [
-  { name: "DJU (SVG)", href: "/outils/dju", icon: Thermometer },
-  { name: "DJU (Leaflet)", href: "/outils/dju-leaflet", icon: Thermometer },
+  { name: "DJU", href: "/outils/dju", icon: Thermometer },
 ];
 
 export function Sidebar() {
