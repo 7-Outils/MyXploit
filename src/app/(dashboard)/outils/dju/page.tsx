@@ -82,8 +82,8 @@ export default function DjuToolPage() {
         <h1 className="text-xl font-semibold text-text-primary">Calculateur DJU</h1>
       </div>
 
-      {/* Carte à gauche, résultat à droite */}
-      <div className="grid grid-cols-1 lg:grid-cols-[480px_1fr] gap-6 items-start">
+      {/* Carte à gauche, résultat à droite — colonnes égales pour l'équilibre */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* Colonne gauche : contrôles compacts + carte (ou saisie code postal) */}
         <div className="space-y-3">
           {/* Contrôles : toggle au-dessus, puis période + bouton sur la même ligne */}
