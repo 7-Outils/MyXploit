@@ -94,31 +94,31 @@ export default function DjuToolPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[480px_1fr] gap-6 items-start">
         {/* Colonne gauche : contrôles compacts + carte (ou saisie code postal) */}
         <div className="space-y-3">
-          {/* Contrôles : mode + période + calcul, sur une ligne qui s'enroule */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex gap-1 text-xs">
-              <button
-                onClick={() => setMode("station")}
-                className={`px-2.5 py-1.5 rounded-md transition-colors ${
-                  mode === "station"
-                    ? "bg-accent text-white"
-                    : "bg-gray-100 text-text-secondary hover:bg-gray-200"
-                }`}
-              >
-                Carte
-              </button>
-              <button
-                onClick={() => setMode("postalCode")}
-                className={`px-2.5 py-1.5 rounded-md transition-colors ${
-                  mode === "postalCode"
-                    ? "bg-accent text-white"
-                    : "bg-gray-100 text-text-secondary hover:bg-gray-200"
-                }`}
-              >
-                Code postal
-              </button>
-            </div>
+          {/* Contrôles : toggle au-dessus, puis période + bouton sur la même ligne */}
+          <div className="flex gap-1 text-xs">
+            <button
+              onClick={() => setMode("station")}
+              className={`px-2.5 py-1.5 rounded-md transition-colors ${
+                mode === "station"
+                  ? "bg-accent text-white"
+                  : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+              }`}
+            >
+              Carte
+            </button>
+            <button
+              onClick={() => setMode("postalCode")}
+              className={`px-2.5 py-1.5 rounded-md transition-colors ${
+                mode === "postalCode"
+                  ? "bg-accent text-white"
+                  : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+              }`}
+            >
+              Code postal
+            </button>
+          </div>
 
+          <div className="flex items-center gap-2">
             {/* Période : un seul champ regroupant les deux dates */}
             <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-gray-300 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
               <CalendarRange size={14} className="text-text-muted shrink-0" />
@@ -127,7 +127,7 @@ export default function DjuToolPage() {
                 value={start}
                 max={end || undefined}
                 onChange={(e) => setDates((d) => ({ ...d, start: e.target.value }))}
-                className="bg-transparent text-sm outline-none text-text-primary w-[120px]"
+                className="bg-transparent text-sm outline-none text-text-primary w-[112px]"
               />
               <span className="text-text-muted text-sm">→</span>
               <input
@@ -135,7 +135,7 @@ export default function DjuToolPage() {
                 value={end}
                 min={start || undefined}
                 onChange={(e) => setDates((d) => ({ ...d, end: e.target.value }))}
-                className="bg-transparent text-sm outline-none text-text-primary w-[120px]"
+                className="bg-transparent text-sm outline-none text-text-primary w-[112px]"
               />
             </div>
 
@@ -144,7 +144,7 @@ export default function DjuToolPage() {
               disabled={!canSubmit || loading}
               className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {loading ? <Loader2 size={15} className="animate-spin" /> : <Thermometer size={15} />}
+              {loading && <Loader2 size={15} className="animate-spin" />}
               Calculer
             </button>
           </div>
