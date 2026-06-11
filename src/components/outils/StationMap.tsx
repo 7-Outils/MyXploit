@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Plus, Minus, Maximize2 } from "lucide-react";
 
 export type Station = {
   key: string;
@@ -32,6 +33,9 @@ const PAD = 16;
 const LON_SPAN = (LON_MAX - LON_MIN) * COS_LAT;
 const LAT_SPAN = LAT_MAX - LAT_MIN;
 
+const MIN_K = 1;
+const MAX_K = 8;
+
 function project(lon: number, lat: number): [number, number] {
   const x = PAD + ((lon - LON_MIN) * COS_LAT) / LON_SPAN * (W - 2 * PAD);
   const y = PAD + ((LAT_MAX - lat) / LAT_SPAN) * (H - 2 * PAD);
@@ -51,9 +55,19 @@ function toPath(ring: [number, number][]): string {
   );
 }
 
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+type View = { k: number; tx: number; ty: number };
+
 export function StationMap({ stations, selected, onSelect }: Props) {
   const [hover, setHover] = useState<string | null>(null);
   const [rings, setRings] = useState<[number, number][][]>([]);
+  const [view, setView] = useState<View>({ k: 1, tx: 0, ty: 0 });
+
+  const svgRef = useRef<SVGSVGElement>(null);
+  const dragRef = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
+  const [grabbing, setGrabbing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -70,25 +84,104 @@ export function StationMap({ stations, selected, onSelect }: Props) {
 
   const paths = useMemo(() => rings.map(toPath), [rings]);
 
+  // Empêche le contenu de sortir entièrement du cadre quand on pan/zoome.
+  const clampView = useCallback((k: number, tx: number, ty: number): View => {
+    const kk = clamp(k, MIN_K, MAX_K);
+    const minTx = W * (1 - kk);
+    const minTy = H * (1 - kk);
+    return {
+      k: kk,
+      tx: clamp(tx, minTx, 0),
+      ty: clamp(ty, minTy, 0),
+    };
+  }, []);
+
+  // Coordonnées pointeur (client px) → repère viewBox du SVG.
+  const toSvg = useCallback((clientX: number, clientY: number): [number, number] => {
+    const r = svgRef.current!.getBoundingClientRect();
+    return [((clientX - r.left) / r.width) * W, ((clientY - r.top) / r.height) * H];
+  }, []);
+
+  // Zoom centré sur un point (px, py) du repère viewBox.
+  const zoomAt = useCallback(
+    (px: number, py: number, factor: number) => {
+      setView((v) => {
+        const k = clamp(v.k * factor, MIN_K, MAX_K);
+        const r = k / v.k;
+        return clampView(k, px - (px - v.tx) * r, py - (py - v.ty) * r);
+      });
+    },
+    [clampView]
+  );
+
+  // Molette : zoom non-passif (preventDefault) pour ne pas scroller la page.
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const [px, py] = toSvg(e.clientX, e.clientY);
+      zoomAt(px, py, e.deltaY < 0 ? 1.2 : 1 / 1.2);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [toSvg, zoomAt]);
+
+  function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY };
+    movedRef.current = false;
+    setGrabbing(true);
+  }
+  function onPointerMove(e: React.PointerEvent<SVGSVGElement>) {
+    if (!dragRef.current) return;
+    const r = svgRef.current!.getBoundingClientRect();
+    const dx = ((e.clientX - dragRef.current.x) / r.width) * W;
+    const dy = ((e.clientY - dragRef.current.y) / r.height) * H;
+    if (Math.abs(e.clientX - dragRef.current.x) + Math.abs(e.clientY - dragRef.current.y) > 3) {
+      movedRef.current = true;
+    }
+    dragRef.current = { x: e.clientX, y: e.clientY };
+    setView((v) => clampView(v.k, v.tx + dx, v.ty + dy));
+  }
+  function onPointerUp(e: React.PointerEvent<SVGSVGElement>) {
+    (e.target as Element).releasePointerCapture?.(e.pointerId);
+    dragRef.current = null;
+    setGrabbing(false);
+  }
+
   const active = hover ?? selected;
   const activeStation = stations.find((s) => s.key === active) ?? null;
+  const zoomed = view.k > 1.001;
 
   return (
     <div className="relative w-full">
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}
-        className="w-full h-auto select-none"
+        className={`w-full h-auto select-none touch-none rounded-xl border border-gray-200 bg-white ${
+          grabbing ? "cursor-grabbing" : zoomed ? "cursor-grab" : "cursor-default"
+        }`}
         role="img"
         aria-label="Carte des stations météo de France"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerUp}
       >
-        {/* Contour pays (continent + Corse + îles) */}
-        {paths.map((d, i) => (
-          <path key={i} d={d} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1} />
-        ))}
+        {/* Géographie : translatée + scalée par le zoom */}
+        <g transform={`translate(${view.tx},${view.ty}) scale(${view.k})`}>
+          {paths.map((d, i) => (
+            <path key={i} d={d} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1 / view.k} />
+          ))}
+        </g>
 
-        {/* Stations */}
+        {/* Stations : centres déplacés par le zoom, mais RAYON constant en px
+            → zoomer écarte les pastilles proches sans les grossir. */}
         {stations.map((s) => {
-          const [x, y] = project(s.lon, s.lat);
+          const [px, py] = project(s.lon, s.lat);
+          const x = px * view.k + view.tx;
+          const y = py * view.k + view.ty;
           const isSelected = s.key === selected;
           const isHover = s.key === hover;
           return (
@@ -96,14 +189,15 @@ export function StationMap({ stations, selected, onSelect }: Props) {
               key={s.key}
               transform={`translate(${x},${y})`}
               className="cursor-pointer"
-              onClick={() => onSelect(s.key)}
+              onClick={() => {
+                if (!movedRef.current) onSelect(s.key);
+              }}
               onMouseEnter={() => setHover(s.key)}
               onMouseLeave={() => setHover((h) => (h === s.key ? null : h))}
             >
-              {/* halo de sélection */}
-              {isSelected && (
-                <circle r={9} fill="#3A7E85" opacity={0.18} />
-              )}
+              {/* zone de clic invisible élargie (confort, surtout zoomé) */}
+              <circle r={9} fill="transparent" />
+              {isSelected && <circle r={9} fill="#3A7E85" opacity={0.18} />}
               <circle
                 r={isSelected ? 5.5 : isHover ? 4.5 : 3}
                 fill={isSelected ? "#3A7E85" : isHover ? "#4fa3aa" : "#94A3B8"}
@@ -129,6 +223,36 @@ export function StationMap({ stations, selected, onSelect }: Props) {
           )}
         </div>
       )}
+
+      {/* Contrôles de zoom */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => zoomAt(W / 2, H / 2, 1.4)}
+          className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/95 border border-gray-200 shadow-soft text-text-secondary hover:text-text-primary hover:bg-white"
+          title="Zoomer"
+        >
+          <Plus size={16} />
+        </button>
+        <button
+          type="button"
+          onClick={() => zoomAt(W / 2, H / 2, 1 / 1.4)}
+          className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/95 border border-gray-200 shadow-soft text-text-secondary hover:text-text-primary hover:bg-white"
+          title="Dézoomer"
+        >
+          <Minus size={16} />
+        </button>
+        {zoomed && (
+          <button
+            type="button"
+            onClick={() => setView({ k: 1, tx: 0, ty: 0 })}
+            className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/95 border border-gray-200 shadow-soft text-text-secondary hover:text-text-primary hover:bg-white"
+            title="Réinitialiser"
+          >
+            <Maximize2 size={14} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
