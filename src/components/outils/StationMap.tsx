@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export type Station = {
   key: string;
@@ -38,36 +38,37 @@ function project(lon: number, lat: number): [number, number] {
   return [x, y];
 }
 
-// Contour grossier mais reconnaissable de la France métropolitaine ("l'Hexagone")
-// + la Corse, en [lon, lat] — projeté avec la MÊME fonction que les points
-// stations, donc toujours aligné, sans dépendance cartographique externe.
-const FRANCE: [number, number][] = [
-  [2.5, 51.05], [4.2, 50.3], [5.9, 49.5], [8.2, 48.9], [7.6, 47.6],
-  [6.9, 47.4], [6.1, 46.4], [7.0, 45.6], [6.8, 45.1], [7.5, 43.75],
-  [6.5, 43.1], [5.4, 43.25], [4.0, 43.55], [3.0, 42.45], [1.5, 42.6],
-  [-0.5, 42.8], [-1.4, 43.3], [-1.5, 44.5], [-1.1, 45.6], [-1.2, 46.3],
-  [-2.2, 47.0], [-2.6, 47.6], [-4.8, 48.0], [-4.6, 48.65], [-2.8, 48.6],
-  [-1.5, 48.65], [-1.6, 49.7], [-0.2, 49.3], [1.6, 50.1], [2.5, 51.05],
-];
-const CORSE: [number, number][] = [
-  [9.35, 43.0], [9.55, 42.6], [9.4, 41.8], [9.0, 41.4],
-  [8.6, 41.6], [8.7, 42.3], [9.0, 42.7], [9.35, 43.0],
-];
-
-function toPath(pts: [number, number][]): string {
-  return pts
-    .map(([lon, lat], i) => {
-      const [x, y] = project(lon, lat);
-      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ") + " Z";
+// Contours réels (GeoJSON métropole simplifié, servi depuis /public) projetés
+// avec la MÊME fonction que les points stations → toujours alignés.
+function toPath(ring: [number, number][]): string {
+  return (
+    ring
+      .map(([lon, lat], i) => {
+        const [x, y] = project(lon, lat);
+        return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ") + " Z"
+  );
 }
 
 export function StationMap({ stations, selected, onSelect }: Props) {
   const [hover, setHover] = useState<string | null>(null);
+  const [rings, setRings] = useState<[number, number][][]>([]);
 
-  const francePath = useMemo(() => toPath(FRANCE), []);
-  const corsePath = useMemo(() => toPath(CORSE), []);
+  useEffect(() => {
+    let alive = true;
+    fetch("/france-metropole.json")
+      .then((r) => r.json())
+      .then((data: [number, number][][]) => {
+        if (alive) setRings(data);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const paths = useMemo(() => rings.map(toPath), [rings]);
 
   const active = hover ?? selected;
   const activeStation = stations.find((s) => s.key === active) ?? null;
@@ -80,9 +81,10 @@ export function StationMap({ stations, selected, onSelect }: Props) {
         role="img"
         aria-label="Carte des stations météo de France"
       >
-        {/* Contour pays */}
-        <path d={francePath} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1.5} />
-        <path d={corsePath} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1.5} />
+        {/* Contour pays (continent + Corse + îles) */}
+        {paths.map((d, i) => (
+          <path key={i} d={d} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1} />
+        ))}
 
         {/* Stations */}
         {stations.map((s) => {
