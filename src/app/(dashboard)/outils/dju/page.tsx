@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
-import { Thermometer, Loader2, MapPin, CalendarRange } from "lucide-react";
+import { Thermometer, Loader2, CalendarRange } from "lucide-react";
 import { StationMap, type Station } from "@/components/outils/StationMap";
 
 type CalcResult = {
@@ -90,14 +90,12 @@ export default function DjuToolPage() {
         <h1 className="text-xl font-semibold text-text-primary">Calculateur DJU</h1>
       </div>
 
-      {/* Barre de contrôles : mode + période + calcul */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-soft p-5">
-        <div className="flex flex-wrap items-end gap-4">
-          {/* Mode de localisation */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide">
-              <MapPin size={13} /> Localisation
-            </label>
+      {/* Carte à gauche, résultat à droite */}
+      <div className="grid grid-cols-1 lg:grid-cols-[480px_1fr] gap-6 items-start">
+        {/* Colonne gauche : contrôles compacts + carte (ou saisie code postal) */}
+        <div className="space-y-3">
+          {/* Contrôles : mode + période + calcul, sur une ligne qui s'enroule */}
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-1 text-xs">
               <button
                 onClick={() => setMode("station")}
@@ -120,20 +118,16 @@ export default function DjuToolPage() {
                 Code postal
               </button>
             </div>
-          </div>
 
-          {/* Période : un seul champ regroupant les deux dates */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide">
-              <CalendarRange size={13} /> Période
-            </label>
-            <div className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-gray-300 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+            {/* Période : un seul champ regroupant les deux dates */}
+            <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-gray-300 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
+              <CalendarRange size={14} className="text-text-muted shrink-0" />
               <input
                 type="date"
                 value={start}
                 max={end || undefined}
                 onChange={(e) => setDates((d) => ({ ...d, start: e.target.value }))}
-                className="bg-transparent text-sm outline-none text-text-primary"
+                className="bg-transparent text-sm outline-none text-text-primary w-[120px]"
               />
               <span className="text-text-muted text-sm">→</span>
               <input
@@ -141,29 +135,22 @@ export default function DjuToolPage() {
                 value={end}
                 min={start || undefined}
                 onChange={(e) => setDates((d) => ({ ...d, end: e.target.value }))}
-                className="bg-transparent text-sm outline-none text-text-primary"
+                className="bg-transparent text-sm outline-none text-text-primary w-[120px]"
               />
             </div>
+
+            <button
+              onClick={handleCalculate}
+              disabled={!canSubmit || loading}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <Thermometer size={15} />}
+              Calculer
+            </button>
           </div>
 
-          {/* Bouton calcul, à côté des dates */}
-          <button
-            onClick={handleCalculate}
-            disabled={!canSubmit || loading}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? <Loader2 size={16} className="animate-spin" /> : <Thermometer size={16} />}
-            Calculer
-          </button>
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
-          {error && <span className="text-sm text-red-600 self-center">{error}</span>}
-        </div>
-      </div>
-
-      {/* Carte à gauche, résultat à droite */}
-      <div className="grid grid-cols-1 lg:grid-cols-[480px_1fr] gap-6 items-start">
-        {/* Colonne gauche : carte (ou saisie code postal) */}
-        <div>
           {mode === "station" ? (
             <StationMap stations={stations} selected={station} onSelect={setStation} />
           ) : (

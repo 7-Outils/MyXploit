@@ -54,11 +54,6 @@ const defaultNavigation: NavItem[] = [
   { name: "Exploitation", href: "/exploitation", icon: Wrench, module: "EXPLOITATION" },
 ];
 
-// Boîte à outils — utilitaires transverses, accessibles à tous les rôles.
-const toolsNavigation: NavItem[] = [
-  { name: "DJU", href: "/outils/dju", icon: Thermometer },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggle, mobileOpen, setMobileOpen } = useSidebar();
@@ -188,41 +183,6 @@ export function Sidebar() {
             </Link>
           );
         })}
-
-        {/* Boîte à outils */}
-        <div className="pt-4 mt-2 border-t border-white/10">
-          {showLabels && (
-            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              Boîte à outils
-            </p>
-          )}
-          {toolsNavigation.map((item) => {
-            const active = isActive(item.href);
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-                  active
-                    ? "bg-accent text-white"
-                    : "text-gray-400 hover:text-white hover:bg-white/10"
-                )}
-              >
-                <item.icon
-                  size={20}
-                  className={cn(
-                    "flex-shrink-0",
-                    active ? "text-white" : "text-gray-400 group-hover:text-white"
-                  )}
-                />
-                {showLabels && (
-                  <span className="text-sm font-medium truncate">{item.name}</span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
       </nav>
 
       {/* Bottom navigation */}
@@ -262,20 +222,34 @@ export function Sidebar() {
         )}
 
 
-        <Link
-          href="/settings"
-          className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-            pathname === "/settings"
-              ? "bg-accent text-white"
-              : "text-gray-400 hover:text-white hover:bg-white/10"
-          )}
-        >
-          <Settings size={20} className="flex-shrink-0" />
-          {!collapsed && (
-            <span className="text-sm font-medium">Parametres</span>
-          )}
-        </Link>
+        {/* Outils + Paramètres en icônes seules (tooltip au survol).
+            flex-wrap → côte à côte en mode déplié, empilés en mode replié. */}
+        <div className="flex flex-wrap gap-1">
+          <Link
+            href="/outils/dju"
+            title="Calculateur DJU"
+            className={cn(
+              "h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200",
+              isActive("/outils/dju")
+                ? "bg-accent text-white"
+                : "text-gray-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <Thermometer size={20} className="flex-shrink-0" />
+          </Link>
+          <Link
+            href="/settings"
+            title="Paramètres"
+            className={cn(
+              "h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200",
+              pathname === "/settings"
+                ? "bg-accent text-white"
+                : "text-gray-400 hover:text-white hover:bg-white/10"
+            )}
+          >
+            <Settings size={20} className="flex-shrink-0" />
+          </Link>
+        </div>
       </div>
       </aside>
     </>

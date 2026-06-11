@@ -6,7 +6,10 @@ import {
   resolveStationKey,
   getStationFromPostalCode,
 } from "@/lib/dju-sync";
-import { fetchDjuFromMeteoFrance } from "@/lib/dju-meteo-france";
+import {
+  fetchDjuFromMeteoFrance,
+  METEO_FRANCE_STATION_KEYS,
+} from "@/lib/dju-meteo-france";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +39,8 @@ export async function GET(request: NextRequest) {
     // Mode liste des stations (pour peupler le menu déroulant côté client)
     if (searchParams.get("list") === "1") {
       const stations = Object.entries(WEATHER_STATIONS)
+        // Seulement les stations couvertes par Météo France (pas d'erreur au clic)
+        .filter(([key]) => METEO_FRANCE_STATION_KEYS.has(key))
         .map(([key, { name, lat, lon }]) => ({
           key,
           name,

@@ -89,6 +89,9 @@ const MF_STATION_IDS: Record<string, string> = {
   //   DUNKERQUE — pas dans DEPT_TO_STATION
 };
 
+/** Clés des stations couvertes par Météo France (DPClim). */
+export const METEO_FRANCE_STATION_KEYS = new Set(Object.keys(MF_STATION_IDS));
+
 /**
  * Le CSV quotidien MF ne contient PAS de colonne DJU pré-calculée
  * (le DJU CHAUFFAGISTE n'est dispo que dans l'endpoint mensuel pour certaines

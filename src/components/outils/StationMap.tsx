@@ -17,17 +17,18 @@ type Props = {
   onSelect: (key: string) => void;
 };
 
-// Bornes géographiques métropole + Corse
-const LON_MIN = -5.2;
-const LON_MAX = 9.7;
-const LAT_MIN = 41.2;
+// Bornes géographiques France métropolitaine (continent, hors Corse)
+const LON_MIN = -5.0;
+const LON_MAX = 8.4;
+const LAT_MIN = 42.2;
 const LAT_MAX = 51.2;
 // Les degrés de longitude sont compressés par cos(latitude) — on corrige pour
 // garder des proportions réalistes (sinon la France paraît étirée en largeur).
 const COS_LAT = Math.cos((46 * Math.PI) / 180);
 
+// H choisi pour respecter le ratio géographique (≈0.97) → pas de déformation.
 const W = 480;
-const H = 520;
+const H = 465;
 const PAD = 16;
 
 const LON_SPAN = (LON_MAX - LON_MIN) * COS_LAT;
