@@ -149,71 +149,82 @@ export function ContractSelector() {
                 </div>
                 <div className="max-h-80 overflow-y-auto py-1">
                   {groups.map((g) => (
-                    <div key={g.id} className="mb-1 last:mb-0">
-                      <div className="px-3 py-1.5 flex items-center justify-between">
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-gray-700 truncate">
+                    <div key={g.id} className="mb-2 last:mb-0">
+                      {/* En-tête client : le parent domine */}
+                      {g.id !== "__none__" ? (
+                        <Link
+                          href={`/clients/${g.id}`}
+                          onClick={() => setOpen(false)}
+                          className="group/h mx-2 px-2 py-1.5 flex items-center gap-2 rounded-md hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="text-sm font-semibold text-gray-900 truncate">
                             {g.name}
-                          </p>
-                          {g.city && (
-                            <p className="text-[10px] text-gray-400 truncate">
-                              {g.city}
-                            </p>
-                          )}
+                          </span>
+                          <ArrowRight
+                            size={13}
+                            className="text-gray-300 opacity-0 group-hover/h:opacity-100 group-hover/h:text-accent transition-all flex-shrink-0"
+                          />
+                        </Link>
+                      ) : (
+                        <div className="mx-2 px-2 py-1.5">
+                          <span className="text-sm font-semibold text-gray-400 truncate">
+                            {g.name}
+                          </span>
                         </div>
-                        {g.id !== "__none__" && (
-                          <Link
-                            href={`/clients/${g.id}`}
-                            onClick={() => setOpen(false)}
-                            className="text-[10px] text-accent hover:underline flex-shrink-0"
-                          >
-                            Voir patrimoine
-                          </Link>
+                      )}
+
+                      {/* Contrats : enfants subordonnés, rail d'indentation */}
+                      <div className="ml-[18px] pl-3 border-l border-gray-100">
+                        {g.contracts.length === 0 && (
+                          <p className="px-2 py-1.5 text-[11px] text-gray-300 italic">
+                            Aucun contrat
+                          </p>
                         )}
-                      </div>
-                      {g.contracts.map((contract) => {
-                        const isSelected = selectedContract?.id === contract.id;
-                        return (
-                          <button
-                            key={contract.id}
-                            onClick={() => {
-                              selectContract(contract);
-                              setOpen(false);
-                            }}
-                            className={cn(
-                              "w-full pl-6 pr-3 py-2 text-left hover:bg-gray-50 flex items-start gap-2 transition-colors",
-                              isSelected && "bg-accent/5"
-                            )}
-                          >
-                            <FileText
-                              size={13}
-                              className="text-gray-300 mt-0.5 flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-900 truncate">
-                                  {contract.reference}
-                                </span>
-                                {contract._count && (
-                                  <span className="text-[10px] text-gray-400">
-                                    {contract._count.contractSites} site
-                                    {contract._count.contractSites > 1 ? "s" : ""}
-                                  </span>
-                                )}
+                        {g.contracts.map((contract) => {
+                          const isSelected = selectedContract?.id === contract.id;
+                          // Évite le doublon nom de contrat == nom de client
+                          const showRef =
+                            contract.reference &&
+                            contract.reference.trim().toLowerCase() !==
+                              g.name.trim().toLowerCase();
+                          return (
+                            <button
+                              key={contract.id}
+                              onClick={() => {
+                                selectContract(contract);
+                                setOpen(false);
+                              }}
+                              className={cn(
+                                "w-full px-2 py-1.5 text-left rounded-md hover:bg-gray-50 flex items-center gap-2 transition-colors",
+                                isSelected && "bg-accent/5"
+                              )}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] text-gray-600 truncate">
+                                  {showRef && (
+                                    <span className="text-gray-800 font-medium">
+                                      {contract.reference} ·{" "}
+                                    </span>
+                                  )}
+                                  {contract.title} — {contract.provider}
+                                </p>
                               </div>
-                              <p className="text-[11px] text-gray-500 truncate">
-                                {contract.title} — {contract.provider}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <Check
-                                size={14}
-                                className="text-accent mt-1 flex-shrink-0"
-                              />
-                            )}
-                          </button>
-                        );
-                      })}
+                              {contract._count && (
+                                <span className="text-[10px] text-gray-400 flex-shrink-0">
+                                  {contract._count.contractSites} site
+                                  {contract._count.contractSites > 1 ? "s" : ""}
+                                </span>
+                              )}
+                              {isSelected && (
+                                <Check
+                                  size={13}
+                                  className="text-accent flex-shrink-0"
+                                />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -226,37 +237,37 @@ export function ContractSelector() {
               </div>
             )}
 
-            {/* Actions de création — Client en primary */}
-            <div className="border-t border-gray-100 p-2 space-y-1">
+            {/* Actions de création — discrètes, en pied de menu */}
+            <div className="border-t border-gray-100 p-1.5 flex items-center gap-1">
               <button
                 onClick={() => {
                   setOpen(false);
                   router.push("/clients");
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-accent hover:bg-accent/90 rounded-lg transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 rounded-md transition-colors"
               >
-                <Plus size={16} />
-                Nouveau client
+                <Plus size={14} />
+                Client
               </button>
               <button
                 onClick={() => {
                   setOpen(false);
                   setShowCreateModal(true);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
               >
-                <FileText size={16} className="text-gray-400" />
-                Nouveau contrat
+                <FileText size={14} className="text-gray-400" />
+                Contrat
               </button>
               <button
                 onClick={() => {
                   setOpen(false);
                   setShowAEModal(true);
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
               >
-                <FileSpreadsheet size={16} className="text-gray-400" />
-                Créer depuis AE
+                <FileSpreadsheet size={14} className="text-gray-400" />
+                Depuis AE
               </button>
             </div>
           </div>
