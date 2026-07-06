@@ -152,27 +152,46 @@ export async function POST(request: NextRequest) {
 
         let imported = 0;
 
-        for (const month of monthlyData) {
-          const period = new Date(month.month);
-          const quantityKwh = whToKwh(month.value);
-
-          // Upsert consumption
-          await prisma.consumption.upsert({
-            where: {
-              siteId_energyType_usage_period_source: {
+        // Pré-charger les consommations existantes du site en un findMany
+        // (évite un upsert par mois), puis séparer créations / mises à jour
+        const periods = monthlyData.map((month) => new Date(month.month));
+        const existingConsumptions = periods.length > 0
+          ? await prisma.consumption.findMany({
+              where: {
                 siteId: site.id,
                 energyType: "ELECTRICITE",
                 usage: "CHAUFFAGE",
-                period: period,
                 source: "TELERELEVE",
+                period: { in: periods },
               },
-            },
-            update: {
-              quantity: quantityKwh,
-              unit: "kWh",
-              updatedAt: new Date(),
-            },
-            create: {
+              select: { id: true, period: true },
+            })
+          : [];
+        const existingIdByPeriod = new Map(
+          existingConsumptions.map((c) => [c.period.getTime(), c.id])
+        );
+
+        const creates: {
+          siteId: string;
+          organizationId: string;
+          energyType: "ELECTRICITE";
+          usage: "CHAUFFAGE";
+          period: Date;
+          quantity: number;
+          unit: string;
+          source: "TELERELEVE";
+        }[] = [];
+        const updates: { id: string; quantity: number }[] = [];
+
+        for (const month of monthlyData) {
+          const period = new Date(month.month);
+          const quantityKwh = whToKwh(month.value);
+          const existingId = existingIdByPeriod.get(period.getTime());
+
+          if (existingId) {
+            updates.push({ id: existingId, quantity: quantityKwh });
+          } else {
+            creates.push({
               siteId: site.id,
               organizationId: effectiveOrgId,
               energyType: "ELECTRICITE",
@@ -181,10 +200,27 @@ export async function POST(request: NextRequest) {
               quantity: quantityKwh,
               unit: "kWh",
               source: "TELERELEVE",
-            },
-          });
+            });
+          }
 
           imported++;
+        }
+
+        if (creates.length > 0) {
+          await prisma.consumption.createMany({ data: creates });
+        }
+
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+          const batch = updates.slice(i, i + BATCH_SIZE);
+          await prisma.$transaction(
+            batch.map((u) =>
+              prisma.consumption.update({
+                where: { id: u.id },
+                data: { quantity: u.quantity, unit: "kWh", updatedAt: new Date() },
+              })
+            )
+          );
         }
 
         results.push({

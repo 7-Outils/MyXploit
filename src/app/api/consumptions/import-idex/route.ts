@@ -658,53 +658,125 @@ export async function POST(request: NextRequest) {
     // meterId lookup: (siteId|meterName) → meterId
     const meterIdByKey = new Map<string, string>();
 
-    for (const meter of uniqueMeters.values()) {
+    // Pré-chargement groupé des compteurs existants (évite un findFirst par compteur)
+    const uniqueMeterList = Array.from(uniqueMeters.values());
+    const existingMetersByKey = new Map<string, { id: string; conversionCoefficient: number | null; conversionUnit: string | null }>();
+    if (uniqueMeterList.length > 0) {
+      const existingMeters = await prisma.meter.findMany({
+        where: {
+          siteId: { in: Array.from(new Set(uniqueMeterList.map(m => m.siteId))) },
+          name: { in: Array.from(new Set(uniqueMeterList.map(m => m.meterName))) },
+        },
+        select: { id: true, siteId: true, name: true, conversionCoefficient: true, conversionUnit: true },
+      });
+      for (const m of existingMeters) {
+        const key = `${m.siteId}|${m.name}`;
+        // Même critère de matching que le findFirst d'origine : on garde le premier trouvé
+        if (!existingMetersByKey.has(key)) {
+          existingMetersByKey.set(key, {
+            id: m.id,
+            conversionCoefficient: m.conversionCoefficient,
+            conversionUnit: m.conversionUnit,
+          });
+        }
+      }
+    }
+
+    const meterBackfillUpdates: { id: string; coefficient: number; convUnit: string | null }[] = [];
+    const metersToCreate: typeof uniqueMeterList = [];
+
+    for (const meter of uniqueMeterList) {
+      const key = `${meter.siteId}|${meter.meterName}`;
+      const existingMeter = existingMetersByKey.get(key);
+
+      const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
+      const sitePcs = sitePcsCoefficients.get(meter.siteId) ?? DEFAULT_PCS;
+      const siteQ = siteQCoefficients.get(meter.siteId) ?? DEFAULT_Q;
+      const { coefficient, convUnit } = computeMeterConversion(fluid, meter.unit, sitePcs, siteQ);
+
+      if (existingMeter) {
+        meterIdByKey.set(key, existingMeter.id);
+        // Backfill conversionCoefficient if missing on existing meter (improves display)
+        if (coefficient != null && existingMeter.conversionCoefficient == null) {
+          meterBackfillUpdates.push({ id: existingMeter.id, coefficient, convUnit });
+        }
+      } else {
+        metersToCreate.push(meter);
+      }
+    }
+
+    // Backfills groupés par lots via transaction
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < meterBackfillUpdates.length; i += BATCH_SIZE) {
+      const batch = meterBackfillUpdates.slice(i, i + BATCH_SIZE);
       try {
-        const existingMeter = await prisma.meter.findFirst({
-          where: { siteId: meter.siteId, name: meter.meterName },
-          select: { id: true, conversionCoefficient: true, conversionUnit: true },
-        });
+        await prisma.$transaction(
+          batch.map(u =>
+            prisma.meter.update({
+              where: { id: u.id },
+              data: { conversionCoefficient: u.coefficient, conversionUnit: u.convUnit },
+            })
+          )
+        );
+      } catch (err) {
+        console.error("Error backfilling meters:", err);
+      }
+    }
 
-        const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
-        const sitePcs = sitePcsCoefficients.get(meter.siteId) ?? DEFAULT_PCS;
-        const siteQ = siteQCoefficients.get(meter.siteId) ?? DEFAULT_Q;
-        const { coefficient, convUnit } = computeMeterConversion(fluid, meter.unit, sitePcs, siteQ);
-
-        if (existingMeter) {
-          meterIdByKey.set(`${meter.siteId}|${meter.meterName}`, existingMeter.id);
-          // Backfill conversionCoefficient if missing on existing meter (improves display)
-          if (coefficient != null && existingMeter.conversionCoefficient == null) {
-            await prisma.meter.update({
-              where: { id: existingMeter.id },
-              data: { conversionCoefficient: coefficient, conversionUnit: convUnit },
-            });
-          }
-        } else {
-          const created = await prisma.meter.create({
-            data: {
+    // Créations groupées, puis re-lecture pour récupérer les ids
+    if (metersToCreate.length > 0) {
+      try {
+        await prisma.meter.createMany({
+          data: metersToCreate.map(meter => {
+            const fluid = mapEnergyTypeToFluid(meter.energyType, meter.meterName);
+            const sitePcs = sitePcsCoefficients.get(meter.siteId) ?? DEFAULT_PCS;
+            const siteQ = siteQCoefficients.get(meter.siteId) ?? DEFAULT_Q;
+            const { coefficient, convUnit } = computeMeterConversion(fluid, meter.unit, sitePcs, siteQ);
+            return {
               siteId: meter.siteId,
               name: meter.meterName,
               fluid,
-              type: "DIVISIONNAIRE",
-              dataSource: "MANUEL",
+              type: "DIVISIONNAIRE" as const,
+              dataSource: "MANUEL" as const,
               unit: meter.unit,
               conversionCoefficient: coefficient,
               conversionUnit: convUnit,
               isActive: true,
-            },
-            select: { id: true },
-          });
-          meterIdByKey.set(`${meter.siteId}|${meter.meterName}`, created.id);
-          metersCreated.push(meter.meterName);
+            };
+          }),
+        });
+
+        const createdMeters = await prisma.meter.findMany({
+          where: {
+            siteId: { in: Array.from(new Set(metersToCreate.map(m => m.siteId))) },
+            name: { in: Array.from(new Set(metersToCreate.map(m => m.meterName))) },
+          },
+          select: { id: true, siteId: true, name: true },
+        });
+        const createdIdByKey = new Map<string, string>();
+        for (const m of createdMeters) {
+          const key = `${m.siteId}|${m.name}`;
+          if (!createdIdByKey.has(key)) createdIdByKey.set(key, m.id);
+        }
+        for (const meter of metersToCreate) {
+          const key = `${meter.siteId}|${meter.meterName}`;
+          const createdId = createdIdByKey.get(key);
+          if (createdId) {
+            meterIdByKey.set(key, createdId);
+            metersCreated.push(meter.meterName);
+          } else {
+            console.error("Error creating meter:", meter.meterName, "id introuvable après createMany");
+          }
         }
       } catch (err) {
-        console.error("Error creating meter:", meter.meterName, err);
+        console.error("Error creating meters:", err);
       }
     }
 
     // Import mode: step 2 — upsert MeterReading per raw row (source de vérité)
+    // Pré-chargement groupé des relevés existants (évite un findFirst par ligne)
     const impactedSites = new Set<string>();
-    for (const row of rawRowsForImport) {
+    const rowsWithMeter = rawRowsForImport.filter(row => {
       const meterId = meterIdByKey.get(`${row.siteId}|${row.meterName}`);
       if (!meterId) {
         results.errors.push({
@@ -712,45 +784,102 @@ export async function POST(request: NextRequest) {
           site: row.siteId,
           error: `Compteur introuvable: ${row.meterName}`,
         });
-        continue;
+        return false;
+      }
+      return true;
+    });
+
+    const existingReadingByKey = new Map<string, string>(); // (meterId|timestamp) → readingId
+    if (rowsWithMeter.length > 0) {
+      const existingReadings = await prisma.meterReading.findMany({
+        where: {
+          meterId: { in: Array.from(new Set(rowsWithMeter.map(row => meterIdByKey.get(`${row.siteId}|${row.meterName}`)!))) },
+          readingDate: { in: Array.from(new Map(rowsWithMeter.map(row => [row.readingDate.getTime(), row.readingDate])).values()) },
+        },
+        select: { id: true, meterId: true, readingDate: true },
+      });
+      for (const r of existingReadings) {
+        const key = `${r.meterId}|${r.readingDate.getTime()}`;
+        // Même critère de matching que le findFirst d'origine (meterId + readingDate)
+        if (!existingReadingByKey.has(key)) existingReadingByKey.set(key, r.id);
+      }
+    }
+
+    // Séparation créations / mises à jour ; en cas de doublon (même compteur +
+    // même date) dans le fichier, la dernière ligne gagne (comme en séquentiel)
+    const readingCreatesByKey = new Map<string, {
+      meterId: string;
+      readingDate: Date;
+      indexValue: number | null;
+      unit: string;
+      source: "MANUEL";
+      notes: string;
+    }>();
+    const readingUpdatesById = new Map<string, {
+      indexValue: number | null;
+      unit: string;
+      notes: string;
+    }>();
+
+    for (const row of rowsWithMeter) {
+      const meterId = meterIdByKey.get(`${row.siteId}|${row.meterName}`)!;
+      const key = `${meterId}|${row.readingDate.getTime()}`;
+      const existingId = existingReadingByKey.get(key);
+
+      if (existingId) {
+        readingUpdatesById.set(existingId, {
+          indexValue: row.indexValue,
+          unit: row.unitNative,
+          notes: `Import exploitant ${importType}`,
+        });
+        results.updated++;
+      } else if (readingCreatesByKey.has(key)) {
+        // Doublon dans le fichier : la 1re occurrence crée, les suivantes mettent à jour
+        readingCreatesByKey.set(key, {
+          meterId,
+          readingDate: row.readingDate,
+          indexValue: row.indexValue,
+          unit: row.unitNative,
+          source: "MANUEL",
+          notes: `Import exploitant ${importType}`,
+        });
+        results.updated++;
+      } else {
+        readingCreatesByKey.set(key, {
+          meterId,
+          readingDate: row.readingDate,
+          indexValue: row.indexValue,
+          unit: row.unitNative,
+          source: "MANUEL",
+          notes: `Import exploitant ${importType}`,
+        });
+        results.imported++;
+      }
+      impactedSites.add(row.siteId);
+    }
+
+    // Écritures groupées : createMany + updates par lots de 50 en transaction
+    try {
+      const readingCreates = Array.from(readingCreatesByKey.values());
+      if (readingCreates.length > 0) {
+        await prisma.meterReading.createMany({ data: readingCreates });
       }
 
-      try {
-        const existing = await prisma.meterReading.findFirst({
-          where: { meterId, readingDate: row.readingDate },
-          select: { id: true },
-        });
-        if (existing) {
-          await prisma.meterReading.update({
-            where: { id: existing.id },
-            data: {
-              indexValue: row.indexValue,
-              unit: row.unitNative,
-              notes: `Import exploitant ${importType}`,
-            },
-          });
-          results.updated++;
-        } else {
-          await prisma.meterReading.create({
-            data: {
-              meterId,
-              readingDate: row.readingDate,
-              indexValue: row.indexValue,
-              unit: row.unitNative,
-              source: "MANUEL",
-              notes: `Import exploitant ${importType}`,
-            },
-          });
-          results.imported++;
-        }
-        impactedSites.add(row.siteId);
-      } catch (error) {
-        results.errors.push({
-          row: 0,
-          site: row.siteId,
-          error: error instanceof Error ? error.message : "Erreur MeterReading",
-        });
+      const readingUpdates = Array.from(readingUpdatesById.entries());
+      for (let i = 0; i < readingUpdates.length; i += BATCH_SIZE) {
+        const batch = readingUpdates.slice(i, i + BATCH_SIZE);
+        await prisma.$transaction(
+          batch.map(([id, data]) =>
+            prisma.meterReading.update({ where: { id }, data })
+          )
+        );
       }
+    } catch (error) {
+      results.errors.push({
+        row: 0,
+        site: "",
+        error: error instanceof Error ? error.message : "Erreur MeterReading",
+      });
     }
 
     // Import mode: step 3 — régénérer Consumption (projection) pour chaque site impacté
