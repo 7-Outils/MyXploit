@@ -1,175 +1,234 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import {
-  ArrowRight,
-  Building2,
-  TrendingUp,
-  Shield,
-  Zap,
-} from "lucide-react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
-const stats = [
-  { value: "500+", label: "Sites gérés" },
-  { value: "15%", label: "Économies moyennes" },
-  { value: "98%", label: "Satisfaction client" },
-];
+/* Relevé de consommation façon planche technique : réel vs objectif corrigé DJU */
+function ReleveTechnique() {
+  const months = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+
+  return (
+    <figure className="border border-ink/15 bg-white">
+      {/* Cartouche haut */}
+      <figcaption className="flex items-center justify-between border-b border-ink/15 px-4 py-2.5">
+        <span className="font-mono text-[11px] uppercase tracking-widest text-ink/60">
+          Fig. 01 — Consommation corrigée DJU
+        </span>
+        <span className="font-mono text-[11px] uppercase tracking-widest text-accent">
+          Gaz · kWh PCS
+        </span>
+      </figcaption>
+
+      <div className="p-4 sm:p-6">
+        <svg
+          viewBox="0 0 520 300"
+          className="w-full"
+          role="img"
+          aria-label="Courbe de consommation réelle comparée à l'objectif contractuel corrigé DJU"
+        >
+          {/* Grille */}
+          {[0, 1, 2, 3, 4].map((i) => (
+            <line
+              key={`h${i}`}
+              x1="40"
+              x2="512"
+              y1={30 + i * 55}
+              y2={30 + i * 55}
+              stroke="#14181D"
+              strokeOpacity="0.08"
+            />
+          ))}
+          {months.map((_, i) => (
+            <line
+              key={`v${i}`}
+              x1={40 + i * 39.3}
+              x2={40 + i * 39.3}
+              y1="30"
+              y2="250"
+              stroke="#14181D"
+              strokeOpacity="0.05"
+            />
+          ))}
+
+          {/* Axe Y */}
+          {["120", "90", "60", "30", "0"].map((v, i) => (
+            <text
+              key={v}
+              x="32"
+              y={34 + i * 55}
+              textAnchor="end"
+              className="fill-ink/40"
+              style={{ font: "10px var(--font-mono, monospace)" }}
+            >
+              {v}
+            </text>
+          ))}
+
+          {/* Axe X */}
+          {months.map((m, i) => (
+            <text
+              key={i}
+              x={40 + i * 39.3}
+              y="268"
+              textAnchor="middle"
+              className="fill-ink/40"
+              style={{ font: "10px var(--font-mono, monospace)" }}
+            >
+              {m}
+            </text>
+          ))}
+
+          {/* Objectif contractuel (tireté teal) */}
+          <path
+            d="M40 90 C 120 70, 160 60, 236 100 S 380 215, 433 205 S 495 130, 512 105"
+            fill="none"
+            stroke="#3A7E85"
+            strokeWidth="1.5"
+            strokeDasharray="5 5"
+            className="animate-fade-in"
+            style={{ animationDuration: "1.5s" }}
+          />
+
+          {/* Réel (trait plein encre, dessiné) */}
+          <path
+            d="M40 82 C 110 58, 170 66, 236 112 S 350 232, 420 210 S 490 118, 512 88"
+            fill="none"
+            stroke="#14181D"
+            strokeWidth="2"
+            pathLength={1}
+            strokeDasharray="1"
+            strokeDashoffset="1"
+            className="animate-draw"
+          />
+
+          {/* Point de dérive annoté */}
+          <circle cx="512" cy="88" r="3.5" fill="#14181D" />
+          <line
+            x1="512"
+            x2="512"
+            y1="88"
+            y2="105"
+            stroke="#3A7E85"
+            strokeWidth="1"
+          />
+          <text
+            x="508"
+            y="52"
+            textAnchor="end"
+            className="fill-accent"
+            style={{ font: "10px var(--font-mono, monospace)" }}
+          >
+            +8,2 % vs objectif
+          </text>
+          <text
+            x="508"
+            y="66"
+            textAnchor="end"
+            className="fill-ink/40"
+            style={{ font: "10px var(--font-mono, monospace)" }}
+          >
+            alerte émise
+          </text>
+        </svg>
+      </div>
+
+      {/* Cartouche bas : légende */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-ink/15 px-4 py-2.5">
+        <span className="flex items-center gap-2 font-mono text-[11px] text-ink/60">
+          <span className="inline-block h-px w-6 bg-ink" /> Réel relevé
+        </span>
+        <span className="flex items-center gap-2 font-mono text-[11px] text-ink/60">
+          <span
+            className="inline-block h-px w-6"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, #3A7E85 60%, transparent 40%)",
+              backgroundSize: "8px 1px",
+            }}
+          />
+          Objectif contractuel corrigé DJU
+        </span>
+      </div>
+    </figure>
+  );
+}
 
 export function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-accent/5" />
-
-      {/* Decorative elements */}
-      <div className="absolute top-20 right-0 w-[600px] h-[600px] bg-accent/10 rounded-full blur-3xl -z-10" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent-light/10 rounded-full blur-3xl -z-10" />
-
-      <div className="relative mx-auto max-w-7xl px-6 lg:px-8 pt-32 pb-20">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Left content */}
-          <div className="max-w-2xl">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-full text-sm font-medium mb-6 animate-fade-in">
-              <Zap size={16} />
-              <span>Nouvelle version disponible</span>
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-dark leading-tight mb-6 animate-slide-up">
-              Pilotez vos marchés{" "}
-              <span className="gradient-text">d&apos;exploitation CVC</span> en
-              toute sérénité
-            </h1>
-
-            {/* Subtitle */}
-            <p className="text-lg sm:text-xl text-text-secondary leading-relaxed mb-8 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              La plateforme tout-en-un pour le suivi de performance énergétique
-              de vos bâtiments publics. Optimisez vos contrats, maîtrisez vos
-              consommations, pilotez vos prestataires.
+    <section className="bg-paper">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 pt-36 pb-16">
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-end">
+          {/* Colonne texte */}
+          <div className="lg:col-span-6">
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent mb-8 animate-slide-up">
+              Plateforme de suivi d&apos;exploitation — P1 · P2 · P3
             </p>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-4 mb-12 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-              <Button size="lg" className="group">
+            <h1
+              className="font-display text-[2.75rem] sm:text-6xl lg:text-[4.25rem] font-medium leading-[1.05] tracking-tight text-ink mb-8 animate-slide-up"
+              style={{ animationDelay: "0.1s" }}
+            >
+              Vos marchés d&apos;exploitation CVC, suivis au kWh et à
+              l&apos;euro près.
+            </h1>
+
+            <p
+              className="text-lg text-text-secondary leading-relaxed max-w-xl mb-10 animate-slide-up"
+              style={{ animationDelay: "0.2s" }}
+            >
+              MyXploit centralise contrats, relevés, factures et réunions
+              d&apos;exploitation de votre patrimoine public — avec la rigueur
+              d&apos;un bureau d&apos;études : correction DJU, intéressement,
+              décomptes et rapports à l&apos;appui.
+            </p>
+
+            <div
+              className="flex flex-wrap items-center gap-6 animate-slide-up"
+              style={{ animationDelay: "0.3s" }}
+            >
+              <Link
+                href="/sign-up"
+                className="group inline-flex items-center gap-3 bg-ink px-7 py-3.5 text-sm font-medium text-paper transition-colors hover:bg-accent"
+              >
                 Demander une démo
                 <ArrowRight
-                  size={18}
-                  className="ml-2 group-hover:translate-x-1 transition-transform"
+                  size={16}
+                  className="transition-transform group-hover:translate-x-1"
                 />
-              </Button>
-              <Button variant="outline" size="lg">
-                Découvrir les fonctionnalités
-              </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="flex gap-8 lg:gap-12 animate-slide-up" style={{ animationDelay: "0.3s" }}>
-              {stats.map((stat) => (
-                <div key={stat.label}>
-                  <div className="text-3xl font-bold text-accent mb-1">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-text-secondary">{stat.label}</div>
-                </div>
-              ))}
+              </Link>
+              <a
+                href="#features"
+                className="font-mono text-xs uppercase tracking-widest text-ink underline decoration-ink/30 underline-offset-8 transition-colors hover:decoration-accent hover:text-accent"
+              >
+                Voir les modules
+              </a>
             </div>
           </div>
 
-          {/* Right side - Dashboard preview */}
-          <div className="relative lg:pl-8 animate-fade-in" style={{ animationDelay: "0.4s" }}>
-            <div className="relative">
-              {/* Main dashboard card */}
-              <div className="bg-white rounded-2xl shadow-large p-6 border border-gray-100">
-                {/* Dashboard header */}
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="font-semibold text-primary-dark">
-                      Vue d&apos;ensemble
-                    </h3>
-                    <p className="text-sm text-text-secondary">
-                      Décembre 2024
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-400" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                  </div>
-                </div>
-
-                {/* KPI Cards */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-background-secondary rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Building2 size={18} className="text-accent" />
-                      <span className="text-sm text-text-secondary">Sites</span>
-                    </div>
-                    <div className="text-2xl font-bold text-primary-dark">
-                      127
-                    </div>
-                  </div>
-                  <div className="bg-background-secondary rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp size={18} className="text-green-500" />
-                      <span className="text-sm text-text-secondary">
-                        Économies
-                      </span>
-                    </div>
-                    <div className="text-2xl font-bold text-primary-dark">
-                      -12.4%
-                    </div>
-                  </div>
-                </div>
-
-                {/* Chart placeholder */}
-                <div className="bg-background-secondary rounded-xl p-4 h-32 flex items-end gap-1">
-                  {[40, 65, 45, 80, 55, 70, 60, 75, 50, 85, 65, 90].map(
-                    (height, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 bg-gradient-to-t from-accent to-accent-light rounded-t"
-                        style={{ height: `${height}%` }}
-                      />
-                    )
-                  )}
-                </div>
-              </div>
-
-              {/* Floating notification card */}
-              <div className="absolute -left-8 top-1/2 bg-white rounded-xl shadow-medium p-4 border border-gray-100 max-w-[200px] animate-slide-in-right">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Shield size={16} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary-dark">
-                      Alerte résolue
-                    </p>
-                    <p className="text-xs text-text-secondary">
-                      Lycée Voltaire - PAC
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* Colonne planche technique */}
+          <div
+            className="lg:col-span-6 animate-fade-in"
+            style={{ animationDelay: "0.4s" }}
+          >
+            <ReleveTechnique />
           </div>
         </div>
       </div>
 
-      {/* Trusted by logos */}
-      <div className="absolute bottom-0 left-0 right-0 bg-background-secondary/50 backdrop-blur-sm border-t border-gray-100 py-6">
+      {/* Bandeau de faits métier */}
+      <div className="border-y border-ink/15">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <p className="text-center text-sm text-text-secondary mb-4">
-            Ils nous font confiance
-          </p>
-          <div className="flex justify-center items-center gap-8 lg:gap-16 opacity-60 grayscale">
-            {["ENGIE", "Dalkia", "Veolia", "IDEX", "Région IDF"].map((name) => (
-              <div
-                key={name}
-                className="text-lg font-bold text-text-secondary hover:opacity-100 hover:grayscale-0 transition-all"
-              >
-                {name}
+          <div className="grid sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-ink/15">
+            {[
+              ["Postes suivis", "P1 · P2 · P3 · P5"],
+              ["Correction climatique", "DJU contractuels & réels"],
+              ["Énergies", "Gaz · Élec · Chaleur · Eau"],
+            ].map(([label, value]) => (
+              <div key={label} className="py-5 sm:px-8 first:sm:pl-0">
+                <p className="font-mono text-[11px] uppercase tracking-widest text-ink/50 mb-1">
+                  {label}
+                </p>
+                <p className="text-sm font-medium text-ink">{value}</p>
               </div>
             ))}
           </div>

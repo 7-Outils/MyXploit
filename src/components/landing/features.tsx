@@ -1,105 +1,86 @@
 "use client";
 
-import {
-  Building2,
-  FileText,
-  BarChart3,
-  Receipt,
-  Calculator,
-  Users,
-  Bell,
-  Download,
-} from "lucide-react";
+import { Reveal } from "./reveal";
 
 const features = [
   {
-    icon: Building2,
     title: "Gestion du patrimoine",
     description:
       "Centralisez toutes les informations de vos sites : équipements CVC, surfaces, documents, historiques d'interventions.",
   },
   {
-    icon: FileText,
     title: "Suivi des contrats",
     description:
       "Pilotez vos marchés P1/P2/P3, suivez les échéances, calculez l'intéressement et gérez les pénalités.",
   },
   {
-    icon: BarChart3,
     title: "Performance énergétique",
     description:
-      "Analysez vos consommations en temps réel, comparez avec les références DJU, détectez les dérives.",
+      "Analysez vos consommations, comparez au référentiel DJU, détectez les dérives avant qu'elles ne coûtent.",
   },
   {
-    icon: Receipt,
     title: "Gestion des factures",
     description:
-      "Workflow de validation complet, suivi budgétaire par contrat et par site, alertes dépassements.",
+      "Workflow de validation complet, suivi budgétaire par contrat et par site, alertes en cas de dépassement.",
   },
   {
-    icon: Calculator,
-    title: "Chiffrage & Devis",
+    title: "Chiffrage & devis",
     description:
       "Analysez les devis fournisseurs, comparez les prix, constituez un historique de référence.",
   },
   {
-    icon: Users,
-    title: "Suivi des réunions",
+    title: "Réunions d'exploitation",
     description:
-      "Planifiez vos réunions d'exploitation, rédigez les comptes-rendus, suivez les actions.",
+      "Planifiez les réunions, rédigez les comptes-rendus, suivez les actions jusqu'à leur clôture.",
   },
   {
-    icon: Bell,
-    title: "Alertes intelligentes",
+    title: "Alertes",
     description:
       "Notifications automatiques sur les dérives de consommation, échéances contractuelles et anomalies.",
   },
   {
-    icon: Download,
-    title: "Exports & Rapports",
+    title: "Exports & rapports",
     description:
-      "Générez des rapports PDF professionnels, exportez vos données en Excel, API disponible.",
+      "Rapports PDF au standard bureau d'études, exports Excel, données accessibles par API.",
   },
 ];
 
 export function Features() {
   return (
-    <section id="features" className="py-24 bg-background-secondary">
+    <section id="features" className="bg-paper py-24">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Section header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-primary-dark mb-4">
-            Tout ce dont vous avez besoin pour{" "}
-            <span className="gradient-text">piloter vos marchés</span>
-          </h2>
-          <p className="text-lg text-text-secondary">
-            Une plateforme complète conçue pour les gestionnaires de patrimoine
-            et les exploitants CVC. Simplifiez votre quotidien, optimisez vos
-            performances.
+        {/* En-tête de section, aligné à gauche */}
+        <Reveal className="max-w-2xl mb-16">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent mb-6">
+            Index — Fonctions
           </p>
-        </div>
+          <h2 className="font-display text-4xl sm:text-5xl font-medium tracking-tight text-ink">
+            Tout le cycle d&apos;exploitation, dans un seul dossier.
+          </h2>
+        </Reveal>
 
-        {/* Features grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Index numéroté */}
+        <div className="grid md:grid-cols-2 gap-x-16">
           {features.map((feature, index) => (
-            <div
+            <Reveal
               key={feature.title}
-              className="group bg-white rounded-2xl p-6 hover-lift border border-gray-100"
-              style={{ animationDelay: `${index * 0.1}s` }}
+              delay={(index % 2) * 80}
+              className="group border-t border-ink/15 py-7"
             >
-              <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-accent group-hover:scale-110 transition-all duration-300">
-                <feature.icon
-                  size={24}
-                  className="text-accent group-hover:text-white transition-colors"
-                />
+              <div className="flex items-baseline gap-6">
+                <span className="font-mono text-xs text-accent w-8 shrink-0">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div>
+                  <h3 className="text-lg font-semibold text-ink mb-2 transition-colors group-hover:text-accent">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-text-secondary leading-relaxed max-w-md">
+                    {feature.description}
+                  </p>
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-primary-dark mb-2">
-                {feature.title}
-              </h3>
-              <p className="text-sm text-text-secondary leading-relaxed">
-                {feature.description}
-              </p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

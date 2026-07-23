@@ -1,56 +1,51 @@
 "use client";
 
-import { TrendingUp, Building2, Users, Award } from "lucide-react";
+import { Reveal } from "./reveal";
 
-const stats = [
+const facts = [
   {
-    icon: Building2,
-    value: "500+",
-    label: "Sites gérés",
-    description: "sur notre plateforme",
+    value: "6",
+    label: "Modules métier",
+    description: "du patrimoine aux réunions d'exploitation",
   },
   {
-    icon: TrendingUp,
-    value: "15%",
-    label: "Économies moyennes",
-    description: "sur la facture énergétique",
+    value: "P1—P5",
+    label: "Postes contractuels",
+    description: "énergie, conduite, gros entretien, travaux",
   },
   {
-    icon: Users,
-    value: "50+",
-    label: "Clients actifs",
-    description: "collectivités et exploitants",
+    value: "DJU",
+    label: "Correction climatique",
+    description: "objectifs recalés sur la rigueur réelle",
   },
   {
-    icon: Award,
-    value: "98%",
-    label: "Satisfaction",
-    description: "taux de renouvellement",
+    value: "PDF",
+    label: "Rapports d'exploitation",
+    description: "au standard des bureaux d'études",
   },
 ];
 
 export function Stats() {
   return (
-    <section className="py-20 bg-primary-dark">
+    <section className="bg-ink py-20">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {stats.map((stat, index) => (
-            <div
-              key={stat.label}
-              className="text-center"
-              style={{ animationDelay: `${index * 0.1}s` }}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 divide-white/10 lg:divide-x">
+          {facts.map((fact, index) => (
+            <Reveal
+              key={fact.label}
+              delay={index * 80}
+              className="py-8 lg:py-2 lg:px-10 first:lg:pl-0 last:lg:pr-0"
             >
-              <div className="w-14 h-14 bg-accent/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <stat.icon size={28} className="text-accent-light" />
+              <div className="font-display text-5xl font-medium text-paper mb-4">
+                {fact.value}
               </div>
-              <div className="text-4xl sm:text-5xl font-bold text-white mb-2">
-                {stat.value}
+              <div className="font-mono text-[11px] uppercase tracking-widest text-accent-light mb-2">
+                {fact.label}
               </div>
-              <div className="text-lg font-semibold text-accent-light mb-1">
-                {stat.label}
+              <div className="text-sm text-white/50 leading-relaxed">
+                {fact.description}
               </div>
-              <div className="text-sm text-gray-400">{stat.description}</div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

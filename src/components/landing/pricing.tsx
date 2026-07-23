@@ -1,15 +1,15 @@
 "use client";
 
-import { Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { Reveal } from "./reveal";
 
 const plans = [
   {
     name: "Starter",
     description: "Pour les petites collectivités",
     price: "490",
-    period: "/mois",
+    period: "€ HT / mois",
     features: [
       "Jusqu'à 25 sites",
       "3 utilisateurs",
@@ -25,7 +25,7 @@ const plans = [
     name: "Professional",
     description: "Pour les collectivités et exploitants",
     price: "990",
-    period: "/mois",
+    period: "€ HT / mois",
     features: [
       "Jusqu'à 100 sites",
       "10 utilisateurs",
@@ -60,88 +60,84 @@ const plans = [
 
 export function Pricing() {
   return (
-    <section id="pricing" className="py-24 bg-background-secondary">
+    <section id="pricing" className="bg-paper py-24 border-t border-ink/15">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Section header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-primary-dark mb-4">
-            Des tarifs{" "}
-            <span className="gradient-text">transparents et adaptés</span>
+        <Reveal className="max-w-2xl mb-16">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent mb-6">
+            Barème — Tarifs
+          </p>
+          <h2 className="font-display text-4xl sm:text-5xl font-medium tracking-tight text-ink mb-6">
+            Un barème simple, sans surprise.
           </h2>
           <p className="text-lg text-text-secondary">
-            Choisissez la formule qui correspond à vos besoins. Tous nos plans
-            incluent les mises à jour et le support.
+            Tous les plans incluent les mises à jour et le support. Engagement
+            annuel.
           </p>
-        </div>
+        </Reveal>
 
-        {/* Pricing cards */}
-        <div className="grid lg:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={cn(
-                "relative bg-white rounded-2xl p-8 border-2 transition-all duration-300",
-                plan.popular
-                  ? "border-accent shadow-large scale-105 lg:scale-110"
-                  : "border-gray-100 hover:border-accent/30 hover:shadow-medium"
-              )}
-            >
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-medium px-4 py-1 rounded-full">
-                  Recommandé
-                </div>
-              )}
-
-              <div className="text-center mb-8">
-                <h3 className="text-xl font-bold text-primary-dark mb-2">
-                  {plan.name}
-                </h3>
-                <p className="text-sm text-text-secondary mb-4">
-                  {plan.description}
-                </p>
-                <div className="flex items-baseline justify-center">
-                  <span className="text-4xl font-bold text-primary-dark">
-                    {plan.price}
+        <Reveal>
+          <div className="grid lg:grid-cols-3 border border-ink/15 divide-y lg:divide-y-0 lg:divide-x divide-ink/15 bg-white">
+            {plans.map((plan, index) => (
+              <div key={plan.name} className="flex flex-col">
+                {/* Cartouche */}
+                <div className="flex items-center justify-between border-b border-ink/15 px-8 py-3">
+                  <span className="font-mono text-[11px] uppercase tracking-widest text-ink/60">
+                    Formule {String(index + 1).padStart(2, "0")}
                   </span>
-                  {plan.period && (
-                    <span className="text-text-secondary ml-1">
-                      {plan.period}
+                  {plan.popular && (
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-accent">
+                      Recommandé
                     </span>
                   )}
                 </div>
-              </div>
 
-              <ul className="space-y-4 mb-8">
-                {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-3">
-                    <div className="w-5 h-5 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check size={12} className="text-accent" />
-                    </div>
-                    <span className="text-sm text-text-secondary">
-                      {feature}
+                <div className="p-8 flex flex-col flex-1">
+                  <h3 className="font-display text-2xl font-medium text-ink mb-1">
+                    {plan.name}
+                  </h3>
+                  <p className="text-sm text-text-secondary mb-8">
+                    {plan.description}
+                  </p>
+
+                  <div className="mb-8">
+                    <span className="font-display text-5xl font-medium text-ink">
+                      {plan.price}
                     </span>
-                  </li>
-                ))}
-              </ul>
+                    {plan.period && (
+                      <span className="font-mono text-xs text-ink/50 ml-2">
+                        {plan.period}
+                      </span>
+                    )}
+                  </div>
 
-              <Button
-                variant={plan.popular ? "default" : "outline"}
-                className="w-full"
-                size="lg"
-              >
-                {plan.cta}
-              </Button>
-            </div>
-          ))}
-        </div>
+                  <ul className="mb-10 flex-1">
+                    {plan.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className="flex items-baseline gap-3 border-t border-ink/10 py-2.5 text-sm text-text-secondary"
+                      >
+                        <span className="text-accent">—</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
 
-        {/* Additional info */}
-        <p className="text-center text-sm text-text-secondary mt-12">
-          Tous les prix sont HT. Engagement annuel.{" "}
-          <a href="#" className="text-accent hover:underline">
-            Voir les conditions générales
-          </a>
-        </p>
+                  <Link
+                    href={plan.name === "Enterprise" ? "#contact" : "/sign-up"}
+                    className={cn(
+                      "inline-flex justify-center px-6 py-3.5 text-sm font-medium transition-colors",
+                      plan.popular
+                        ? "bg-ink text-paper hover:bg-accent"
+                        : "border border-ink/25 text-ink hover:border-accent hover:text-accent"
+                    )}
+                  >
+                    {plan.cta}
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   );

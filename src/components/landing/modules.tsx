@@ -1,218 +1,173 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Building2,
-  FileText,
-  BarChart3,
-  Receipt,
-  Calculator,
-  Calendar,
-  ChevronRight,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Reveal } from "./reveal";
 
 const modules = [
   {
     id: "sites",
-    icon: Building2,
     title: "Sites & Patrimoine",
     description:
-      "Gérez l'ensemble de votre patrimoine immobilier avec une vue centralisée de tous vos sites, équipements CVC et documents associés.",
+      "L'ensemble de votre patrimoine immobilier avec une vue centralisée de tous vos sites, équipements CVC et documents associés.",
     features: [
       "Fiche site complète avec données techniques",
       "Inventaire des équipements CVC",
       "Historique des consommations",
       "Gestion documentaire (GED)",
     ],
-    image: "/modules/sites.png",
   },
   {
     id: "contracts",
-    icon: FileText,
     title: "Contrats & Marchés",
     description:
-      "Suivez vos marchés d'exploitation P1/P2/P3 avec un suivi précis des engagements contractuels et des performances.",
+      "Vos marchés d'exploitation P1/P2/P3 avec un suivi précis des engagements contractuels et des performances.",
     features: [
       "Suivi des montants P1, P2, P3",
       "Calcul d'intéressement automatique",
       "Alertes échéances",
       "Gestion des pénalités",
     ],
-    image: "/modules/contracts.png",
   },
   {
     id: "energy",
-    icon: BarChart3,
-    title: "Suivi Énergétique",
+    title: "Suivi énergétique",
     description:
-      "Analysez vos performances énergétiques en temps réel et identifiez les opportunités d'optimisation.",
+      "Vos performances énergétiques analysées en continu pour identifier les opportunités d'optimisation.",
     features: [
       "Dashboard multi-sites",
       "Comparaison réel vs référence (DJU)",
       "Alertes dérives automatiques",
       "Rapports de performance",
     ],
-    image: "/modules/energy.png",
   },
   {
     id: "invoices",
-    icon: Receipt,
     title: "Facturation",
     description:
-      "Gérez le workflow complet de validation des factures avec un suivi budgétaire précis par contrat et par site.",
+      "Le workflow complet de validation des factures avec un suivi budgétaire précis par contrat et par site.",
     features: [
       "Workflow de validation",
       "Suivi budgétaire temps réel",
       "Ventilation par poste",
       "Exports comptables",
     ],
-    image: "/modules/invoices.png",
   },
   {
     id: "quotes",
-    icon: Calculator,
     title: "Devis & Chiffrage",
     description:
-      "Analysez et comparez les devis de vos prestataires pour garantir les meilleurs tarifs.",
+      "Les devis de vos prestataires analysés et comparés pour garantir les meilleurs tarifs.",
     features: [
       "Base de prix de référence",
       "Comparaison automatique",
       "Alertes dépassements",
       "Historique négociations",
     ],
-    image: "/modules/quotes.png",
   },
   {
     id: "meetings",
-    icon: Calendar,
     title: "Réunions & Visites",
     description:
-      "Planifiez vos réunions d'exploitation, documentez vos visites terrain et suivez les actions.",
+      "Les réunions d'exploitation planifiées, les visites terrain documentées, les actions suivies.",
     features: [
       "Planning intégré",
       "Comptes-rendus avec photos",
       "Suivi des actions",
       "Notifications automatiques",
     ],
-    image: "/modules/meetings.png",
   },
 ];
 
 export function Modules() {
-  const [activeModule, setActiveModule] = useState(modules[0]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = modules[activeIndex];
 
   return (
-    <section id="modules" className="py-24 bg-white">
+    <section id="modules" className="bg-white py-24 border-t border-ink/15">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
-        {/* Section header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-primary-dark mb-4">
-            Des modules pensés pour votre{" "}
-            <span className="gradient-text">métier</span>
-          </h2>
-          <p className="text-lg text-text-secondary">
-            Chaque module a été conçu en collaboration avec des gestionnaires de
-            patrimoine et des exploitants CVC pour répondre précisément à vos
-            besoins quotidiens.
+        <Reveal className="max-w-2xl mb-16">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent mb-6">
+            Sommaire — Modules
           </p>
-        </div>
+          <h2 className="font-display text-4xl sm:text-5xl font-medium tracking-tight text-ink">
+            Six modules, un seul dossier d&apos;exploitation.
+          </h2>
+        </Reveal>
 
-        <div className="grid lg:grid-cols-5 gap-8">
-          {/* Module list */}
-          <div className="lg:col-span-2 space-y-2">
-            {modules.map((module) => (
+        <div className="grid lg:grid-cols-12 gap-12">
+          {/* Sommaire */}
+          <div className="lg:col-span-5">
+            {modules.map((module, index) => (
               <button
                 key={module.id}
-                onClick={() => setActiveModule(module)}
+                onClick={() => setActiveIndex(index)}
                 className={cn(
-                  "w-full flex items-center gap-4 p-4 rounded-xl text-left transition-all duration-200",
-                  activeModule.id === module.id
-                    ? "bg-accent text-white shadow-medium"
-                    : "bg-background-secondary hover:bg-gray-100 text-primary-dark"
+                  "w-full flex items-baseline gap-5 border-t border-ink/15 py-5 text-left transition-colors",
+                  index === modules.length - 1 && "border-b",
+                  activeIndex === index
+                    ? "text-ink"
+                    : "text-ink/40 hover:text-ink"
                 )}
               >
-                <div
+                <span
                   className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                    activeModule.id === module.id
-                      ? "bg-white/20"
-                      : "bg-accent/10"
+                    "font-mono text-xs w-8 shrink-0",
+                    activeIndex === index ? "text-accent" : "text-inherit"
                   )}
                 >
-                  <module.icon
-                    size={20}
-                    className={
-                      activeModule.id === module.id ? "text-white" : "text-accent"
-                    }
-                  />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">{module.title}</h3>
-                </div>
-                <ChevronRight
-                  size={18}
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span
                   className={cn(
-                    "transition-transform",
-                    activeModule.id === module.id ? "translate-x-1" : ""
+                    "font-display text-2xl font-medium tracking-tight",
+                    activeIndex === index && "underline decoration-accent decoration-2 underline-offset-8"
                   )}
-                />
+                >
+                  {module.title}
+                </span>
               </button>
             ))}
           </div>
 
-          {/* Module detail */}
-          <div className="lg:col-span-3">
-            <div className="bg-background-secondary rounded-2xl p-8 h-full">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 bg-accent/10 rounded-xl flex items-center justify-center">
-                  <activeModule.icon size={28} className="text-accent" />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-primary-dark">
-                    {activeModule.title}
-                  </h3>
-                </div>
+          {/* Fiche module */}
+          <div className="lg:col-span-7">
+            <div
+              key={active.id}
+              className="border border-ink/15 bg-paper h-full flex flex-col animate-fade-in"
+            >
+              <div className="flex items-center justify-between border-b border-ink/15 px-6 py-3">
+                <span className="font-mono text-[11px] uppercase tracking-widest text-ink/60">
+                  Module {String(activeIndex + 1).padStart(2, "0")} /{" "}
+                  {String(modules.length).padStart(2, "0")}
+                </span>
+                <span className="font-mono text-[11px] uppercase tracking-widest text-accent">
+                  {active.id}
+                </span>
               </div>
 
-              <p className="text-text-secondary mb-8 leading-relaxed">
-                {activeModule.description}
-              </p>
+              <div className="p-6 sm:p-10 flex-1">
+                <h3 className="font-display text-3xl font-medium tracking-tight text-ink mb-4">
+                  {active.title}
+                </h3>
+                <p className="text-text-secondary leading-relaxed mb-10 max-w-lg">
+                  {active.description}
+                </p>
 
-              <ul className="space-y-3 mb-8">
-                {activeModule.features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-3">
-                    <div className="w-5 h-5 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={3}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-                    <span className="text-text-primary">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              {/* Module preview placeholder */}
-              <div className="bg-white rounded-xl border border-gray-200 h-48 flex items-center justify-center">
-                <div className="text-center">
-                  <activeModule.icon
-                    size={48}
-                    className="text-accent/30 mx-auto mb-2"
-                  />
-                  <p className="text-sm text-text-secondary">
-                    Aperçu du module
-                  </p>
-                </div>
+                <ul>
+                  {active.features.map((feature, index) => (
+                    <li
+                      key={feature}
+                      className="flex items-baseline gap-4 border-t border-ink/10 py-3.5"
+                    >
+                      <span className="font-mono text-[11px] text-accent shrink-0">
+                        {String(activeIndex + 1).padStart(2, "0")}.
+                        {index + 1}
+                      </span>
+                      <span className="text-sm text-ink">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>

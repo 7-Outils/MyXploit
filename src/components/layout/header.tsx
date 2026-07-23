@@ -4,11 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: "Fonctionnalités", href: "#features" },
+  { name: "Fonctions", href: "#features" },
   { name: "Modules", href: "#modules" },
   { name: "Tarifs", href: "#pricing" },
   { name: "Contact", href: "#contact" },
@@ -29,10 +28,10 @@ export function Header() {
   return (
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-paper",
         isScrolled || mobileMenuOpen
-          ? "bg-white/95 backdrop-blur-md shadow-soft py-3"
-          : "bg-transparent py-5"
+          ? "border-b border-ink/15 py-3"
+          : "border-b border-transparent py-5"
       )}
     >
       <nav className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -43,34 +42,38 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex md:items-center md:gap-8">
+          <div className="hidden md:flex md:items-center md:gap-10">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-sm font-medium text-text-secondary hover:text-accent transition-colors duration-200"
+                className="font-mono text-xs uppercase tracking-widest text-ink/60 hover:text-accent transition-colors duration-200"
               >
                 {item.name}
               </Link>
             ))}
           </div>
 
-          {/* CTA Buttons */}
-          <div className="hidden md:flex md:items-center md:gap-3">
-            <Link href="/sign-in">
-              <Button variant="ghost" size="sm">
-                Connexion
-              </Button>
+          {/* CTA */}
+          <div className="hidden md:flex md:items-center md:gap-6">
+            <Link
+              href="/sign-in"
+              className="font-mono text-xs uppercase tracking-widest text-ink/60 hover:text-accent transition-colors"
+            >
+              Connexion
             </Link>
-            <Link href="/sign-up">
-              <Button size="sm">Demander une démo</Button>
+            <Link
+              href="/sign-up"
+              className="bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-accent"
+            >
+              Demander une démo
             </Link>
           </div>
 
           {/* Mobile menu button */}
           <button
             type="button"
-            className="md:hidden p-2 text-text-secondary hover:text-text-primary"
+            className="md:hidden p-2 text-ink/60 hover:text-ink"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -85,20 +88,26 @@ export function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-base font-medium text-text-secondary hover:text-accent transition-colors"
+                  className="font-mono text-sm uppercase tracking-widest text-ink/60 hover:text-accent transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {item.name}
                 </Link>
               ))}
-              <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
-                <Link href="/sign-in" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="outline" className="w-full">
-                    Connexion
-                  </Button>
+              <div className="flex flex-col gap-3 pt-4 border-t border-ink/15">
+                <Link
+                  href="/sign-in"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="border border-ink/25 px-5 py-2.5 text-center text-sm font-medium text-ink hover:border-accent hover:text-accent transition-colors"
+                >
+                  Connexion
                 </Link>
-                <Link href="/sign-up" onClick={() => setMobileMenuOpen(false)}>
-                  <Button className="w-full">Demander une démo</Button>
+                <Link
+                  href="/sign-up"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="bg-ink px-5 py-2.5 text-center text-sm font-medium text-paper hover:bg-accent transition-colors"
+                >
+                  Demander une démo
                 </Link>
               </div>
             </div>

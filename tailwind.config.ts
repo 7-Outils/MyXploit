@@ -48,9 +48,19 @@ const config: Config = {
           secondary: "#4A5568",
           muted: "#718096",
         },
+        paper: "#F7F5F0",
+        ink: "#14181D",
       },
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "Georgia", "serif"],
+        mono: [
+          "var(--font-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "monospace",
+        ],
       },
       boxShadow: {
         "soft": "0 2px 8px -2px rgba(18, 22, 31, 0.08)",
@@ -62,8 +72,12 @@ const config: Config = {
         "slide-up": "slideUp 0.5s ease-out",
         "slide-in-right": "slideInRight 0.3s ease-out",
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        draw: "draw 2.2s cubic-bezier(0.4, 0, 0.2, 1) 0.4s forwards",
       },
       keyframes: {
+        draw: {
+          to: { strokeDashoffset: "0" },
+        },
         fadeIn: {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },

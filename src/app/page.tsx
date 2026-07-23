@@ -6,24 +6,23 @@ import {
   Modules,
   Stats,
   Pricing,
-  Testimonials,
   CTA,
 } from "@/components/landing";
+import { fraunces, plexMono } from "@/components/landing/fonts";
 
 export default function Home() {
   return (
-    <>
+    <div className={`${fraunces.variable} ${plexMono.variable} bg-paper`}>
       <Header />
       <main>
         <Hero />
         <Features />
         <Modules />
         <Stats />
-        <Testimonials />
         <Pricing />
         <CTA />
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

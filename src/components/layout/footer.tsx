@@ -102,11 +102,11 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-8 border-t border-gray-800">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-500">
-              © {new Date().getFullYear()} MyXploit. Tous droits réservés.
+            <p className="font-mono text-xs text-gray-500">
+              © {new Date().getFullYear()} MyXploit — Tous droits réservés
             </p>
-            <p className="text-sm text-gray-500">
-              Conçu avec passion pour la transition énergétique
+            <p className="font-mono text-xs text-gray-500">
+              Suivi d&apos;exploitation CVC · P1 P2 P3
             </p>
           </div>
         </div>
