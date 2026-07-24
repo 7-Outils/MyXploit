@@ -71,7 +71,7 @@ export function Footer() {
                 <Twitter size={20} />
               </a>
               <a
-                href="mailto:contact@myexploit.fr"
+                href="mailto:admin@myxploit.fr"
                 className="text-gray-400 hover:text-accent-light transition-colors"
               >
                 <Mail size={20} />

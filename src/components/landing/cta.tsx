@@ -27,18 +27,18 @@ export function CTA() {
 
             <div className="space-y-4 border-t border-white/10 pt-8">
               <a
-                href="tel:+33100000000"
+                href="tel:+33612019478"
                 className="flex items-center gap-3 text-white/60 hover:text-accent-light transition-colors"
               >
                 <Phone size={16} />
-                <span className="font-mono text-sm">01 00 00 00 00</span>
+                <span className="font-mono text-sm">06 12 01 94 78</span>
               </a>
               <a
-                href="mailto:contact@myexploit.fr"
+                href="mailto:admin@myxploit.fr"
                 className="flex items-center gap-3 text-white/60 hover:text-accent-light transition-colors"
               >
                 <Mail size={16} />
-                <span className="font-mono text-sm">contact@myexploit.fr</span>
+                <span className="font-mono text-sm">admin@myxploit.fr</span>
               </a>
             </div>
           </Reveal>
