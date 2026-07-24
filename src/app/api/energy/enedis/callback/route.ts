@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { exchangeEnedisCodeForToken } from "@/lib/enedis";
+import { encryptSecret } from "@/lib/crypto";
 
 // GET /api/energy/enedis/callback - OAuth callback from Enedis
 export async function GET(request: NextRequest) {
@@ -74,8 +75,10 @@ export async function GET(request: NextRequest) {
         },
       },
       update: {
-        accessToken: tokenResponse.access_token,
-        refreshToken: tokenResponse.refresh_token || null,
+        accessToken: encryptSecret(tokenResponse.access_token),
+        refreshToken: tokenResponse.refresh_token
+          ? encryptSecret(tokenResponse.refresh_token)
+          : null,
         tokenExpiresAt: expiresAt,
         isConnected: true,
         lastError: null,
@@ -84,8 +87,10 @@ export async function GET(request: NextRequest) {
       create: {
         organizationId,
         provider: "ENEDIS",
-        accessToken: tokenResponse.access_token,
-        refreshToken: tokenResponse.refresh_token || null,
+        accessToken: encryptSecret(tokenResponse.access_token),
+        refreshToken: tokenResponse.refresh_token
+          ? encryptSecret(tokenResponse.refresh_token)
+          : null,
         tokenExpiresAt: expiresAt,
         isConnected: true,
       },

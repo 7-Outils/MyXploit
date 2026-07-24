@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { testGRDFConnection, getGRDFAccessToken, GRDFEnvironment } from "@/lib/grdf";
+import { encryptSecret } from "@/lib/crypto";
 
 // POST /api/energy/grdf/connect - Connect GRDF account
 export async function POST(request: NextRequest) {
@@ -53,7 +54,10 @@ export async function POST(request: NextRequest) {
 
     // Store credentials — encode environment in refreshToken
     // Format: environment|clientId|clientSecret
-    const credentialPayload = `${environment}|${clientId}|${clientSecret}`;
+    const credentialPayload = encryptSecret(
+      `${environment}|${clientId}|${clientSecret}`
+    );
+    const encryptedAccessToken = encryptSecret(tokenResponse.access_token);
 
     const provider = await prisma.energyProvider.upsert({
       where: {
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
         },
       },
       update: {
-        accessToken: tokenResponse.access_token,
+        accessToken: encryptedAccessToken,
         refreshToken: credentialPayload,
         tokenExpiresAt: expiresAt,
         isConnected: true,
@@ -73,7 +77,7 @@ export async function POST(request: NextRequest) {
       create: {
         organizationId: effectiveOrgId,
         provider: "GRDF",
-        accessToken: tokenResponse.access_token,
+        accessToken: encryptedAccessToken,
         refreshToken: credentialPayload,
         tokenExpiresAt: expiresAt,
         isConnected: true,

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, createSession } from "@/lib/auth";
+import {
+  rateLimit,
+  getClientIdentifier,
+  rateLimitExceeded,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +16,16 @@ export async function POST(request: NextRequest) {
         { error: "Email et mot de passe requis" },
         { status: 400 }
       );
+    }
+
+    // Anti-bruteforce : par IP (toutes tentatives) et par compte ciblé
+    const ip = getClientIdentifier(request);
+    const [byIp, byEmail] = await Promise.all([
+      rateLimit(`login:ip:${ip}`, "auth"),
+      rateLimit(`login:email:${String(email).toLowerCase().trim()}`, "auth"),
+    ]);
+    if (!byIp.success || !byEmail.success) {
+      return rateLimitExceeded();
     }
 
     const user = await authenticateUser(email, password);

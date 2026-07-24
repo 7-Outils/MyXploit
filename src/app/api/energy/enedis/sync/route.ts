@@ -7,6 +7,7 @@ import {
   aggregateToMonthly,
   whToKwh,
 } from "@/lib/enedis";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
 // POST /api/energy/enedis/sync - Sync Enedis consumptions for all sites with PDL
 export async function POST(request: NextRequest) {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if token needs refresh
-    let accessToken = provider.accessToken;
+    let accessToken = decryptSecret(provider.accessToken);
     if (provider.tokenExpiresAt && provider.tokenExpiresAt < new Date()) {
       // Token expired, try to refresh
       if (!provider.refreshToken) {
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
           throw new Error("Configuration Enedis manquante");
         }
 
-        const newToken = await refreshEnedisToken(provider.refreshToken, {
+        const newToken = await refreshEnedisToken(decryptSecret(provider.refreshToken), {
           clientId,
           clientSecret,
           redirectUri,
@@ -77,8 +78,10 @@ export async function POST(request: NextRequest) {
         await prisma.energyProvider.update({
           where: { id: provider.id },
           data: {
-            accessToken: newToken.access_token,
-            refreshToken: newToken.refresh_token || provider.refreshToken,
+            accessToken: encryptSecret(newToken.access_token),
+            refreshToken: newToken.refresh_token
+              ? encryptSecret(newToken.refresh_token)
+              : provider.refreshToken,
             tokenExpiresAt: expiresAt,
           },
         });

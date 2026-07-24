@@ -5,6 +5,7 @@ import {
   getGRDFDroitsAcces,
   GRDFEnvironment,
 } from "@/lib/grdf";
+import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
 /**
  * Parse le refreshToken stocké en DB pour extraire env + credentials
@@ -56,7 +57,9 @@ export async function getGRDFProviderAndToken(organizationId: string): Promise<{
     return null;
   }
 
-  const { environment, clientId, clientSecret } = parseCredentials(provider.refreshToken);
+  const { environment, clientId, clientSecret } = parseCredentials(
+    decryptSecret(provider.refreshToken)
+  );
 
   if (!clientId || !clientSecret) {
     return null;
@@ -74,7 +77,7 @@ export async function getGRDFProviderAndToken(organizationId: string): Promise<{
   await prisma.energyProvider.update({
     where: { id: provider.id },
     data: {
-      accessToken: tokenResponse.access_token,
+      accessToken: encryptSecret(tokenResponse.access_token),
       tokenExpiresAt: expiresAt,
     },
   });

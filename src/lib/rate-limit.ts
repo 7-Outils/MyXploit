@@ -5,30 +5,32 @@ import { NextResponse } from "next/server";
 // In-memory fallback for development (when Upstash is not configured)
 const inMemoryStore = new Map<string, { count: number; resetTime: number }>();
 
-// Create rate limiter - uses Upstash if configured, otherwise in-memory
-function createRateLimiter() {
+// Create rate limiters - uses Upstash if configured, otherwise in-memory.
+// One limiter per type so that "auth" (10/min) is actually stricter than
+// "default" (100/min) — a single shared limiter would apply 100/min partout.
+function createRateLimiters(): Record<string, Ratelimit> | null {
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  if (upstashUrl && upstashToken) {
-    // Production: Use Upstash Redis
-    const redis = new Redis({
-      url: upstashUrl,
-      token: upstashToken,
-    });
+  if (!upstashUrl || !upstashToken) return null;
 
-    return new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(100, "1 m"), // 100 requests per minute
-      analytics: true,
-    });
-  }
+  const redis = new Redis({ url: upstashUrl, token: upstashToken });
 
-  // Development: In-memory rate limiter
-  return null;
+  return Object.fromEntries(
+    Object.entries(RATE_LIMIT_CONFIGS).map(([type, config]) => [
+      type,
+      new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(
+          config.requests,
+          `${config.windowMs / 1000} s`
+        ),
+        analytics: true,
+        prefix: `ratelimit:${type}`,
+      }),
+    ])
+  );
 }
-
-const rateLimiter = createRateLimiter();
 
 // In-memory rate limiting function
 function inMemoryRateLimit(
@@ -67,6 +69,8 @@ const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
 
 export type RateLimitType = keyof typeof RATE_LIMIT_CONFIGS;
 
+const rateLimiters = createRateLimiters();
+
 /**
  * Rate limit check for API routes
  * @param identifier - Unique identifier (usually IP or user ID)
@@ -79,6 +83,7 @@ export async function rateLimit(
 ): Promise<{ success: boolean; remaining: number; limit: number }> {
   const config = RATE_LIMIT_CONFIGS[type] || RATE_LIMIT_CONFIGS.default;
 
+  const rateLimiter = rateLimiters?.[type] || rateLimiters?.default;
   if (rateLimiter) {
     // Use Upstash
     const result = await rateLimiter.limit(identifier);
