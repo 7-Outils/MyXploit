@@ -113,7 +113,36 @@ export async function GET(
 
     md += `\n_Compte-rendu généré le ${new Date().toLocaleDateString("fr-FR")} via MyXploit_\n`;
 
-    return NextResponse.json({ markdown: md });
+    // Payload structuré pour la génération PDF côté client ;
+    // le markdown reste disponible (futur export Word/texte).
+    return NextResponse.json({
+      markdown: md,
+      meeting: {
+        title: meeting.title,
+        type: MEETING_TYPE_LABELS[meeting.type] || "Réunion",
+        date: meeting.date,
+        location: meeting.location,
+        contract: meeting.contract
+          ? `${meeting.contract.reference} — ${meeting.contract.title}`
+          : null,
+        site: meeting.site?.name || null,
+        attendees: meeting.attendees,
+        notes: meeting.notes,
+        agendaItems: meeting.agendaItems.map((item) => ({
+          title: item.title,
+          notes: item.notes,
+          decision: item.decision,
+          ticket: item.ticket
+            ? {
+                reference: item.ticket.reference,
+                status: STATUS_LABELS[item.ticket.status] || item.ticket.status,
+                responsible: item.ticket.responsible,
+                site: item.ticket.site?.name || null,
+              }
+            : null,
+        })),
+      },
+    });
   } catch (error) {
     console.error("GET /api/meetings/[id]/generate-report error:", error);
     return NextResponse.json(
