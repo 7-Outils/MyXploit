@@ -320,7 +320,7 @@ export default function PilotageCommandCenter() {
       </div>
 
       {/* ─── Monthly Chart (full width) ────────────────── */}
-      <GlassCard title="Consommation mensuelle" subtitle="12 derniers mois · kWh par énergie" accentColor="#3A7E85">
+      <GlassCard title="Consommation mensuelle" subtitle="12 derniers mois · kWh par énergie" accentColor="#2563EB">
         <StackedBarChart data={data.monthlyTrend} />
       </GlassCard>
 

@@ -6,12 +6,12 @@
 
 @layer base {
   :root {
-    --primary-dark: #12161F;
-    --accent: #3A7E85;
-    --accent-light: #65C2C9;
+    --primary-dark: #0F1E33;
+    --accent: #2563EB;
+    --accent-light: #60A5FA;
     --background: #FFFFFF;
     --background-secondary: #F8FAFB;
-    --text-primary: #12161F;
+    --text-primary: #0F1E33;
     --text-secondary: #4A5568;
   }
 

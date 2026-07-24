@@ -187,9 +187,9 @@ export function StationMap({ stations, selected, onSelect }: Props) {
             <path
               key={`dep-${i}`}
               d={d}
-              fill="#3A7E85"
+              fill="#2563EB"
               fillOpacity={hoverDept === i ? 0.12 : 0}
-              stroke={hoverDept === i ? "#3A7E85" : "#D7DEE6"}
+              stroke={hoverDept === i ? "#2563EB" : "#D7DEE6"}
               strokeWidth={(hoverDept === i ? 1 : 0.5) / view.k}
               strokeLinejoin="round"
               style={{ pointerEvents: "all" }}
@@ -220,10 +220,10 @@ export function StationMap({ stations, selected, onSelect }: Props) {
             >
               {/* zone de clic invisible élargie (confort, surtout zoomé) */}
               <circle r={9} fill="transparent" />
-              {isSelected && <circle r={9} fill="#3A7E85" opacity={0.18} />}
+              {isSelected && <circle r={9} fill="#2563EB" opacity={0.18} />}
               <circle
                 r={isSelected ? 5.5 : isHover ? 4.5 : 3}
-                fill={isSelected ? "#3A7E85" : isHover ? "#4fa3aa" : "#94A3B8"}
+                fill={isSelected ? "#2563EB" : isHover ? "#60A5FA" : "#94A3B8"}
                 stroke="#fff"
                 strokeWidth={1}
                 className="transition-all"

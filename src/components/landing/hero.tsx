@@ -34,7 +34,7 @@ function ReleveTechnique() {
               x2="512"
               y1={30 + i * 55}
               y2={30 + i * 55}
-              stroke="#14181D"
+              stroke="#0F1E33"
               strokeOpacity="0.08"
             />
           ))}
@@ -45,7 +45,7 @@ function ReleveTechnique() {
               x2={40 + i * 39.3}
               y1="30"
               y2="250"
-              stroke="#14181D"
+              stroke="#0F1E33"
               strokeOpacity="0.05"
             />
           ))}
@@ -82,7 +82,7 @@ function ReleveTechnique() {
           <path
             d="M40 90 C 120 70, 160 60, 236 100 S 380 215, 433 205 S 495 130, 512 105"
             fill="none"
-            stroke="#3A7E85"
+            stroke="#2563EB"
             strokeWidth="1.5"
             strokeDasharray="5 5"
             className="animate-fade-in"
@@ -93,7 +93,7 @@ function ReleveTechnique() {
           <path
             d="M40 82 C 110 58, 170 66, 236 112 S 350 232, 420 210 S 490 118, 512 88"
             fill="none"
-            stroke="#14181D"
+            stroke="#0F1E33"
             strokeWidth="2"
             pathLength={1}
             strokeDasharray="1"
@@ -102,13 +102,13 @@ function ReleveTechnique() {
           />
 
           {/* Point de dérive annoté */}
-          <circle cx="512" cy="88" r="3.5" fill="#14181D" />
+          <circle cx="512" cy="88" r="3.5" fill="#0F1E33" />
           <line
             x1="512"
             x2="512"
             y1="88"
             y2="105"
-            stroke="#3A7E85"
+            stroke="#2563EB"
             strokeWidth="1"
           />
           <text
@@ -142,7 +142,7 @@ function ReleveTechnique() {
             className="inline-block h-px w-6"
             style={{
               backgroundImage:
-                "linear-gradient(to right, #3A7E85 60%, transparent 40%)",
+                "linear-gradient(to right, #2563EB 60%, transparent 40%)",
               backgroundSize: "8px 1px",
             }}
           />
