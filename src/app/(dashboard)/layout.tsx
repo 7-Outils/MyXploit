@@ -8,6 +8,7 @@ import { SidebarProvider } from "@/contexts/SidebarContext";
 import { GhostModeBar } from "@/components/admin/GhostModeBar";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { SWRProvider } from "@/components/SWRProvider";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default function DashboardLayout({
   children,
@@ -16,6 +17,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SWRProvider>
+      <ToastProvider>
       <UserProfileProvider>
         <PermissionProvider>
           <Suspense fallback={null}>
@@ -34,6 +36,7 @@ export default function DashboardLayout({
           </Suspense>
         </PermissionProvider>
       </UserProfileProvider>
+      </ToastProvider>
     </SWRProvider>
   );
 }

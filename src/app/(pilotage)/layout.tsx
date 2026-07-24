@@ -3,6 +3,7 @@ import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { PermissionProvider } from "@/contexts/PermissionContext";
 import { ContractProvider } from "@/contexts/ContractContext";
 import { GhostModeBar } from "@/components/admin/GhostModeBar";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default function PilotageRootLayout({
   children,
@@ -10,6 +11,7 @@ export default function PilotageRootLayout({
   children: React.ReactNode;
 }) {
   return (
+    <ToastProvider>
     <UserProfileProvider>
       <PermissionProvider>
         <Suspense fallback={null}>
@@ -22,5 +24,6 @@ export default function PilotageRootLayout({
         </Suspense>
       </PermissionProvider>
     </UserProfileProvider>
+    </ToastProvider>
   );
 }

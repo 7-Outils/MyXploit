@@ -6,6 +6,7 @@ import { PermissionProvider } from "@/contexts/PermissionContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import { GhostModeBar } from "@/components/admin/GhostModeBar";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { ToastProvider } from "@/components/ui/toast";
 
 export default function PlatformLayout({
   children,
@@ -13,6 +14,7 @@ export default function PlatformLayout({
   children: React.ReactNode;
 }) {
   return (
+    <ToastProvider>
     <UserProfileProvider>
       <PermissionProvider>
         <Suspense fallback={null}>
@@ -29,5 +31,6 @@ export default function PlatformLayout({
         </Suspense>
       </PermissionProvider>
     </UserProfileProvider>
+    </ToastProvider>
   );
 }
