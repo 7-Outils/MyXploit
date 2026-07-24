@@ -4,7 +4,14 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
-import { Loader2, Lock, AlertCircle, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { fraunces, plexMono } from "@/components/landing/fonts";
+
+const inputClass =
+  "w-full border border-ink/20 bg-white px-4 py-3 text-sm text-ink placeholder:text-ink/30 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors";
+
+const labelClass =
+  "block font-mono text-[11px] uppercase tracking-widest text-ink/50 mb-2";
 
 function SetPasswordContent() {
   const router = useRouter();
@@ -80,7 +87,6 @@ function SetPasswordContent() {
         return;
       }
 
-      // Redirect to dashboard
       router.push("/overview");
       router.refresh();
     } catch {
@@ -92,10 +98,12 @@ function SetPasswordContent() {
 
   if (verifying) {
     return (
-      <div className="min-h-screen bg-background-secondary flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center">
         <div className="text-center">
-          <Loader2 size={48} className="animate-spin text-accent mx-auto mb-4" />
-          <p className="text-gray-600">Vérification du lien...</p>
+          <Loader2 size={40} className="animate-spin text-accent mx-auto mb-4" />
+          <p className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
+            Vérification du lien…
+          </p>
         </div>
       </div>
     );
@@ -103,30 +111,37 @@ function SetPasswordContent() {
 
   if (!token || !tokenValid) {
     return (
-      <div className="min-h-screen bg-background-secondary flex items-center justify-center p-8">
-        <div className="w-full max-w-md text-center">
-          <div className="mb-8">
-            <Link href="/">
+      <div className="min-h-screen bg-paper flex items-center justify-center px-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-10">
+            <Link href="/" className="inline-block">
               <Logo size="lg" className="justify-center" />
             </Link>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 shadow-sm">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle size={32} className="text-red-600" />
+          <div className="border border-ink/15 bg-white">
+            <div className="flex items-center justify-between border-b border-ink/15 px-6 py-3">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
+                Activation de compte
+              </span>
+              <span className="font-mono text-[11px] uppercase tracking-widest text-red-600">
+                Lien invalide
+              </span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Lien invalide
-            </h1>
-            <p className="text-gray-600 mb-6">
-              {error || "Ce lien d'invitation est invalide ou a expiré."}
-            </p>
-            <Link
-              href="/sign-in"
-              className="inline-block px-6 py-3 bg-accent text-white font-medium rounded-lg hover:bg-accent/90 transition-colors"
-            >
-              Retour à la connexion
-            </Link>
+            <div className="p-8 text-center">
+              <h1 className="font-display text-3xl font-medium tracking-tight text-ink mb-3">
+                Lien invalide
+              </h1>
+              <p className="text-sm text-text-secondary mb-8">
+                {error || "Ce lien d'invitation est invalide ou a expiré."}
+              </p>
+              <Link
+                href="/sign-in"
+                className="inline-flex items-center justify-center bg-ink px-6 py-3.5 text-sm font-medium text-paper transition-colors hover:bg-accent"
+              >
+                Retour à la connexion
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -134,80 +149,70 @@ function SetPasswordContent() {
   }
 
   return (
-    <div className="min-h-screen bg-background-secondary flex items-center justify-center p-8">
+    <div className="min-h-screen bg-paper flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <Link href="/">
+        <div className="text-center mb-10">
+          <Link href="/" className="inline-block">
             <Logo size="lg" className="justify-center" />
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl p-8 shadow-sm">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} className="text-green-600" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              Bienvenue{userInfo?.firstName ? ` ${userInfo.firstName}` : ""} !
-            </h1>
-            <p className="text-gray-600 mt-2">
-              Créez votre mot de passe pour activer votre compte
-            </p>
-            <p className="text-sm text-gray-500 mt-1">{userInfo?.email}</p>
+        <div className="border border-ink/15 bg-white">
+          <div className="flex items-center justify-between border-b border-ink/15 px-6 py-3">
+            <span className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
+              Activation de compte
+            </span>
+            <span className="font-mono text-[11px] uppercase tracking-widest text-accent">
+              {userInfo?.email}
+            </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-lg">
-                <AlertCircle size={20} />
-                <span>{error}</span>
-              </div>
-            )}
+          <div className="p-8">
+            <h1 className="font-display text-3xl font-medium tracking-tight text-ink mb-1">
+              Bienvenue{userInfo?.firstName ? ` ${userInfo.firstName}` : ""}
+            </h1>
+            <p className="text-sm text-text-secondary mb-8">
+              Créez votre mot de passe pour activer votre compte
+            </p>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Mot de passe
-              </label>
-              <div className="relative">
-                <Lock
-                  size={20}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
-                  placeholder="Minimum 8 caractères"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {error && (
+                <div className="flex items-center gap-3 border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+                  <AlertCircle size={18} className="flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
 
-            <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Confirmer le mot de passe
-              </label>
-              <div className="relative">
-                <Lock
-                  size={20}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
+              <div>
+                <label htmlFor="password" className={labelClass}>
+                  Mot de passe
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    className={`${inputClass} pr-12`}
+                    placeholder="Minimum 8 caractères"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink transition-colors"
+                    title={showPassword ? "Masquer" : "Afficher"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className={labelClass}>
+                  Confirmer le mot de passe
+                </label>
                 <input
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
@@ -215,21 +220,21 @@ function SetPasswordContent() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className={inputClass}
                   placeholder="Confirmez votre mot de passe"
                 />
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-accent text-white font-medium rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading && <Loader2 size={20} className="animate-spin" />}
-              {loading ? "Activation..." : "Activer mon compte"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 bg-ink px-6 py-3.5 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                {loading && <Loader2 size={18} className="animate-spin" />}
+                {loading ? "Activation…" : "Activer mon compte"}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
@@ -238,14 +243,16 @@ function SetPasswordContent() {
 
 export default function SetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background-secondary flex items-center justify-center">
-          <Loader2 size={48} className="animate-spin text-accent" />
-        </div>
-      }
-    >
-      <SetPasswordContent />
-    </Suspense>
+    <div className={`${fraunces.variable} ${plexMono.variable}`}>
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-paper flex items-center justify-center">
+            <Loader2 size={40} className="animate-spin text-accent" />
+          </div>
+        }
+      >
+        <SetPasswordContent />
+      </Suspense>
+    </div>
   );
 }

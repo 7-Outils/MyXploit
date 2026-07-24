@@ -63,7 +63,7 @@ export function Header() {
               Connexion
             </Link>
             <Link
-              href="/sign-up"
+              href="#contact"
               className="bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-accent"
             >
               Demander une démo
@@ -103,7 +103,7 @@ export function Header() {
                   Connexion
                 </Link>
                 <Link
-                  href="/sign-up"
+                  href="#contact"
                   onClick={() => setMobileMenuOpen(false)}
                   className="bg-ink px-5 py-2.5 text-center text-sm font-medium text-paper hover:bg-accent transition-colors"
                 >

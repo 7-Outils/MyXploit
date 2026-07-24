@@ -187,7 +187,7 @@ export function Hero() {
               style={{ animationDelay: "0.3s" }}
             >
               <Link
-                href="/sign-up"
+                href="#contact"
                 className="group inline-flex items-center gap-3 bg-ink px-7 py-3.5 text-sm font-medium text-paper transition-colors hover:bg-accent"
               >
                 Demander une démo

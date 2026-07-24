@@ -123,7 +123,7 @@ export function Pricing() {
                   </ul>
 
                   <Link
-                    href={plan.name === "Enterprise" ? "#contact" : "/sign-up"}
+                    href="#contact"
                     className={cn(
                       "inline-flex justify-center px-6 py-3.5 text-sm font-medium transition-colors",
                       plan.popular
