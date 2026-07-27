@@ -29,6 +29,7 @@ model Organization {
   contracts               Contract[]
   invoices                Invoice[]
   quotes                  Quote[]
+  renewalItems            ContractRenewalItem[]
   meetings                Meeting[]
   alerts                  Alert[]
   equipments              Equipment[]
@@ -489,6 +490,7 @@ model Site {
   alerts             Alert[]
   meetings           Meeting[]
   quotes             Quote[]
+  renewalItems       ContractRenewalItem[]
   poolBasins         PoolBasin[] // Bassins de piscine pour ce site
   heatingSeasons     HeatingSeason[] // Saisons de chauffage (contiennent le NB)
   heatingPeriods     HeatingPeriod[] // Périodes de chauffe (dates allumage/arrêt)
@@ -737,9 +739,11 @@ model Equipment {
   // Relations
   site               Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avenantItems       AvenantItem[] // Modifications d'avenant concernant cet équipement
-  audits             EquipmentAudit[] // Historique des audits simples
-  regulatoryControls RegulatoryControl[] // Contrôles réglementaires liés
+  avenantItems         AvenantItem[] // Modifications d'avenant concernant cet équipement
+  audits               EquipmentAudit[] // Historique des audits simples
+  regulatoryControls   RegulatoryControl[] // Contrôles réglementaires liés
+  renewalItems         ContractRenewalItem[] // Postes du plan de renouvellement P3
+  auditRecommendations AuditRecommendation[] // Préconisations le concernant
 
   @@map("equipments")
 }
@@ -876,10 +880,60 @@ model RecommendationTemplate {
   @@map("recommendation_templates")
 }
 
+// ============================================
+// PLAN DE RENOUVELLEMENT CONTRACTUEL (P3)
+// ============================================
+
+enum RenewalItemSource {
+  PLAN_INITIAL // plan contractuel d'origine
+  AVENANT // ajouté par avenant
+  DEVIS_P3 // issu d'un devis P3 accepté
+}
+
+enum RenewalItemStatus {
+  PREVU
+  REALISE
+  REPORTE
+  ABANDONNE
+}
+
+// Poste du plan de renouvellement contractuel (P3) — la référence
+// métier de la carte Renouvellement (jamais la théorie seule)
+model ContractRenewalItem {
+  id             String            @id @default(cuid())
+  contractId     String
+  organizationId String
+  equipmentId    String? // rattachement facultatif à l'inventaire
+  siteId         String? // ou poste générique rattaché au site
+  quoteId        String? // devis P3 qui réalise le poste (rapprochement plan ↔ réalisé)
+  label          String // ex: "Remplacement chaudière n°1"
+  plannedYear    Int // année de programmation au contrat
+  amountHT       Float // montant prévu au plan (€ HT)
+  source         RenewalItemSource @default(PLAN_INITIAL)
+  status         RenewalItemStatus @default(PREVU)
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  equipment    Equipment?   @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  site         Site?        @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  quote        Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  @@index([contractId, plannedYear])
+  @@index([organizationId])
+  @@index([equipmentId])
+  @@index([quoteId])
+  @@index([status])
+  @@map("contract_renewal_items")
+}
+
 // Recommandation générée lors d'un audit (instance)
 model AuditRecommendation {
   id               String    @id @default(cuid())
   technicalAuditId String
+  equipmentId      String? // équipement concerné (facultatif)
   templateId       String? // Template source (null si créée manuellement)
   checklistItemKey String? // Clé de l'item de checklist concerné
   title            String
@@ -896,9 +950,11 @@ model AuditRecommendation {
 
   // Relations
   technicalAudit TechnicalAudit          @relation(fields: [technicalAuditId], references: [id], onDelete: Cascade)
+  equipment      Equipment?              @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
   template       RecommendationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([technicalAuditId])
+  @@index([equipmentId])
   @@index([status])
   @@map("audit_recommendations")
 }
@@ -1169,6 +1225,7 @@ model Contract {
   client           Client?                   @relation(fields: [clientId], references: [id], onDelete: SetNull)
   invoices         Invoice[]
   quotes           Quote[]
+  renewalItems     ContractRenewalItem[]
   tickets          Ticket[]
   meetings         Meeting[]
   userAssignments  UserContractAssignment[] // Assignations ingénieurs
@@ -1749,6 +1806,7 @@ model Quote {
   contract       Contract?    @relation(fields: [contractId], references: [id])
   items          QuoteItem[]
   workOrder      WorkOrder? // Suivi de l'exécution des travaux
+  renewalItems   ContractRenewalItem[] // Postes de plan P3 réalisés par ce devis
   acceptedByUser User?        @relation("QuoteAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
   refusedByUser  User?        @relation("QuoteRefusedBy", fields: [refusedBy], references: [id], onDelete: SetNull)
 
