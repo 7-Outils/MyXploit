@@ -407,7 +407,9 @@ export async function GET(request: NextRequest) {
       sites = site ? [site] : [];
     } else {
       const contractSites = await prisma.contractSite.findMany({
-        where: { contractId: contractId! },
+        // Le contractId vient de l'URL : sans le filtre organisation, n'importe quel
+        // utilisateur authentifié lisait les sites d'un contrat d'un autre client.
+        where: { contractId: contractId!, contract: { organizationId: effectiveOrgId } },
         include: {
           site: {
             select: {
@@ -851,7 +853,9 @@ export async function POST(request: NextRequest) {
       sites = site ? [site] : [];
     } else {
       const contractSites = await prisma.contractSite.findMany({
-        where: { contractId: contractId! },
+        // Idem côté POST : sans ce filtre, le sync écrivait le djuReel des
+        // consommations d'une autre organisation.
+        where: { contractId: contractId!, contract: { organizationId: effectiveOrgId } },
         include: {
           site: {
             select: { id: true, name: true, postalCode: true, stationMeteo: true },

@@ -445,28 +445,27 @@ export async function POST(request: NextRequest) {
           // Detect ON state: "on", "en marche", "marche" (running but not start)
           const isOn = etatLower === "on" || etatLower === "marche" || etatLower === "en marche" || etatLower.includes("en_marche");
 
-          // Debug logging
-          if (exploitantRow.nomInstallation.toLowerCase().includes("furmaneck") || exploitantRow.nomInstallation.toLowerCase().includes("furman")) {
-            console.log(`[DEBUG FURMANECK] etatLower="${etatLower}", isStart=${isHeatingStart}, isStop=${isHeatingStop}, isOn=${isOn}`);
-          }
-
-          // Process heating seasons based on import type
-          if (importType === "ALLUMAGE") {
-            // Only process start markers
-            if (isHeatingStart) {
-              await updateHeatingSeason(siteMatch.siteId, period, true, false, false);
-              await upsertHeatingPeriodStart(siteMatch.siteId, period);
-            }
-          } else if (importType === "ARRET") {
-            // Only process stop markers
-            if (isHeatingStop) {
-              await updateHeatingSeason(siteMatch.siteId, period, false, true, false);
-              await upsertHeatingPeriodEnd(siteMatch.siteId, period);
-            }
-          } else if (importType === "RELEVE_MENSUEL") {
-            // Process ON state only (monthly updates of endDate)
-            if (isOn) {
-              await updateHeatingSeason(siteMatch.siteId, period, false, false, true);
+          // Process heating seasons based on import type.
+          // En mode aperçu on ne touche jamais la base : l'utilisateur peut encore
+          // annuler, et ces écritures étaient rejouées une seconde fois à l'import.
+          if (!previewMode) {
+            if (importType === "ALLUMAGE") {
+              // Only process start markers
+              if (isHeatingStart) {
+                await updateHeatingSeason(siteMatch.siteId, period, true, false, false);
+                await upsertHeatingPeriodStart(siteMatch.siteId, period);
+              }
+            } else if (importType === "ARRET") {
+              // Only process stop markers
+              if (isHeatingStop) {
+                await updateHeatingSeason(siteMatch.siteId, period, false, true, false);
+                await upsertHeatingPeriodEnd(siteMatch.siteId, period);
+              }
+            } else if (importType === "RELEVE_MENSUEL") {
+              // Process ON state only (monthly updates of endDate)
+              if (isOn) {
+                await updateHeatingSeason(siteMatch.siteId, period, false, false, true);
+              }
             }
           }
         }
@@ -528,7 +527,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create alert for high water makeup (maintenance indicator)
-        if (isMaintenanceIndicator && rawConso > 10) {
+        if (!previewMode && isMaintenanceIndicator && rawConso > 10) {
           await createWaterMakeupAlert(
             siteMatch.siteId,
             siteMatch.siteName || exploitantRow.nomInstallation,
