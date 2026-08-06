@@ -1,6 +1,7 @@
 "use client";
 
 import { User, LogOut, ChevronDown } from "lucide-react";
+import { clearSwrCache } from "@/components/SWRProvider";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -33,6 +34,7 @@ export function PlatformTopbar() {
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      clearSwrCache();
       router.push("/sign-in");
       router.refresh();
     } catch (error) {

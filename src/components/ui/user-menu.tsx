@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, ChevronDown } from "lucide-react";
+import { clearSwrCache } from "@/components/SWRProvider";
 
 interface CurrentUser {
   firstName: string | null;
@@ -31,6 +32,7 @@ export function UserMenu() {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearSwrCache();
     router.push("/login");
   }
 

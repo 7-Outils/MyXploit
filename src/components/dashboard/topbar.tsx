@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ContractSelector } from "./ContractSelector";
 import { useSidebar } from "@/contexts/SidebarContext";
+import { clearSwrCache } from "@/components/SWRProvider";
 
 interface CurrentUser {
   firstName: string | null;
@@ -53,6 +54,7 @@ export function Topbar() {
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      clearSwrCache();
       router.push("/sign-in");
       router.refresh();
     } catch (error) {

@@ -7,6 +7,11 @@ import {
   ParsedQuote,
 } from "@/lib/pdf-parser";
 import { parseWithGemini, isGeminiEnabled } from "@/lib/gemini-pdf-parser";
+import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
+
+// Le PDF part intégralement en tokens d'entrée chez Gemini : sans plafond,
+// un fichier volumineux ou une boucle de retry se paie directement.
+const MAX_PDF_SIZE = 10 * 1024 * 1024;
 
 export interface ImportResult {
   success: boolean;
@@ -29,6 +34,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const limit = await rateLimit(`quotes-import:${user.id}`, "import");
+    if (!limit.success) {
+      return rateLimitExceeded(limit.remaining);
+    }
+
     // Get form data with PDF file
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -44,6 +54,13 @@ export async function POST(request: NextRequest) {
     if (!file.type.includes("pdf")) {
       return NextResponse.json(
         { error: "Le fichier doit être un PDF" },
+        { status: 400 }
+      );
+    }
+
+    if (file.size > MAX_PDF_SIZE) {
+      return NextResponse.json(
+        { error: `Le PDF dépasse la taille maximale de ${MAX_PDF_SIZE / 1024 / 1024} Mo` },
         { status: 400 }
       );
     }
