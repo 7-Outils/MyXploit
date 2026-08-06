@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
+import { randomUUID } from "crypto";
 
 /**
  * POST /api/work-orders/[id]/attachements
@@ -87,25 +87,33 @@ export async function POST(
       attachementType = "PDF";
     }
 
-    // Créer le dossier de stockage si nécessaire
-    const uploadDir = join(process.cwd(), "public", "uploads", "work-attachements", id);
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    // Le système de fichiers est en lecture seule sur Vercel : le stockage passe
+    // par R2, comme /api/upload.
+    if (!process.env.R2_ACCOUNT_ID) {
+      return NextResponse.json(
+        { error: "Le stockage de fichiers n'est pas configuré" },
+        { status: 503 }
+      );
     }
 
-    // Générer un nom de fichier unique
-    const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const uniqueFileName = `${timestamp}-${sanitizedFileName}`;
-    const filePath = join(uploadDir, uniqueFileName);
+    const key = `work-attachements/${effectiveOrgId}/${id}/${randomUUID()}-${sanitizedFileName}`;
 
-    // Sauvegarder le fichier
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // URL publique du fichier
-    const fileUrl = `/uploads/work-attachements/${id}/${uniqueFileName}`;
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: key,
+        Body: buffer,
+        ContentType: file.type || "application/octet-stream",
+      })
+    );
+
+    const fileUrl = R2_PUBLIC_URL
+      ? `${R2_PUBLIC_URL}/${key}`
+      : `https://${R2_BUCKET_NAME}.r2.dev/${key}`;
 
     // Créer l'enregistrement dans la DB
     const attachement = await prisma.workAttachement.create({

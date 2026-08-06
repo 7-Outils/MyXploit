@@ -1,5 +1,8 @@
 import prisma from "@/lib/prisma";
 
+// Taille des lots d'UPDATE groupés, pour éviter de construire un IN () géant.
+const UPDATE_CHUNK_SIZE = 500;
+
 // Stations météo COSTIC avec coordonnées
 export const WEATHER_STATIONS: Record<string, { lat: number; lon: number; name: string }> = {
   "PARIS-MONTSOURIS": { lat: 48.8222, lon: 2.3378, name: "Paris-Montsouris" },
@@ -651,7 +654,12 @@ export async function syncDailyDjuCache(): Promise<{
 export async function syncDjuForSites(
   siteIds: string[],
   organizationId: string,
-  overwrite: boolean = false
+  overwrite: boolean = false,
+  // Borne le rafraîchissement aux N derniers mois. Le DJU d'un mois clos ne
+  // bouge plus : sans cette borne, le cron nocturne repassait chaque nuit sur
+  // l'intégralité de l'historique. Les lignes sans djuReel restent reprises
+  // quelle que soit leur ancienneté, pour que le rattrapage reste possible.
+  refreshSinceMonths?: number
 ): Promise<DjuSyncResult> {
   const result: DjuSyncResult = { updated: 0, total: 0, errors: [] };
 
@@ -676,6 +684,12 @@ export async function syncDjuForSites(
   };
   if (!overwrite) {
     consumptionsWhere.djuReel = null;
+  } else if (refreshSinceMonths && refreshSinceMonths > 0) {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - refreshSinceMonths);
+    cutoff.setDate(1);
+    cutoff.setHours(0, 0, 0, 0);
+    consumptionsWhere.OR = [{ djuReel: null }, { period: { gte: cutoff } }];
   }
 
   const consumptions = await prisma.consumption.findMany({
@@ -758,7 +772,11 @@ export async function syncDjuForSites(
         monthlyCount.set(mKey, (monthlyCount.get(mKey) || 0) + 1);
       }
 
-      // Update each consumption with the correct DJR.
+      // Regroupe les écritures par valeur de DJR au lieu d'un UPDATE par ligne,
+      // et ignore les lignes déjà à la bonne valeur : sur un run nocturne en
+      // overwrite, la quasi-totalité des lignes est inchangée.
+      const idsByValue = new Map<number, string[]>();
+
       for (const consumption of siteConsumptions) {
         const dateKey = consumption.period.toISOString().split("T")[0];
         const monthKey = `${consumption.period.getFullYear()}-${String(consumption.period.getMonth() + 1).padStart(2, "0")}`;
@@ -783,11 +801,26 @@ export async function syncDjuForSites(
         }
 
         if (djr !== null) {
-          await prisma.consumption.update({
-            where: { id: consumption.id },
-            data: { djuReel: Math.round(djr * 10) / 10 },
+          const rounded = Math.round(djr * 10) / 10;
+          // Déjà à la bonne valeur : rien à réécrire.
+          if (consumption.djuReel === rounded) continue;
+          const ids = idsByValue.get(rounded);
+          if (ids) {
+            ids.push(consumption.id);
+          } else {
+            idsByValue.set(rounded, [consumption.id]);
+          }
+        }
+      }
+
+      for (const [value, ids] of idsByValue) {
+        for (let i = 0; i < ids.length; i += UPDATE_CHUNK_SIZE) {
+          const chunk = ids.slice(i, i + UPDATE_CHUNK_SIZE);
+          await prisma.consumption.updateMany({
+            where: { id: { in: chunk } },
+            data: { djuReel: value },
           });
-          result.updated++;
+          result.updated += chunk.length;
         }
       }
     } catch (error) {
@@ -827,6 +860,9 @@ export async function syncDjuForOrg(
   return syncDjuForSites(
     sitesWithConso.map((s) => s.id),
     organizationId,
-    true // overwrite — we want fresh DJU on every nightly run
+    true, // overwrite — we want fresh DJU on every nightly run
+    // ...mais seulement sur les 3 derniers mois : au-delà, le mois est clos et
+    // sa valeur ne bouge plus. Les lignes sans djuReel restent rattrapées.
+    3
   );
 }
