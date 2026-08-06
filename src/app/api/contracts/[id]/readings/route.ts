@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
+const MAX_LIMIT = 2000;
+
+// Fenêtre d'historique chargée par compteur pour retrouver les relevés précédents.
+// MeterReading contient aussi la télérelève (Enedis), qui peut être dense : on ne
+// charge donc pas tout l'historique, et on retombe sur une requête ciblée dans les
+// rares cas où la fenêtre ne suffit pas. La fenêtre reste volontairement petite :
+// le repli garantit la correction, l'élargir ne ferait que gonfler la mémoire.
+const HISTORY_WINDOW = 400;
+
+// Les fenêtres sont chargées par vagues : sans borne, une page de 1000 relevés
+// répartis sur autant de compteurs ouvrait 1000 requêtes simultanées sur Neon.
+const HISTORY_CONCURRENCY = 8;
+
+type HistoryRow = {
+  id: string;
+  readingDate: Date;
+  indexValue: number | null;
+  isReset: boolean;
+};
+
 /**
  * GET /api/contracts/[id]/readings - List recent meter readings for all sites of a contract
  * Each reading includes its previous reading (for context: previous index + date).
@@ -15,10 +35,14 @@ export async function GET(
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id: contractId } = await params;
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "20");
+    // Plafond dur : sans borne, un appelant pouvait demander 100 000 relevés.
+    // limit=0 reste un tableau vide, une valeur absurde retombe sur la valeur par défaut.
+    const rawLimit = Number.parseInt(searchParams.get("limit") ?? "", 10);
+    const limit =
+      Number.isFinite(rawLimit) && rawLimit >= 0 ? Math.min(rawLimit, MAX_LIMIT) : 20;
 
     const contractSites = await prisma.contractSite.findMany({
-      where: { contractId },
+      where: { contractId, contract: { organizationId: effectiveOrgId } },
       select: { siteId: true },
     });
 
@@ -55,7 +79,7 @@ export async function GET(
     // Map siteId → coefficients contractuels (ContractSite du contrat courant).
     // Source de vérité unique pour la conversion ECS/Gaz → kWh.
     const contractSitesWithCoefs = await prisma.contractSite.findMany({
-      where: { contractId, siteId: { in: siteIds } },
+      where: { contractId, siteId: { in: siteIds }, contract: { organizationId: effectiveOrgId } },
       select: { siteId: true, coefficientPCS: true, coefficientQ: true },
     });
     const coefsBySite = new Map(
@@ -84,6 +108,36 @@ export async function GET(
       return null;
     };
 
+    // Historique par compteur, chargé en une requête par compteur au lieu de deux
+    // requêtes par relevé : sur une page de 1000 relevés, on passe de ~2000 allers-
+    // retours Neon à une poignée.
+    const maxDateByMeter = new Map<string, Date>();
+    for (const r of readings) {
+      const current = maxDateByMeter.get(r.meterId);
+      if (!current || r.readingDate > current) {
+        maxDateByMeter.set(r.meterId, r.readingDate);
+      }
+    }
+
+    const historyByMeter = new Map<string, { rows: HistoryRow[]; complete: boolean }>();
+    const meterEntries = Array.from(maxDateByMeter.entries());
+
+    for (let i = 0; i < meterEntries.length; i += HISTORY_CONCURRENCY) {
+      const batch = meterEntries.slice(i, i + HISTORY_CONCURRENCY);
+      await Promise.all(
+        batch.map(async ([meterId, maxDate]) => {
+          const rows = await prisma.meterReading.findMany({
+            where: { meterId, readingDate: { lte: maxDate } },
+            orderBy: { readingDate: "desc" },
+            take: HISTORY_WINDOW,
+            select: { id: true, readingDate: true, indexValue: true, isReset: true },
+          });
+          // Fenêtre non saturée = tout l'historique du compteur est en mémoire.
+          historyByMeter.set(meterId, { rows, complete: rows.length < HISTORY_WINDOW });
+        })
+      );
+    }
+
     // For each reading, find its previous reading and recalculate consumption
     // on-the-fly so insertions of older readings update the chain automatically.
     // If the current reading is marked as "reset" (new meter), skip the previous.
@@ -93,29 +147,50 @@ export async function GET(
         let prev: { readingDate: Date; indexValue: number | null } | null = null;
 
         if (!r.isReset) {
-          // Find the most recent reset on or before this reading (excluding self)
-          const lastReset = await prisma.meterReading.findFirst({
-            where: {
-              meterId: r.meterId,
-              readingDate: { lte: r.readingDate },
-              isReset: true,
-              NOT: { id: r.id },
-            },
-            orderBy: { readingDate: "desc" },
-            select: { readingDate: true },
-          });
+          const history = historyByMeter.get(r.meterId);
+          const rows = history?.rows ?? [];
 
-          prev = await prisma.meterReading.findFirst({
-            where: {
-              meterId: r.meterId,
-              readingDate: lastReset
-                ? { lt: r.readingDate, gte: lastReset.readingDate }
-                : { lt: r.readingDate },
-              indexValue: { not: null },
-            },
-            orderBy: { readingDate: "desc" },
-            select: { readingDate: true, indexValue: true },
-          });
+          // rows est trié par date décroissante : la première correspondance
+          // est la plus récente, comme le faisait findFirst + orderBy desc.
+          const lastReset =
+            rows.find(
+              (row) => row.isReset && row.readingDate <= r.readingDate && row.id !== r.id
+            ) ?? null;
+
+          prev =
+            rows.find(
+              (row) =>
+                row.indexValue != null &&
+                row.readingDate < r.readingDate &&
+                (!lastReset || row.readingDate >= lastReset.readingDate)
+            ) ?? null;
+
+          // Historique tronqué et rien trouvé : le relevé précédent est peut-être
+          // hors fenêtre, on retombe sur la requête ciblée d'origine.
+          if (!prev && history && !history.complete) {
+            const olderReset = await prisma.meterReading.findFirst({
+              where: {
+                meterId: r.meterId,
+                readingDate: { lte: r.readingDate },
+                isReset: true,
+                NOT: { id: r.id },
+              },
+              orderBy: { readingDate: "desc" },
+              select: { readingDate: true },
+            });
+
+            prev = await prisma.meterReading.findFirst({
+              where: {
+                meterId: r.meterId,
+                readingDate: olderReset
+                  ? { lt: r.readingDate, gte: olderReset.readingDate }
+                  : { lt: r.readingDate },
+                indexValue: { not: null },
+              },
+              orderBy: { readingDate: "desc" },
+              select: { readingDate: true, indexValue: true },
+            });
+          }
         }
 
         // Recalculate consumption live from index difference
