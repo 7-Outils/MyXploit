@@ -72,6 +72,9 @@ interface SiteMapProps {
 function createColoredIcon(color: string) {
   if (typeof window === "undefined") return null;
 
+  // Chargement paresseux volontaire : leaflet touche `window` à l'import, donc
+  // il ne doit pas être résolu côté serveur. Un import statique casse le SSR.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const L = require("leaflet");
 
   const svgIcon = `

@@ -502,6 +502,8 @@ model Site {
   activityLogs       SiteActivityLog[] // Journal d'activité
   missionSites       MissionSite[] // Missions rattachées
 
+  @@index([organizationId])
+  @@index([clientId])
   @@map("sites")
 }
 
@@ -745,6 +747,8 @@ model Equipment {
   renewalItems         ContractRenewalItem[] // Postes du plan de renouvellement P3
   auditRecommendations AuditRecommendation[] // Préconisations le concernant
 
+  @@index([organizationId])
+  @@index([siteId])
   @@map("equipments")
 }
 
@@ -1231,6 +1235,8 @@ model Contract {
   userAssignments  UserContractAssignment[] // Assignations ingénieurs
   missionContracts MissionContract[] // Missions rattachées
 
+  @@index([organizationId])
+  @@index([clientId])
   @@map("contracts")
 }
 

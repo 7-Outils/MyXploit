@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 
     // Get sites for matching - filter by contract if provided
     // Also get PCS coefficient for gas conversion (20 mbar: ~10.5, 300 mbar: ~14.5)
-    let sitesQuery: { organizationId: string; id?: { in: string[] } } = {
+    const sitesQuery: { organizationId: string; id?: { in: string[] } } = {
       organizationId: effectiveOrgId,
     };
 

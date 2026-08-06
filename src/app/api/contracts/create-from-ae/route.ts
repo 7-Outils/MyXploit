@@ -572,7 +572,7 @@ export async function POST(request: NextRequest) {
     const findP2ColIndex = (num: number): number => {
       // Try "P2 01", "P2 02" format first (user's template)
       const paddedNum = num.toString().padStart(2, "0");
-      let idx = headers.findIndex(h => h && h.toLowerCase() === `p2 ${paddedNum}`);
+      const idx = headers.findIndex(h => h && h.toLowerCase() === `p2 ${paddedNum}`);
       if (idx !== -1) return idx;
       // Fallback to old format "P21", "P22" etc.
       return findExactColIndex(new RegExp(`p2${num}.*annuel`));
@@ -595,7 +595,7 @@ export async function POST(request: NextRequest) {
     const findP3ColIndex = (num: number): number => {
       // Try "P3 01", "P3 02" format first (user's template)
       const paddedNum = num.toString().padStart(2, "0");
-      let idx = headers.findIndex(h => h && h.toLowerCase() === `p3 ${paddedNum}`);
+      const idx = headers.findIndex(h => h && h.toLowerCase() === `p3 ${paddedNum}`);
       if (idx !== -1) return idx;
       // Fallback to old format "P31", "P32" etc.
       return findExactColIndex(new RegExp(`p3${num}.*annuel`));

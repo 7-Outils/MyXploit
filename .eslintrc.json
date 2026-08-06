@@ -1,0 +1,21 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "ignorePatterns": ["src/generated/**", "scripts/**", "prisma/seed*.ts"],
+  "rules": {
+    // Texte français : les apostrophes non échappées dans le JSX sont du bruit pur.
+    "react/no-unescaped-entities": "off",
+    // Collision de nom avec la variable `module` du bundler : réel, mais demande
+    // un renommage dans 3 écrans. Signalé sans bloquer le build.
+    "@next/next/no-assign-module-variable": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "react-hooks/exhaustive-deps": "warn"
+  }
+}

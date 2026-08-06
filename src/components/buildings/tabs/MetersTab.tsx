@@ -75,7 +75,11 @@ export function MetersTab({ siteId }: { siteId: string }) {
   const toggleMeter = (meterId: string) => {
     setExpandedMeters((prev) => {
       const next = new Set(prev);
-      next.has(meterId) ? next.delete(meterId) : next.add(meterId);
+      if (next.has(meterId)) {
+        next.delete(meterId);
+      } else {
+        next.add(meterId);
+      }
       return next;
     });
   };
