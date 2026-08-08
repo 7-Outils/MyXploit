@@ -1325,6 +1325,7 @@ model ContractSite {
   avenantItems  AvenantItem[] // Modifications d'avenant concernant ce site
 
   @@unique([contractId, siteId]) // Un site ne peut être qu'une fois dans un contrat
+  @@index([siteId]) // le sens contractId est déjà couvert par @@unique
   @@map("contract_sites")
 }
 
@@ -1535,6 +1536,7 @@ model Consumption {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([siteId, energyType, usage, period, source])
+  @@index([organizationId, period]) // analytics de consommation
   @@map("consumptions")
 }
 
@@ -1756,6 +1758,9 @@ model Invoice {
   acceptedByUser User?        @relation("InvoiceAcceptedBy", fields: [acceptedBy], references: [id])
   refusedByUser  User?        @relation("InvoiceRefusedBy", fields: [refusedBy], references: [id])
 
+  @@index([organizationId, issueDate(sort: Desc)]) // liste principale
+  @@index([contractId])
+  @@index([siteId])
   @@map("invoices")
 }
 
@@ -1816,6 +1821,9 @@ model Quote {
   acceptedByUser User?        @relation("QuoteAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
   refusedByUser  User?        @relation("QuoteRefusedBy", fields: [refusedBy], references: [id], onDelete: SetNull)
 
+  @@index([organizationId, issueDate(sort: Desc)]) // liste principale
+  @@index([contractId])
+  @@index([siteId])
   @@map("quotes")
 }
 
@@ -1833,6 +1841,7 @@ model QuoteItem {
   // Relations
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
+  @@index([quoteId])
   @@map("quote_items")
 }
 
@@ -2091,6 +2100,8 @@ model Alert {
   site         Site?        @relation(fields: [siteId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@index([organizationId])
+  @@index([siteId])
   @@map("alerts")
 }
 
