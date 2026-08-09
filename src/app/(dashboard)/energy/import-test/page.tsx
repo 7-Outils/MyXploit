@@ -14,7 +14,7 @@
  * l'aperçu est fidèle au kWh près.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { prorateAcrossMonths, periodKeyToDate } from "@/lib/date-prorate";
 import { useContract } from "@/contexts/ContractContext";
@@ -122,31 +122,32 @@ function normalizeUnit(u: string): string {
   return u;
 }
 
-// Devine (energyType, usage, coef→kWh) — réplique la sémantique du projector.
+// Devine (energyType, usage) à partir du libellé compteur/fluide.
+// AUCUNE conversion ici : l'aperçu reste en unité relevée (m³, L…). La conversion
+// en kWh se fait par site à l'import, avec le coefficientPCS du contrat de chaque
+// site — pas un coef global qui serait faux d'un site à l'autre.
 function mapEnergy(
   compteur: string,
-  fluide: string,
-  pcs: number,
-  qEcsMwh: number
-): { energyType: string; usage: string; coef: number | null; outUnit: string } {
+  fluide: string
+): { energyType: string; usage: string } {
   const name = norm(compteur);
   const fl = norm(fluide);
   const txt = `${name} ${fl}`;
   const isEcs = /\becs\b|sanitaire|eau chaude/.test(txt);
 
   if (/chaleur|rcu|calorie|chauffage urbain/.test(txt))
-    return { energyType: "RESEAU_CHALEUR", usage: "CHAUFFAGE", coef: 1, outUnit: "kWh" };
+    return { energyType: "RESEAU_CHALEUR", usage: "CHAUFFAGE" };
   if (/gaz|grdf|\bgn\b/.test(txt))
-    return { energyType: "GAZ", usage: isEcs ? "ECS" : "CHAUFFAGE", coef: pcs, outUnit: "kWh" };
+    return { energyType: "GAZ", usage: isEcs ? "ECS" : "CHAUFFAGE" };
   if (/elec|enedis/.test(txt))
-    return { energyType: "ELECTRICITE", usage: "MIXTE", coef: 1, outUnit: "kWh" };
+    return { energyType: "ELECTRICITE", usage: "MIXTE" };
   if (/fioul|fuel/.test(txt))
-    return { energyType: "FIOUL", usage: "CHAUFFAGE", coef: 10, outUnit: "kWh" };
+    return { energyType: "FIOUL", usage: "CHAUFFAGE" };
   if (isEcs)
-    return { energyType: "EAU", usage: "ECS", coef: qEcsMwh * 1000, outUnit: "kWh" };
+    return { energyType: "EAU", usage: "ECS" };
   if (/eau/.test(txt))
-    return { energyType: "EAU", usage: "AUTRE", coef: null, outUnit: "m³" };
-  return { energyType: "AUTRE", usage: "AUTRE", coef: null, outUnit: "?" };
+    return { energyType: "EAU", usage: "AUTRE" };
+  return { energyType: "AUTRE", usage: "AUTRE" };
 }
 
 // EnergyType/usage → MeterFluid (pour l'écriture en base).
@@ -195,27 +196,36 @@ function suggestColumn(field: FieldKey, headers: string[], sample: unknown[][]):
   }
 }
 
-// Mémorisation du mapping par signature des en-têtes (localStorage navigateur).
+// Mémorisation du mapping par signature des en-têtes. Source de vérité : le
+// gabarit en base (ImportTemplate, partagé par l'organisation). Le localStorage
+// reste un cache instantané le temps que la réponse serveur arrive.
 const MAP_STORE = "myxploit-import-mapping:";
 function signatureOf(headers: string[]): string {
   return headers.map((h) => norm(h)).filter(Boolean).sort().join("|");
 }
-// Auto-détection + override par le mapping mémorisé (si la trame a déjà été mappée).
+// Applique un mapping "notion → libellé de colonne" sur les en-têtes courants.
+function applyByName(
+  base: Record<FieldKey, number>,
+  hdrs: string[],
+  byName: Record<string, string>
+): Record<FieldKey, number> {
+  const m = { ...base };
+  for (const f of FIELDS) {
+    const name = byName[f.key];
+    if (name) {
+      const idx = hdrs.findIndex((h) => h === name);
+      if (idx >= 0) m[f.key] = idx;
+    }
+  }
+  return m;
+}
+// Auto-détection + override par le cache localStorage (si la trame a déjà été mappée).
 function loadMapping(hdrs: string[], body: unknown[][]): Record<FieldKey, number> {
-  const m = {} as Record<FieldKey, number>;
+  let m = {} as Record<FieldKey, number>;
   for (const f of FIELDS) m[f.key] = suggestColumn(f.key, hdrs, body);
   try {
     const saved = localStorage.getItem(MAP_STORE + signatureOf(hdrs));
-    if (saved) {
-      const byName = JSON.parse(saved) as Record<string, string>;
-      for (const f of FIELDS) {
-        const name = byName[f.key];
-        if (name) {
-          const idx = hdrs.findIndex((h) => h === name);
-          if (idx >= 0) m[f.key] = idx;
-        }
-      }
-    }
+    if (saved) m = applyByName(m, hdrs, JSON.parse(saved) as Record<string, string>);
   } catch {
     /* localStorage indispo ou JSON cassé → on garde l'auto-détection */
   }
@@ -241,8 +251,6 @@ export default function ImportTestPage() {
   const [headerRow, setHeaderRow] = useState<number>(0);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<FieldKey, number>>({} as Record<FieldKey, number>);
-  const [pcs, setPcs] = useState(10.5);
-  const [qEcs, setQEcs] = useState(0.13);
   const [error, setError] = useState<string>("");
 
   // Écriture en base
@@ -270,20 +278,66 @@ export default function ImportTestPage() {
 
   const dataRows = useMemo(() => allRows.slice(headerRow + 1).filter((r) => r.some((c) => c !== "" && c != null)), [allRows, headerRow]);
 
-  // Mémorise le mapping (par signature d'en-têtes) dès qu'il change → ré-appliqué au prochain fichier identique
+  // Dernier mapping (JSON byName) synchronisé avec le serveur — évite de re-POSTer
+  // ce qu'on vient de recevoir, et les POSTs redondants.
+  const lastSyncedRef = useRef<string>("");
+
+  // Au chargement d'une trame : récupère le gabarit de l'organisation (base) et
+  // l'applique par-dessus l'auto-détection / le cache localStorage.
   useEffect(() => {
     if (!headers.length) return;
-    try {
-      const byName: Record<string, string> = {};
-      for (const f of FIELDS) {
-        const idx = mapping[f.key];
-        if (idx != null && idx >= 0 && headers[idx]) byName[f.key] = headers[idx];
+    const sig = signatureOf(headers);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/import-templates?signature=${encodeURIComponent(sig)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const byName = data?.template?.mapping as Record<string, string> | undefined;
+        if (cancelled || !byName || typeof byName !== "object") return;
+        lastSyncedRef.current = JSON.stringify(byName);
+        setMapping((m) => applyByName(m, headers, byName));
+      } catch {
+        /* hors-ligne → on reste sur auto-détection + localStorage */
       }
-      localStorage.setItem(MAP_STORE + signatureOf(headers), JSON.stringify(byName));
-    } catch {
-      /* localStorage indispo → tant pis, pas de mémorisation */
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [headers]);
+
+  // Mémorise le mapping (par signature d'en-têtes) dès qu'il change → ré-appliqué
+  // au prochain fichier identique. localStorage tout de suite, base (gabarit
+  // partagé) en débounce.
+  useEffect(() => {
+    if (!headers.length) return;
+    const byName: Record<string, string> = {};
+    for (const f of FIELDS) {
+      const idx = mapping[f.key];
+      if (idx != null && idx >= 0 && headers[idx]) byName[f.key] = headers[idx];
     }
-  }, [mapping, headers]);
+    const json = JSON.stringify(byName);
+    try {
+      localStorage.setItem(MAP_STORE + signatureOf(headers), json);
+    } catch {
+      /* localStorage indispo → tant pis, pas de mémorisation locale */
+    }
+    if (json === lastSyncedRef.current || Object.keys(byName).length === 0) return;
+    const sig = signatureOf(headers);
+    const name = fileName;
+    const t = setTimeout(() => {
+      lastSyncedRef.current = json;
+      fetch("/api/import-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signature: sig, mapping: byName, name }),
+      }).catch(() => {
+        /* hors-ligne → le localStorage a déjà mémorisé, on retentera au prochain changement */
+        lastSyncedRef.current = "";
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [mapping, headers, fileName]);
 
   const handleFile = useCallback((file: File) => {
     setError("");
@@ -329,7 +383,9 @@ export default function ImportTestPage() {
     }));
   }, [dataRows, headers, mapping]);
 
-  // Calcul des consommations mensuelles (même logique que consumption-projector)
+  // Aperçu des consommations mensuelles, en unité relevée (m³, L…). Même
+  // ventilation temporelle que le projector (prorata index → mois), mais SANS
+  // conversion énergétique : celle-ci est par site, faite à l'import.
   const monthly = useMemo(() => {
     if (!normalized.length) return [];
     // groupe par site|compteur
@@ -347,7 +403,9 @@ export default function ImportTestPage() {
     for (const rows of groups.values()) {
       const sorted = [...rows].sort((a, b) => (a.date!.getTime() - b.date!.getTime()));
       const first = sorted[0];
-      const { energyType, usage, coef, outUnit } = mapEnergy(first.compteur, first.fluide, pcs, qEcs);
+      const { energyType, usage } = mapEnergy(first.compteur, first.fluide);
+      // Aperçu en unité relevée brute : pas de conversion (kWh = par site à l'import).
+      const unit = first.unite || "?";
 
       const addToBuckets = (startDate: Date, endDate: Date, converted: number) => {
         const months = prorateAcrossMonths(startDate, endDate, converted);
@@ -358,7 +416,7 @@ export default function ImportTestPage() {
             ex.qty += q;
             ex.meters.add(first.compteur);
           } else {
-            buckets.set(bk, { site: first.site, energyType, usage, periodIso: iso, qty: q, unit: outUnit, meters: new Set([first.compteur]) });
+            buckets.set(bk, { site: first.site, energyType, usage, periodIso: iso, qty: q, unit, meters: new Set([first.compteur]) });
           }
         }
       };
@@ -370,17 +428,15 @@ export default function ImportTestPage() {
           if (!prev || prev.index == null || curr.index == null) { prev = curr; continue; }
           const delta = curr.index - prev.index;
           if (delta <= 0) { prev = curr; continue; }
-          const converted = coef != null ? delta * coef : delta;
           const startDate = new Date(prev.date!.getTime() + 86400000);
-          addToBuckets(startDate, curr.date!, converted);
+          addToBuckets(startDate, curr.date!, delta);
           prev = curr;
         }
       } else {
         // pas d'index → on utilise la conso fournie, attribuée au mois de la date de relevé
         for (const curr of sorted) {
           if (curr.conso == null || curr.conso <= 0) continue;
-          const converted = coef != null ? curr.conso * coef : curr.conso;
-          addToBuckets(curr.date!, curr.date!, converted);
+          addToBuckets(curr.date!, curr.date!, curr.conso);
         }
       }
     }
@@ -388,7 +444,7 @@ export default function ImportTestPage() {
     return Array.from(buckets.values())
       .map((b) => ({ ...b, period: periodKeyToDate(b.periodIso), meterNames: Array.from(b.meters).join(", ") }))
       .sort((a, b) => a.site.localeCompare(b.site) || a.period.getTime() - b.period.getTime());
-  }, [normalized, pcs, qEcs]);
+  }, [normalized]);
 
   // Lignes prêtes pour l'écriture en base (site + date + compteur + index requis)
   const payloadRows = useMemo(
@@ -396,7 +452,7 @@ export default function ImportTestPage() {
       normalized
         .filter((r) => r.site && r.date && r.compteur && r.index != null)
         .map((r) => {
-          const { energyType, usage } = mapEnergy(r.compteur, r.fluide, pcs, qEcs);
+          const { energyType, usage } = mapEnergy(r.compteur, r.fluide);
           return {
             site: r.site,
             date: r.date!.toISOString(),
@@ -406,7 +462,7 @@ export default function ImportTestPage() {
             unit: r.unite || "m³",
           };
         }),
-    [normalized, pcs, qEcs]
+    [normalized]
   );
 
   const runImport = async (cid: string, siteMappings?: Record<string, string>) => {
@@ -527,14 +583,10 @@ export default function ImportTestPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">PCS gaz (kWh/m³)</label>
-              <input type="number" step="0.1" value={pcs} onChange={(e) => setPcs(+e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Q ECS (MWh/m³)</label>
-              <input type="number" step="0.01" value={qEcs} onChange={(e) => setQEcs(+e.target.value)} className="border rounded px-2 py-1 text-sm w-24" />
-            </div>
+            <p className="text-[11px] text-gray-400 flex-1 min-w-[16rem]">
+              Aperçu en unité relevée (m³, L…). La conversion en kWh se fait par site à
+              l&apos;import, avec le coefficient gaz du contrat de chaque site.
+            </p>
           </div>
 
           {/* Mapping colonnes → notions */}
@@ -653,9 +705,9 @@ export default function ImportTestPage() {
               <h2 className="text-sm font-semibold text-gray-800">Importer en base</h2>
             </div>
             <p className="text-xs text-gray-500">
-              Crée les compteurs + relevés et recalcule les consommations. Le PCS gaz / Q ECS de chaque
-              site (depuis son contrat) est appliqué automatiquement — le coef global ci-dessus ne sert
-              qu'à l'aperçu.
+              Crée les compteurs + relevés et recalcule les consommations. Le coefficient gaz (PCS) et le
+              Q ECS de chaque site sont pris depuis son contrat — la conversion en kWh est donc propre à
+              chaque site, jamais un coef global.
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <div>

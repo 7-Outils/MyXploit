@@ -26,6 +26,7 @@ model Organization {
   users                   User[]
   sites                   Site[]
   siteAliases             SiteAlias[]
+  importTemplates         ImportTemplate[]
   contracts               Contract[]
   invoices                Invoice[]
   quotes                  Quote[]
@@ -547,6 +548,24 @@ model SiteAlias {
   @@index([organizationId])
   @@index([alias])
   @@map("site_aliases")
+}
+
+// Gabarit d'import exploitant : mémorise le mapping colonne → notion d'une trame,
+// identifiée par la signature de ses en-têtes (triés + normalisés). Partagé par
+// toute l'organisation — remplace la mémorisation localStorage du banc de test.
+model ImportTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  signature      String // Signature des en-têtes du fichier (norm + tri + join "|")
+  name           String? // Libellé lisible (ex: nom du 1er fichier mappé)
+  mapping        Json // { notion: "libellé de colonne" } (ex: { site: "Installation" })
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, signature]) // Une trame = un gabarit par organisation
+  @@map("import_templates")
 }
 
 // ============================================
