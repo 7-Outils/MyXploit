@@ -374,7 +374,12 @@ function FinancierPageContent() {
                   preload(`/api/contracts/${selectedContract.id}/p3-balance`, fetcher);
                   preload(`/api/contracts/${selectedContract.id}/site-analytics`, fetcher);
                 } else if (tab.id === "devis") {
-                  preload(`/api/quotes?contractId=${selectedContract.id}`, fetcher);
+                  // Doit refléter exactement la clé construite par DevisP3Content
+                  // (première page, sans filtre), sinon on précharge dans le vide.
+                  preload(
+                    `/api/quotes?contractId=${selectedContract.id}&page=1&pageSize=30`,
+                    fetcher
+                  );
                   preload(`/api/contracts/${selectedContract.id}/sites`, fetcher);
                 }
               }}
