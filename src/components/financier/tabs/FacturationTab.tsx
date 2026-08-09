@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Receipt, Plus, Loader2, Upload, Check, X } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 import { statusConfig, typeConfig } from "@/components/financier/constants";
@@ -12,7 +12,12 @@ interface FacturationTabProps {
   setStatusFilter: (s: StatusFilter) => void;
   typeFilter: TypeFilter;
   setTypeFilter: (t: TypeFilter) => void;
-  filteredInvoices: Invoice[];
+  /** Page courante déjà filtrée et paginée par le serveur. */
+  invoices: Invoice[];
+  /** Nombre total de factures correspondant aux filtres, toutes pages confondues. */
+  totalInvoices: number;
+  currentPage: number;
+  setCurrentPage: (p: number) => void;
   handleAcceptInvoice: (id: string) => void;
   handleRefuseInvoice: (id: string) => void;
   acceptingInvoiceId: string | null;
@@ -29,7 +34,10 @@ export function FacturationTab({
   setStatusFilter,
   typeFilter,
   setTypeFilter,
-  filteredInvoices,
+  invoices,
+  totalInvoices,
+  currentPage,
+  setCurrentPage,
   handleAcceptInvoice,
   handleRefuseInvoice,
   acceptingInvoiceId,
@@ -37,13 +45,13 @@ export function FacturationTab({
   setShowImportModal,
   setShowInvoiceModal,
 }: FacturationTabProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => { setCurrentPage(1); }, [statusFilter, typeFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalInvoices / PAGE_SIZE));
   const pageClamped = Math.min(currentPage, totalPages);
-  const pagedInvoices = filteredInvoices.slice((pageClamped - 1) * PAGE_SIZE, pageClamped * PAGE_SIZE);
+
+  // Si le total se réduit sous nos pieds, on se recale sur la dernière page.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages, setCurrentPage]);
 
   if (loading) {
     return (
@@ -102,7 +110,7 @@ export function FacturationTab({
       </div>
 
       {/* Table */}
-      {filteredInvoices.length === 0 ? (
+      {totalInvoices === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center py-12">
           <Receipt size={48} className="text-gray-300 mb-4" />
           <p className="text-text-secondary">
@@ -123,7 +131,7 @@ export function FacturationTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pagedInvoices.map((invoice) => {
+                {invoices.map((invoice) => {
                   const status = statusConfig[invoice.status];
                   const type = typeConfig[invoice.type];
                   return (
@@ -195,12 +203,12 @@ export function FacturationTab({
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm">
                 <span className="text-text-secondary">
-                  {(pageClamped - 1) * PAGE_SIZE + 1}–{Math.min(pageClamped * PAGE_SIZE, filteredInvoices.length)} sur {filteredInvoices.length}
+                  {(pageClamped - 1) * PAGE_SIZE + 1}–{Math.min(pageClamped * PAGE_SIZE, totalInvoices)} sur {totalInvoices}
                 </span>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={pageClamped === 1} className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40">Précédent</button>
+                  <button onClick={() => setCurrentPage(Math.max(1, pageClamped - 1))} disabled={pageClamped === 1} className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40">Précédent</button>
                   <span className="text-xs text-text-secondary px-2">Page {pageClamped} / {totalPages}</span>
-                  <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={pageClamped === totalPages} className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40">Suivant</button>
+                  <button onClick={() => setCurrentPage(Math.min(totalPages, pageClamped + 1))} disabled={pageClamped === totalPages} className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40">Suivant</button>
                 </div>
               </div>
             )}

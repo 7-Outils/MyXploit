@@ -3,27 +3,84 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 // GET /api/invoices - List all invoices
+const MAX_PAGE_SIZE = 200;
+
+// Doivent rester alignés sur les enums InvoiceStatus / InvoiceType du schéma.
+const INVOICE_STATUSES = ["EN_ATTENTE", "VALIDEE", "REFUSEE"] as const;
+const INVOICE_TYPES = ["P1", "P2", "P3", "TRAVAUX", "AUTRE"] as const;
+
+/**
+ * GET /api/invoices - Liste les factures.
+ *
+ * Comme /api/quotes : sans `page`, renvoie le tableau complet (comportement
+ * historique) ; avec `page`, renvoie { data, total, page, pageSize } et
+ * applique les filtres en SQL.
+ */
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
-    const contractId = new URL(request.url).searchParams.get("contractId");
+    const { searchParams } = new URL(request.url);
+    const contractId = searchParams.get("contractId");
+    const status = searchParams.get("status");
+    const type = searchParams.get("type");
+    const pageParam = searchParams.get("page");
 
-    const invoices = await prisma.invoice.findMany({
-      where: {
-        organizationId: effectiveOrgId,
-        ...(contractId ? { contractId } : {}),
-      },
-      include: {
-        site: { select: { id: true, name: true } },
-        contract: { select: { id: true, reference: true, provider: true } },
-        acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
-        refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
-      },
-      orderBy: { issueDate: "desc" },
-    });
+    if (status && !INVOICE_STATUSES.includes(status as (typeof INVOICE_STATUSES)[number])) {
+      return NextResponse.json(
+        { error: `Statut inconnu. Valeurs acceptées : ${INVOICE_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    if (type && !INVOICE_TYPES.includes(type as (typeof INVOICE_TYPES)[number])) {
+      return NextResponse.json(
+        { error: `Type de facture inconnu. Valeurs acceptées : ${INVOICE_TYPES.join(", ")}` },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(invoices);
+    const where = {
+      organizationId: effectiveOrgId,
+      ...(contractId ? { contractId } : {}),
+      ...(status ? { status: status as never } : {}),
+      ...(type ? { type: type as never } : {}),
+    };
+
+    const include = {
+      site: { select: { id: true, name: true } },
+      contract: { select: { id: true, reference: true, provider: true } },
+      acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+      refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+    };
+
+    // Mode historique : tableau nu, sans pagination.
+    if (pageParam === null) {
+      const invoices = await prisma.invoice.findMany({
+        where,
+        include,
+        orderBy: { issueDate: "desc" },
+      });
+      return NextResponse.json(invoices);
+    }
+
+    const parsedPage = Number.parseInt(pageParam, 10);
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const parsedSize = Number.parseInt(searchParams.get("pageSize") ?? "", 10);
+    const pageSize =
+      Number.isFinite(parsedSize) && parsedSize > 0 ? Math.min(parsedSize, MAX_PAGE_SIZE) : 30;
+
+    const [data, total] = await Promise.all([
+      prisma.invoice.findMany({
+        where,
+        include,
+        orderBy: { issueDate: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.invoice.count({ where }),
+    ]);
+
+    return NextResponse.json({ data, total, page, pageSize });
   } catch (error) {
     console.error("Error fetching invoices:", error);
     return NextResponse.json(

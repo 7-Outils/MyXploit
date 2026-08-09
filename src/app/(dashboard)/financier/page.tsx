@@ -34,6 +34,9 @@ import { InvoiceModal } from "@/components/financier/modals/InvoiceModal";
 
 import { sortTabsAlpha } from "@/lib/utils";
 
+// Doit rester aligné sur le PAGE_SIZE de FacturationTab.
+const INVOICE_PAGE_SIZE = 30;
+
 const FINANCIER_TABS = sortTabsAlpha([
   { id: "facturation" as Tab, label: "Facturation", icon: Receipt },
   { id: "decompte-p3" as Tab, label: "Solde P3", icon: PiggyBank },
@@ -53,9 +56,28 @@ function FinancierPageContent() {
 
   // SWR-cached data (survives tab switches)
   const contractKey = selectedContract?.id;
-  const { data: invoicesData, isLoading: loadingInvoices, mutate: mutateInvoices } = useSWR<Invoice[]>(
-    contractKey ? `/api/invoices?contractId=${contractKey}` : null, fetcher
-  );
+
+  // Les filtres et la page pilotent la clé : le serveur filtre et pagine.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [invoicePage, setInvoicePage] = useState(1);
+
+  const invoicesKey = useMemo(() => {
+    if (!contractKey) return null;
+    const p = new URLSearchParams({
+      contractId: contractKey,
+      page: String(invoicePage),
+      pageSize: String(INVOICE_PAGE_SIZE),
+    });
+    if (statusFilter !== "ALL") p.set("status", statusFilter);
+    if (typeFilter !== "ALL") p.set("type", typeFilter);
+    return `/api/invoices?${p.toString()}`;
+  }, [contractKey, invoicePage, statusFilter, typeFilter]);
+
+  const { data: invoicesPage, isLoading: loadingInvoices, mutate: mutateInvoices } = useSWR<{
+    data: Invoice[];
+    total: number;
+  }>(invoicesKey, fetcher, { keepPreviousData: true });
   const { data: p3DataRaw, isLoading: loadingP3 } = useSWR<P3BalanceData>(
     contractKey ? `/api/contracts/${contractKey}/p3-balance` : null, fetcher
   );
@@ -66,13 +88,12 @@ function FinancierPageContent() {
     contractKey ? `/api/contracts/${contractKey}/sites` : null, fetcher
   );
 
-  const invoices = useMemo(() => invoicesData ?? [], [invoicesData]);
+  const invoices = useMemo(() => invoicesPage?.data ?? [], [invoicesPage]);
+  const totalInvoices = invoicesPage?.total ?? 0;
   const p3Data = p3DataRaw ?? null;
   const siteAnalytics = siteAnalyticsData ?? null;
   const contractSites = useMemo(() => contractSitesData ?? [], [contractSitesData]);
 
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [acceptingInvoiceId, setAcceptingInvoiceId] = useState<string | null>(null);
   const [refusingInvoiceId, setRefusingInvoiceId] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -174,7 +195,11 @@ function FinancierPageContent() {
       const response = await fetch(`/api/invoices/${invoiceId}/accept`, { method: "POST" });
       if (response.ok) {
         const updated: Invoice = await response.json();
-        mutateInvoices((prev) => prev?.map((i) => (i.id === invoiceId ? updated : i)), false);
+        mutateInvoices(
+          (prev) =>
+            prev && { ...prev, data: prev.data.map((i) => (i.id === invoiceId ? updated : i)) },
+          false
+        );
       }
     } catch (error) {
       console.error("Error accepting invoice:", error);
@@ -190,7 +215,11 @@ function FinancierPageContent() {
       const response = await fetch(`/api/invoices/${invoiceId}/refuse`, { method: "POST" });
       if (response.ok) {
         const updated: Invoice = await response.json();
-        mutateInvoices((prev) => prev?.map((i) => (i.id === invoiceId ? updated : i)), false);
+        mutateInvoices(
+          (prev) =>
+            prev && { ...prev, data: prev.data.map((i) => (i.id === invoiceId ? updated : i)) },
+          false
+        );
       }
     } catch (error) {
       console.error("Error refusing invoice:", error);
@@ -325,14 +354,9 @@ function FinancierPageContent() {
     });
   };
 
-  // Computed values for facturation
-  const filteredInvoices = useMemo(() => {
-    return invoices.filter((inv) => {
-      if (statusFilter !== "ALL" && inv.status !== statusFilter) return false;
-      if (typeFilter !== "ALL" && inv.type !== typeFilter) return false;
-      return true;
-    });
-  }, [invoices, statusFilter, typeFilter]);
+  // Le filtrage est fait en SQL : `invoices` est déjà la page filtrée.
+  // Retour à la première page dès qu'un filtre change.
+  useEffect(() => { setInvoicePage(1); }, [statusFilter, typeFilter]);
 
 
   // Loading
@@ -369,7 +393,11 @@ function FinancierPageContent() {
               onMouseEnter={() => {
                 if (!selectedContract) return;
                 if (tab.id === "facturation") {
-                  preload(`/api/invoices?contractId=${selectedContract.id}`, fetcher);
+                  // Doit refléter la clé construite plus haut (1re page, sans filtre).
+                  preload(
+                    `/api/invoices?contractId=${selectedContract.id}&page=1&pageSize=${INVOICE_PAGE_SIZE}`,
+                    fetcher
+                  );
                 } else if (tab.id === "decompte-p3") {
                   preload(`/api/contracts/${selectedContract.id}/p3-balance`, fetcher);
                   preload(`/api/contracts/${selectedContract.id}/site-analytics`, fetcher);
@@ -403,7 +431,10 @@ function FinancierPageContent() {
           setStatusFilter={setStatusFilter}
           typeFilter={typeFilter}
           setTypeFilter={setTypeFilter}
-          filteredInvoices={filteredInvoices}
+          invoices={invoices}
+          totalInvoices={totalInvoices}
+          currentPage={invoicePage}
+          setCurrentPage={setInvoicePage}
           handleAcceptInvoice={handleAcceptInvoice}
           handleRefuseInvoice={handleRefuseInvoice}
           acceptingInvoiceId={acceptingInvoiceId}
