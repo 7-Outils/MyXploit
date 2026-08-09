@@ -22,39 +22,39 @@ export function WorksSection({ result, duration, expandedSections, toggleSection
               onClick={() => toggleSection("mandatory")}
               className="flex items-center gap-2"
             >
-              {expandedSections.mandatory ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <AlertTriangle className="text-red-500" size={20} />
+              {expandedSections.mandatory ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <AlertTriangle className="text-red-600" size={14} />
               <span>Travaux obligatoires ({result.mandatoryWorks.length})</span>
             </button>
           }
-          subtitle={`Urgence haute ou critique - Total: ${result.summary.totalMandatoryWorksCost.toLocaleString()} €`}
+          subtitle={`Urgence haute ou critique — Total : ${result.summary.totalMandatoryWorksCost.toLocaleString()} €`}
         >
           {expandedSections.mandatory && (
-            <div className="space-y-3">
+            <div className="divide-y divide-ink/10 border-y border-ink/10">
               {result.mandatoryWorks.map((work) => (
                 <div
                   key={work.equipmentId}
-                  className="flex items-center justify-between p-4 bg-red-50 border border-red-200 rounded-lg"
+                  className="flex items-center justify-between gap-4 py-2.5"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-3 h-10 rounded ${URGENCY_CONFIG[work.urgency as keyof typeof URGENCY_CONFIG]?.bgColor || "bg-gray-300"}`} />
+                  <div className="flex items-center gap-3">
+                    <div className={`h-8 w-1 ${URGENCY_CONFIG[work.urgency as keyof typeof URGENCY_CONFIG]?.bgColor || "bg-ink/15"}`} />
                     <div>
-                      <p className="font-medium text-primary-dark">
+                      <p className="text-sm font-medium text-ink">
                         {EQUIPMENT_TYPE_LABELS[work.equipmentType] || work.equipmentType}
                       </p>
-                      <p className="text-sm text-gray-500">{work.siteName}</p>
+                      <p className="text-xs text-ink/50">{work.siteName}</p>
                       {work.notes.length > 0 && (
-                        <p className="text-xs text-red-600 mt-1">{work.notes[0]}</p>
+                        <p className="mt-0.5 text-xs text-red-600">{work.notes[0]}</p>
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg text-red-600">
-                      {work.replacementCost.toLocaleString()} €
-                    </p>
-                    <span className={`text-xs px-2 py-1 rounded ${URGENCY_CONFIG[work.urgency as keyof typeof URGENCY_CONFIG]?.color}`}>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest ${URGENCY_CONFIG[work.urgency as keyof typeof URGENCY_CONFIG]?.color}`}>
                       {URGENCY_CONFIG[work.urgency as keyof typeof URGENCY_CONFIG]?.label}
                     </span>
+                    <p className="font-mono text-base font-semibold tabular-nums text-ink">
+                      {work.replacementCost.toLocaleString()} €
+                    </p>
                   </div>
                 </div>
               ))}
@@ -71,8 +71,8 @@ export function WorksSection({ result, duration, expandedSections, toggleSection
               onClick={() => toggleSection("renewals")}
               className="flex items-center gap-2"
             >
-              {expandedSections.renewals ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
-              <Calendar className="text-purple-500" size={20} />
+              {expandedSections.renewals ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <Calendar className="text-ink/40" size={14} />
               <span>Plan de renouvellement ({result.renewals.length})</span>
             </button>
           }
@@ -80,50 +80,36 @@ export function WorksSection({ result, duration, expandedSections, toggleSection
         >
           {expandedSections.renewals && (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                      Équipement
-                    </th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                      Site
-                    </th>
-                    <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                      Année
-                    </th>
-                    <th className="text-center text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                      Urgence
-                    </th>
-                    <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                      Coût
-                    </th>
-                    <th className="text-right text-xs font-medium text-gray-500 uppercase px-4 py-3">
-                      Provision/an
-                    </th>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-ink/10">
+                    <th className="label-tech px-3 py-2 text-left font-normal">Équipement</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Site</th>
+                    <th className="label-tech px-3 py-2 text-center font-normal">Année</th>
+                    <th className="label-tech px-3 py-2 text-center font-normal">Urgence</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">Coût</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">Provision/an</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-ink/[0.06]">
                   {result.renewals.map((renewal) => (
-                    <tr key={renewal.equipmentId} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-primary-dark">
-                          {EQUIPMENT_TYPE_LABELS[renewal.equipmentType] || renewal.equipmentType}
-                        </p>
+                    <tr key={renewal.equipmentId} className="hover:bg-ink/[0.02]">
+                      <td className="px-3 py-2 font-medium text-ink">
+                        {EQUIPMENT_TYPE_LABELS[renewal.equipmentType] || renewal.equipmentType}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">{renewal.siteName}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="font-medium">{renewal.renewalYear || "-"}</span>
+                      <td className="px-3 py-2 text-ink/50">{renewal.siteName}</td>
+                      <td className="px-3 py-2 text-center font-mono tabular-nums text-ink">
+                        {renewal.renewalYear || "—"}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`text-xs px-2 py-1 rounded ${URGENCY_CONFIG[renewal.urgency as keyof typeof URGENCY_CONFIG]?.color}`}>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest ${URGENCY_CONFIG[renewal.urgency as keyof typeof URGENCY_CONFIG]?.color}`}>
                           {URGENCY_CONFIG[renewal.urgency as keyof typeof URGENCY_CONFIG]?.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right font-medium">
+                      <td className="px-3 py-2 text-right font-mono font-medium tabular-nums text-ink">
                         {renewal.replacementCost.toLocaleString()} €
                       </td>
-                      <td className="px-4 py-3 text-right text-purple-600">
+                      <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/60">
                         {renewal.annualProvision.toLocaleString()} €
                       </td>
                     </tr>

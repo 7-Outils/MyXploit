@@ -238,9 +238,9 @@ export default function SiteEnergyPage({
     return (
       <div className="p-6">
         <div className="text-center py-12">
-          <AlertTriangle className="mx-auto h-12 w-12 text-yellow-500" />
-          <h3 className="mt-4 text-lg font-medium">Site non trouvé</h3>
-          <p className="text-text-secondary">Le site demandé n&apos;existe pas ou vous n&apos;y avez pas accès.</p>
+          <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
+          <h3 className="mt-3 text-sm font-semibold text-ink">Site non trouvé</h3>
+          <p className="text-sm text-text-secondary">Le site demandé n&apos;existe pas ou vous n&apos;y avez pas accès.</p>
           <Button className="mt-4">
             <Link href="/energy?tab=sites">Retour aux sites</Link>
           </Button>
@@ -261,24 +261,24 @@ export default function SiteEnergyPage({
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-primary-dark">{site.name}</h1>
+              <h1 className="text-xl font-semibold text-ink">{site.name}</h1>
               {siteAnalytics && getStatusBadge(siteAnalytics.status)}
             </div>
-            <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary">
-              <span className="flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] uppercase tracking-widest text-ink/50">
+              <span className="flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
                 {SITE_TYPE_LABELS[site.type] || site.type}
               </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="h-4 w-4" />
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
                 {site.city} ({site.postalCode})
               </span>
-              <span className="flex items-center gap-1">
-                <Flame className="h-4 w-4" />
+              <span className="flex items-center gap-1.5">
+                <Flame className="h-3.5 w-3.5" />
                 {ENERGY_TYPE_LABELS[site.energyType] || site.energyType}
               </span>
               {site.surface && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1.5 tabular-nums">
                   {formatNumber(site.surface)} m²
                 </span>
               )}
@@ -290,7 +290,7 @@ export default function SiteEnergyPage({
           <select
             value={selectedYear.toString()}
             onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white"
+            className="border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
           >
             {yearOptions.map((year) => (
               <option key={year} value={year.toString()}>
@@ -329,7 +329,7 @@ export default function SiteEnergyPage({
       <HistoricalSection multiSeasonData={multiSeasonData} />
 
       {/* DJU and heating periods side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DJUChart siteAnalytics={siteAnalytics} siteDju={siteDju} />
         <HeatingPeriodsSection heatingSeasons={heatingSeasons} />
       </div>
@@ -343,50 +343,65 @@ export default function SiteEnergyPage({
       <ChartCard
         title={
           <span className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-accent" />
+            <Building2 className="h-3.5 w-3.5 text-ink/40" />
             Informations du site
           </span>
         }
       >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 divide-ink/10 md:grid-cols-4 md:divide-x">
           <div>
-            <p className="text-sm text-text-secondary">Adresse</p>
-            <p className="font-medium">{site.address}</p>
-            <p className="text-sm">{site.postalCode} {site.city}</p>
+            <p className="label-tech">Adresse</p>
+            <p className="text-sm font-medium text-ink">{site.address}</p>
+            <p className="font-mono text-xs tabular-nums text-ink/50">
+              {site.postalCode} {site.city}
+            </p>
           </div>
-          <div>
-            <p className="text-sm text-text-secondary">Surfaces</p>
-            <p className="font-medium">
-              {site.surface ? `${formatNumber(site.surface)} m² total` : "-"}
+          <div className="md:pl-4">
+            <p className="label-tech">Surfaces</p>
+            <p className="font-mono text-sm font-medium tabular-nums text-ink">
+              {site.surface ? `${formatNumber(site.surface)} m² total` : "—"}
             </p>
             {site.surfaceChauffee && (
-              <p className="text-sm">{formatNumber(site.surfaceChauffee)} m² chauffés</p>
+              <p className="font-mono text-xs tabular-nums text-ink/50">
+                {formatNumber(site.surfaceChauffee)} m² chauffés
+              </p>
             )}
           </div>
-          <div>
-            <p className="text-sm text-text-secondary">Station météo</p>
-            <p className="font-medium">{siteDju?.station || site.stationMeteo || "-"}</p>
+          <div className="md:pl-4">
+            <p className="label-tech">Station météo</p>
+            <p className="text-sm font-medium text-ink">
+              {siteDju?.station || site.stationMeteo || "—"}
+            </p>
             {site.djuContractuel && (
-              <p className="text-sm">DJU contractuel: {formatNumber(site.djuContractuel)}</p>
+              <p className="font-mono text-xs tabular-nums text-ink/50">
+                DJU contractuel : {formatNumber(site.djuContractuel)}
+              </p>
             )}
           </div>
-          <div>
-            <p className="text-sm text-text-secondary">Compteurs</p>
-            {site.pce && <p className="text-sm">PCE: {site.pce}</p>}
-            {site.pdl && <p className="text-sm">PDL: {site.pdl}</p>}
-            {!site.pce && !site.pdl && <p className="text-sm">-</p>}
+          <div className="md:pl-4">
+            <p className="label-tech">Compteurs</p>
+            {site.pce && (
+              <p className="font-mono text-xs tabular-nums text-ink">PCE : {site.pce}</p>
+            )}
+            {site.pdl && (
+              <p className="font-mono text-xs tabular-nums text-ink">PDL : {site.pdl}</p>
+            )}
+            {!site.pce && !site.pdl && <p className="text-sm text-ink/40">—</p>}
           </div>
         </div>
 
         {site.contractSites.length > 0 && (
           <>
-            <div className="border-t my-4" />
+            <div className="my-3 border-t border-ink/10" />
             <div>
-              <p className="text-sm text-text-secondary mb-2">Contrats associés</p>
-              <div className="flex flex-wrap gap-2">
+              <p className="label-tech mb-1.5">Contrats associés</p>
+              <div className="flex flex-wrap gap-1.5">
                 {site.contractSites.map((cs) => (
-                  <span key={cs.contract.id} className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                    {cs.contract.reference} - {cs.contract.title}
+                  <span
+                    key={cs.contract.id}
+                    className="border border-ink/10 px-2 py-0.5 text-xs text-ink/70"
+                  >
+                    {cs.contract.reference} — {cs.contract.title}
                   </span>
                 ))}
               </div>

@@ -61,8 +61,8 @@ export default function ContractMontantsTab({ contractId }: { contractId: string
 
   if (!data || data.sites.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-        <p className="text-text-secondary">Aucun site rattaché au contrat</p>
+      <div className="panel p-8 text-center">
+        <p className="text-sm text-ink/50">Aucun site rattaché au contrat</p>
       </div>
     );
   }
@@ -72,13 +72,13 @@ export default function ContractMontantsTab({ contractId }: { contractId: string
   return (
     <div className="space-y-4">
       {/* Sélecteur P */}
-      <div className="inline-flex bg-gray-100 rounded-lg p-1">
+      <div className="inline-flex border border-ink/20">
         {(["P1", "P2", "P3"] as PType[]).map((p) => (
           <button
             key={p}
             onClick={() => setSelectedP(p)}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${
-              selectedP === p ? "bg-white shadow text-primary-dark font-medium" : "text-text-secondary hover:text-primary-dark"
+            className={`px-4 py-1.5 font-mono text-xs uppercase tracking-widest transition-colors ${
+              selectedP === p ? "bg-accent/5 text-accent" : "text-ink/50 hover:text-accent"
             }`}
           >
             {p}
@@ -88,55 +88,55 @@ export default function ContractMontantsTab({ contractId }: { contractId: string
 
       {/* Tableau */}
       {sitesWithP.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
-          <p className="text-text-secondary">Aucun site avec un forfait {selectedP}</p>
+        <div className="panel p-8 text-center">
+          <p className="text-sm text-ink/50">Aucun site avec un forfait {selectedP}</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="panel overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="border-b border-ink/10">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Site</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Site</th>
                   {years.map((y) => (
-                    <th key={y} className="px-4 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    <th key={y} className="label-tech whitespace-nowrap px-4 py-2.5 text-right">
                       {y}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-ink/10">
                 {sitesWithP.map((s) => (
-                  <tr key={s.contractSiteId} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{s.siteName}</div>
-                      {s.siteCity && <div className="text-xs text-gray-500">{s.siteCity}</div>}
+                  <tr key={s.contractSiteId} className="hover:bg-ink/[0.02]">
+                    <td className="px-4 py-2.5">
+                      <div className="font-medium text-ink">{s.siteName}</div>
+                      {s.siteCity && <div className="text-xs text-ink/50">{s.siteCity}</div>}
                     </td>
                     {years.map((y, i) => {
                       const val = s.amountsByP[selectedP][y];
                       const prev = i > 0 ? s.amountsByP[selectedP][years[i - 1]] : null;
                       const delta = formatDelta(prev, val);
                       return (
-                        <td key={y} className="px-4 py-3 text-right">
-                          <div className="font-medium text-gray-900">{formatEuro(val)}</div>
-                          {delta && <div className="text-xs text-gray-400">{delta}</div>}
+                        <td key={y} className="px-4 py-2.5 text-right">
+                          <div className="font-mono tabular-nums text-ink">{formatEuro(val)}</div>
+                          {delta && <div className="font-mono tabular-nums text-xs text-ink/40">{delta}</div>}
                         </td>
                       );
                     })}
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+              <tfoot className="border-t border-ink/20">
                 <tr>
-                  <td className="px-4 py-3 font-semibold text-gray-900">Total</td>
+                  <td className="label-tech px-4 py-2.5">Total</td>
                   {years.map((y, i) => {
                     const val = totalsByP[selectedP][y];
                     const prev = i > 0 ? totalsByP[selectedP][years[i - 1]] : null;
                     const delta = formatDelta(prev, val);
                     return (
-                      <td key={y} className="px-4 py-3 text-right">
-                        <div className="font-semibold text-gray-900">{formatEuro(val)}</div>
-                        {delta && <div className="text-xs text-gray-500">{delta}</div>}
+                      <td key={y} className="px-4 py-2.5 text-right">
+                        <div className="font-mono tabular-nums font-semibold text-ink">{formatEuro(val)}</div>
+                        {delta && <div className="font-mono tabular-nums text-xs text-ink/50">{delta}</div>}
                       </td>
                     );
                   })}
@@ -147,7 +147,7 @@ export default function ContractMontantsTab({ contractId }: { contractId: string
         </div>
       )}
 
-      <p className="text-xs text-text-secondary">
+      <p className="text-xs text-ink/50">
         Les montants affichés sont ceux applicables au 1<sup>er</sup> janvier de chaque année (dernière révision en vigueur à cette date, ou forfait initial P₀ si aucune révision).
       </p>
     </div>

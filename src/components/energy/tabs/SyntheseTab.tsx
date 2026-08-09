@@ -40,8 +40,8 @@ export function SyntheseContent({
     return (
       <ChartCard title="">
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <BarChart3 className="w-12 h-12 text-gray-300 mb-3" />
-          <p className="text-text-secondary mb-4">Aucune donnée de consommation</p>
+          <BarChart3 className="w-8 h-8 text-ink/25 mb-3" />
+          <p className="text-sm text-ink/60 mb-4">Aucune donnée de consommation</p>
           <div className="flex gap-2 flex-wrap justify-center">
             <Button variant="outline" onClick={() => router.push("/energy/import")}>
               <Flame size={18} className="mr-2" />
@@ -58,20 +58,18 @@ export function SyntheseContent({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <StatsCard
           title="NC (Conso. réelle)"
           value={`${(analytics.summary.totalNc / 1000).toFixed(0)} MWh`}
           icon={Flame}
-          iconColor="text-orange-600"
         />
         <StatsCard
           title="N'B (Théorique)"
           value={`${(analytics.summary.totalNbPrime / 1000).toFixed(0)} MWh`}
           icon={ThermometerSun}
-          iconColor="text-blue-600"
         />
         <StatsCard
           title="Écart NC/N'B"
@@ -79,13 +77,11 @@ export function SyntheseContent({
           change={analytics.summary.status === "ECONOMIE" ? "Économie" : analytics.summary.status === "DEPASSEMENT" ? "Dépassement" : "Objectif atteint"}
           changeType={analytics.summary.deltaPercent <= 0 ? "positive" : "negative"}
           icon={analytics.summary.deltaPercent <= 0 ? TrendingDown : TrendingUp}
-          iconColor={analytics.summary.deltaPercent <= 0 ? "text-green-600" : "text-red-600"}
         />
         <StatsCard
           title="Sites en économie"
           value={`${analytics.summary.sitesEnEconomie}/${analytics.summary.totalSites}`}
           icon={Building2}
-          iconColor="text-accent"
           onClick={() => toggleStatus("ECONOMIE")}
           active={statusFilter === "ECONOMIE"}
         />
@@ -97,7 +93,6 @@ export function SyntheseContent({
           }
           changeType={analytics.summary.sitesEnDepassement > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
-          iconColor="text-red-600"
           onClick={() => toggleStatus("DEPASSEMENT")}
           active={statusFilter === "DEPASSEMENT"}
         />
@@ -119,7 +114,7 @@ export function SyntheseContent({
               <button
                 type="button"
                 onClick={() => setStatusFilter(null)}
-                className="text-xs text-accent hover:underline"
+                className="font-mono text-[11px] uppercase tracking-widest text-ink/50 transition-colors hover:text-accent"
               >
                 Réinitialiser
               </button>
@@ -127,19 +122,19 @@ export function SyntheseContent({
           }
         >
           {/* Mobile: liste de cards */}
-          <div className="md:hidden -mx-6 -mb-6 -mt-2 divide-y divide-gray-100">
+          <div className="md:hidden -mx-4 -mb-4 -mt-2 divide-y divide-ink/[0.06]">
             {analytics.sites
               .filter((site) => site.nb != null)
               .filter((site) => statusFilter == null || site.status === statusFilter)
               .map((site) => {
                 const statusBg =
                   site.status === "ECONOMIE"
-                    ? "bg-green-100 text-green-700"
+                    ? "bg-green-50 text-green-700 border border-green-600/20"
                     : site.status === "DEPASSEMENT"
-                    ? "bg-red-100 text-red-700"
+                    ? "bg-red-50 text-red-700 border border-red-600/20"
                     : site.status === "INCOMPLET"
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-blue-100 text-blue-700";
+                    ? "bg-amber-50 text-amber-700 border border-amber-600/20"
+                    : "bg-ink/[0.04] text-ink/60 border border-ink/15";
                 const statusLabel =
                   site.status === "ECONOMIE"
                     ? "Économie"
@@ -150,7 +145,7 @@ export function SyntheseContent({
                     : "Objectif";
                 const deltaColor =
                   site.status === "INCOMPLET"
-                    ? "text-gray-400"
+                    ? "text-ink/40"
                     : site.deltaPercent <= 0
                     ? "text-green-600"
                     : "text-red-600";
@@ -158,32 +153,32 @@ export function SyntheseContent({
                   <Link
                     key={site.siteId}
                     href={`/energy/sites/${site.siteId}`}
-                    className="block px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="block px-4 py-2 transition-colors hover:bg-ink/[0.02]"
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className="font-medium text-primary-dark text-sm leading-snug flex-1 min-w-0 truncate">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <span className="font-medium text-ink text-sm leading-snug flex-1 min-w-0 truncate">
                         {site.siteName}
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${statusBg}`}>
+                      <span className={`font-mono text-[11px] uppercase tracking-widest px-1.5 py-0.5 whitespace-nowrap ${statusBg}`}>
                         {statusLabel}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                    <div className="grid grid-cols-3 gap-2 text-[11px] divide-x divide-ink/10">
                       <div>
-                        <p className="text-text-secondary uppercase tracking-wide text-[9px]">NC</p>
-                        <p className="font-medium text-primary-dark">
-                          {(site.nc / 1000).toFixed(1)} <span className="text-text-secondary">MWh</span>
+                        <p className="label-tech">NC</p>
+                        <p className="font-mono tabular-nums font-medium text-ink">
+                          {(site.nc / 1000).toFixed(1)} <span className="text-ink/50">MWh</span>
                         </p>
                       </div>
-                      <div>
-                        <p className="text-text-secondary uppercase tracking-wide text-[9px]">N&apos;B</p>
-                        <p className="text-gray-600">
-                          {(site.nbPrime / 1000).toFixed(1)} <span className="text-text-secondary">MWh</span>
+                      <div className="pl-2">
+                        <p className="label-tech">N&apos;B</p>
+                        <p className="font-mono tabular-nums text-ink/70">
+                          {(site.nbPrime / 1000).toFixed(1)} <span className="text-ink/50">MWh</span>
                         </p>
                       </div>
-                      <div>
-                        <p className="text-text-secondary uppercase tracking-wide text-[9px]">Écart</p>
-                        <p className={`font-medium ${deltaColor}`}>
+                      <div className="pl-2">
+                        <p className="label-tech">Écart</p>
+                        <p className={`font-mono tabular-nums font-medium ${deltaColor}`}>
                           {site.status === "INCOMPLET"
                             ? "—"
                             : `${site.deltaPercent > 0 ? "+" : ""}${site.deltaPercent}%`}
@@ -196,36 +191,36 @@ export function SyntheseContent({
           </div>
 
           {/* Desktop: table classique */}
-          <div className="hidden md:block overflow-x-auto -mx-6 -my-6">
+          <div className="hidden md:block overflow-x-auto -mx-4 -my-4">
             <table className="w-full">
-              <thead className="bg-background-secondary border-b border-gray-100">
+              <thead className="border-b border-ink/10">
                 <tr>
-                  <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Site</th>
+                  <th className="label-tech px-3 py-2 font-normal text-left">Site</th>
 
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NB (MWh)</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">DJC</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">DJR</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">NC (MWh)</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">N&apos;B (MWh)</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Écart</th>
-                  <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Status</th>
-                  <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-6 py-3">Action</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">NB (MWh)</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">DJC</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">DJR</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">NC (MWh)</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">N&apos;B (MWh)</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">Écart</th>
+                  <th className="label-tech px-3 py-2 font-normal text-center">Status</th>
+                  <th className="label-tech px-3 py-2 font-normal text-center">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-ink/[0.06]">
                 {analytics.sites
                   .filter((site) => site.nb != null)
                   .filter((site) => statusFilter == null || site.status === statusFilter)
                   .map((site) => (
-                  <tr key={site.siteId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
+                  <tr key={site.siteId} className="hover:bg-ink/[0.02]">
+                    <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-primary-dark">{site.siteName}</span>
+                        <span className="text-sm font-medium text-ink">{site.siteName}</span>
                         <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          className={`font-mono text-[11px] uppercase tracking-widest px-1.5 py-0.5 ${
                             site.dataSource === "TELERELEVE"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-600"
+                              ? "border border-accent/25 text-accent"
+                              : "border border-ink/15 text-ink/50"
                           }`}
                         >
                           {site.dataSource === "TELERELEVE" ? "Télérelève" : "Manuel"}
@@ -233,48 +228,48 @@ export function SyntheseContent({
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 text-right text-gray-600">
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-sm text-ink/70">
                       {site.nb ? (site.nb).toLocaleString("fr-FR") : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right text-xs text-gray-500">
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-xs text-ink/50">
                       {site._debug?.usedDjuc ?? "—"}
                     </td>
-                    <td className="px-6 py-4 text-right text-xs text-gray-500">
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-xs text-ink/50">
                       {site._debug?.djrTotal ?? "—"}
                     </td>
-                    <td className="px-6 py-4 text-right font-medium">{(site.nc / 1000).toFixed(1)}</td>
-                    <td className="px-6 py-4 text-right text-gray-600">
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-sm font-medium text-ink">{(site.nc / 1000).toFixed(1)}</td>
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-sm text-ink/70">
                       <div className="flex items-center justify-end gap-1">
                         <span>{(site.nbPrime / 1000).toFixed(1)}</span>
                         {site._debug && !site._debug.calculationApplied && (
                           <span className="group relative">
-                            <Info size={14} className="text-amber-500 cursor-help" />
-                            <span className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-gray-900 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-10">
+                            <Info size={14} className="text-amber-600 cursor-help" />
+                            <span className="absolute right-0 bottom-full mb-1 hidden group-hover:block bg-ink text-paper text-xs px-2 py-1 whitespace-nowrap z-10 shadow-large">
                               N&apos;B non ajusté : DJR={site._debug.djrTotal}, DJUC={site._debug.usedDjuc || 0}
                             </span>
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className={`px-6 py-4 text-right font-medium ${
+                    <td className={`px-3 py-2 text-right font-mono tabular-nums text-sm font-medium ${
                       site.status === "INCOMPLET"
-                        ? "text-gray-400"
+                        ? "text-ink/40"
                         : site.deltaPercent <= 0 ? "text-green-600" : "text-red-600"
                     }`}>
                       {site.status === "INCOMPLET"
                         ? "—"
                         : `${site.deltaPercent > 0 ? "+" : ""}${site.deltaPercent}%`}
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-3 py-2 text-center">
                       <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
+                        className={`inline-block font-mono text-[11px] uppercase tracking-widest px-1.5 py-0.5 ${
                           site.status === "ECONOMIE"
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-green-50 text-green-700 border border-green-600/20"
                             : site.status === "DEPASSEMENT"
-                            ? "bg-red-100 text-red-700"
+                            ? "bg-red-50 text-red-700 border border-red-600/20"
                             : site.status === "INCOMPLET"
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-blue-100 text-blue-700"
+                            ? "bg-amber-50 text-amber-700 border border-amber-600/20"
+                            : "bg-ink/[0.04] text-ink/60 border border-ink/15"
                         }`}
                       >
                         {site.status === "ECONOMIE"
@@ -286,12 +281,12 @@ export function SyntheseContent({
                           : "Objectif"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-3 py-2 text-center">
                       <Link
                         href={`/energy/sites/${site.siteId}`}
-                        className="inline-flex items-center gap-1 text-accent hover:underline text-sm"
+                        title="Détail du site"
+                        className="inline-flex h-9 w-9 items-center justify-center border border-ink/20 text-ink/60 transition-colors hover:border-accent hover:text-accent"
                       >
-                        Détail
                         <ExternalLink size={14} />
                       </Link>
                     </td>
@@ -306,30 +301,30 @@ export function SyntheseContent({
       {/* Alerts */}
       {activeAlerts.length > 0 && (
         <ChartCard title="Alertes dérives actives">
-          <div className="space-y-4">
+          <div className="-mx-4 -my-4 divide-y divide-ink/[0.06]">
             {activeAlerts.slice(0, 5).map((alert) => (
               <div
                 key={alert.id}
-                className={`p-4 rounded-lg border-l-4 ${
+                className={`px-4 py-2 border-l-2 ${
                   alert.priority === "CRITIQUE"
-                    ? "bg-red-50 border-red-500"
+                    ? "border-l-red-600"
                     : alert.priority === "HAUTE"
-                    ? "bg-yellow-50 border-yellow-500"
-                    : "bg-blue-50 border-blue-500"
+                    ? "border-l-amber-600"
+                    : "border-l-ink/25"
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium text-primary-dark">{alert.title}</p>
-                    <p className="text-sm text-text-secondary">{alert.message}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">{alert.title}</p>
+                    <p className="text-xs text-ink/60">{alert.message}</p>
                   </div>
                   <span
-                    className={`text-xs font-bold px-2 py-1 rounded ${
+                    className={`shrink-0 font-mono text-[11px] uppercase tracking-widest px-1.5 py-0.5 ${
                       alert.priority === "CRITIQUE"
-                        ? "bg-red-100 text-red-600"
+                        ? "bg-red-50 text-red-700 border border-red-600/20"
                         : alert.priority === "HAUTE"
-                        ? "bg-yellow-100 text-yellow-600"
-                        : "bg-blue-100 text-blue-600"
+                        ? "bg-amber-50 text-amber-700 border border-amber-600/20"
+                        : "bg-ink/[0.04] text-ink/60 border border-ink/15"
                     }`}
                   >
                     {alert.priority}

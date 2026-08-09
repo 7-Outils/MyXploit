@@ -16,7 +16,7 @@ import {
   Send,
   Pencil,
 } from "lucide-react";
-import { ROLE_LABELS, ROLE_COLORS, ASSIGNABLE_ROLES } from "@/lib/permissions";
+import { ROLE_LABELS, ASSIGNABLE_ROLES } from "@/lib/permissions";
 
 interface Organization {
   id: string;
@@ -242,22 +242,22 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/admin"
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink"
           >
-            <ArrowLeft size={20} className="text-gray-600" />
+            <ArrowLeft size={20} className="text-text-secondary" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl font-semibold text-ink">
               Gestion des utilisateurs
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="mt-1 text-sm text-text-secondary">
               Créer et gérer les comptes utilisateurs
             </p>
           </div>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+          className="flex items-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent"
         >
           <Plus size={20} />
           Nouvel utilisateur
@@ -266,101 +266,91 @@ export default function AdminUsersPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Users size={20} className="text-blue-600" />
-            </div>
+            <Users size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-              <p className="text-sm text-gray-600">Utilisateurs</p>
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">{users.length}</p>
+              <p className="text-sm text-text-secondary">Utilisateurs</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-              <Building2 size={20} className="text-green-600" />
-            </div>
+            <Building2 size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">{organizations.length}</p>
-              <p className="text-sm text-gray-600">Organisations</p>
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">{organizations.length}</p>
+              <p className="text-sm text-text-secondary">Organisations</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Check size={20} className="text-purple-600" />
-            </div>
+            <Check size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">
                 {users.filter((u) => u.password).length}
               </p>
-              <p className="text-sm text-gray-600">Comptes activés</p>
+              <p className="text-sm text-text-secondary">Comptes activés</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-              <Clock size={20} className="text-amber-600" />
-            </div>
+            <Clock size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">
                 {users.filter((u) => !u.password).length}
               </p>
-              <p className="text-sm text-gray-600">En attente</p>
+              <p className="text-sm text-text-secondary">En attente</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <div className="border border-ink/10 bg-white">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className="bg-ink/[0.015]">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+              <th className="label-tech px-4 py-2.5 text-left">
                 Utilisateur
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+              <th className="label-tech px-4 py-2.5 text-left">
                 Organisation
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+              <th className="label-tech px-4 py-2.5 text-left">
                 Rôle
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">
+              <th className="label-tech px-4 py-2.5 text-left">
                 Statut
               </th>
-              <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">
+              <th className="label-tech px-4 py-2.5 text-right">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-ink/10">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
+              <tr key={user.id} className="hover:bg-ink/[0.02]">
                 <td className="px-4 py-3">
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-ink">
                       {user.firstName || user.lastName
                         ? `${user.firstName || ""} ${user.lastName || ""}`.trim()
                         : "—"}
                     </p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
+                    <p className="text-sm text-ink/50">{user.email}</p>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-sm text-gray-700">
+                  <span className="text-sm text-ink">
                     {user.organization.name}
                   </span>
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      ROLE_COLORS[user.role]
-                    }`}
+                    className="font-mono text-[11px] uppercase tracking-widest text-ink/50"
                   >
                     {ROLE_LABELS[user.role]}
                   </span>
@@ -382,7 +372,7 @@ export default function AdminUsersPage() {
                   <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => handleEditUser(user)}
-                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                       title="Modifier"
                     >
                       <Pencil size={16} />
@@ -391,7 +381,7 @@ export default function AdminUsersPage() {
                       <button
                         onClick={() => handleResendInvitation(user.id)}
                         disabled={resending === user.id}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:opacity-50"
                         title="Renvoyer l'invitation"
                       >
                         {resending === user.id ? (
@@ -403,7 +393,7 @@ export default function AdminUsersPage() {
                     )}
                     <button
                       onClick={() => handleDeleteUser(user.id, user.email)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
                       title="Supprimer"
                     >
                       <Trash2 size={16} />
@@ -414,7 +404,7 @@ export default function AdminUsersPage() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-ink/50">
                   Aucun utilisateur
                 </td>
               </tr>
@@ -425,13 +415,13 @@ export default function AdminUsersPage() {
 
       {/* Modal création */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Nouvel utilisateur</h2>
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-md mx-4 border border-ink/15 bg-white shadow-large">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="label-tech">Nouvel utilisateur</h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink"
               >
                 <X size={20} />
               </button>
@@ -439,19 +429,19 @@ export default function AdminUsersPage() {
 
             <form onSubmit={handleCreateUser} className="p-4 space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
+                <div className="border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Email *
                 </label>
                 <div className="relative">
                   <Mail
                     size={16}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40"
                   />
                   <input
                     type="email"
@@ -460,18 +450,18 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink/30 focus:border-accent focus:outline-none"
                     placeholder="email@exemple.com"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-ink/50 mt-1">
                   L&apos;utilisateur recevra un email pour se connecter
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Prénom
                   </label>
                   <input
@@ -480,11 +470,11 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, firstName: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Nom
                   </label>
                   <input
@@ -493,13 +483,13 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, lastName: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Rôle
                 </label>
                 <select
@@ -510,7 +500,7 @@ export default function AdminUsersPage() {
                       role: e.target.value as User["role"],
                     })
                   }
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 >
                   {ASSIGNABLE_ROLES.map((role) => (
                     <option key={role} value={role}>
@@ -521,7 +511,7 @@ export default function AdminUsersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Organisation
                 </label>
                 <select
@@ -533,7 +523,7 @@ export default function AdminUsersPage() {
                       newOrgName: e.target.value === "new" ? formData.newOrgName : "",
                     })
                   }
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 >
                   <option value="">Sélectionner...</option>
                   {organizations.map((org) => (
@@ -547,7 +537,7 @@ export default function AdminUsersPage() {
 
               {formData.organizationId === "new" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Nom de la nouvelle organisation
                   </label>
                   <input
@@ -557,7 +547,7 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, newOrgName: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                     placeholder="Nom de l'organisation"
                   />
                 </div>
@@ -567,14 +557,14 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex-1 border border-ink/20 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex flex-1 items-center justify-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50"
                 >
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   Créer
@@ -587,16 +577,16 @@ export default function AdminUsersPage() {
 
       {/* Modal édition */}
       {showEditModal && editingUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Modifier l&apos;utilisateur</h2>
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-md mx-4 border border-ink/15 bg-white shadow-large">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="label-tech">Modifier l&apos;utilisateur</h2>
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingUser(null);
                 }}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink"
               >
                 <X size={20} />
               </button>
@@ -604,19 +594,19 @@ export default function AdminUsersPage() {
 
             <form onSubmit={handleUpdateUser} className="p-4 space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
+                <div className="border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
 
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium text-gray-900">{editingUser.email}</p>
+              <div className="p-3 bg-ink/[0.015]">
+                <p className="text-sm text-text-secondary">Email</p>
+                <p className="font-medium text-ink">{editingUser.email}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Prénom
                   </label>
                   <input
@@ -625,11 +615,11 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, firstName: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Nom
                   </label>
                   <input
@@ -638,13 +628,13 @@ export default function AdminUsersPage() {
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, lastName: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Rôle
                 </label>
                 <select
@@ -655,7 +645,7 @@ export default function AdminUsersPage() {
                       role: e.target.value as User["role"],
                     })
                   }
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 >
                   {ASSIGNABLE_ROLES.map((role) => (
                     <option key={role} value={role}>
@@ -666,7 +656,7 @@ export default function AdminUsersPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Organisation
                 </label>
                 <select
@@ -677,7 +667,7 @@ export default function AdminUsersPage() {
                       organizationId: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 >
                   {organizations.map((org) => (
                     <option key={org.id} value={org.id}>
@@ -694,14 +684,14 @@ export default function AdminUsersPage() {
                     setShowEditModal(false);
                     setEditingUser(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex-1 border border-ink/20 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex flex-1 items-center justify-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50"
                 >
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   Enregistrer

@@ -19,45 +19,36 @@ export default function CorrectiveActions({ actions }: CorrectiveActionsProps) {
     <ChartCard
       title={
         <span className="flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-accent" />
+          <AlertCircle className="h-3.5 w-3.5 text-ink/40" />
           Actions et recommandations
         </span>
       }
     >
       {actions.length > 0 ? (
-        <div className="space-y-3">
+        <div className="divide-y divide-ink/10 border-y border-ink/10">
           {actions.map((action) => (
-            <div
-              key={action.id}
-              className={`flex items-start gap-3 p-4 rounded-lg border ${
-                action.type === "warning"
-                  ? "bg-red-50 border-red-200"
-                  : action.type === "success"
-                    ? "bg-green-50 border-green-200"
-                    : action.type === "action"
-                      ? "bg-amber-50 border-amber-200"
-                      : "bg-blue-50 border-blue-200"
-              }`}
-            >
+            <div key={action.id} className="flex items-start gap-3 py-2.5">
               <div className="mt-0.5">
                 {action.type === "warning" ? (
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
                 ) : action.type === "success" ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
                 ) : action.type === "action" ? (
-                  <Wrench className="h-5 w-5 text-amber-500" />
+                  <Wrench className="h-4 w-4 text-amber-600" />
                 ) : (
-                  <Info className="h-5 w-5 text-blue-500" />
+                  <Info className="h-4 w-4 text-ink/40" />
                 )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h4 className="font-medium">{action.title}</h4>
+                  <h4 className="text-sm font-medium text-ink">{action.title}</h4>
                   {action.priority === "high" && (
-                    <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">Prioritaire</span>
+                    <span className="border border-red-600/20 bg-red-50 px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest text-red-700">
+                      Prioritaire
+                    </span>
                   )}
                 </div>
-                <p className="text-sm text-text-secondary mt-1">
+                <p className="mt-0.5 text-sm text-text-secondary">
                   {action.description}
                 </p>
               </div>
@@ -66,8 +57,8 @@ export default function CorrectiveActions({ actions }: CorrectiveActionsProps) {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-8 text-center">
-          <CheckCircle2 className="h-12 w-12 text-green-500 mb-3" />
-          <p className="font-medium">Tout est en ordre</p>
+          <CheckCircle2 className="mb-2 h-6 w-6 text-green-600" />
+          <p className="text-sm font-medium text-ink">Tout est en ordre</p>
           <p className="text-sm text-text-secondary">
             Aucune action corrective nécessaire pour ce site.
           </p>

@@ -35,13 +35,26 @@ export function toMWh(kWh: number): string {
 }
 
 export function getStatusBadge(status: string): JSX.Element {
-  const base = "px-2 py-1 rounded-full text-xs font-medium";
+  const base =
+    "px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest border";
   switch (status) {
     case "ECONOMIE":
-      return <span className={`${base} bg-green-100 text-green-800`}>Économie</span>;
+      return (
+        <span className={`${base} border-green-600/20 bg-green-50 text-green-700`}>
+          Économie
+        </span>
+      );
     case "DEPASSEMENT":
-      return <span className={`${base} bg-red-100 text-red-800`}>Dépassement</span>;
+      return (
+        <span className={`${base} border-red-600/20 bg-red-50 text-red-700`}>
+          Dépassement
+        </span>
+      );
     default:
-      return <span className={`${base} bg-blue-100 text-blue-800`}>Objectif atteint</span>;
+      return (
+        <span className={`${base} border-ink/15 bg-white text-ink/60`}>
+          Objectif atteint
+        </span>
+      );
   }
 }

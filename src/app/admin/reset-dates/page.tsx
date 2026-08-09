@@ -45,17 +45,20 @@ export default function ResetDatesPage() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-2xl">
-      <div className="bg-white rounded-lg shadow-lg border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">Réinitialiser les dates de chauffage</h1>
-          <p className="mt-2 text-sm text-gray-600">
+      <div className="border border-ink/10 bg-white">
+        <div className="border-b border-ink/10 px-4 py-2.5">
+          <span className="label-tech">Maintenance · Saisons de chauffage</span>
+        </div>
+        <div className="border-b border-ink/10 p-4">
+          <h1 className="text-xl font-semibold text-ink">Réinitialiser les dates de chauffage</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Cette action réinitialise les dates d'allumage et d'arrêt de toutes les saisons de chauffage.
             Les engagements (NB, APE) seront préservés.
           </p>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <div className="p-4 space-y-4">
+          <div className="border border-amber-600/20 bg-amber-50 p-4">
             <p className="text-sm text-amber-800">
               <strong>Attention :</strong> Cette action va :
             </p>
@@ -73,22 +76,22 @@ export default function ResetDatesPage() {
           <button
             onClick={handleReset}
             disabled={loading}
-            className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            className="w-full border border-red-600/30 px-6 py-2.5 text-sm font-medium text-red-700 transition-colors hover:border-red-600 hover:bg-red-50 disabled:opacity-50"
           >
             {loading ? "Réinitialisation en cours..." : "Réinitialiser les dates"}
           </button>
 
           {result && (
-            <div className={`rounded-lg p-4 ${result.success ? "bg-blue-50 border border-blue-200" : "bg-red-50 border border-red-200"}`}>
-              <p className={`text-sm ${result.success ? "text-blue-800" : "text-red-800"}`}>
+            <div className={`p-4 ${result.success ? "border border-accent/20 bg-accent/5" : "border border-red-600/20 bg-red-50"}`}>
+              <p className={`text-sm ${result.success ? "text-ink" : "text-red-700"}`}>
                 {result.message}
               </p>
             </div>
           )}
 
           {result?.success && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-green-800 font-medium">✅ Étape suivante :</p>
+            <div className="border border-green-600/20 bg-green-50 p-4">
+              <p className="font-mono text-[11px] uppercase tracking-widest text-green-700">Étape suivante</p>
               <p className="text-sm text-green-800 mt-2">
                 Allez dans <strong>Consommations → Importer</strong> et réimportez votre fichier Excel IDEX
                 pour redéfinir les dates d'allumage selon les marqueurs MISE_EN_MARCHE.

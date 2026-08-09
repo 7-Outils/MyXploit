@@ -423,20 +423,20 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
       {/* Toolbar */}
       <div className="flex items-center gap-3 flex-wrap mb-6">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
           <input
             type="text"
             placeholder="Rechercher un site..."
             value={siteSearch}
             onChange={(e) => setSiteSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-ink/20 focus:border-accent focus:outline-none"
           />
         </div>
-        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-          <button onClick={() => setSiteViewMode("grid")} className={`p-2 transition-colors ${siteViewMode === "grid" ? "bg-accent text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+        <div className="flex items-center border border-ink/10 overflow-hidden">
+          <button onClick={() => setSiteViewMode("grid")} className={`p-2 transition-colors ${siteViewMode === "grid" ? "bg-ink text-paper" : "text-ink/50 hover:bg-ink/[0.02]"}`}>
             <LayoutGrid size={16} />
           </button>
-          <button onClick={() => setSiteViewMode("list")} className={`p-2 transition-colors ${siteViewMode === "list" ? "bg-accent text-white" : "text-gray-500 hover:bg-gray-50"}`}>
+          <button onClick={() => setSiteViewMode("list")} className={`p-2 transition-colors ${siteViewMode === "list" ? "bg-ink text-paper" : "text-ink/50 hover:bg-ink/[0.02]"}`}>
             <List size={16} />
           </button>
         </div>
@@ -452,9 +452,9 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
       </div>
 
       {contract.contractSites.length === 0 ? (
-        <div className="text-center py-12">
-          <Building2 size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-text-secondary mb-4">Aucun site rattaché à ce contrat</p>
+        <div className="text-center py-10">
+          <Building2 size={32} className="mx-auto text-ink/25 mb-3" />
+          <p className="text-sm text-ink/50 mb-4">Aucun site rattaché à ce contrat</p>
           <div className="flex gap-3 justify-center">
             <Button variant="outline" onClick={openImportModal}>
               <Upload size={18} className="mr-2" />
@@ -471,66 +471,66 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
           {filteredContractSites.map((contractSite: ContractSite) => {
             const site = contractSite.site;
             return (
-              <div key={site.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-accent/20 transition-all group">
+              <div key={site.id} className="panel p-4 transition-colors hover:border-accent/40 group">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1 min-w-0">
                     <Link href={`/buildings/${site.id}`}>
-                      <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-accent transition-colors cursor-pointer">
+                      <h3 className="text-sm font-semibold text-ink truncate group-hover:text-accent transition-colors cursor-pointer">
                         {site.name}
                       </h3>
                     </Link>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <MapPin size={12} className="text-gray-400 flex-shrink-0" />
-                      <span className="text-xs text-gray-500 truncate">{site.city} ({site.postalCode})</span>
+                      <MapPin size={12} className="text-ink/40 flex-shrink-0" />
+                      <span className="text-xs text-ink/50 truncate">{site.city} ({site.postalCode})</span>
                     </div>
                   </div>
                   {contractSite.contractType && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent font-medium ml-2">{contractSite.contractType}</span>
+                    <span className="ml-2 border border-accent/20 bg-accent/5 px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest text-accent">{contractSite.contractType}</span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="flex items-center gap-2">
-                    <Flame size={14} className="text-gray-400" />
-                    <span className="text-xs text-gray-600">{site.energyType || "—"}</span>
+                    <Flame size={14} className="text-ink/40" />
+                    <span className="text-xs text-ink/60">{site.energyType || "—"}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Building2 size={14} className="text-gray-400" />
-                    <span className="text-xs text-gray-600">{site.surfaceChauffee || site.surface ? `${(site.surfaceChauffee || site.surface)?.toLocaleString()} m²` : "—"}</span>
+                    <Building2 size={14} className="text-ink/40" />
+                    <span className="text-xs text-ink/60">{site.surfaceChauffee || site.surface ? `${(site.surfaceChauffee || site.surface)?.toLocaleString()} m²` : "—"}</span>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3 text-[10px]">
                   {contractSite.coefficientPCS != null && (
-                    <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-medium" title="Coefficient PCS (kWh/m³) — conversion gaz">
+                    <span className="border border-ink/15 px-2 py-0.5 font-mono tabular-nums text-ink/60" title="Coefficient PCS (kWh/m³) — conversion gaz">
                       PCS {contractSite.coefficientPCS}
                     </span>
                   )}
                   {contractSite.coefficientQ != null && (
-                    <span className="px-2 py-0.5 rounded bg-sky-50 text-sky-700 font-medium" title="Coefficient Q (MWh/m³) — conversion ECS">
+                    <span className="border border-accent/20 px-2 py-0.5 font-mono tabular-nums text-accent" title="Coefficient Q (MWh/m³) — conversion ECS">
                       qECS {contractSite.coefficientQ}
                     </span>
                   )}
                   {site.djuContractuel != null && (
-                    <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium" title="DJU contractuel">
+                    <span className="border border-ink/15 px-2 py-0.5 font-mono tabular-nums text-ink/60" title="DJU contractuel">
                       DJC {site.djuContractuel}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                <div className="flex items-center justify-between pt-3 border-t border-ink/10">
                   <div className="flex gap-1">
-                    {contractSite.hasP1 && <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600 font-medium">P1</span>}
-                    {contractSite.hasP2 && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">P2</span>}
-                    {contractSite.hasP3 && <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">P3</span>}
-                    {contractSite.hasP4 && <span className="text-xs px-1.5 py-0.5 rounded bg-purple-50 text-purple-600 font-medium">P4</span>}
+                    {contractSite.hasP1 && <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-ink/60">P1</span>}
+                    {contractSite.hasP2 && <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-ink/60">P2</span>}
+                    {contractSite.hasP3 && <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-ink/60">P3</span>}
+                    {contractSite.hasP4 && <span className="border border-accent/20 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-accent">P4</span>}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => openEditContractSiteModal(contractSite)} className="p-1 text-gray-400 hover:text-accent rounded" title="Prestations">
+                    <button onClick={() => openEditContractSiteModal(contractSite)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Prestations">
                       <Settings size={14} />
                     </button>
-                    <button onClick={() => openEditSiteModal(site)} className="p-1 text-gray-400 hover:text-accent rounded" title="Modifier">
+                    <button onClick={() => openEditSiteModal(site)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Modifier">
                       <Pencil size={14} />
                     </button>
                     <Link href={`/buildings/${site.id}`}>
-                      <ArrowRight size={14} className="text-gray-300 group-hover:text-accent transition-colors" />
+                      <ArrowRight size={14} className="text-ink/25 group-hover:text-accent transition-colors" />
                     </Link>
                   </div>
                 </div>
@@ -539,48 +539,48 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
           })}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+        <div className="panel overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Site</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Ville</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Type</th>
-                <th className="text-left text-xs font-medium text-gray-500 uppercase px-4 py-3">Prestations</th>
-                <th className="px-4 py-3" />
+              <tr className="border-b border-ink/10">
+                <th className="label-tech px-4 py-2.5 text-left">Site</th>
+                <th className="label-tech px-4 py-2.5 text-left">Ville</th>
+                <th className="label-tech px-4 py-2.5 text-left">Type</th>
+                <th className="label-tech px-4 py-2.5 text-left">Prestations</th>
+                <th className="px-4 py-2.5" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-ink/10">
               {filteredContractSites.map((contractSite: ContractSite) => {
                 const site = contractSite.site;
                 return (
-                  <tr key={site.id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <Link href={`/buildings/${site.id}`} className="text-sm font-medium text-gray-900 hover:text-accent">
+                  <tr key={site.id} className="hover:bg-ink/[0.02]">
+                    <td className="px-4 py-2.5">
+                      <Link href={`/buildings/${site.id}`} className="text-sm font-medium text-ink hover:text-accent">
                         {site.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{site.city}</td>
-                    <td className="px-4 py-3">
-                      {contractSite.contractType && <span className="text-xs px-2 py-1 rounded-full bg-accent/10 text-accent font-medium">{contractSite.contractType}</span>}
+                    <td className="px-4 py-2.5 text-sm text-ink/60">{site.city}</td>
+                    <td className="px-4 py-2.5">
+                      {contractSite.contractType && <span className="border border-accent/20 bg-accent/5 px-2 py-0.5 font-mono text-[11px] uppercase tracking-widest text-accent">{contractSite.contractType}</span>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="flex gap-1">
-                        {contractSite.hasP1 && <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600 font-medium">P1</span>}
-                        {contractSite.hasP2 && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">P2</span>}
-                        {contractSite.hasP3 && <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">P3</span>}
+                        {contractSite.hasP1 && <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-ink/60">P1</span>}
+                        {contractSite.hasP2 && <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-ink/60">P2</span>}
+                        {contractSite.hasP3 && <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] tracking-widest text-ink/60">P3</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-2.5">
                       <div className="flex items-center gap-1 justify-end">
-                        <button onClick={() => openEditContractSiteModal(contractSite)} className="p-1 text-gray-400 hover:text-accent rounded" title="Prestations">
+                        <button onClick={() => openEditContractSiteModal(contractSite)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Prestations">
                           <Settings size={14} />
                         </button>
-                        <button onClick={() => openEditSiteModal(site)} className="p-1 text-gray-400 hover:text-accent rounded" title="Modifier">
+                        <button onClick={() => openEditSiteModal(site)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Modifier">
                           <Pencil size={14} />
                         </button>
                         <Link href={`/buildings/${site.id}`}>
-                          <ArrowRight size={14} className="text-gray-300" />
+                          <ArrowRight size={14} className="text-ink/25" />
                         </Link>
                       </div>
                     </td>
@@ -594,127 +594,127 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
 
       {/* Create Site Modal */}
       {showSiteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-primary-dark">Nouveau site</h2>
-              <button onClick={() => setShowSiteModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-ink/10 shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="text-sm font-semibold text-ink">Nouveau site</h2>
+              <button onClick={() => setShowSiteModal(false)} title="Fermer" className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"><X size={18} /></button>
             </div>
-            <form onSubmit={handleCreateSite} className="p-6 space-y-4">
+            <form onSubmit={handleCreateSite} className="p-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Nom du site *</label>
-                <input type="text" required value={siteFormData.name} onChange={(e) => setSiteFormData({ ...siteFormData, name: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="Lycée Jean Moulin" />
+                <label className="label-tech mb-1 block">Nom du site *</label>
+                <input type="text" required value={siteFormData.name} onChange={(e) => setSiteFormData({ ...siteFormData, name: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="Lycée Jean Moulin" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Type *</label>
-                  <select required value={siteFormData.type} onChange={(e) => setSiteFormData({ ...siteFormData, type: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                  <label className="label-tech mb-1 block">Type *</label>
+                  <select required value={siteFormData.type} onChange={(e) => setSiteFormData({ ...siteFormData, type: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                     {siteTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Énergie principale *</label>
-                  <select required value={siteFormData.energyType} onChange={(e) => setSiteFormData({ ...siteFormData, energyType: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                  <label className="label-tech mb-1 block">Énergie principale *</label>
+                  <select required value={siteFormData.energyType} onChange={(e) => setSiteFormData({ ...siteFormData, energyType: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                     {energyTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Adresse *</label>
-                <input type="text" required value={siteFormData.address} onChange={(e) => setSiteFormData({ ...siteFormData, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="12 rue de la République" />
+                <label className="label-tech mb-1 block">Adresse *</label>
+                <input type="text" required value={siteFormData.address} onChange={(e) => setSiteFormData({ ...siteFormData, address: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="12 rue de la République" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Code postal *</label>
-                  <input type="text" required value={siteFormData.postalCode} onChange={(e) => setSiteFormData({ ...siteFormData, postalCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="75001" />
+                  <label className="label-tech mb-1 block">Code postal *</label>
+                  <input type="text" required value={siteFormData.postalCode} onChange={(e) => setSiteFormData({ ...siteFormData, postalCode: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="75001" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Ville *</label>
-                  <input type="text" required value={siteFormData.city} onChange={(e) => setSiteFormData({ ...siteFormData, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="Paris" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Surface totale (m²)</label>
-                  <input type="number" value={siteFormData.surface} onChange={(e) => setSiteFormData({ ...siteFormData, surface: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="5000" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Surface chauffée (m²)</label>
-                  <input type="number" value={siteFormData.surfaceChauffee} onChange={(e) => setSiteFormData({ ...siteFormData, surfaceChauffee: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="4500" />
+                  <label className="label-tech mb-1 block">Ville *</label>
+                  <input type="text" required value={siteFormData.city} onChange={(e) => setSiteFormData({ ...siteFormData, city: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="Paris" />
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-4 mt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Compteurs</p>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label-tech mb-1 block">Surface totale (m²)</label>
+                  <input type="number" value={siteFormData.surface} onChange={(e) => setSiteFormData({ ...siteFormData, surface: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="5000" />
+                </div>
+                <div>
+                  <label className="label-tech mb-1 block">Surface chauffée (m²)</label>
+                  <input type="number" value={siteFormData.surfaceChauffee} onChange={(e) => setSiteFormData({ ...siteFormData, surfaceChauffee: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="4500" />
+                </div>
+              </div>
+              <div className="border-t border-ink/10 pt-4 mt-4">
+                <p className="label-tech mb-2">Compteurs</p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">PCE (compteur gaz)</label>
-                    <input type="text" value={siteFormData.pce} onChange={(e) => setSiteFormData({ ...siteFormData, pce: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="GI123456" />
+                    <label className="label-tech mb-1 block">PCE (compteur gaz)</label>
+                    <input type="text" value={siteFormData.pce} onChange={(e) => setSiteFormData({ ...siteFormData, pce: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="GI123456" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">PDL (compteur élec)</label>
-                    <input type="text" value={siteFormData.pdl} onChange={(e) => setSiteFormData({ ...siteFormData, pdl: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="12345678901234" />
+                    <label className="label-tech mb-1 block">PDL (compteur élec)</label>
+                    <input type="text" value={siteFormData.pdl} onChange={(e) => setSiteFormData({ ...siteFormData, pdl: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="12345678901234" />
                   </div>
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-4 mt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Paramètres du contrat pour ce site</p>
+              <div className="border-t border-ink/10 pt-4 mt-4">
+                <p className="label-tech mb-2">Paramètres du contrat pour ce site</p>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Type de contrat *</label>
+                  <label className="label-tech mb-1 block">Type de contrat *</label>
                   <select required value={siteFormData.contractType} onChange={(e) => {
                     const v = e.target.value;
                     // MTI (Marché Tout Inclus) = P1+P2+P3 cochés par défaut
                     setSiteFormData((prev) => ({ ...prev, contractType: v, ...(v === "MTI" ? { hasP1: true, hasP2: true, hasP3: true } : {}) }));
-                  }} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                  }} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                     {contractTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-2">Prestations incluses</label>
+                  <label className="label-tech mb-2 block">Prestations incluses</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input type="checkbox" checked={siteFormData.hasP1} onChange={(e) => setSiteFormData({ ...siteFormData, hasP1: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
-                      <span className="text-sm text-primary-dark">P1 - Énergie</span>
+                    <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                      <input type="checkbox" checked={siteFormData.hasP1} onChange={(e) => setSiteFormData({ ...siteFormData, hasP1: e.target.checked })} className="w-4 h-4 text-accent accent-accent" />
+                      <span className="text-sm text-ink">P1 - Énergie</span>
                     </label>
-                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input type="checkbox" checked={siteFormData.hasP2} onChange={(e) => setSiteFormData({ ...siteFormData, hasP2: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
-                      <span className="text-sm text-primary-dark">P2 - Maintenance</span>
+                    <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                      <input type="checkbox" checked={siteFormData.hasP2} onChange={(e) => setSiteFormData({ ...siteFormData, hasP2: e.target.checked })} className="w-4 h-4 text-accent accent-accent" />
+                      <span className="text-sm text-ink">P2 - Maintenance</span>
                     </label>
-                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input type="checkbox" checked={siteFormData.hasP3} onChange={(e) => setSiteFormData({ ...siteFormData, hasP3: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
-                      <span className="text-sm text-primary-dark">P3 - Travaux</span>
+                    <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                      <input type="checkbox" checked={siteFormData.hasP3} onChange={(e) => setSiteFormData({ ...siteFormData, hasP3: e.target.checked })} className="w-4 h-4 text-accent accent-accent" />
+                      <span className="text-sm text-ink">P3 - Travaux</span>
                     </label>
                     {!contract.isPublic && (
-                      <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                        <input type="checkbox" checked={siteFormData.hasP4} onChange={(e) => setSiteFormData({ ...siteFormData, hasP4: e.target.checked })} className="w-4 h-4 text-accent rounded focus:ring-accent" />
-                        <span className="text-sm text-primary-dark">P4 - Financement</span>
+                      <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                        <input type="checkbox" checked={siteFormData.hasP4} onChange={(e) => setSiteFormData({ ...siteFormData, hasP4: e.target.checked })} className="w-4 h-4 text-accent accent-accent" />
+                        <span className="text-sm text-ink">P4 - Financement</span>
                       </label>
                     )}
                   </div>
                 </div>
                 {(siteFormData.hasP2 || siteFormData.hasP3) && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm font-medium text-primary-dark mb-3">Montants de base (révisés annuellement)</p>
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="mt-4 border border-ink/10 p-4">
+                    <p className="label-tech mb-2">Montants de base (révisés annuellement)</p>
+                    <div className="grid grid-cols-2 gap-3">
                       {siteFormData.hasP2 && (
                         <div>
-                          <label className="block text-sm font-medium text-primary-dark mb-1">Prix P2 de base (€ HT/an)</label>
-                          <input type="number" step="0.01" value={siteFormData.amountP2} onChange={(e) => setSiteFormData({ ...siteFormData, amountP2: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="5000" />
+                          <label className="label-tech mb-1 block">Prix P2 de base (€ HT/an)</label>
+                          <input type="number" step="0.01" value={siteFormData.amountP2} onChange={(e) => setSiteFormData({ ...siteFormData, amountP2: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="5000" />
                         </div>
                       )}
                       {siteFormData.hasP3 && (
                         <div>
-                          <label className="block text-sm font-medium text-primary-dark mb-1">Prix P3 de base (€ HT/an)</label>
-                          <input type="number" step="0.01" value={siteFormData.amountP3} onChange={(e) => setSiteFormData({ ...siteFormData, amountP3: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="3000" />
+                          <label className="label-tech mb-1 block">Prix P3 de base (€ HT/an)</label>
+                          <input type="number" step="0.01" value={siteFormData.amountP3} onChange={(e) => setSiteFormData({ ...siteFormData, amountP3: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="3000" />
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-text-secondary mt-2">Ces montants sont révisés à la date anniversaire du contrat.</p>
+                    <p className="text-xs text-ink/60 mt-2">Ces montants sont révisés à la date anniversaire du contrat.</p>
                   </div>
                 )}
               </div>
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setShowSiteModal(false)}>Annuler</Button>
-                <Button type="submit" className="flex-1" disabled={creatingSite}>
+              <div className="-mx-4 mt-4 flex items-center justify-end gap-2 border-t border-ink/10 px-4 pt-3">
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowSiteModal(false)}>Annuler</Button>
+                <Button type="submit" size="sm" disabled={creatingSite}>
                   {creatingSite ? (<><Loader2 size={18} className="mr-2 animate-spin" />Création...</>) : "Créer le site"}
                 </Button>
               </div>
@@ -725,71 +725,71 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
 
       {/* Edit Site Modal */}
       {showEditSiteModal && editingSiteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-primary-dark">Modifier le site</h2>
-              <button onClick={() => { setShowEditSiteModal(false); setEditingSiteId(null); }} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-ink/10 shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="text-sm font-semibold text-ink">Modifier le site</h2>
+              <button onClick={() => { setShowEditSiteModal(false); setEditingSiteId(null); }} title="Fermer" className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"><X size={18} /></button>
             </div>
-            <form onSubmit={handleUpdateSite} className="p-6 space-y-4">
+            <form onSubmit={handleUpdateSite} className="p-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Nom du site *</label>
-                <input type="text" required value={editSiteFormData.name} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, name: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
+                <label className="label-tech mb-1 block">Nom du site *</label>
+                <input type="text" required value={editSiteFormData.name} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, name: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Type *</label>
-                  <select required value={editSiteFormData.type} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, type: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                  <label className="label-tech mb-1 block">Type *</label>
+                  <select required value={editSiteFormData.type} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, type: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                     {siteTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Énergie principale *</label>
-                  <select required value={editSiteFormData.energyType} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, energyType: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                  <label className="label-tech mb-1 block">Énergie principale *</label>
+                  <select required value={editSiteFormData.energyType} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, energyType: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                     {energyTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Adresse *</label>
-                <input type="text" required value={editSiteFormData.address} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, address: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
+                <label className="label-tech mb-1 block">Adresse *</label>
+                <input type="text" required value={editSiteFormData.address} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, address: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Code postal *</label>
-                  <input type="text" required value={editSiteFormData.postalCode} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, postalCode: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
+                  <label className="label-tech mb-1 block">Code postal *</label>
+                  <input type="text" required value={editSiteFormData.postalCode} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, postalCode: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Ville *</label>
-                  <input type="text" required value={editSiteFormData.city} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, city: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Surface totale (m²)</label>
-                  <input type="number" value={editSiteFormData.surface} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, surface: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Surface chauffée (m²)</label>
-                  <input type="number" value={editSiteFormData.surfaceChauffee} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, surfaceChauffee: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
+                  <label className="label-tech mb-1 block">Ville *</label>
+                  <input type="text" required value={editSiteFormData.city} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, city: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-4 mt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Compteurs</p>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label-tech mb-1 block">Surface totale (m²)</label>
+                  <input type="number" value={editSiteFormData.surface} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, surface: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="label-tech mb-1 block">Surface chauffée (m²)</label>
+                  <input type="number" value={editSiteFormData.surfaceChauffee} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, surfaceChauffee: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
+                </div>
+              </div>
+              <div className="border-t border-ink/10 pt-4 mt-4">
+                <p className="label-tech mb-2">Compteurs</p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">PCE (compteur gaz)</label>
-                    <input type="text" value={editSiteFormData.pce} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, pce: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
+                    <label className="label-tech mb-1 block">PCE (compteur gaz)</label>
+                    <input type="text" value={editSiteFormData.pce} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, pce: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-primary-dark mb-1">PDL (compteur élec)</label>
-                    <input type="text" value={editSiteFormData.pdl} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, pdl: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" />
+                    <label className="label-tech mb-1 block">PDL (compteur élec)</label>
+                    <input type="text" value={editSiteFormData.pdl} onChange={(e) => setEditSiteFormData({ ...editSiteFormData, pdl: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" />
                   </div>
                 </div>
               </div>
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowEditSiteModal(false); setEditingSiteId(null); }}>Annuler</Button>
-                <Button type="submit" className="flex-1" disabled={updatingSite}>
+              <div className="-mx-4 mt-4 flex items-center justify-end gap-2 border-t border-ink/10 px-4 pt-3">
+                <Button type="button" variant="outline" size="sm" onClick={() => { setShowEditSiteModal(false); setEditingSiteId(null); }}>Annuler</Button>
+                <Button type="submit" size="sm" disabled={updatingSite}>
                   {updatingSite ? (<><Loader2 size={18} className="mr-2 animate-spin" />Mise à jour...</>) : "Enregistrer"}
                 </Button>
               </div>
@@ -800,83 +800,83 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
 
       {/* Edit ContractSite Modal */}
       {showEditContractSiteModal && editingContractSiteId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-primary-dark">Modifier les prestations</h2>
-              <button onClick={() => { setShowEditContractSiteModal(false); setEditingContractSiteId(null); }} className="p-2 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-ink/10 shadow-large w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="text-sm font-semibold text-ink">Modifier les prestations</h2>
+              <button onClick={() => { setShowEditContractSiteModal(false); setEditingContractSiteId(null); }} title="Fermer" className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"><X size={18} /></button>
             </div>
-            <form onSubmit={handleUpdateContractSite} className="p-6 space-y-4">
+            <form onSubmit={handleUpdateContractSite} className="p-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Type de contrat</label>
+                <label className="label-tech mb-1 block">Type de contrat</label>
                 <select value={editContractSiteFormData.contractType} onChange={(e) => {
                   const v = e.target.value;
                   // MTI (Marché Tout Inclus) = P1+P2+P3 cochés par défaut
                   setEditContractSiteFormData((prev) => ({ ...prev, contractType: v, ...(v === "MTI" ? { hasP1: true, hasP2: true, hasP3: true } : {}) }));
-                }} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                }} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                   {contractTypes.map((type) => (<option key={type.value} value={type.value}>{type.label}</option>))}
                 </select>
               </div>
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Prestations incluses</p>
+              <div className="border-t border-ink/10 pt-4">
+                <p className="label-tech mb-2">Prestations incluses</p>
                 <div className="grid grid-cols-2 gap-3">
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="checkbox" checked={editContractSiteFormData.hasP1} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP1: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
+                  <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                    <input type="checkbox" checked={editContractSiteFormData.hasP1} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP1: e.target.checked })} className="w-4 h-4 border-ink/20 text-accent accent-accent" />
                     <span className="text-sm">P1 - Combustible</span>
                   </label>
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="checkbox" checked={editContractSiteFormData.hasP2} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP2: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
+                  <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                    <input type="checkbox" checked={editContractSiteFormData.hasP2} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP2: e.target.checked })} className="w-4 h-4 border-ink/20 text-accent accent-accent" />
                     <span className="text-sm">P2 - Petit entretien</span>
                   </label>
-                  <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="checkbox" checked={editContractSiteFormData.hasP3} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP3: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
+                  <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                    <input type="checkbox" checked={editContractSiteFormData.hasP3} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP3: e.target.checked })} className="w-4 h-4 border-ink/20 text-accent accent-accent" />
                     <span className="text-sm">P3 - Gros entretien</span>
                   </label>
                   {!contract.isPublic && (
-                    <label className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input type="checkbox" checked={editContractSiteFormData.hasP4} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP4: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-accent focus:ring-accent" />
+                    <label className="flex items-center gap-2 p-3 border border-ink/10 cursor-pointer hover:bg-ink/[0.02]">
+                      <input type="checkbox" checked={editContractSiteFormData.hasP4} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, hasP4: e.target.checked })} className="w-4 h-4 border-ink/20 text-accent accent-accent" />
                       <span className="text-sm">P4 - Financement</span>
                     </label>
                   )}
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Montants annuels</p>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="border-t border-ink/10 pt-4">
+                <p className="label-tech mb-2">Montants annuels</p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-text-secondary mb-1">Montant P2 (€/an)</label>
-                    <input type="number" step="0.01" value={editContractSiteFormData.amountP2} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, amountP2: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="0.00" />
+                    <label className="label-tech mb-1 block">Montant P2 (€/an)</label>
+                    <input type="number" step="0.01" value={editContractSiteFormData.amountP2} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, amountP2: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-sm text-text-secondary mb-1">Montant P3 (€/an)</label>
-                    <input type="number" step="0.01" value={editContractSiteFormData.amountP3} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, amountP3: e.target.value })} className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="0.00" />
+                    <label className="label-tech mb-1 block">Montant P3 (€/an)</label>
+                    <input type="number" step="0.01" value={editContractSiteFormData.amountP3} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, amountP3: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="0.00" />
                   </div>
                 </div>
               </div>
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm font-medium text-primary-dark mb-3">Coefficients de conversion énergétique</p>
+              <div className="border-t border-ink/10 pt-4">
+                <p className="label-tech mb-2">Coefficients de conversion énergétique</p>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm text-text-secondary mb-1">Coefficient PCS — gaz (kWh/m³)</label>
+                    <label className="label-tech mb-1 block">Coefficient PCS — gaz (kWh/m³)</label>
                     <div className="flex gap-2 items-center">
-                      <input type="number" step="0.1" value={editContractSiteFormData.coefficientPCS} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: e.target.value })} className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="10.5" />
+                      <input type="number" step="0.1" value={editContractSiteFormData.coefficientPCS} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: e.target.value })} className="w-32 px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="10.5" />
                       <div className="flex gap-2">
-                        <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "10.5" })} className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${editContractSiteFormData.coefficientPCS === "10.5" ? "bg-accent text-white border-accent" : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"}`}>20 mbar</button>
-                        <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "14.5" })} className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${editContractSiteFormData.coefficientPCS === "14.5" ? "bg-accent text-white border-accent" : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"}`}>300 mbar</button>
+                        <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "10.5" })} className={`px-3 py-1.5 text-xs border transition-colors ${editContractSiteFormData.coefficientPCS === "10.5" ? "bg-ink text-paper border-ink" : "bg-white text-ink/60 border-ink/20 hover:border-accent hover:text-accent"}`}>20 mbar</button>
+                        <button type="button" onClick={() => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientPCS: "14.5" })} className={`px-3 py-1.5 text-xs border transition-colors ${editContractSiteFormData.coefficientPCS === "14.5" ? "bg-ink text-paper border-ink" : "bg-white text-ink/60 border-ink/20 hover:border-accent hover:text-accent"}`}>300 mbar</button>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">20 mbar (basse pression) : ~10.5 | 300 mbar (moyenne pression) : ~14.5</p>
+                    <p className="text-xs text-ink/50 mt-1">20 mbar (basse pression) : ~10.5 | 300 mbar (moyenne pression) : ~14.5</p>
                   </div>
                   <div>
-                    <label className="block text-sm text-text-secondary mb-1">Coefficient Q — ECS (MWh/m³)</label>
-                    <input type="number" step="0.01" value={editContractSiteFormData.coefficientQ} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientQ: e.target.value })} className="w-32 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="0.13" />
-                    <p className="text-xs text-gray-500 mt-1">Énergie pour produire 1 m³ d&apos;ECS — typiquement 0.10 à 0.14 selon le contrat</p>
+                    <label className="label-tech mb-1 block">Coefficient Q — ECS (MWh/m³)</label>
+                    <input type="number" step="0.01" value={editContractSiteFormData.coefficientQ} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, coefficientQ: e.target.value })} className="w-32 px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="0.13" />
+                    <p className="text-xs text-ink/50 mt-1">Énergie pour produire 1 m³ d&apos;ECS — typiquement 0.10 à 0.14 selon le contrat</p>
                   </div>
                 </div>
                 {editContractSiteFormData.hasP1 && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-sm font-semibold text-primary-dark mb-1">Barème P1 — décompte (€HT/MWh PCS)</p>
-                    <p className="text-xs text-gray-500 mb-3">Valeurs de base pour la révision indicielle. Normalement importées de la DPGF ; à compléter ici si besoin. P0 = marge exploitant (non révisée).</p>
+                  <div className="mt-4 pt-4 border-t border-ink/10">
+                    <p className="label-tech mb-1">Barème P1 — décompte (€HT/MWh PCS)</p>
+                    <p className="text-xs text-ink/50 mb-3">Valeurs de base pour la révision indicielle. Normalement importées de la DPGF ; à compléter ici si besoin. P0 = marge exploitant (non révisée).</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {([
                         ["p1Peg0", "PEG"],
@@ -886,13 +886,13 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                         ["p1P0Unit", "P0 (marge)"],
                       ] as const).map(([field, label]) => (
                         <div key={field}>
-                          <label className="block text-sm text-text-secondary mb-1">{label}</label>
-                          <input type="number" step="0.001" value={editContractSiteFormData[field]} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, [field]: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20" placeholder="0.000" />
+                          <label className="label-tech mb-1 block">{label}</label>
+                          <input type="number" step="0.001" value={editContractSiteFormData[field]} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, [field]: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm" placeholder="0.000" />
                         </div>
                       ))}
                       <div>
-                        <label className="block text-sm text-text-secondary mb-1">Tarif TVD (GRDF)</label>
-                        <select value={editContractSiteFormData.p1TvdTarif} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, p1TvdTarif: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20">
+                        <label className="label-tech mb-1 block">Tarif TVD (GRDF)</label>
+                        <select value={editContractSiteFormData.p1TvdTarif} onChange={(e) => setEditContractSiteFormData({ ...editContractSiteFormData, p1TvdTarif: e.target.value })} className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none text-sm">
                           <option value="">—</option>
                           <option value="T1">T1</option>
                           <option value="T2">T2</option>
@@ -904,9 +904,9 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                   </div>
                 )}
               </div>
-              <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => { setShowEditContractSiteModal(false); setEditingContractSiteId(null); }}>Annuler</Button>
-                <Button type="submit" className="flex-1" disabled={updatingContractSite}>
+              <div className="-mx-4 mt-4 flex items-center justify-end gap-2 border-t border-ink/10 px-4 pt-3">
+                <Button type="button" variant="outline" size="sm" onClick={() => { setShowEditContractSiteModal(false); setEditingContractSiteId(null); }}>Annuler</Button>
+                <Button type="submit" size="sm" disabled={updatingContractSite}>
                   {updatingContractSite ? (<><Loader2 size={18} className="mr-2 animate-spin" />Mise à jour...</>) : "Enregistrer"}
                 </Button>
               </div>
@@ -917,40 +917,40 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
 
       {/* Import Sites Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className={`bg-white rounded-2xl w-full max-h-[90vh] overflow-y-auto ${importStep === "preview" ? "max-w-4xl" : "max-w-lg"}`}>
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-primary-dark">Importer des sites</h2>
-              <button onClick={() => setShowImportModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><X size={20} className="text-gray-500" /></button>
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 p-4">
+          <div className={`bg-white border border-ink/10 shadow-large w-full max-h-[90vh] overflow-y-auto ${importStep === "preview" ? "max-w-4xl" : "max-w-lg"}`}>
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="text-sm font-semibold text-ink">Importer des sites</h2>
+              <button onClick={() => setShowImportModal(false)} title="Fermer" className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"><X size={18} /></button>
             </div>
-            <div className="p-6">
+            <div className="p-4">
               {importStep === "upload" && (
                 <div className="space-y-4">
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-ink/60">
                     Importez un fichier Excel (.xlsx) contenant vos sites. Le fichier doit contenir les colonnes : Nom, Type, Adresse, Ville, Code postal, Surface, Énergie.
                   </p>
-                  <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${importFile ? "border-accent bg-accent/5" : "border-gray-200 hover:border-gray-300"}`}>
+                  <div className={`border border-dashed p-4 text-center transition-colors ${importFile ? "border-accent bg-accent/5" : "border-ink/20 hover:border-accent/40"}`}>
                     {importFile ? (
                       <div className="flex items-center justify-center gap-3">
                         <FileSpreadsheet size={24} className="text-accent" />
                         <div className="text-left">
-                          <p className="font-medium text-primary-dark">{importFile.name}</p>
-                          <p className="text-sm text-text-secondary">{(importFile.size / 1024).toFixed(1)} Ko</p>
+                          <p className="font-medium text-ink">{importFile.name}</p>
+                          <p className="text-sm text-ink/60">{(importFile.size / 1024).toFixed(1)} Ko</p>
                         </div>
-                        <button onClick={() => setImportFile(null)} className="p-1 hover:bg-gray-100 rounded"><X size={16} className="text-gray-500" /></button>
+                        <button onClick={() => setImportFile(null)} title="Retirer le fichier" className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"><X size={16} /></button>
                       </div>
                     ) : (
                       <label className="cursor-pointer">
-                        <Upload size={32} className="mx-auto text-gray-400 mb-2" />
-                        <p className="text-primary-dark font-medium">Cliquez pour sélectionner un fichier</p>
-                        <p className="text-sm text-text-secondary">ou glissez-déposez ici</p>
+                        <Upload size={28} className="mx-auto text-ink/40 mb-2" />
+                        <p className="text-ink font-medium">Cliquez pour sélectionner un fichier</p>
+                        <p className="text-sm text-ink/60">ou glissez-déposez ici</p>
                         <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) setImportFile(file); }} />
                       </label>
                     )}
                   </div>
-                  <div className="flex gap-3 pt-2">
-                    <Button variant="outline" className="flex-1" onClick={() => setShowImportModal(false)}>Annuler</Button>
-                    <Button className="flex-1" disabled={!importFile || importing} onClick={handleImportPreview}>
+                  <div className="-mx-4 mt-4 flex items-center justify-end gap-2 border-t border-ink/10 px-4 pt-3">
+                    <Button variant="outline" size="sm" onClick={() => setShowImportModal(false)}>Annuler</Button>
+                    <Button size="sm" disabled={!importFile || importing} onClick={handleImportPreview}>
                       {importing ? (<><Loader2 size={18} className="mr-2 animate-spin" />Analyse...</>) : "Suivant →"}
                     </Button>
                   </div>
@@ -958,62 +958,62 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
               )}
               {importStep === "preview" && (
                 <div className="space-y-4">
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-ink/60">
                     <strong>{previewSites.length} site{previewSites.length > 1 ? "s" : ""}</strong> à importer pour le contrat <strong>{contract?.reference}</strong>. Vous pouvez modifier les données avant l&apos;import.
                   </p>
-                  <div className="overflow-x-auto -mx-6">
+                  <div className="overflow-x-auto -mx-4">
                     <table className="w-full text-sm">
-                      <thead className="bg-gray-50 border-y border-gray-100">
+                      <thead className="border-y border-ink/10">
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Nom</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Adresse</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">CP</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Ville</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Énergie</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Surface</th>
-                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P1</th>
-                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P2</th>
-                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P3</th>
-                          <th className="text-center px-2 py-2 font-medium text-text-secondary">P4</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Type contrat</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Montant P2</th>
-                          <th className="text-left px-3 py-2 font-medium text-text-secondary">Montant P3</th>
+                          <th className="label-tech px-3 py-2 text-left">Nom</th>
+                          <th className="label-tech px-3 py-2 text-left">Adresse</th>
+                          <th className="label-tech px-3 py-2 text-left">CP</th>
+                          <th className="label-tech px-3 py-2 text-left">Ville</th>
+                          <th className="label-tech px-3 py-2 text-left">Énergie</th>
+                          <th className="label-tech px-3 py-2 text-left">Surface</th>
+                          <th className="label-tech px-2 py-2 text-center">P1</th>
+                          <th className="label-tech px-2 py-2 text-center">P2</th>
+                          <th className="label-tech px-2 py-2 text-center">P3</th>
+                          <th className="label-tech px-2 py-2 text-center">P4</th>
+                          <th className="label-tech px-3 py-2 text-left">Type contrat</th>
+                          <th className="label-tech px-3 py-2 text-left">Montant P2</th>
+                          <th className="label-tech px-3 py-2 text-left">Montant P3</th>
                           <th className="px-2 py-2"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-100">
+                      <tbody className="divide-y divide-ink/10">
                         {previewSites.map((site, index) => (
-                          <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-3 py-2"><input type="text" value={site.name} onChange={(e) => updatePreviewSite(index, "name", e.target.value)} className="w-full min-w-[120px] px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                            <td className="px-3 py-2"><input type="text" value={site.address || ""} onChange={(e) => updatePreviewSite(index, "address", e.target.value)} className="w-full min-w-[150px] px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                            <td className="px-3 py-2"><input type="text" value={site.postalCode || ""} onChange={(e) => updatePreviewSite(index, "postalCode", e.target.value)} className="w-[70px] px-2 py-1 border border-gray-200 rounded text-sm" /></td>
-                            <td className="px-3 py-2"><input type="text" value={site.city || ""} onChange={(e) => updatePreviewSite(index, "city", e.target.value)} className="w-full min-w-[100px] px-2 py-1 border border-gray-200 rounded text-sm" /></td>
+                          <tr key={index} className="hover:bg-ink/[0.02]">
+                            <td className="px-3 py-2"><input type="text" value={site.name} onChange={(e) => updatePreviewSite(index, "name", e.target.value)} className="w-full min-w-[120px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" /></td>
+                            <td className="px-3 py-2"><input type="text" value={site.address || ""} onChange={(e) => updatePreviewSite(index, "address", e.target.value)} className="w-full min-w-[150px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" /></td>
+                            <td className="px-3 py-2"><input type="text" value={site.postalCode || ""} onChange={(e) => updatePreviewSite(index, "postalCode", e.target.value)} className="w-[70px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" /></td>
+                            <td className="px-3 py-2"><input type="text" value={site.city || ""} onChange={(e) => updatePreviewSite(index, "city", e.target.value)} className="w-full min-w-[100px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" /></td>
                             <td className="px-3 py-2">
-                              <select value={site._energyType} onChange={(e) => updatePreviewSite(index, "_energyType", e.target.value)} className="w-full min-w-[90px] px-2 py-1 border border-gray-200 rounded text-sm">
+                              <select value={site._energyType} onChange={(e) => updatePreviewSite(index, "_energyType", e.target.value)} className="w-full min-w-[90px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none">
                                 {Object.entries(energyTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
                               </select>
                             </td>
-                            <td className="px-3 py-2"><input type="number" value={site.surface || ""} onChange={(e) => updatePreviewSite(index, "surface", e.target.value ? Number(e.target.value) : undefined)} className="w-[80px] px-2 py-1 border border-gray-200 rounded text-sm" placeholder="m²" /></td>
+                            <td className="px-3 py-2"><input type="number" value={site.surface || ""} onChange={(e) => updatePreviewSite(index, "surface", e.target.value ? Number(e.target.value) : undefined)} className="w-[80px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" placeholder="m²" /></td>
                             <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP1 || false} onChange={(e) => updatePreviewSite(index, "hasP1", e.target.checked)} className="w-4 h-4" /></td>
                             <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP2 || false} onChange={(e) => updatePreviewSite(index, "hasP2", e.target.checked)} className="w-4 h-4" /></td>
                             <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP3 || false} onChange={(e) => updatePreviewSite(index, "hasP3", e.target.checked)} className="w-4 h-4" /></td>
                             <td className="px-2 py-2 text-center"><input type="checkbox" checked={site.hasP4 || false} onChange={(e) => updatePreviewSite(index, "hasP4", e.target.checked)} className="w-4 h-4" /></td>
                             <td className="px-3 py-2">
-                              <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full min-w-[70px] px-2 py-1 border border-gray-200 rounded text-sm">
+                              <select value={site._contractType} onChange={(e) => updatePreviewSite(index, "_contractType", e.target.value)} className="w-full min-w-[70px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none">
                                 {Object.entries(contractTypeLabels).map(([value, label]) => (<option key={value} value={value}>{label}</option>))}
                               </select>
                             </td>
-                            <td className="px-3 py-2"><input type="number" value={site.amountP2 || ""} onChange={(e) => updatePreviewSite(index, "amountP2", e.target.value ? Number(e.target.value) : undefined)} className="w-[90px] px-2 py-1 border border-gray-200 rounded text-sm" placeholder="€" /></td>
-                            <td className="px-3 py-2"><input type="number" value={site.amountP3 || ""} onChange={(e) => updatePreviewSite(index, "amountP3", e.target.value ? Number(e.target.value) : undefined)} className="w-[90px] px-2 py-1 border border-gray-200 rounded text-sm" placeholder="€" /></td>
-                            <td className="px-2 py-2"><button onClick={() => removePreviewSite(index)} className="p-1 text-red-500 hover:bg-red-50 rounded" title="Supprimer"><X size={16} /></button></td>
+                            <td className="px-3 py-2"><input type="number" value={site.amountP2 || ""} onChange={(e) => updatePreviewSite(index, "amountP2", e.target.value ? Number(e.target.value) : undefined)} className="w-[90px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" placeholder="€" /></td>
+                            <td className="px-3 py-2"><input type="number" value={site.amountP3 || ""} onChange={(e) => updatePreviewSite(index, "amountP3", e.target.value ? Number(e.target.value) : undefined)} className="w-[90px] px-2 py-1 border border-ink/20 bg-white text-sm focus:border-accent focus:outline-none" placeholder="€" /></td>
+                            <td className="px-2 py-2"><button onClick={() => removePreviewSite(index)} title="Supprimer" className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"><X size={16} /></button></td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
-                  <div className="flex gap-3 pt-4">
-                    <Button variant="outline" onClick={() => setImportStep("upload")}>← Retour</Button>
-                    <Button className="flex-1" disabled={previewSites.length === 0 || importing} onClick={handleImport}>
+                  <div className="-mx-4 mt-4 flex items-center justify-end gap-2 border-t border-ink/10 px-4 pt-3">
+                    <Button variant="outline" size="sm" onClick={() => setImportStep("upload")}>← Retour</Button>
+                    <Button size="sm" disabled={previewSites.length === 0 || importing} onClick={handleImport}>
                       {importing ? (<><Loader2 size={18} className="mr-2 animate-spin" />Import...</>) : (<><CheckCircle size={18} className="mr-2" />Importer ({previewSites.length})</>)}
                     </Button>
                   </div>
@@ -1023,14 +1023,14 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                 <div className="text-center py-4">
                   {importResult.success ? (
                     <>
-                      <CheckCircle size={48} className="mx-auto text-green-500 mb-4" />
-                      <h3 className="text-lg font-semibold text-primary-dark mb-2">Import réussi !</h3>
-                      <p className="text-text-secondary mb-4">{importResult.imported} site{importResult.imported > 1 ? "s" : ""} importé{importResult.imported > 1 ? "s" : ""}</p>
+                      <CheckCircle size={32} className="mx-auto text-green-600 mb-3" />
+                      <h3 className="text-sm font-semibold text-ink mb-2">Import réussi !</h3>
+                      <p className="text-sm text-ink/60 mb-4">{importResult.imported} site{importResult.imported > 1 ? "s" : ""} importé{importResult.imported > 1 ? "s" : ""}</p>
                     </>
                   ) : (
                     <>
-                      <AlertCircle size={48} className="mx-auto text-red-500 mb-4" />
-                      <h3 className="text-lg font-semibold text-red-600 mb-2">Erreur</h3>
+                      <AlertCircle size={32} className="mx-auto text-red-600 mb-3" />
+                      <h3 className="text-sm font-semibold text-red-700 mb-2">Erreur</h3>
                       <div className="text-sm text-red-600 mb-4">
                         {importResult.errors?.map((err, i) => (<p key={i}>{err}</p>))}
                       </div>

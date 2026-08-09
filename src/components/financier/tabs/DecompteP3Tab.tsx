@@ -17,7 +17,7 @@ interface DecompteP3TabProps {
 }
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
-  if (col !== sortKey) return <ArrowUpDown size={13} className="text-gray-400" />;
+  if (col !== sortKey) return <ArrowUpDown size={13} className="text-ink/40" />;
   return sortDir === "asc" ? <ArrowUp size={13} className="text-accent" /> : <ArrowDown size={13} className="text-accent" />;
 }
 
@@ -29,7 +29,7 @@ function MoneyOrDash({
   value: number;
   className?: string;
 }) {
-  if (value === 0) return <span className="text-gray-300">—</span>;
+  if (value === 0) return <span className="text-ink/25">—</span>;
   return (
     <span className={className}>
       {value.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
@@ -45,10 +45,10 @@ function SignedBalance({
   value: number;
   bold?: boolean;
 }) {
-  if (value === 0) return <span className="text-gray-300">—</span>;
+  if (value === 0) return <span className="text-ink/25">—</span>;
   const color = value > 0 ? "text-green-600" : "text-red-600";
   return (
-    <span className={`${color} ${bold ? "font-semibold" : "font-medium"} tabular-nums`}>
+    <span className={`${color} ${bold ? "font-semibold" : "font-medium"} font-mono tabular-nums`}>
       {value > 0 ? "+" : ""}
       {value.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
     </span>
@@ -88,8 +88,8 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
 
   if (!p3Data || p3Data.years.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-        <Building2 size={36} className="mx-auto text-gray-300 mb-3" />
+      <div className="text-center py-12 bg-white border border-ink/10">
+        <Building2 size={36} className="mx-auto text-ink/25 mb-3" />
         <p className="text-sm text-text-secondary">Aucune donnée P3 disponible pour ce contrat</p>
       </div>
     );
@@ -107,32 +107,32 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
   return (
     <div className="space-y-4">
       {/* ─────────── Bandeau KPI ─────────── */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-text-secondary uppercase tracking-wider">Recettes cumulées</p>
-          <p className="text-2xl font-semibold text-primary-dark mt-1 tabular-nums">
+      <div className="grid grid-cols-3 divide-x divide-ink/15 border border-ink/10 bg-white">
+        <div className="px-4 py-3">
+          <p className="label-tech">Recettes cumulées</p>
+          <p className="mt-1 font-mono text-xl font-semibold tabular-nums text-ink">
             {totalInvoices === 0 ? (
-              <span className="text-gray-300">—</span>
+              <span className="text-ink/25">—</span>
             ) : (
               `${totalInvoices.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`
             )}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-text-secondary uppercase tracking-wider">Dépenses cumulées</p>
-          <p className="text-2xl font-semibold text-primary-dark mt-1 tabular-nums">
+        <div className="px-4 py-3">
+          <p className="label-tech">Dépenses cumulées</p>
+          <p className="mt-1 font-mono text-xl font-semibold tabular-nums text-ink">
             {totalQuotes === 0 ? (
-              <span className="text-gray-300">—</span>
+              <span className="text-ink/25">—</span>
             ) : (
               `${totalQuotes.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`
             )}
           </p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-text-secondary uppercase tracking-wider">Solde P3 actuel</p>
+        <div className="px-4 py-3">
+          <p className="label-tech">Solde P3 actuel</p>
           <p
-            className={`text-2xl font-semibold mt-1 tabular-nums ${
-              finalBalance > 0 ? "text-green-600" : finalBalance < 0 ? "text-red-600" : "text-gray-300"
+            className={`mt-1 font-mono text-xl font-semibold tabular-nums ${
+              finalBalance > 0 ? "text-green-700" : finalBalance < 0 ? "text-red-700" : "text-ink/25"
             }`}
           >
             {finalBalance === 0
@@ -143,9 +143,9 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
       </div>
 
       {/* ─────────── Bar chart évolution annuelle ─────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white border border-ink/10 p-4">
         <div className="flex items-baseline justify-between mb-4">
-          <h3 className="text-sm font-medium text-primary-dark">Évolution sur la durée du contrat</h3>
+          <h3 className="label-tech">Évolution sur la durée du contrat</h3>
           <p className="text-xs text-text-secondary">
             Les recettes (haut) et dépenses (bas) sont représentées en regard de chaque année.
           </p>
@@ -167,19 +167,19 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
                   <div className="w-full h-[80px] flex items-end justify-center">
                     {y.totalInvoices > 0 ? (
                       <div
-                        className="w-full max-w-[40px] bg-green-500/80 rounded-t hover:bg-green-500 transition-colors"
+                        className="w-full max-w-[40px] bg-green-600/80 hover:bg-green-700 transition-colors"
                         style={{ height: `${Math.max(2, recHeight)}px` }}
                         title={`Recettes: ${y.totalInvoices.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`}
                       />
                     ) : null}
                   </div>
                   {/* Axe milieu */}
-                  <div className="w-full h-px bg-gray-200" />
+                  <div className="w-full h-px bg-ink/10" />
                   {/* Dépense (bar bas, rouge) */}
                   <div className="w-full h-[80px] flex items-start justify-center">
                     {y.totalQuotes > 0 ? (
                       <div
-                        className="w-full max-w-[40px] bg-red-500/80 rounded-b hover:bg-red-500 transition-colors"
+                        className="w-full max-w-[40px] bg-red-600/80 hover:bg-red-700 transition-colors"
                         style={{ height: `${Math.max(2, depHeight)}px` }}
                         title={`Dépenses: ${y.totalQuotes.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €`}
                       />
@@ -190,11 +190,11 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
                     Année {y.contractYearIndex}
                   </div>
                   {/* Solde annuel */}
-                  <div className="text-[10px] tabular-nums">
+                  <div className="text-[10px] font-mono tabular-nums">
                     {hasFlow ? (
                       <SignedBalance value={y.balance} />
                     ) : (
-                      <span className="text-gray-300">—</span>
+                      <span className="text-ink/25">—</span>
                     )}
                   </div>
                 </div>
@@ -204,45 +204,45 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
         )}
 
         {/* Légende */}
-        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100 text-xs text-text-secondary">
+        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-ink/10 text-xs text-text-secondary">
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-2 rounded-sm bg-green-500/80" /> Recettes
+            <span className="w-3 h-2 bg-green-600/80" /> Recettes
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-3 h-2 rounded-sm bg-red-500/80" /> Dépenses
+            <span className="w-3 h-2 bg-red-600/80" /> Dépenses
           </span>
         </div>
       </div>
 
       {/* ─────────── Détail année (tableau compact) ─────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-white border border-ink/10 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50/60 border-b border-gray-200">
+          <thead className="bg-white border-b border-ink/10">
             <tr>
-              <th className="px-4 py-2.5 text-left text-[11px] font-medium text-gray-600 uppercase tracking-wider">Année</th>
-              <th className="px-4 py-2.5 text-right text-[11px] font-medium text-gray-600 uppercase tracking-wider">Recettes</th>
-              <th className="px-4 py-2.5 text-right text-[11px] font-medium text-gray-600 uppercase tracking-wider">Dépenses</th>
-              <th className="px-4 py-2.5 text-right text-[11px] font-medium text-gray-600 uppercase tracking-wider">Solde P3</th>
-              <th className="px-4 py-2.5 text-right text-[11px] font-medium text-gray-600 uppercase tracking-wider">Solde cumulé</th>
+              <th className="label-tech px-4 py-2.5 text-left">Année</th>
+              <th className="label-tech px-4 py-2.5 text-right">Recettes</th>
+              <th className="label-tech px-4 py-2.5 text-right">Dépenses</th>
+              <th className="label-tech px-4 py-2.5 text-right">Solde P3</th>
+              <th className="label-tech px-4 py-2.5 text-right">Solde cumulé</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-ink/10">
             {p3Data.years.map((y) => (
-              <tr key={y.year} className="hover:bg-gray-50/40 transition-colors">
-                <td className="px-4 py-2 text-sm text-primary-dark">
+              <tr key={y.year} className="hover:bg-ink/[0.02] transition-colors">
+                <td className="px-4 py-2 text-sm text-ink">
                   <span className="font-medium">Année {y.contractYearIndex}</span>
                   <span className="text-text-secondary text-xs ml-2">{y.label}</span>
                 </td>
-                <td className="px-4 py-2 text-sm text-right text-primary-dark tabular-nums">
+                <td className="px-4 py-2 text-sm text-right text-ink font-mono tabular-nums">
                   <MoneyOrDash value={y.totalInvoices} />
                 </td>
-                <td className="px-4 py-2 text-sm text-right text-primary-dark tabular-nums">
+                <td className="px-4 py-2 text-sm text-right text-ink font-mono tabular-nums">
                   <MoneyOrDash value={y.totalQuotes} />
                 </td>
-                <td className="px-4 py-2 text-sm text-right tabular-nums">
+                <td className="px-4 py-2 text-sm text-right font-mono tabular-nums">
                   <SignedBalance value={y.balance} />
                 </td>
-                <td className="px-4 py-2 text-sm text-right tabular-nums">
+                <td className="px-4 py-2 text-sm text-right font-mono tabular-nums">
                   <SignedBalance value={y.cumulativeBalance} bold />
                 </td>
               </tr>
@@ -257,22 +257,22 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
           <Loader2 className="w-6 h-6 animate-spin text-accent" />
         </div>
       ) : siteAnalytics && siteAnalytics.sites.length > 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100">
-            <h3 className="text-sm font-medium text-primary-dark">Consommation du solde par site</h3>
+        <div className="bg-white border border-ink/10 overflow-hidden">
+          <div className="border-b border-ink/10 px-4 py-2.5">
+            <h3 className="label-tech">Consommation du solde par site</h3>
             <p className="text-xs text-text-secondary mt-0.5">
               Trié par solde le plus déficitaire
             </p>
           </div>
           <table className="w-full">
-            <thead className="bg-gray-50/60 border-b border-gray-200">
+            <thead className="bg-white border-b border-ink/10">
               <tr>
-                <th className="px-4 py-2.5 text-left text-[11px] font-medium text-gray-600 uppercase tracking-wider">Site</th>
+                <th className="label-tech px-4 py-2.5 text-left">Site</th>
                 {(["p3Invoices", "p3Quotes", "p3Balance"] as SortKey[]).map((key) => (
-                  <th key={key} className="px-4 py-2.5 text-right text-[11px] font-medium text-gray-600 uppercase tracking-wider">
+                  <th key={key} className="label-tech px-4 py-2.5 text-right">
                     <button
                       onClick={() => handleSort(key)}
-                      className="flex items-center gap-1 ml-auto hover:text-primary-dark transition-colors"
+                      className="flex items-center gap-1 ml-auto hover:text-ink transition-colors"
                     >
                       {key === "p3Invoices" ? "Recettes" : key === "p3Quotes" ? "Dépenses" : "Solde P3"}
                       <SortIcon col={key} sortKey={sortKey} sortDir={sortDir} />
@@ -281,22 +281,22 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-ink/10">
               {sortedSites.map((site) => (
-                <tr key={site.siteId} className="hover:bg-gray-50/40 transition-colors">
+                <tr key={site.siteId} className="hover:bg-ink/[0.02] transition-colors">
                   <td className="px-4 py-2.5 text-sm">
-                    <div className="font-medium text-primary-dark">{site.siteName}</div>
+                    <div className="font-medium text-ink">{site.siteName}</div>
                     {site.siteCity && (
                       <p className="text-xs text-text-secondary mt-0.5">{site.siteCity}</p>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-sm text-right text-primary-dark tabular-nums">
+                  <td className="px-4 py-2.5 text-sm text-right text-ink font-mono tabular-nums">
                     <MoneyOrDash value={site.p3Invoices} />
                   </td>
-                  <td className="px-4 py-2.5 text-sm text-right text-primary-dark tabular-nums">
+                  <td className="px-4 py-2.5 text-sm text-right text-ink font-mono tabular-nums">
                     <MoneyOrDash value={site.p3Quotes} />
                   </td>
-                  <td className="px-4 py-2.5 text-sm text-right tabular-nums">
+                  <td className="px-4 py-2.5 text-sm text-right font-mono tabular-nums">
                     <SignedBalance value={site.p3Balance} bold />
                   </td>
                 </tr>
@@ -305,9 +305,9 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
           </table>
         </div>
       ) : (
-        <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
-          <Building2 size={36} className="mx-auto text-gray-300 mb-3" />
-          <p className="text-sm text-gray-500">Aucun site avec activité P3</p>
+        <div className="text-center py-8 bg-white border border-ink/10">
+          <Building2 size={36} className="mx-auto text-ink/25 mb-3" />
+          <p className="text-sm text-ink/50">Aucun site avec activité P3</p>
         </div>
       )}
     </div>

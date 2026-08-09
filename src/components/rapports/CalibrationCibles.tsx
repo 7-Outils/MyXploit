@@ -45,7 +45,7 @@ export default function CalibrationCibles() {
 
   if (!selectedContract) {
     return (
-      <div className="bg-white border border-gray-200/80 rounded-lg p-8 text-center text-sm text-text-secondary">
+      <div className="panel p-8 text-center text-sm text-ink/50">
         Sélectionne un contrat pour voir le diagnostic de calibration.
       </div>
     );
@@ -160,19 +160,19 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
   return (
     <div className="space-y-4">
       {/* Header ligne 1 + filters ──────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 border-b border-ink/10 pb-2">
         <div className="flex items-center gap-3">
-          <Link href="/rapports" className="text-gray-400 hover:text-primary-dark">
+          <Link href="/rapports" className="text-ink/40 hover:text-accent transition-colors">
             <ArrowLeft size={16} />
           </Link>
-          <h1 className="text-lg font-semibold text-primary-dark">
+          <h1 className="text-xl font-semibold text-ink">
             Calibration des cibles NB
           </h1>
-          <span className="text-xs text-text-secondary">
-            · {contract.reference} · {diagnoses.length} sites
+          <span className="label-tech">
+            {contract.reference} · {diagnoses.length} sites
           </span>
         </div>
-        <div className="flex items-center gap-0.5 text-xs bg-gray-50 border border-gray-200 rounded-lg p-0.5">
+        <div className="flex items-center border border-ink/15 divide-x divide-ink/15">
           <FilterBtn active={filter === "flagged"} onClick={() => setFilter("flagged")}>
             À réviser <CountDot>{counts.flagged}</CountDot>
           </FilterBtn>
@@ -189,38 +189,38 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
       </div>
 
       {loading ? (
-        <div className="bg-white border border-gray-200/80 rounded-lg py-16 flex items-center justify-center">
-          <Loader2 className="w-6 h-6 animate-spin text-text-secondary" />
+        <div className="panel py-16 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-ink/40" />
         </div>
       ) : diagnoses.length === 0 ? (
-        <div className="bg-white border border-gray-200/80 rounded-lg py-12 text-center text-sm text-text-secondary">
+        <div className="panel py-12 text-center text-sm text-ink/50">
           Aucune donnée exploitable pour diagnostiquer les cibles de ce contrat.
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-gray-200/80 rounded-lg py-12 text-center text-sm text-text-secondary">
+        <div className="panel py-12 text-center text-sm text-ink/50">
           Aucun site dans cette catégorie.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-4">
           {/* Liste compacte ─────────────────────────────────── */}
-          <div className="bg-white border border-gray-200/80 rounded-lg overflow-hidden">
-            <div className="max-h-[calc(100vh-180px)] overflow-auto divide-y divide-gray-100">
+          <div className="panel overflow-hidden">
+            <div className="max-h-[calc(100vh-180px)] overflow-auto divide-y divide-ink/10">
               {filtered.map(({ siteId, siteName, verdict }) => {
                 const active = selected?.siteId === siteId;
                 return (
                   <button
                     key={siteId}
                     onClick={() => setSelectedId(siteId)}
-                    className={`w-full text-left px-3 py-2.5 flex items-center gap-2 transition-colors ${
-                      active ? "bg-accent/5 border-l-2 border-accent" : "hover:bg-gray-50 border-l-2 border-transparent"
+                    className={`w-full text-left px-3 py-2 flex items-center gap-2 transition-colors ${
+                      active ? "bg-accent/5 border-l-2 border-accent" : "hover:bg-ink/[0.02] border-l-2 border-transparent"
                     }`}
                   >
                     <Dot verdict={verdict} />
                     <div className="flex-1 min-w-0">
-                      <div className={`text-[13px] font-medium truncate ${active ? "text-accent" : "text-primary-dark"}`}>
+                      <div className={`text-[13px] font-medium truncate ${active ? "text-accent" : "text-ink"}`}>
                         {siteName}
                       </div>
-                      <div className="text-[11px] text-text-secondary tabular-nums">
+                      <div className="font-mono text-[11px] text-ink/50 tabular-nums">
                         <VerdictInline verdict={verdict} />
                       </div>
                     </div>
@@ -231,7 +231,7 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
           </div>
 
           {/* Détail ────────────────────────────────────────── */}
-          <div className="bg-white border border-gray-200/80 rounded-lg overflow-hidden">
+          <div className="panel overflow-hidden">
             {selected ? <DetailPane site={selected} /> : null}
           </div>
         </div>
@@ -254,8 +254,8 @@ function FilterBtn({
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1 ${
-        active ? "bg-white shadow-sm text-primary-dark" : "text-text-secondary hover:text-primary-dark"
+      className={`px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors flex items-center gap-1.5 ${
+        active ? "bg-accent/5 text-accent" : "text-ink/50 hover:text-ink hover:bg-ink/[0.02]"
       }`}
     >
       {children}
@@ -265,7 +265,7 @@ function FilterBtn({
 
 function CountDot({ children }: { children: React.ReactNode }) {
   return (
-    <span className="tabular-nums text-[10px] text-gray-400 font-semibold">
+    <span className="font-mono tabular-nums text-[10px] text-ink/40 font-semibold">
       {children}
     </span>
   );
@@ -273,11 +273,11 @@ function CountDot({ children }: { children: React.ReactNode }) {
 
 function Dot({ verdict }: { verdict: Verdict }) {
   const color =
-    verdict.kind === "calibrated" && verdict.severity === "LACHE" ? "bg-amber-500" :
-    verdict.kind === "calibrated" && verdict.severity === "SERREE" ? "bg-rose-500" :
-    verdict.kind === "calibrated" ? "bg-emerald-500" :
-    verdict.kind === "unstable" ? "bg-gray-400" :
-    "bg-gray-200";
+    verdict.kind === "calibrated" && verdict.severity === "LACHE" ? "bg-amber-600" :
+    verdict.kind === "calibrated" && verdict.severity === "SERREE" ? "bg-red-600" :
+    verdict.kind === "calibrated" ? "bg-green-600" :
+    verdict.kind === "unstable" ? "bg-ink/40" :
+    "bg-ink/15";
   return <span className={`w-2 h-2 rounded-full ${color} shrink-0`} />;
 }
 
@@ -342,23 +342,23 @@ function DetailPane({
   return (
     <>
       {/* Entête pane ─────────────────────────────────────────── */}
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
+      <div className="panel-header">
         <div className="flex items-center gap-3 min-w-0">
-          <h2 className="text-base font-semibold text-primary-dark truncate">
+          <h2 className="text-sm font-semibold text-ink truncate">
             {site.siteName}
           </h2>
           <VerdictBadge verdict={liveVerdict} />
         </div>
         <Link
           href={`/energy/sites/${site.siteId}`}
-          className="text-xs text-text-secondary hover:text-primary-dark flex items-center gap-1 shrink-0"
+          className="font-mono text-[11px] uppercase tracking-widest text-ink/50 hover:text-accent flex items-center gap-1 shrink-0 transition-colors"
         >
           Voir le site <ArrowRight size={12} />
         </Link>
       </div>
 
       {/* Contenu ─────────────────────────────────────────────── */}
-      <div className="p-6 space-y-5">
+      <div className="p-4 space-y-4">
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6">
           {/* Scatter + chips */}
           <div className="space-y-4">
@@ -366,9 +366,9 @@ function DetailPane({
 
             {/* Chips saisons — cliquables */}
             <div>
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-2">
-                <span>Saisons prises en compte</span>
-                <span className="text-gray-400">clic pour exclure / inclure</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="label-tech">Saisons prises en compte</span>
+                <span className="label-tech normal-case tracking-normal text-ink/40">clic pour exclure / inclure</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {sortedPoints.map((p) => {
@@ -377,10 +377,10 @@ function DetailPane({
                     <button
                       key={p.year}
                       onClick={() => togglePoint(p.year)}
-                      className={`text-[11px] px-2 py-1 rounded-md border transition-colors tabular-nums ${
+                      className={`font-mono text-[11px] px-2 py-1 border transition-colors tabular-nums ${
                         excluded
-                          ? "border-dashed border-gray-300 bg-gray-50 text-gray-400 line-through"
-                          : "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                          ? "border-dashed border-ink/20 text-ink/30 line-through"
+                          : "border-ink/20 text-ink hover:border-accent hover:text-accent"
                       }`}
                     >
                       {p.year - 1}–{p.year}
@@ -392,7 +392,7 @@ function DetailPane({
 
             {/* Mode presets */}
             <div>
-              <div className="flex items-center gap-1 text-xs bg-gray-50 border border-gray-200 rounded-lg p-0.5 w-fit">
+              <div className="flex items-center border border-ink/15 divide-x divide-ink/15 w-fit">
                 {(["auto", "all", "last3", "custom"] as Mode[]).map((m) => (
                   <button
                     key={m}
@@ -400,15 +400,15 @@ function DetailPane({
                       setMode(m);
                       if (m !== "custom") setManualExcluded(new Set());
                     }}
-                    className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                      mode === m ? "bg-white shadow-sm text-primary-dark" : "text-text-secondary hover:text-primary-dark"
+                    className={`px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors ${
+                      mode === m ? "bg-accent/5 text-accent" : "text-ink/50 hover:text-ink hover:bg-ink/[0.02]"
                     }`}
                   >
                     {m === "auto" ? "Auto algo" : m === "all" ? "Toutes saisons" : m === "last3" ? "3 dernières" : "Manuel"}
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-text-secondary mt-2 italic">
+              <p className="text-[11px] text-ink/50 mt-2">
                 {mode === "auto" && "L'algorithme choisit : tendance → 3 dernières, outlier → exclusion auto, sinon toutes."}
                 {mode === "all" && "Toutes les saisons disponibles sont incluses dans la régression."}
                 {mode === "last3" && "Seules les 3 saisons les plus récentes sont utilisées — reflète la performance actuelle."}
@@ -430,25 +430,25 @@ function DetailPane({
 function VerdictBadge({ verdict }: { verdict: Verdict }) {
   if (verdict.kind === "insufficient") {
     return (
-      <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+      <span className="font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 border border-ink/15 text-ink/50">
         Historique en constitution
       </span>
     );
   }
   if (verdict.kind === "unstable") {
     return (
-      <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600 inline-flex items-center gap-1">
+      <span className="font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 border border-ink/15 text-ink/50 inline-flex items-center gap-1">
         <AlertCircle size={11} /> Signature instable
       </span>
     );
   }
   const m = {
-    LACHE:  { bg: "bg-amber-100",   text: "text-amber-800",   label: "Cible trop lâche" },
-    SERREE: { bg: "bg-rose-100",    text: "text-rose-800",    label: "Cible trop serrée" },
-    OK:     { bg: "bg-emerald-100", text: "text-emerald-800", label: "Bien calibrée" },
+    LACHE:  { bg: "bg-amber-50 border-amber-600/20", text: "text-amber-700", label: "Cible trop lâche" },
+    SERREE: { bg: "bg-red-50 border-red-600/20",     text: "text-red-700",   label: "Cible trop serrée" },
+    OK:     { bg: "bg-green-50 border-green-600/20", text: "text-green-700", label: "Bien calibrée" },
   }[verdict.severity];
   return (
-    <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${m.bg} ${m.text}`}>
+    <span className={`font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 border ${m.bg} ${m.text}`}>
       {m.label}
     </span>
   );
@@ -464,10 +464,10 @@ function DiagnosticPanel({
   if (verdict.kind === "insufficient") {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-primary-dark leading-relaxed">
-          <strong className="tabular-nums">{verdict.count} saison{verdict.count > 1 ? "s" : ""}</strong> exploitable{verdict.count > 1 ? "s" : ""} — il en faut au moins 3 pour calibrer.
+        <p className="text-sm text-ink leading-relaxed">
+          <strong className="font-mono tabular-nums">{verdict.count} saison{verdict.count > 1 ? "s" : ""}</strong> exploitable{verdict.count > 1 ? "s" : ""} — il en faut au moins 3 pour calibrer.
         </p>
-        <p className="text-[13px] text-text-secondary leading-relaxed">
+        <p className="text-[13px] text-ink/50 leading-relaxed">
           La signature énergétique se stabilisera automatiquement aux prochaines saisons. La cible actuelle reste appliquée entre-temps.
         </p>
       </div>
@@ -476,11 +476,11 @@ function DiagnosticPanel({
   if (verdict.kind === "unstable") {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-primary-dark leading-relaxed">
+        <p className="text-sm text-ink leading-relaxed">
           <strong>Signature instable</strong> — la relation NC/DJR est trop bruitée
-          (<span className="tabular-nums">R² {verdict.r2.toFixed(2)}</span>).
+          (<span className="font-mono tabular-nums">R² {verdict.r2.toFixed(2)}</span>).
         </p>
-        <p className="text-[13px] text-text-secondary leading-relaxed">
+        <p className="text-[13px] text-ink/50 leading-relaxed">
           Probable changement de régime : rénovation partielle, changement d&apos;usage, incidents. La calibration automatique est désactivée — à investiguer manuellement avant toute action sur la cible.
         </p>
       </div>
@@ -497,7 +497,7 @@ function DiagnosticPanel({
   return (
     <div className="space-y-4">
       {/* Chiffres clés empilés */}
-      <div className="space-y-2.5 border-l-2 border-gray-100 pl-4">
+      <div className="divide-y divide-ink/10 border-y border-ink/15">
         <NarrativeRow label="Cible contractuelle" value={`${current.toFixed(0)} MWh`} tone="gray" />
         <NarrativeRow
           label="Cible selon signature"
@@ -514,12 +514,12 @@ function DiagnosticPanel({
       </div>
 
       {/* Phrase narrative */}
-      <p className="text-[13px] text-text-secondary leading-relaxed">
-        À conditions contractuelles (<span className="tabular-nums">DJC {djc.toLocaleString("fr-FR")}</span>),
-        la signature prédit <strong className="text-primary-dark tabular-nums">{v.nbRefMwh.toFixed(0)} MWh</strong>.
-        La cible actuelle de <strong className="tabular-nums">{current.toFixed(0)} MWh</strong>
+      <p className="text-[13px] text-ink/60 leading-relaxed">
+        À conditions contractuelles (<span className="font-mono tabular-nums">DJC {djc.toLocaleString("fr-FR")}</span>),
+        la signature prédit <strong className="font-mono text-ink tabular-nums">{v.nbRefMwh.toFixed(0)} MWh</strong>.
+        La cible actuelle de <strong className="font-mono tabular-nums">{current.toFixed(0)} MWh</strong>
         {direction ? (
-          <> est donc <strong className="text-primary-dark">{direction} de {absDelta.toFixed(0)} MWh ({absPct.toFixed(0)} %)</strong>.</>
+          <> est donc <strong className="text-ink">{direction} de {absDelta.toFixed(0)} MWh ({absPct.toFixed(0)} %)</strong>.</>
         ) : (
           <> est cohérente avec l&apos;historique (écart ≤ 10 %).</>
         )}
@@ -527,29 +527,27 @@ function DiagnosticPanel({
 
       {/* Reco */}
       {v.severity !== "OK" && (
-        <div className="pt-3 border-t border-gray-100">
-          <div className="text-[10px] uppercase tracking-wider text-text-secondary font-semibold mb-1.5">
-            Recommandation
-          </div>
-          <p className="text-sm text-primary-dark leading-relaxed">
+        <div className="pt-3 border-t border-ink/10">
+          <div className="label-tech mb-1.5">Recommandation</div>
+          <p className="text-sm text-ink leading-relaxed">
             {v.severity === "LACHE" ? "Durcir la cible" : "Renégocier la cible à la hausse"} vers{" "}
-            <strong className="tabular-nums bg-accent/10 px-1.5 rounded">{v.nbRefMwh.toFixed(0)} MWh</strong>.
+            <strong className="font-mono tabular-nums text-accent">{v.nbRefMwh.toFixed(0)} MWh</strong>.
           </p>
         </div>
       )}
 
       {/* Qualité du fit */}
-      <div className="pt-3 border-t border-gray-100 text-[11px] text-text-secondary space-y-1">
+      <div className="pt-3 border-t border-ink/10 text-[11px] text-ink/50 space-y-1">
         <div className="flex items-center justify-between">
           <span>Qualité du fit</span>
-          <span className="tabular-nums font-medium text-primary-dark">R² {v.r2.toFixed(2)}</span>
+          <span className="font-mono tabular-nums font-medium text-ink">R² {v.r2.toFixed(2)}</span>
         </div>
         <div className="flex items-center justify-between">
           <span>Saisons retenues</span>
-          <span className="tabular-nums">{v.usedPoints.length} / {site.points.length}</span>
+          <span className="font-mono tabular-nums">{v.usedPoints.length} / {site.points.length}</span>
         </div>
       </div>
-      <p className="text-[10px] text-text-secondary italic">
+      <p className="text-[10px] text-ink/40">
         {v.method}
       </p>
     </div>
@@ -570,25 +568,19 @@ function NarrativeRow({
   highlight?: boolean;
 }) {
   const toneClass = {
-    gray: "text-primary-dark",
-    amber: "text-amber-800",
-    rose: "text-rose-800",
-    emerald: "text-emerald-800",
+    gray: "text-ink",
+    amber: "text-amber-700",
+    rose: "text-red-700",
+    emerald: "text-green-700",
   }[tone];
-  const bgClass = highlight
-    ? tone === "amber" ? "bg-amber-50"
-    : tone === "rose" ? "bg-rose-50"
-    : tone === "emerald" ? "bg-emerald-50"
-    : "bg-gray-50"
-    : "";
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-[11px] text-text-secondary uppercase tracking-wider font-medium">{label}</span>
+    <div className="flex items-baseline justify-between gap-3 py-2">
+      <span className="label-tech">{label}</span>
       <div className="text-right">
-        <span className={`text-sm font-bold tabular-nums ${toneClass} ${highlight ? `${bgClass} px-1.5 rounded` : ""}`}>
+        <span className={`font-mono text-sm tabular-nums ${highlight ? "font-bold" : "font-semibold"} ${toneClass}`}>
           {value}
         </span>
-        {sub && <span className="text-[11px] text-text-secondary ml-1.5 tabular-nums">{sub}</span>}
+        {sub && <span className="font-mono text-[11px] text-ink/50 ml-1.5 tabular-nums">{sub}</span>}
       </div>
     </div>
   );
@@ -649,25 +641,25 @@ function SignatureChart({
         {/* Gridlines */}
         {yTicks.map((t, i) => (
           <g key={i}>
-            <line x1={P} y1={yScale(t)} x2={W - P} y2={yScale(t)} stroke="#f3f4f6" />
-            <text x={P - 6} y={yScale(t) + 3} fontSize={9} fill="#9ca3af" textAnchor="end" fontFamily="ui-sans-serif">
+            <line x1={P} y1={yScale(t)} x2={W - P} y2={yScale(t)} stroke="#0F1E33" strokeOpacity={0.08} />
+            <text x={P - 6} y={yScale(t) + 3} fontSize={9} fill="#0F1E33" fillOpacity={0.4} textAnchor="end" fontFamily="var(--font-mono, monospace)">
               {Math.round(t).toLocaleString("fr-FR")}
             </text>
           </g>
         ))}
         {/* Axes */}
-        <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#d1d5db" />
-        <line x1={P} y1={P} x2={P} y2={H - P} stroke="#d1d5db" />
+        <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#0F1E33" strokeOpacity={0.15} />
+        <line x1={P} y1={P} x2={P} y2={H - P} stroke="#0F1E33" strokeOpacity={0.15} />
 
         {/* DJC vertical — "conditions contractuelles" */}
-        <line x1={djcX} y1={P} x2={djcX} y2={H - P} stroke="#9ca3af" strokeDasharray="3 3" />
-        <text x={djcX - 5} y={P + 11} fontSize={10} fill="#6b7280" textAnchor="end" fontFamily="ui-sans-serif">
+        <line x1={djcX} y1={P} x2={djcX} y2={H - P} stroke="#0F1E33" strokeOpacity={0.3} strokeDasharray="3 3" />
+        <text x={djcX - 5} y={P + 11} fontSize={10} fill="#0F1E33" fillOpacity={0.5} textAnchor="end" fontFamily="var(--font-mono, monospace)">
           DJC {Math.round(djcVal).toLocaleString("fr-FR")}
         </text>
 
-        {/* Ligne cible contractuelle (NB actuel) — horizontale amber */}
-        <line x1={P} y1={currentNbY} x2={W - P} y2={currentNbY} stroke="#f59e0b" strokeDasharray="3 3" opacity={0.6} />
-        <text x={P + 6} y={currentNbY - 4} fontSize={10} fill="#b45309" textAnchor="start" fontFamily="ui-sans-serif">
+        {/* Ligne cible contractuelle (NB actuel) — horizontale, tireté accent */}
+        <line x1={P} y1={currentNbY} x2={W - P} y2={currentNbY} stroke="#2563EB" strokeDasharray="5 5" strokeWidth={1.5} />
+        <text x={P + 6} y={currentNbY - 4} fontSize={10} fill="#2563EB" textAnchor="start" fontFamily="var(--font-mono, monospace)">
           Cible contractuelle {points[0].currentNb.toFixed(0)}
         </text>
 
@@ -675,21 +667,21 @@ function SignatureChart({
         {lineSeg && verdict.kind === "calibrated" && (
           <polygon
             points={`${lineSeg.x1},${lineSeg.y1 - 8} ${lineSeg.x2},${lineSeg.y2 - 8} ${lineSeg.x2},${lineSeg.y2 + 8} ${lineSeg.x1},${lineSeg.y1 + 8}`}
-            fill="#0f172a"
+            fill="#0F1E33"
             opacity={0.06}
           />
         )}
 
         {/* Droite de signature énergétique */}
         {lineSeg && (
-          <line x1={lineSeg.x1} y1={lineSeg.y1} x2={lineSeg.x2} y2={lineSeg.y2} stroke="#0f172a" strokeWidth={1.5} />
+          <line x1={lineSeg.x1} y1={lineSeg.y1} x2={lineSeg.x2} y2={lineSeg.y2} stroke="#0F1E33" strokeWidth={2} />
         )}
 
         {/* Annotation delta NB actuel ↔ NB ref à x=DJC — le KEY insight visuel */}
         {nbRefY !== null && verdict.kind === "calibrated" && (() => {
           const delta = verdict.deltaMwh;
           const severe = verdict.severity !== "OK";
-          const deltaColor = verdict.severity === "LACHE" ? "#b45309" : verdict.severity === "SERREE" ? "#be123c" : "#6b7280";
+          const deltaColor = verdict.severity === "LACHE" ? "#b45309" : verdict.severity === "SERREE" ? "#b91c1c" : "#0F1E33";
           const top = Math.min(currentNbY, nbRefY);
           const bot = Math.max(currentNbY, nbRefY);
           const mid = (top + bot) / 2;
@@ -706,12 +698,11 @@ function SignatureChart({
                 y={mid - 8}
                 width={64}
                 height={16}
-                rx={3}
                 fill="white"
                 stroke={deltaColor}
                 strokeWidth={0.8}
               />
-              <text x={djcX} y={mid + 4} fontSize={10} fontWeight={700} fill={deltaColor} textAnchor="middle" fontFamily="ui-sans-serif">
+              <text x={djcX} y={mid + 4} fontSize={10} fontWeight={700} fill={deltaColor} textAnchor="middle" fontFamily="var(--font-mono, monospace)">
                 {delta > 0 ? "+" : ""}{Math.round(delta)} MWh
               </text>
             </g>
@@ -721,8 +712,8 @@ function SignatureChart({
         {/* Point cible selon signature (NB ref) */}
         {nbRefY !== null && verdict.kind === "calibrated" && (
           <g>
-            <circle cx={djcX} cy={nbRefY} r={6} fill="#0f172a" />
-            <circle cx={djcX} cy={nbRefY} r={10} fill="none" stroke="#0f172a" strokeOpacity={0.25} strokeWidth={1} />
+            <circle cx={djcX} cy={nbRefY} r={5} fill="#0F1E33" />
+            <circle cx={djcX} cy={nbRefY} r={10} fill="none" stroke="#0F1E33" strokeOpacity={0.25} strokeWidth={1} />
           </g>
         )}
         {/* Label "cible selon signature" placé à l'extérieur pour éviter collision avec le delta */}
@@ -731,9 +722,9 @@ function SignatureChart({
             x={djcX + 14}
             y={nbRefY + (currentNbY < nbRefY ? 12 : -8)}
             fontSize={10}
-            fill="#0f172a"
+            fill="#0F1E33"
             fontWeight={700}
-            fontFamily="ui-sans-serif"
+            fontFamily="var(--font-mono, monospace)"
           >
             Cible signature {verdict.nbRefMwh.toFixed(0)}
           </text>
@@ -760,10 +751,12 @@ function SignatureChart({
               <circle
                 cx={xScale(p.djr)}
                 cy={yScale(p.nc / 1000)}
-                r={5}
-                fill={excluded ? "#e5e7eb" : "#0ea5e9"}
-                stroke={excluded ? "#9ca3af" : "#0369a1"}
+                r={4.5}
+                fill={excluded ? "#ffffff" : "#0F1E33"}
+                stroke={excluded ? "#0F1E33" : "#0F1E33"}
+                strokeOpacity={excluded ? 0.25 : 1}
                 strokeWidth={1.5}
+                strokeDasharray={excluded ? "2 2" : undefined}
               >
                 <title>
                   {`Saison ${p.year - 1}-${p.year}\nNC : ${(p.nc / 1000).toFixed(0)} MWh\nDJR : ${Math.round(p.djr).toLocaleString("fr-FR")}${excluded ? "\n(exclue)" : ""}`}
@@ -773,9 +766,10 @@ function SignatureChart({
                 x={xScale(p.djr)}
                 y={yScale(p.nc / 1000) - 9}
                 fontSize={9}
-                fill={excluded ? "#9ca3af" : "#0369a1"}
+                fill="#0F1E33"
+                fillOpacity={excluded ? 0.35 : 0.7}
                 textAnchor="middle"
-                fontFamily="ui-sans-serif"
+                fontFamily="var(--font-mono, monospace)"
                 pointerEvents="none"
               >
                 {`${p.year - 1}-${p.year.toString().slice(2)}`}
@@ -785,10 +779,10 @@ function SignatureChart({
         })}
 
         {/* Axis labels */}
-        <text x={W / 2} y={H - 6} fontSize={10} fill="#9ca3af" textAnchor="middle" fontFamily="ui-sans-serif">
+        <text x={W / 2} y={H - 6} fontSize={10} fill="#0F1E33" fillOpacity={0.4} textAnchor="middle" fontFamily="var(--font-mono, monospace)">
           DJU observés (DJR saison)
         </text>
-        <text x={14} y={H / 2} fontSize={10} fill="#9ca3af" transform={`rotate(-90, 14, ${H / 2})`} fontFamily="ui-sans-serif">
+        <text x={14} y={H / 2} fontSize={10} fill="#0F1E33" fillOpacity={0.4} transform={`rotate(-90, 14, ${H / 2})`} fontFamily="var(--font-mono, monospace)">
           Conso chauffage (MWh)
         </text>
       </svg>

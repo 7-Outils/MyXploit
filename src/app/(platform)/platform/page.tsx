@@ -67,157 +67,143 @@ export default function PlatformDashboardPage() {
       label: "Organisations",
       value: stats?.organizations || 0,
       icon: Building2,
-      color: "bg-blue-100 text-blue-600",
       href: "/platform/organizations",
     },
     {
       label: "Utilisateurs",
       value: stats?.users || 0,
       icon: Users,
-      color: "bg-green-100 text-green-600",
       href: "/platform/users",
     },
     {
       label: "Sites",
       value: stats?.sites || 0,
       icon: MapPin,
-      color: "bg-purple-100 text-purple-600",
       href: null,
     },
     {
       label: "Contrats",
       value: stats?.contracts || 0,
       icon: FileText,
-      color: "bg-orange-100 text-orange-600",
       href: null,
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Dashboard Plateforme
-        </h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-xl font-semibold text-ink">Dashboard Plateforme</h1>
+        <p className="text-sm text-text-secondary mt-1">
           Vue globale de la plateforme MyXploit
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((card) => (
-          <div
-            key={card.label}
-            onClick={() => card.href && router.push(card.href)}
-            className={`bg-white rounded-xl border border-gray-100 p-5 ${
-              card.href ? "cursor-pointer hover:shadow-md transition-shadow" : ""
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">{card.label}</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {card.value}
-                </p>
-              </div>
-              <div
-                className={`w-12 h-12 rounded-xl ${card.color} flex items-center justify-center`}
-              >
-                <card.icon size={24} />
-              </div>
+      {/* Stats — bandeau de faits, hairlines, sans boîte colorée */}
+      <div className="border border-ink/10 bg-white">
+        <div className="grid grid-cols-2 divide-x divide-y divide-ink/10 lg:grid-cols-4 lg:divide-y-0">
+          {statCards.map((card) => (
+            <div
+              key={card.label}
+              onClick={() => card.href && router.push(card.href)}
+              className={`px-4 py-3 ${
+                card.href ? "cursor-pointer transition-colors hover:bg-ink/[0.02]" : ""
+              }`}
+            >
+              <p className="label-tech flex items-center gap-2">
+                <card.icon size={12} className="text-ink/30" />
+                {card.label}
+              </p>
+              <p className="mt-1 font-mono text-2xl font-medium tabular-nums text-ink">
+                {card.value}
+              </p>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <button
           onClick={() => router.push("/platform/organizations")}
-          className="bg-white rounded-xl border border-gray-100 p-5 text-left hover:shadow-md transition-shadow"
+          className="group border border-ink/10 bg-white p-4 text-left transition-colors hover:border-accent/40"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm font-medium text-ink group-hover:text-accent">
                 Gerer les organisations
               </p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-text-secondary mt-1">
                 Creer, modifier, configurer les modules
               </p>
             </div>
-            <ArrowRight size={20} className="text-gray-400" />
+            <ArrowRight size={16} className="flex-shrink-0 text-ink/30 group-hover:text-accent" />
           </div>
         </button>
         <button
           onClick={() => router.push("/platform/users")}
-          className="bg-white rounded-xl border border-gray-100 p-5 text-left hover:shadow-md transition-shadow"
+          className="group border border-ink/10 bg-white p-4 text-left transition-colors hover:border-accent/40"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="font-semibold text-gray-900">
+              <p className="text-sm font-medium text-ink group-hover:text-accent">
                 Gerer les utilisateurs
               </p>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-text-secondary mt-1">
                 Voir tous les utilisateurs de la plateforme
               </p>
             </div>
-            <ArrowRight size={20} className="text-gray-400" />
+            <ArrowRight size={16} className="flex-shrink-0 text-ink/30 group-hover:text-accent" />
           </div>
         </button>
         <button
           onClick={() => router.push("/platform/organizations")}
-          className="bg-white rounded-xl border border-gray-100 p-5 text-left hover:shadow-md transition-shadow"
+          className="group border border-ink/10 bg-white p-4 text-left transition-colors hover:border-accent/40"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Ghost size={20} className="text-purple-600" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Ghost size={16} className="mt-0.5 flex-shrink-0 text-amber-600" />
               <div>
-                <p className="font-semibold text-gray-900">Mode Fantome</p>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm font-medium text-ink group-hover:text-accent">Mode Fantome</p>
+                <p className="text-sm text-text-secondary mt-1">
                   Consulter une organisation
                 </p>
               </div>
             </div>
-            <ArrowRight size={20} className="text-gray-400" />
+            <ArrowRight size={16} className="flex-shrink-0 text-ink/30 group-hover:text-accent" />
           </div>
         </button>
       </div>
 
       {/* Recent Organizations */}
-      <div className="bg-white rounded-xl border border-gray-100">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Organisations recentes
-          </h2>
+      <div className="panel">
+        <div className="panel-header">
+          <h2 className="label-tech">Organisations recentes</h2>
           <button
             onClick={() => router.push("/platform/organizations")}
-            className="text-sm text-accent hover:underline"
+            className="font-mono text-[11px] uppercase tracking-widest text-accent hover:underline"
           >
             Voir tout
           </button>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-ink/10">
           {recentOrgs.map((org) => (
-            <div key={org.id} className="px-5 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-                  <Building2 size={20} className="text-accent" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{org.name}</p>
-                  <p className="text-sm text-gray-500">
+            <div key={org.id} className="flex items-center justify-between gap-3 px-4 py-2">
+              <div className="flex items-center gap-3 min-w-0">
+                <Building2 size={16} className="flex-shrink-0 text-ink/30" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">{org.name}</p>
+                  <p className="font-mono text-[11px] tabular-nums text-ink/40">
                     {org._count.users} utilisateurs · {org._count.sites} sites · {org._count.contracts} contrats
                   </p>
                 </div>
               </div>
-              <span className="text-xs text-gray-400">
+              <span className="font-mono text-[11px] tabular-nums text-ink/40">
                 {new Date(org.createdAt).toLocaleDateString("fr-FR")}
               </span>
             </div>
           ))}
           {recentOrgs.length === 0 && (
-            <div className="px-5 py-8 text-center text-gray-500">
+            <div className="px-4 py-8 text-center text-sm text-text-secondary">
               Aucune organisation
             </div>
           )}

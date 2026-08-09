@@ -18,99 +18,100 @@ export function ReadingsHistoryModal({
   onClose,
 }: ReadingsHistoryModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-primary-dark">Historique des relevés</h2>
-            <p className="text-sm text-text-secondary">{meter.name}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden border border-ink/15 bg-white shadow-large">
+        <div className="flex items-start justify-between gap-3 border-b border-ink/10 px-5 py-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-ink">Historique des relevés</h2>
+            <p className="mt-0.5 truncate text-sm text-ink/50">{meter.name}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Fermer"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              <Loader2 className="h-6 w-6 animate-spin text-accent" />
             </div>
           ) : readings.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <Activity size={48} className="text-gray-300 mb-4" />
-              <p className="text-text-secondary">Aucun relevé enregistré</p>
+              <Activity size={32} className="mb-3 text-ink/20" />
+              <p className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
+                Aucun relevé enregistré
+              </p>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-y border-gray-100">
-                <tr>
-                  <th className="text-left px-4 py-2 font-medium text-text-secondary">Date</th>
-                  <th className="text-right px-4 py-2 font-medium text-text-secondary">Index</th>
-                  <th className="text-right px-4 py-2 font-medium text-text-secondary">
-                    Conso ({meter.unit})
-                  </th>
-                  {meter.conversionCoefficient && (
-                    <th className="text-right px-4 py-2 font-medium text-text-secondary">
-                      Converti ({meter.conversionUnit})
+            <div className="overflow-x-auto border border-ink/10">
+              <table className="w-full text-sm">
+                <thead className="border-b border-ink/10 bg-ink/[0.02]">
+                  <tr>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Date</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">Index</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">
+                      Conso ({meter.unit})
                     </th>
-                  )}
-                  <th className="text-center px-4 py-2 font-medium text-text-secondary">
-                    Source
-                  </th>
-                  <th className="text-center px-4 py-2 font-medium text-text-secondary">
-                    Validé
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {readings.map((reading) => (
-                  <tr key={reading.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      {new Date(reading.readingDate).toLocaleDateString("fr-FR")}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {reading.indexValue?.toLocaleString("fr-FR") || "-"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-medium">
-                      {reading.consumption?.toLocaleString("fr-FR") || "-"}
-                    </td>
                     {meter.conversionCoefficient && (
-                      <td className="px-4 py-3 text-right font-mono">
-                        {reading.consumptionConverted?.toLocaleString("fr-FR", {
-                          maximumFractionDigits: 2,
-                        }) || "-"}
-                      </td>
+                      <th className="label-tech px-3 py-2 text-right font-normal">
+                        Converti ({meter.conversionUnit})
+                      </th>
                     )}
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          reading.source === "API"
-                            ? "bg-blue-50 text-blue-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}
-                      >
-                        {reading.source === "API" ? "API" : "Manuel"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {reading.isValidated ? (
-                        <CheckCircle size={16} className="text-green-500 inline" />
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
+                    <th className="label-tech px-3 py-2 text-center font-normal">Source</th>
+                    <th className="label-tech px-3 py-2 text-center font-normal">Validé</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-ink/[0.06]">
+                  {readings.map((reading) => (
+                    <tr key={reading.id} className="hover:bg-ink/[0.02]">
+                      <td className="px-3 py-2 font-mono tabular-nums text-ink/70">
+                        {new Date(reading.readingDate).toLocaleDateString("fr-FR")}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/70">
+                        {reading.indexValue?.toLocaleString("fr-FR") || "-"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-medium tabular-nums text-ink">
+                        {reading.consumption?.toLocaleString("fr-FR") || "-"}
+                      </td>
+                      {meter.conversionCoefficient && (
+                        <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/70">
+                          {reading.consumptionConverted?.toLocaleString("fr-FR", {
+                            maximumFractionDigits: 2,
+                          }) || "-"}
+                        </td>
+                      )}
+                      <td className="px-3 py-2 text-center">
+                        <span
+                          className={`inline-flex items-center border px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest ${
+                            reading.source === "API"
+                              ? "border-accent/30 bg-accent/[0.06] text-accent"
+                              : "border-ink/15 bg-white text-ink/60"
+                          }`}
+                        >
+                          {reading.source === "API" ? "API" : "Manuel"}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        {reading.isValidated ? (
+                          <CheckCircle size={16} className="inline text-green-600" />
+                        ) : (
+                          <span className="text-ink/30">-</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
-        <div className="p-4 border-t border-gray-100">
-          <Button variant="outline" className="w-full" onClick={onClose}>
+        <div className="flex items-center justify-end border-t border-ink/10 px-5 py-3">
+          <Button variant="outline" onClick={onClose}>
             Fermer
           </Button>
         </div>

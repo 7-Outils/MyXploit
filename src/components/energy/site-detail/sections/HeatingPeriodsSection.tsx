@@ -25,18 +25,18 @@ export default function HeatingPeriodsSection({ heatingSeasons }: HeatingPeriods
     <ChartCard
       title={
         <span className="flex items-center gap-2">
-          <Flame className="h-5 w-5 text-accent" />
+          <Flame className="h-3.5 w-3.5 text-ink/40" />
           Périodes de chauffage
         </span>
       }
     >
       {validSeasons.length > 0 ? (
-        <div className="space-y-3">
+        <div className="divide-y divide-ink/10 border-y border-ink/10">
           {validSeasons.slice(0, 5).map((season) => (
-            <div key={season.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+            <div key={season.id} className="flex items-center justify-between gap-4 py-2.5">
               <div>
-                <p className="font-medium">Saison {season.season}</p>
-                <p className="text-sm text-text-secondary">
+                <p className="text-sm font-medium text-ink">Saison {season.season}</p>
+                <p className="font-mono text-xs tabular-nums text-ink/50">
                   {new Date(season.startDate).toLocaleDateString("fr-FR")}
                   {" → "}
                   {season.endDate
@@ -45,22 +45,22 @@ export default function HeatingPeriodsSection({ heatingSeasons }: HeatingPeriods
                   }
                 </p>
               </div>
-              <div className="text-right text-sm">
+              <div className="text-right font-mono text-xs tabular-nums text-ink/60">
                 {season.startIndex !== null && (
-                  <p>Index départ: {formatNumber(season.startIndex)}</p>
+                  <p>Index départ : {formatNumber(season.startIndex)}</p>
                 )}
                 {season.endIndex !== null && (
-                  <p>Index fin: {formatNumber(season.endIndex)}</p>
+                  <p>Index fin : {formatNumber(season.endIndex)}</p>
                 )}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-[200px] text-center">
-          <Calendar className="h-8 w-8 text-text-secondary mb-2" />
-          <p className="text-text-secondary">Aucune période définie</p>
-          <p className="text-xs text-text-secondary mt-1">
+        <div className="flex h-[200px] flex-col items-center justify-center text-center">
+          <Calendar className="mb-2 h-6 w-6 text-ink/25" />
+          <p className="text-sm text-ink/60">Aucune période définie</p>
+          <p className="mt-1 text-xs text-ink/50">
             Les dates d&apos;allumage/arrêt du chauffage n&apos;ont pas été renseignées.
           </p>
           <Link href="/energy?tab=climat">

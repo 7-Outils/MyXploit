@@ -373,7 +373,7 @@ function FinancierPageContent() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Suivi financier</h1>
+          <h1 className="text-xl font-semibold text-ink">Suivi financier</h1>
           <p className="text-text-secondary">Sélectionnez un contrat dans la barre supérieure pour accéder au suivi financier</p>
         </div>
       </div>
@@ -384,7 +384,7 @@ function FinancierPageContent() {
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-ink/10">
         <nav className="flex gap-8">
           {FINANCIER_TABS.map((tab) => (
             <button
@@ -411,10 +411,10 @@ function FinancierPageContent() {
                   preload(`/api/contracts/${selectedContract.id}/sites`, fetcher);
                 }
               }}
-              className={`flex items-center gap-2 py-4 border-b-2 transition-colors ${
+              className={`flex items-center gap-2 py-3 -mb-px border-b-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? "border-accent text-accent font-medium"
-                  : "border-transparent text-text-secondary hover:text-primary-dark"
+                  : "border-transparent text-ink/50 hover:text-ink"
               }`}
             >
               {tab.label}

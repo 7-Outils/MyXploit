@@ -174,16 +174,16 @@ function EnergyPageContent() {
   return (
     <div className="space-y-6">
       {/* Tabs + toolbar — empilés sur mobile, inline sur desktop */}
-      <div className="border-b border-gray-200 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-0">
+      <div className="border-b border-ink/10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-0">
         <nav className="flex gap-6 sm:gap-8 overflow-x-auto -mb-px">
           {ENERGY_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 py-3 sm:py-4 border-b-2 transition-colors whitespace-nowrap text-sm sm:text-base ${
+              className={`flex items-center gap-2 whitespace-nowrap border-b-2 py-3 font-mono text-[11px] uppercase tracking-widest transition-colors ${
                 activeTab === tab.id
-                  ? "border-accent text-accent font-medium"
-                  : "border-transparent text-text-secondary hover:text-primary-dark"
+                  ? "border-accent text-accent"
+                  : "border-transparent text-ink/50 hover:text-ink"
               }`}
             >
               {tab.label}
@@ -195,7 +195,7 @@ function EnergyPageContent() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="border border-ink/20 bg-white px-3 py-1.5 text-sm text-ink focus:border-accent focus:outline-none"
             >
               {availableYears.map((year) => (
                 <option key={year} value={year}>
@@ -231,7 +231,7 @@ function EnergyPageContent() {
               }}
               disabled={exportingPdf}
               title="Exporter la synthèse en PDF"
-              className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex h-9 w-9 items-center justify-center border border-ink/20 text-ink/60 transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
               {exportingPdf ? (
                 <Loader2 size={16} className="animate-spin" />

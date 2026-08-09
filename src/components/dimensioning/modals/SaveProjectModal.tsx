@@ -24,55 +24,61 @@ export function SaveProjectModal({
   onClose,
 }: SaveProjectModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-              <FolderPlus className="text-accent" size={20} />
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className="w-full max-w-md border border-ink/15 bg-white shadow-large">
+        <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 py-3">
+          <div className="flex items-center gap-2.5">
+            <FolderPlus className="text-accent" size={18} />
             <div>
-              <h2 className="text-lg font-bold text-primary-dark">Créer un projet</h2>
-              <p className="text-sm text-text-secondary">Sauvegarder ce dimensionnement</p>
+              <h2 className="text-base font-semibold text-ink">Créer un projet</h2>
+              <p className="text-sm text-ink/50">Sauvegarder ce dimensionnement</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X size={20} />
+          <button
+            onClick={onClose}
+            title="Fermer"
+            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:text-ink"
+          >
+            <X size={18} />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="space-y-4 px-5 py-4">
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-2">
-              Nom du projet / Marché
+            <label className="label-tech mb-1.5 block">
+              Nom du projet / marché
             </label>
             <input
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               placeholder="Ex: Marché Chauffage Lycées 2025-2033"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
               autoFocus
             />
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-4 text-sm">
-            <p className="font-medium text-primary-dark mb-2">Résumé du dimensionnement</p>
-            <div className="space-y-1 text-gray-600">
-              <p>{result.summary.siteCount} sites • {result.summary.equipmentCount} équipements</p>
-              <p>Durée: {duration} ans ({startYear} - {startYear + duration})</p>
-              <p className="font-medium text-accent">
-                Budget total: {result.summary.totalContract.toLocaleString()} € HT
+          <div className="border border-ink/10 px-4 py-3 text-sm">
+            <p className="label-tech mb-2">Résumé du dimensionnement</p>
+            <div className="space-y-1 text-ink/60">
+              <p className="font-mono tabular-nums">
+                {result.summary.siteCount} sites · {result.summary.equipmentCount} équipements
+              </p>
+              <p className="font-mono tabular-nums">
+                Durée : {duration} ans ({startYear} – {startYear + duration})
+              </p>
+              <p className="font-mono font-medium tabular-nums text-accent">
+                Budget total : {result.summary.totalContract.toLocaleString()} € HT
               </p>
             </div>
           </div>
 
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-ink/50">
             Un contrat sera créé avec les sites et le dimensionnement calculé.
           </p>
         </div>
 
-        <div className="p-6 border-t flex gap-3">
+        <div className="flex gap-3 border-t border-ink/10 px-5 py-3">
           <Button variant="outline" onClick={onClose} className="flex-1">
             Annuler
           </Button>

@@ -197,30 +197,30 @@ export default function PlatformOrganizationsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Organisations</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-xl font-semibold text-ink">Organisations</h1>
+          <p className="text-sm text-text-secondary mt-1">
             Gerer les organisations de la plateforme
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={seedAllModules}
             disabled={seeding}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+            title={seeding ? "Activation…" : "Activer tous les modules"}
+            className="flex h-9 w-9 items-center justify-center border border-ink/20 text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
           >
-            {seeding ? <Loader2 size={18} className="animate-spin" /> : <Package size={18} />}
-            {seeding ? "Activation..." : "Activer tous modules"}
+            {seeding ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+            title="Nouvelle organisation"
+            className="flex h-9 w-9 items-center justify-center bg-ink text-paper transition-colors hover:bg-accent"
           >
-            <Plus size={18} />
-            Nouvelle organisation
+            <Plus size={16} />
           </button>
         </div>
       </div>
@@ -232,25 +232,25 @@ export default function PlatformOrganizationsPage() {
           placeholder="Rechercher une organisation..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 max-w-md px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          className="flex-1 max-w-md border border-ink/20 bg-white px-3 py-2 text-sm text-ink placeholder:text-ink/30 focus:border-accent focus:outline-none"
         />
-        <div className="flex items-center gap-6 text-sm text-gray-600">
-          <span className="flex items-center gap-1">
-            <Building2 size={16} /> {organizations.length} organisations
+        <div className="flex items-center gap-5 font-mono text-[11px] uppercase tracking-widest tabular-nums text-ink/50">
+          <span className="flex items-center gap-1.5">
+            <Building2 size={12} /> {organizations.length} organisations
           </span>
-          <span className="flex items-center gap-1">
-            <Users size={16} /> {organizations.reduce((a, o) => a + (o._count?.users || 0), 0)} utilisateurs
+          <span className="flex items-center gap-1.5">
+            <Users size={12} /> {organizations.reduce((a, o) => a + (o._count?.users || 0), 0)} utilisateurs
           </span>
-          <span className="flex items-center gap-1">
-            <MapPin size={16} /> {organizations.reduce((a, o) => a + (o._count?.sites || 0), 0)} sites
+          <span className="flex items-center gap-1.5">
+            <MapPin size={12} /> {organizations.reduce((a, o) => a + (o._count?.sites || 0), 0)} sites
           </span>
         </div>
       </div>
 
       {/* Organizations List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredOrgs.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-500">
+          <div className="border border-ink/10 bg-white p-8 text-center text-sm text-text-secondary">
             {search ? "Aucune organisation trouvee" : "Aucune organisation"}
           </div>
         ) : (
@@ -259,62 +259,59 @@ export default function PlatformOrganizationsPage() {
             const enabledModulesCount = org.modules?.filter((m) => m.isEnabled).length || 0;
 
             return (
-              <div key={org.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div key={org.id} className="border border-ink/10 bg-white">
                 <div className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
                       {editingId === org.id ? (
                         <div className="flex items-center gap-2 flex-1">
                           <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent flex-1 max-w-md"
+                            className="flex-1 max-w-md border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                             autoFocus
                           />
-                          <button onClick={() => handleUpdateOrg(org.id)} className="p-2 text-green-600 hover:bg-green-50 rounded-lg">
-                            <Check size={18} />
+                          <button onClick={() => handleUpdateOrg(org.id)} title="Valider" className="flex h-9 w-9 items-center justify-center text-green-600 transition-colors hover:bg-green-50">
+                            <Check size={16} />
                           </button>
-                          <button onClick={() => { setEditingId(null); setEditName(""); }} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg">
-                            <X size={18} />
+                          <button onClick={() => { setEditingId(null); setEditName(""); }} title="Annuler" className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink">
+                            <X size={16} />
                           </button>
                         </div>
                       ) : (
                         <>
-                          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-                            <Building2 size={20} className="text-accent" />
-                          </div>
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900">{org.name}</h3>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
-                              <span className="flex items-center gap-1"><Users size={14} /> {org._count?.users || 0} users</span>
-                              <span className="flex items-center gap-1"><MapPin size={14} /> {org._count?.sites || 0} sites</span>
-                              <span className="flex items-center gap-1"><FileText size={14} /> {org._count?.contracts || 0} contrats</span>
-                              <span className="flex items-center gap-1"><Package size={14} /> {enabledModulesCount}/{Object.keys(MODULE_LABELS).length} modules</span>
+                          <Building2 size={16} className="flex-shrink-0 text-ink/30" />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-medium text-ink truncate">{org.name}</h3>
+                            <div className="mt-1 flex flex-wrap items-center gap-4 font-mono text-[11px] tabular-nums text-ink/40">
+                              <span className="flex items-center gap-1.5"><Users size={12} /> {org._count?.users || 0} users</span>
+                              <span className="flex items-center gap-1.5"><MapPin size={12} /> {org._count?.sites || 0} sites</span>
+                              <span className="flex items-center gap-1.5"><FileText size={12} /> {org._count?.contracts || 0} contrats</span>
+                              <span className="flex items-center gap-1.5"><Package size={12} /> {enabledModulesCount}/{Object.keys(MODULE_LABELS).length} modules</span>
                             </div>
                           </div>
                         </>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       {editingId !== org.id && (
                         <>
                           <button
                             onClick={() => handleGhost(org.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors"
+                            className="flex h-9 w-9 items-center justify-center text-amber-600 transition-colors hover:bg-amber-50"
                             title="Consulter en mode fantome"
                           >
                             <Ghost size={16} />
-                            Ghost
                           </button>
-                          <button onClick={() => toggleOrgExpansion(org.id)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg" title={isExpanded ? "Reduire" : "Gerer les modules"}>
-                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                          <button onClick={() => toggleOrgExpansion(org.id)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title={isExpanded ? "Reduire" : "Gerer les modules"}>
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                           </button>
-                          <button onClick={() => { setEditingId(org.id); setEditName(org.name); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Renommer">
-                            <Edit2 size={18} />
+                          <button onClick={() => { setEditingId(org.id); setEditName(org.name); }} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Renommer">
+                            <Edit2 size={16} />
                           </button>
-                          <button onClick={() => handleDeleteOrg(org.id, org.name)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Supprimer">
-                            <Trash2 size={18} />
+                          <button onClick={() => handleDeleteOrg(org.id, org.name)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600" title="Supprimer">
+                            <Trash2 size={16} />
                           </button>
                         </>
                       )}
@@ -324,9 +321,9 @@ export default function PlatformOrganizationsPage() {
 
                 {/* Modules Section */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50 p-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">Gestion des modules</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="border-t border-ink/10 bg-ink/[0.015] p-4">
+                    <p className="label-tech mb-3">Gestion des modules</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                       {Object.entries(MODULE_LABELS).map(([moduleKey, label]) => {
                         const module = moduleKey as Module;
                         const moduleData = org.modules?.find((m) => m.module === module);
@@ -335,20 +332,20 @@ export default function PlatformOrganizationsPage() {
                         return (
                           <label
                             key={module}
-                            className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                              isEnabled ? "border-accent bg-white" : "border-gray-200 bg-white hover:border-gray-300"
+                            className={`flex cursor-pointer items-center justify-between gap-3 border bg-white px-3 py-2 transition-colors ${
+                              isEnabled ? "border-accent" : "border-ink/15 hover:border-accent/40"
                             }`}
                           >
-                            <span className="text-sm font-medium text-gray-900">{label}</span>
+                            <span className={`text-sm ${isEnabled ? "font-medium text-ink" : "text-ink/60"}`}>{label}</span>
                             <button
                               type="button"
                               onClick={() => toggleModule(org.id, module, isEnabled)}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                isEnabled ? "bg-accent" : "bg-gray-300"
+                              className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center transition-colors ${
+                                isEnabled ? "bg-accent" : "bg-ink/20"
                               }`}
                             >
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                isEnabled ? "translate-x-6" : "translate-x-1"
+                              <span className={`inline-block h-3.5 w-3.5 transform bg-white transition-transform ${
+                                isEnabled ? "translate-x-[1.125rem]" : "translate-x-[0.1875rem]"
                               }`} />
                             </button>
                           </label>
@@ -365,32 +362,32 @@ export default function PlatformOrganizationsPage() {
 
       {/* Modal creation */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Nouvelle organisation</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} />
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-md mx-4 border border-ink/15 bg-white shadow-large">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="label-tech">Nouvelle organisation</h2>
+              <button onClick={() => setShowModal(false)} title="Fermer" className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink">
+                <X size={16} />
               </button>
             </div>
             <form onSubmit={handleCreateOrg} className="p-4 space-y-4">
-              {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
+              {error && <div className="border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l&apos;organisation *</label>
+                <label className="label-tech mb-2 block">Nom de l&apos;organisation *</label>
                 <input
                   type="text"
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink placeholder:text-ink/30 focus:border-accent focus:outline-none"
                   placeholder="Ex: Ville de Lyon"
                 />
               </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-ink/20 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent">
                   Annuler
                 </button>
-                <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
+                <button type="submit" disabled={saving} className="flex flex-1 items-center justify-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50">
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   Creer
                 </button>

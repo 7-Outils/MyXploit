@@ -54,10 +54,10 @@ const STATUS_LABELS: Record<RenewalItem["status"], string> = {
 };
 
 const STATUS_CLASSES: Record<RenewalItem["status"], string> = {
-  PREVU: "bg-blue-50 text-blue-700",
-  REALISE: "bg-green-50 text-green-700",
-  REPORTE: "bg-amber-50 text-amber-700",
-  ABANDONNE: "bg-gray-100 text-gray-500 line-through",
+  PREVU: "border border-ink/15 bg-ink/[0.03] text-ink/60",
+  REALISE: "border border-green-600/20 bg-green-50 text-green-700",
+  REPORTE: "border border-amber-600/20 bg-amber-50 text-amber-700",
+  ABANDONNE: "border border-ink/10 bg-ink/[0.02] text-ink/40 line-through",
 };
 
 const SOURCE_LABELS: Record<RenewalItem["source"], string> = {
@@ -247,23 +247,23 @@ export default function ContractRenewalPlanTab({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="text-sm text-text-secondary">
+        <div className="text-sm text-ink/60">
           {items.length === 0 ? (
             "Aucun poste au plan de renouvellement"
           ) : (
             <>
-              <b className="text-primary-dark">{activeItems.length} postes</b> ·
-              total plan {euro(totalPlan)} HT
+              <b className="font-mono tabular-nums text-ink">{activeItems.length} postes</b> ·
+              total plan <span className="font-mono tabular-nums text-ink">{euro(totalPlan)}</span> HT
             </>
           )}
         </div>
         <ReadOnlyGate>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" onClick={() => setAddOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
               <Plus size={16} className="mr-2" />
               Ajouter un poste
             </Button>
-            <Button onClick={() => setImportOpen(true)}>
+            <Button size="sm" onClick={() => setImportOpen(true)}>
               <Sparkles size={16} className="mr-2" />
               Importer un plan (IA)
             </Button>
@@ -296,7 +296,7 @@ export default function ContractRenewalPlanTab({
               <Td>
                 {item.label}
                 {item.notes && (
-                  <span className="block text-xs text-gray-400">
+                  <span className="block text-xs text-ink/40">
                     {item.notes}
                   </span>
                 )}
@@ -307,10 +307,10 @@ export default function ContractRenewalPlanTab({
                 )}
               </Td>
               <Td>{item.site?.name || "—"}</Td>
-              <Td align="right" className="font-semibold tabular-nums">
+              <Td align="right" className="font-mono font-semibold tabular-nums text-ink">
                 {euro(item.amountHT)}
               </Td>
-              <Td className="text-xs text-gray-500">
+              <Td className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
                 {SOURCE_LABELS[item.source]}
               </Td>
               <Td>
@@ -319,7 +319,7 @@ export default function ContractRenewalPlanTab({
                   onChange={(e) =>
                     changeStatus(item, e.target.value as RenewalItem["status"])
                   }
-                  className={`rounded-lg border-0 px-2 py-1 text-xs font-medium ${STATUS_CLASSES[item.status]}`}
+                  className={`px-2 py-1 text-xs font-medium focus:outline-none ${STATUS_CLASSES[item.status]}`}
                 >
                   {Object.entries(STATUS_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>
@@ -333,7 +333,7 @@ export default function ContractRenewalPlanTab({
                   <button
                     onClick={() => setToDelete(item)}
                     title="Supprimer le poste"
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -370,14 +370,14 @@ export default function ContractRenewalPlanTab({
               {analyzing ? (
                 <div className="space-y-3">
                   <Loader2 className="mx-auto h-8 w-8 animate-spin text-accent" />
-                  <p className="text-sm text-text-secondary">
+                  <p className="text-sm text-ink/60">
                     Analyse de {fileName}…
                   </p>
                 </div>
               ) : (
                 <>
-                  <FileUp className="mx-auto mb-3 h-8 w-8 text-gray-300" />
-                  <p className="mb-4 text-sm text-text-secondary">
+                  <FileUp className="mx-auto mb-3 h-8 w-8 text-ink/25" />
+                  <p className="mb-4 text-sm text-ink/60">
                     Déposez le plan P3 de l&apos;exploitant tel quel (Excel ou
                     CSV) — aucune mise en forme préalable n&apos;est nécessaire.
                   </p>
@@ -400,25 +400,25 @@ export default function ContractRenewalPlanTab({
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-text-secondary">
+              <p className="text-xs text-ink/60">
                 {proposals.length} postes détectés dans {fileName} — corrigez ou
                 décochez avant d&apos;enregistrer.
               </p>
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 text-left text-xs uppercase text-gray-500">
-                    <th className="py-2 pr-2" />
-                    <th className="py-2 pr-2">Poste</th>
-                    <th className="py-2 pr-2 w-20">Année</th>
-                    <th className="py-2 pr-2 w-28">Montant HT</th>
-                    <th className="py-2 w-44">Site</th>
+                  <tr className="border-b border-ink/10 text-left">
+                    <th className="label-tech py-2 pr-2" />
+                    <th className="label-tech py-2 pr-2">Poste</th>
+                    <th className="label-tech py-2 pr-2 w-20">Année</th>
+                    <th className="label-tech py-2 pr-2 w-28">Montant HT</th>
+                    <th className="label-tech py-2 w-44">Site</th>
                   </tr>
                 </thead>
                 <tbody>
                   {proposals.map((p, i) => (
                     <tr
                       key={i}
-                      className={`border-b border-gray-100 ${p.include ? "" : "opacity-40"}`}
+                      className={`border-b border-ink/10 ${p.include ? "" : "opacity-40"}`}
                     >
                       <td className="py-1.5 pr-2">
                         <input
@@ -435,7 +435,7 @@ export default function ContractRenewalPlanTab({
                           onChange={(e) =>
                             updateProposal(i, { label: e.target.value })
                           }
-                          className="w-full border border-gray-200 px-2 py-1 text-sm focus:border-accent focus:outline-none"
+                          className="w-full border border-ink/20 px-2 py-1 text-sm focus:border-accent focus:outline-none"
                         />
                       </td>
                       <td className="py-1.5 pr-2">
@@ -447,7 +447,7 @@ export default function ContractRenewalPlanTab({
                               plannedYear: parseInt(e.target.value) || 0,
                             })
                           }
-                          className="w-full border border-gray-200 px-2 py-1 text-sm tabular-nums focus:border-accent focus:outline-none"
+                          className="w-full border border-ink/20 px-2 py-1 text-sm tabular-nums focus:border-accent focus:outline-none"
                         />
                       </td>
                       <td className="py-1.5 pr-2">
@@ -459,7 +459,7 @@ export default function ContractRenewalPlanTab({
                               amountHT: parseFloat(e.target.value) || 0,
                             })
                           }
-                          className="w-full border border-gray-200 px-2 py-1 text-sm tabular-nums focus:border-accent focus:outline-none"
+                          className="w-full border border-ink/20 px-2 py-1 text-sm tabular-nums focus:border-accent focus:outline-none"
                         />
                       </td>
                       <td className="py-1.5">
@@ -470,7 +470,7 @@ export default function ContractRenewalPlanTab({
                               siteId: e.target.value || null,
                             })
                           }
-                          className="w-full border border-gray-200 px-2 py-1 text-sm focus:border-accent focus:outline-none"
+                          className="w-full border border-ink/20 px-2 py-1 text-sm focus:border-accent focus:outline-none"
                         >
                           <option value="">— Non rattaché</option>
                           {contractSites.map((s) => (
@@ -504,7 +504,7 @@ export default function ContractRenewalPlanTab({
         >
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">
+              <label className="label-tech mb-1 block">
                 Libellé
               </label>
               <input
@@ -513,12 +513,12 @@ export default function ContractRenewalPlanTab({
                   setAddForm((f) => ({ ...f, label: e.target.value }))
                 }
                 placeholder="Remplacement chaudière n°1"
-                className="w-full border border-gray-200 px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                className="w-full border border-ink/20 px-3 py-2 text-sm focus:border-accent focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">
+                <label className="label-tech mb-1 block">
                   Année
                 </label>
                 <input
@@ -530,11 +530,11 @@ export default function ContractRenewalPlanTab({
                       plannedYear: parseInt(e.target.value) || 0,
                     }))
                   }
-                  className="w-full border border-gray-200 px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
+                  className="w-full border border-ink/20 px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600">
+                <label className="label-tech mb-1 block">
                   Montant HT (€)
                 </label>
                 <input
@@ -543,7 +543,7 @@ export default function ContractRenewalPlanTab({
                     setAddForm((f) => ({ ...f, amountHT: e.target.value }))
                   }
                   placeholder="12000"
-                  className="w-full border border-gray-200 px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
+                  className="w-full border border-ink/20 px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
                 />
               </div>
             </div>
@@ -573,7 +573,7 @@ export default function ContractRenewalPlanTab({
             </>
           }
         >
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-ink/60">
             « {toDelete.label} » ({toDelete.plannedYear},{" "}
             {euro(toDelete.amountHT)}) sera retiré du plan de renouvellement.
           </p>

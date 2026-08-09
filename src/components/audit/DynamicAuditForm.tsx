@@ -29,35 +29,35 @@ const STATUS_CONFIG = {
     icon: CheckCircle2,
     color: "text-green-600",
     bg: "bg-green-50",
-    border: "border-green-200",
+    border: "border-green-600/20",
     label: "Conforme",
   },
   NON_CONFORME: {
     icon: XCircle,
     color: "text-red-600",
     bg: "bg-red-50",
-    border: "border-red-200",
+    border: "border-red-600/20",
     label: "Non conforme",
   },
   AVERTISSEMENT: {
     icon: AlertTriangle,
     color: "text-amber-600",
     bg: "bg-amber-50",
-    border: "border-amber-200",
+    border: "border-amber-600/20",
     label: "Avertissement",
   },
   NA: {
     icon: MinusCircle,
-    color: "text-gray-500",
-    bg: "bg-gray-50",
-    border: "border-gray-200",
+    color: "text-ink/50",
+    bg: "bg-ink/[0.02]",
+    border: "border-ink/10",
     label: "N/A",
   },
   NON_EVALUE: {
     icon: MinusCircle,
-    color: "text-gray-400",
-    bg: "bg-gray-50",
-    border: "border-gray-100",
+    color: "text-ink/40",
+    bg: "bg-ink/[0.02]",
+    border: "border-ink/10",
     label: "Non évalué",
   },
 };
@@ -135,18 +135,18 @@ export default function DynamicAuditForm({
       {Object.entries(groupedByCategory).map(([category, items]) => (
         <div
           key={category}
-          className="border border-gray-200 rounded-xl overflow-hidden"
+          className="border border-ink/10 overflow-hidden"
         >
           {/* Category Header */}
-          <div className="bg-accent px-4 py-3 text-white font-medium">
-            {CATEGORY_LABELS[category] || category}
-            <span className="ml-2 text-white/70 text-sm">
-              ({items.length} points)
+          <div className="flex items-baseline gap-2 border-b border-ink/10 bg-white px-4 py-2.5">
+            <span className="label-tech text-ink">
+              {CATEGORY_LABELS[category] || category}
             </span>
+            <span className="label-tech">({items.length} points)</span>
           </div>
 
           {/* Items */}
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-ink/10">
             {items.map((blueprint) => {
               const input = inputs.get(blueprint.id);
               const result = results.get(blueprint.id);
@@ -172,13 +172,13 @@ export default function DynamicAuditForm({
                     {/* Content */}
                     <div className="flex-1">
                       {/* Label */}
-                      <label className="block text-sm font-medium text-gray-900 mb-2">
+                      <label className="label-tech mb-1.5 block">
                         {blueprint.input.label}
                         {blueprint.input.required && (
-                          <span className="text-red-500 ml-1">*</span>
+                          <span className="text-red-600 ml-1">*</span>
                         )}
                         {blueprint.regulatoryRef && (
-                          <span className="ml-2 text-xs text-blue-600 font-normal">
+                          <span className="ml-2 text-xs text-accent font-normal">
                             ({blueprint.regulatoryRef})
                           </span>
                         )}
@@ -194,7 +194,7 @@ export default function DynamicAuditForm({
                       {/* Result text */}
                       {result && result.status !== "NON_EVALUE" && (
                         <div
-                          className={`mt-3 p-3 rounded-lg text-sm ${statusConfig.bg} ${statusConfig.border} border`}
+                          className={`mt-3 p-3 text-sm ${statusConfig.bg} ${statusConfig.border} border`}
                         >
                           <div className="font-medium mb-1 flex items-center gap-2">
                             <StatusIcon size={16} className={statusConfig.color} />
@@ -202,7 +202,7 @@ export default function DynamicAuditForm({
                               {statusConfig.label}
                             </span>
                           </div>
-                          <p className="text-gray-700">{result.reportText}</p>
+                          <p className="text-ink/80">{result.reportText}</p>
                         </div>
                       )}
 
@@ -219,7 +219,7 @@ export default function DynamicAuditForm({
                             )
                           }
                           placeholder="Remarque supplémentaire..."
-                          className="mt-2 w-full px-3 py-1.5 text-sm border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                          className="mt-2 w-full px-3 py-1.5 text-sm border border-red-600/20 focus:border-red-600 focus:outline-none"
                         />
                       )}
                     </div>
@@ -253,10 +253,10 @@ function renderInput(
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
                 value === option.value
-                  ? "bg-accent text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-ink text-paper"
+                  : "border border-ink/20 bg-white text-ink hover:border-accent hover:text-accent"
               }`}
             >
               {option.label}
@@ -271,10 +271,10 @@ function renderInput(
           <button
             type="button"
             onClick={() => onChange(true)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
               value === true
-                ? "bg-green-500 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-green-100 hover:text-green-700"
+                ? "bg-green-600 text-white"
+                : "border border-ink/20 bg-white text-ink hover:border-green-600 hover:text-green-700"
             }`}
           >
             Oui
@@ -282,10 +282,10 @@ function renderInput(
           <button
             type="button"
             onClick={() => onChange(false)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
               value === false
-                ? "bg-red-500 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-red-100 hover:text-red-700"
+                ? "bg-red-600 text-white"
+                : "border border-ink/20 bg-white text-ink hover:border-red-600 hover:text-red-700"
             }`}
           >
             Non
@@ -305,10 +305,10 @@ function renderInput(
             min={input.min}
             max={input.max}
             placeholder={input.placeholder}
-            className="w-32 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+            className="w-32 px-3 py-2 text-sm border border-ink/20 focus:border-accent focus:outline-none"
           />
           {input.unit && (
-            <span className="text-sm text-gray-500">{input.unit}</span>
+            <span className="text-sm text-ink/50">{input.unit}</span>
           )}
         </div>
       );
@@ -316,12 +316,12 @@ function renderInput(
     case "DATE":
       return (
         <div className="flex items-center gap-2">
-          <Calendar size={18} className="text-gray-400" />
+          <Calendar size={18} className="text-ink/40" />
           <input
             type="date"
             value={value as string || ""}
             onChange={(e) => onChange(e.target.value || null)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+            className="px-3 py-2 text-sm border border-ink/20 focus:border-accent focus:outline-none"
           />
         </div>
       );
@@ -333,7 +333,7 @@ function renderInput(
           value={value as string || ""}
           onChange={(e) => onChange(e.target.value || null)}
           placeholder={input.placeholder}
-          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          className="w-full px-3 py-2 text-sm border border-ink/20 focus:border-accent focus:outline-none"
         />
       );
 
@@ -341,7 +341,7 @@ function renderInput(
       return (
         <button
           type="button"
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-ink/20 bg-white text-ink hover:border-accent hover:text-accent"
         >
           <Camera size={18} />
           Ajouter une photo
@@ -362,10 +362,10 @@ function renderInput(
                   : [...selectedValues, option.value];
                 onChange(newValues);
               }}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
                 selectedValues.includes(option.value)
-                  ? "bg-accent text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-ink text-paper"
+                  : "border border-ink/20 bg-white text-ink hover:border-accent hover:text-accent"
               }`}
             >
               {option.label}

@@ -140,7 +140,7 @@ export function CiblesContent({
   if (loadingSeasons) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Loader2 className="w-6 h-6 animate-spin text-accent" />
       </div>
     );
   }
@@ -148,32 +148,30 @@ export function CiblesContent({
   return (
     <>
       <ChartCard>
-        <div className="overflow-x-auto -mx-6 -my-6">
+        <div className="overflow-x-auto -mx-4 -my-4">
           <table className="w-full">
-            <thead className="bg-background-secondary border-b border-gray-100">
+            <thead className="border-b border-ink/10">
               <tr>
-                <th className="text-left text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3 sticky left-0 bg-background-secondary z-10">
+                <th className="label-tech text-left px-4 py-2 sticky left-0 bg-white z-10">
                   Site
                 </th>
                 {contractYears.map((cy) => (
                   <th
                     key={cy.year}
-                    className={`text-center text-xs font-medium uppercase tracking-wider px-4 py-3 min-w-[100px] ${
-                      cy.season === currentSeasonKey
-                        ? "bg-primary/10 text-primary"
-                        : "text-text-secondary"
+                    className={`label-tech text-center px-4 py-2 min-w-[100px] ${
+                      cy.season === currentSeasonKey ? "bg-accent/5 text-accent" : ""
                     }`}
                   >
                     <div>Année {cy.year}</div>
-                    <div className="text-[10px] font-normal normal-case">{cy.season}</div>
+                    <div className="text-[10px] normal-case tracking-normal">{cy.season}</div>
                   </th>
                 ))}
-                <th className="text-center text-xs font-medium text-text-secondary uppercase tracking-wider px-4 py-3">
+                <th className="label-tech text-center px-4 py-2">
                   Évolution
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-ink/10">
               {sitesWithEngagement.map((site) => {
                 const year1Nb = getNbForSiteSeason(site.id, contractYears[0]?.season);
                 const lastYearWithNb = [...contractYears].reverse().find((cy) => getNbForSiteSeason(site.id, cy.season));
@@ -181,9 +179,9 @@ export function CiblesContent({
                 const evolution = year1Nb && lastNb ? ((year1Nb - lastNb) / year1Nb) * 100 : null;
 
                 return (
-                  <tr key={site.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 sticky left-0 bg-white z-10">
-                      <p className="font-medium text-primary-dark text-sm">{site.name}</p>
+                  <tr key={site.id} className="hover:bg-ink/[0.02]">
+                    <td className="px-4 py-2 sticky left-0 bg-white z-10">
+                      <p className="font-medium text-ink text-sm">{site.name}</p>
                     </td>
                     {contractYears.map((cy) => {
                       const nb = getNbForSiteSeason(site.id, cy.season);
@@ -193,7 +191,7 @@ export function CiblesContent({
                       return (
                         <td
                           key={cy.year}
-                          className={`px-4 py-2 text-center ${isCurrent ? "bg-primary/5" : ""}`}
+                          className={`px-4 py-1.5 text-center ${isCurrent ? "bg-accent/5" : ""}`}
                         >
                           {isEditing ? (
                             <div className="flex items-center justify-center gap-1">
@@ -201,7 +199,7 @@ export function CiblesContent({
                                 type="number"
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
-                                className="w-20 px-2 py-1 text-sm border rounded text-center"
+                                className="w-20 border border-ink/20 bg-white px-2 py-1 font-mono text-sm tabular-nums text-center focus:border-accent focus:outline-none"
                                 autoFocus
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") saveEdit(site.id, cy.season);
@@ -211,13 +209,13 @@ export function CiblesContent({
                               <button
                                 onClick={() => saveEdit(site.id, cy.season)}
                                 disabled={saving}
-                                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                className="p-1 text-green-700 hover:bg-green-50"
                               >
                                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                               </button>
                               <button
                                 onClick={cancelEdit}
-                                className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                                className="p-1 text-ink/40 hover:bg-ink/[0.04] hover:text-ink"
                               >
                                 <X size={14} />
                               </button>
@@ -225,10 +223,10 @@ export function CiblesContent({
                           ) : (
                             <button
                               onClick={() => startEdit(site.id, cy.year, cy.season)}
-                              className={`px-3 py-1 rounded transition-colors min-w-[60px] ${
+                              className={`px-3 py-1 font-mono text-sm tabular-nums transition-colors min-w-[60px] ${
                                 nb
-                                  ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
-                                  : "text-gray-400 hover:bg-gray-100"
+                                  ? "text-ink font-medium hover:bg-ink/[0.04] hover:text-accent"
+                                  : "text-ink/30 hover:bg-ink/[0.04]"
                               }`}
                             >
                               {nb ? nb.toLocaleString("fr-FR") : "-"}
@@ -237,13 +235,11 @@ export function CiblesContent({
                         </td>
                       );
                     })}
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-2 text-center">
                       {evolution !== null ? (
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                            evolution >= 0
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
+                          className={`inline-flex items-center gap-1 font-mono text-xs tabular-nums font-medium ${
+                            evolution >= 0 ? "text-green-700" : "text-red-700"
                           }`}
                         >
                           {evolution >= 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
@@ -251,16 +247,16 @@ export function CiblesContent({
                           {Math.abs(evolution).toFixed(1)}%
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">-</span>
+                        <span className="text-ink/30 text-xs">-</span>
                       )}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-            <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+            <tfoot className="border-t border-ink/15">
               <tr>
-                <td className="px-4 py-3 font-semibold text-primary-dark sticky left-0 bg-gray-50 z-10">
+                <td className="px-4 py-2 label-tech text-ink sticky left-0 bg-white z-10">
                   TOTAL
                 </td>
                 {contractYears.map((cy) => {
@@ -273,15 +269,15 @@ export function CiblesContent({
                   return (
                     <td
                       key={cy.year}
-                      className={`px-4 py-3 text-center font-semibold ${
-                        isCurrent ? "bg-primary/10 text-primary" : "text-primary-dark"
+                      className={`px-4 py-2 text-center font-mono text-sm tabular-nums font-semibold ${
+                        isCurrent ? "bg-accent/5 text-accent" : "text-ink"
                       }`}
                     >
                       {total > 0 ? total.toLocaleString("fr-FR") : "-"}
                     </td>
                   );
                 })}
-                <td className="px-4 py-3 text-center">
+                <td className="px-4 py-2 text-center">
                   {(() => {
                     const year1Total = sitesWithEngagement.reduce((sum, site) => sum + (getNbForSiteSeason(site.id, contractYears[0]?.season) || 0), 0);
                     const lastYearWithTotal = [...contractYears].reverse().find((cy) =>
@@ -296,10 +292,8 @@ export function CiblesContent({
 
                     return evolution !== null ? (
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${
-                          evolution >= 0
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
+                        className={`inline-flex items-center gap-1 font-mono text-xs tabular-nums font-bold ${
+                          evolution >= 0 ? "text-green-700" : "text-red-700"
                         }`}
                       >
                         {evolution >= 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}
@@ -307,7 +301,7 @@ export function CiblesContent({
                         {Math.abs(evolution).toFixed(1)}%
                       </span>
                     ) : (
-                      <span className="text-gray-400 text-xs">-</span>
+                      <span className="text-ink/30 text-xs">-</span>
                     );
                   })()}
                 </td>

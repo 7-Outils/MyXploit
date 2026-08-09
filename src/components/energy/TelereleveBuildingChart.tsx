@@ -55,13 +55,23 @@ const ENERGY_LABELS: Record<string, string> = {
   RESEAU_CHALEUR: "Réseau de chaleur",
 };
 
+// Teintes énergie discrètes — une teinte par énergie, cohérentes avec la
+// palette encre / accent du thème « bureau d'études ».
 const ENERGY_COLORS: Record<string, string> = {
-  GAZ: "#f59e0b",
-  ELECTRICITE: "#3b82f6",
-  FIOUL: "#78716c",
-  BOIS: "#84cc16",
-  RESEAU_CHALEUR: "#ef4444",
+  GAZ: "#B45309",
+  ELECTRICITE: "#2563EB",
+  FIOUL: "#57534E",
+  BOIS: "#4D7C0F",
+  RESEAU_CHALEUR: "#B91C1C",
 };
+
+// Palette encre du thème — réutilisée dans les options ECharts
+const INK = "#0F1E33";
+const ACCENT = "#2563EB";
+const GRID_LINE = "rgba(15,30,51,0.08)";
+const AXIS_TEXT = "rgba(15,30,51,0.45)";
+const MONO_FONT =
+  "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)";
 
 function todayIso(): string {
   return new Date().toISOString().split("T")[0];
@@ -379,8 +389,8 @@ export function TelereleveBuildingChart({
 
   // ─── ECharts option ──────────────────────────────────────────────────
   const chartColor = selectedEnergy
-    ? ENERGY_COLORS[selectedEnergy] || "#6b7280"
-    : "#6b7280";
+    ? ENERGY_COLORS[selectedEnergy] || INK
+    : INK;
 
   const chartOption = useMemo(() => {
     // Choose Y axis unit dynamically: switch to MWh when the largest bar
@@ -490,32 +500,41 @@ export function TelereleveBuildingChart({
         data: legendData,
         top: 4,
         left: "center",
-        icon: "circle",
-        textStyle: { color: "#374151", fontSize: 11 },
+        icon: "rect",
+        itemWidth: 10,
+        itemHeight: 2,
+        textStyle: {
+          color: AXIS_TEXT,
+          fontSize: 11,
+          fontFamily: MONO_FONT,
+        },
       },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
-        backgroundColor: "rgba(17, 24, 39, 0.95)",
-        borderWidth: 0,
-        textStyle: { color: "#fff", fontSize: 12 },
+        backgroundColor: "#ffffff",
+        borderColor: "rgba(15,30,51,0.15)",
+        borderWidth: 1,
+        borderRadius: 0,
+        padding: 10,
+        textStyle: { color: INK, fontSize: 12, fontFamily: MONO_FONT },
         formatter: (params: { axisValueLabel: string; dataIndex: number }[]) => {
           if (!params || params.length === 0) return "";
           const idx = params[0].dataIndex;
           const kwh = buckets[idx]?.total ?? 0;
-          let html = `<div style="font-weight:600;margin-bottom:4px">${formatTooltipDate(params[0].axisValueLabel)}</div>
+          let html = `<div style="font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(15,30,51,0.5);margin-bottom:6px">${formatTooltipDate(params[0].axisValueLabel)}</div>
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${chartColor}"></span>
-              ${seriesLabel} :&nbsp;<strong>${formatKwh(kwh)}</strong>
+              <span style="display:inline-block;width:8px;height:8px;background:${chartColor}"></span>
+              ${seriesLabel} :&nbsp;<strong style="font-variant-numeric:tabular-nums">${formatKwh(kwh)}</strong>
             </div>`;
           if (showRatio && ratioValues[idx] !== null && ratioValues[idx] !== undefined) {
             const d = new Date(buckets[idx]?.date || "");
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
             const dju = djuByMonth!.get(key) || 0;
             html += `<div style="display:flex;align-items:center;gap:6px">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#6366f1"></span>
-              Ratio :&nbsp;<strong>${ratioValues[idx]} kWh/DJU</strong>
-              <span style="font-size:10px;color:#9ca3af">(${Math.round(dju)} DJU)</span>
+              <span style="display:inline-block;width:10px;height:2px;background:${ACCENT}"></span>
+              Ratio :&nbsp;<strong style="font-variant-numeric:tabular-nums">${ratioValues[idx]} kWh/DJU</strong>
+              <span style="font-size:10px;color:rgba(15,30,51,0.4)">(${Math.round(dju)} DJU)</span>
             </div>`;
           }
           return html;
@@ -525,10 +544,12 @@ export function TelereleveBuildingChart({
         type: "category",
         data: dates,
         boundaryGap: true,
-        axisLine: { lineStyle: { color: "#d1d5db" } },
+        axisLine: { lineStyle: { color: "rgba(15,30,51,0.15)" } },
+        axisTick: { show: false },
         axisLabel: {
-          color: "#6b7280",
+          color: AXIS_TEXT,
           fontSize: 11,
+          fontFamily: MONO_FONT,
           hideOverlap: true,
           formatter: formatAxisLabel,
         },
@@ -537,13 +558,18 @@ export function TelereleveBuildingChart({
         {
           type: "value",
           name: yUnit,
-          nameTextStyle: { color: "#6b7280", fontSize: 11 },
+          nameTextStyle: {
+            color: AXIS_TEXT,
+            fontSize: 11,
+            fontFamily: MONO_FONT,
+          },
           axisLine: { show: false },
           axisTick: { show: false },
-          splitLine: { lineStyle: { color: "#e5e7eb", type: "dashed" } },
+          splitLine: { lineStyle: { color: GRID_LINE } },
           axisLabel: {
-            color: "#6b7280",
+            color: AXIS_TEXT,
             fontSize: 11,
+            fontFamily: MONO_FONT,
             formatter: (v: number) => {
               if (yUnit === "MWh") {
                 return v.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
@@ -559,13 +585,18 @@ export function TelereleveBuildingChart({
               {
                 type: "value" as const,
                 name: "kWh/DJU",
-                nameTextStyle: { color: "#6366f1", fontSize: 11 },
+                nameTextStyle: {
+                  color: ACCENT,
+                  fontSize: 11,
+                  fontFamily: MONO_FONT,
+                },
                 axisLine: { show: false },
                 axisTick: { show: false },
                 splitLine: { show: false },
                 axisLabel: {
-                  color: "#6366f1",
+                  color: ACCENT,
                   fontSize: 11,
+                  fontFamily: MONO_FONT,
                   formatter: (v: number) => Math.round(v).toString(),
                 },
               },
@@ -581,7 +612,7 @@ export function TelereleveBuildingChart({
           yAxisIndex: 0,
           itemStyle: {
             color: chartColor,
-            borderRadius: [2, 2, 0, 0],
+            borderRadius: 0,
           },
           emphasis: {
             itemStyle: { color: chartColor, opacity: 1 },
@@ -595,11 +626,11 @@ export function TelereleveBuildingChart({
                 type: "line" as const,
                 data: ratioValues,
                 yAxisIndex: 1,
-                smooth: true,
+                smooth: false,
                 symbol: "circle",
-                symbolSize: 6,
-                lineStyle: { color: "#6366f1", width: 2 },
-                itemStyle: { color: "#6366f1" },
+                symbolSize: 5,
+                lineStyle: { color: ACCENT, width: 1.5 },
+                itemStyle: { color: ACCENT },
               },
             ]
           : []),
@@ -646,10 +677,8 @@ export function TelereleveBuildingChart({
       {availableEnergies.length > 1 && (
         <div className="flex flex-wrap items-end gap-3 mb-4">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-secondary">
-              Énergie
-            </label>
-            <div className="flex gap-1">
+            <label className="label-tech">Énergie</label>
+            <div className="flex -space-x-px">
               {availableEnergies.map((energy) => {
                 const Icon = energy === "GAZ" ? Flame : Zap;
                 const isActive = selectedEnergy === energy;
@@ -658,18 +687,20 @@ export function TelereleveBuildingChart({
                     key={energy}
                     onClick={() => setSelectedEnergy(energy)}
                     className={cn(
-                      "px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5",
+                      "flex items-center gap-1.5 border px-3 py-2 text-sm font-medium transition-colors",
                       isActive
-                        ? "text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                        ? "border-ink bg-ink text-paper"
+                        : "border-ink/20 bg-white text-ink/60 hover:border-accent hover:text-accent"
                     )}
-                    style={
-                      isActive
-                        ? { backgroundColor: ENERGY_COLORS[energy] || "#6b7280" }
-                        : undefined
-                    }
                   >
-                    <Icon size={14} />
+                    <Icon
+                      size={14}
+                      style={
+                        isActive
+                          ? undefined
+                          : { color: ENERGY_COLORS[energy] || INK }
+                      }
+                    />
                     {ENERGY_LABELS[energy] || energy}
                   </button>
                 );
@@ -681,7 +712,7 @@ export function TelereleveBuildingChart({
 
       {/* KPIs (hidden when the parent renders shared KPIs above) */}
       {!hideKpis && (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="mb-4 grid grid-cols-2 gap-px border border-ink/10 bg-ink/10 md:grid-cols-4">
         <Kpi label="NC totale" value={formatKwh(kpis.total)} />
         <Kpi
           label="N'B"
@@ -751,12 +782,12 @@ export function TelereleveBuildingChart({
           <Loader2 size={24} className="animate-spin text-accent" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-text-secondary">
-          <Wifi size={28} className="text-gray-300 mb-2" />
-          <p className="text-sm font-medium text-gray-700">
+        <div className="flex flex-col items-center justify-center border border-dashed border-ink/15 py-16">
+          <Wifi size={28} className="mb-2 text-ink/20" />
+          <p className="text-sm font-medium text-ink">
             Aucun relevé sur la période sélectionnée
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-ink/50">
             Essayez d&apos;élargir la plage ou attendez la prochaine
             synchronisation du distributeur.
           </p>
@@ -810,30 +841,37 @@ function Kpi({
     tone === "danger"
       ? "text-red-600"
       : tone === "success"
-      ? "text-green-600"
-      : "text-primary-dark";
+      ? "text-green-700"
+      : "text-ink";
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-3">
+    <div className="bg-white p-3">
       <div className="flex items-center gap-1">
-        <p className="text-[10px] font-medium text-text-secondary uppercase tracking-wide">
-          {label}
-        </p>
+        <p className="label-tech">{label}</p>
         {tooltip && (
           <span
             title={tooltip}
-            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[9px] font-bold text-text-secondary bg-gray-100 hover:bg-gray-200 cursor-help"
+            className="inline-flex h-3.5 w-3.5 cursor-help items-center justify-center border border-ink/20 text-[9px] font-bold text-ink/50 hover:border-accent hover:text-accent"
             aria-label={tooltip}
           >
             i
           </span>
         )}
       </div>
-      <div className="flex items-center gap-1.5 mt-1">
+      <div className="mt-1 flex items-center gap-1.5">
         {Icon && <Icon size={16} className={valueClass} />}
-        <p className={cn("text-xl font-semibold", valueClass)}>{value}</p>
+        <p
+          className={cn(
+            "font-mono text-xl font-semibold tabular-nums",
+            valueClass
+          )}
+        >
+          {value}
+        </p>
       </div>
       {subtle && (
-        <p className="text-[10px] text-text-secondary mt-0.5">{subtle}</p>
+        <p className="mt-0.5 font-mono text-[10px] tabular-nums text-ink/50">
+          {subtle}
+        </p>
       )}
     </div>
   );

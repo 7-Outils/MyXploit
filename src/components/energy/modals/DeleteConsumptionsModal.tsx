@@ -23,22 +23,20 @@ export function DeleteConsumptionsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className="w-full border border-ink/15 bg-white shadow-large max-w-md">
+        <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 py-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-              <Trash2 className="text-red-600" size={20} />
-            </div>
-            <h2 className="text-xl font-bold text-primary-dark">Supprimer les consommations</h2>
+            <Trash2 className="text-red-600" size={18} />
+            <h2 className="text-base font-semibold text-ink">Supprimer les consommations</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X size={20} />
+          <button onClick={onClose} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:text-ink">
+            <X size={18} />
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
-          <div className="bg-red-50 rounded-xl p-4">
+        <div className="space-y-4 px-5 py-4">
+          <div className="border border-red-600/20 bg-red-50 p-3">
             <p className="text-sm text-red-800">
               <strong>Attention :</strong> Cette action est irréversible. Toutes les consommations du contrat seront supprimées.
             </p>
@@ -55,7 +53,7 @@ export function DeleteConsumptionsModal({
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="flex-1 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex flex-1 items-center justify-center gap-2 bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deleting ? (
                 <>

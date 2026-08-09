@@ -13,7 +13,7 @@ import {
   UserCheck,
   UserPlus,
 } from "lucide-react";
-import { ROLE_LABELS, ROLE_COLORS } from "@/lib/permissions";
+import { ROLE_LABELS } from "@/lib/permissions";
 
 interface TeamMember {
   id: string;
@@ -122,103 +122,98 @@ export default function TeamPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-ink/10 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Equipe</h1>
-          <p className="text-gray-600 mt-1">
+          <p className="label-tech">Organisation</p>
+          <h1 className="text-xl font-semibold text-ink mt-1">Equipe</h1>
+          <p className="text-sm text-ink/50 mt-0.5">
             Gerez les membres de votre organisation
           </p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+          title="Inviter un membre"
+          className="h-9 w-9 flex items-center justify-center bg-ink text-paper hover:bg-accent transition-colors"
         >
-          <Plus size={18} />
-          Inviter un membre
+          <Plus size={16} />
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-            <Users size={20} className="text-blue-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{members.length}</p>
-            <p className="text-sm text-gray-600">Total membres</p>
-          </div>
+      <div className="grid grid-cols-3 divide-x divide-ink/10 border border-ink/10 bg-white">
+        <div className="p-4">
+          <p className="label-tech flex items-center gap-1.5">
+            <Users size={12} className="text-ink/40" />
+            Total membres
+          </p>
+          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{members.length}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-            <UserCheck size={20} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{activeCount}</p>
-            <p className="text-sm text-gray-600">Actifs</p>
-          </div>
+        <div className="p-4">
+          <p className="label-tech flex items-center gap-1.5">
+            <UserCheck size={12} className="text-ink/40" />
+            Actifs
+          </p>
+          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{activeCount}</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-            <UserPlus size={20} className="text-orange-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{pendingCount}</p>
-            <p className="text-sm text-gray-600">En attente</p>
-          </div>
+        <div className="p-4">
+          <p className="label-tech flex items-center gap-1.5">
+            <UserPlus size={12} className="text-ink/40" />
+            En attente
+          </p>
+          <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">{pendingCount}</p>
         </div>
       </div>
 
       {/* Members Table */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+      <div className="panel overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Membre</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Contrats</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Depuis</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+            <tr className="bg-white border-b border-ink/10">
+              <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Membre</th>
+              <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Role</th>
+              <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Statut</th>
+              <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Contrats</th>
+              <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Depuis</th>
+              <th className="label-tech whitespace-nowrap px-4 py-2.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-ink/10">
             {members.map((member) => (
-              <tr key={member.id} className="hover:bg-gray-50">
-                <td className="px-5 py-4">
+              <tr key={member.id} className="hover:bg-ink/[0.02]">
+                <td className="px-4 py-2.5">
                   <div>
-                    <p className="font-medium text-gray-900">
+                    <p className="text-sm font-medium text-ink">
                       {member.firstName} {member.lastName}
                     </p>
-                    <p className="text-sm text-gray-500">{member.email}</p>
+                    <p className="text-xs text-ink/50">{member.email}</p>
                   </div>
                 </td>
-                <td className="px-5 py-4">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${ROLE_COLORS[member.role as keyof typeof ROLE_COLORS] || "bg-gray-100 text-gray-700"}`}>
+                <td className="px-4 py-2.5">
+                  <span className="border border-ink/15 px-2 py-0.5 text-xs font-medium text-ink/70">
                     {ROLE_LABELS[member.role as keyof typeof ROLE_LABELS] || member.role}
                   </span>
                 </td>
-                <td className="px-5 py-4">
+                <td className="px-4 py-2.5">
                   {member.isActive ? (
-                    <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded w-fit">
+                    <span className="flex w-fit items-center gap-1 border border-green-600/20 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
                       <Check size={12} /> Actif
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs text-orange-700 bg-orange-50 px-2 py-1 rounded w-fit">
+                    <span className="flex w-fit items-center gap-1 border border-amber-600/20 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                       <Clock size={12} /> En attente
                     </span>
                   )}
                 </td>
-                <td className="px-5 py-4 text-sm text-gray-600">{member.contractsCount}</td>
-                <td className="px-5 py-4 text-sm text-gray-500">
+                <td className="px-4 py-2.5 font-mono text-sm tabular-nums text-ink/80">{member.contractsCount}</td>
+                <td className="px-4 py-2.5 font-mono text-sm tabular-nums text-ink/50">
                   {new Date(member.createdAt).toLocaleDateString("fr-FR")}
                 </td>
-                <td className="px-5 py-4 text-right">
+                <td className="px-4 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1">
                     {!member.isActive && (
                       <button
                         onClick={() => handleResendInvite(member.id)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                         title="Renvoyer l'invitation"
                       >
                         <Send size={16} />
@@ -226,7 +221,7 @@ export default function TeamPage() {
                     )}
                     <button
                       onClick={() => handleDelete(member.id, member.email)}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                      className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
                       title="Supprimer"
                     >
                       <Trash2 size={16} />
@@ -238,7 +233,7 @@ export default function TeamPage() {
           </tbody>
         </table>
         {members.length === 0 && (
-          <div className="p-8 text-center text-gray-500">
+          <div className="border-t border-ink/10 px-4 py-10 text-center text-sm text-ink/40">
             Aucun membre dans l&apos;equipe. Invitez vos ingenieurs pour commencer.
           </div>
         )}
@@ -246,56 +241,56 @@ export default function TeamPage() {
 
       {/* Invite Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Inviter un membre</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} />
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
+          <div className="bg-white border border-ink/10 shadow-large w-full max-w-md mx-4 overflow-hidden">
+            <div className="panel-header">
+              <h2 className="label-tech">Inviter un membre</h2>
+              <button onClick={() => setShowModal(false)} className="p-1.5 text-ink/50 hover:bg-ink/[0.03] hover:text-accent">
+                <X size={16} />
               </button>
             </div>
             <form onSubmit={handleInvite} className="p-4 space-y-4">
-              {error && <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">{error}</div>}
+              {error && <div className="border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Prenom</label>
+                  <label className="label-tech mb-1 block">Prenom</label>
                   <input
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <label className="label-tech mb-1 block">Nom</label>
                   <input
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <label className="label-tech mb-1 block">Email *</label>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   placeholder="nom@cabinet.fr"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="label-tech mb-1 block">Role</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   <option value="EDITOR">Ingenieur</option>
                   <option value="READER">Lecteur</option>
@@ -303,10 +298,10 @@ export default function TeamPage() {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-ink/20 px-4 py-2 text-sm text-ink transition-colors hover:border-accent hover:text-accent">
                   Annuler
                 </button>
-                <button type="submit" disabled={saving} className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2">
+                <button type="submit" disabled={saving} className="flex flex-1 items-center justify-center gap-2 bg-ink px-4 py-2 text-sm text-paper transition-colors hover:bg-accent disabled:opacity-50">
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   Envoyer l&apos;invitation
                 </button>

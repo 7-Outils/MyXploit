@@ -106,15 +106,15 @@ export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
 };
 
 export const ACTIVITY_TYPE_COLORS: Record<string, string> = {
-  PANNE_CHAUFFAGE: "bg-red-100 text-red-700",
-  PANNE_ECS: "bg-red-100 text-red-700",
-  PANNE_VENTILATION: "bg-red-100 text-red-700",
-  FUITE: "bg-orange-100 text-orange-700",
-  DYSFONCTIONNEMENT: "bg-amber-100 text-amber-700",
-  COUPURE: "bg-red-100 text-red-700",
-  PLAINTE_USAGER: "bg-purple-100 text-purple-700",
-  INTERVENTION: "bg-blue-100 text-blue-700",
-  INCIDENT: "bg-orange-100 text-orange-700",
-  ASSIGNATION: "bg-gray-100 text-gray-600",
-  NOTE: "bg-gray-100 text-gray-700",
+  PANNE_CHAUFFAGE: "bg-red-50 text-red-700 border border-red-600/20",
+  PANNE_ECS: "bg-red-50 text-red-700 border border-red-600/20",
+  PANNE_VENTILATION: "bg-red-50 text-red-700 border border-red-600/20",
+  FUITE: "bg-orange-50 text-orange-700 border border-orange-600/20",
+  DYSFONCTIONNEMENT: "bg-amber-50 text-amber-700 border border-amber-600/20",
+  COUPURE: "bg-red-50 text-red-700 border border-red-600/20",
+  PLAINTE_USAGER: "bg-amber-50 text-amber-700 border border-amber-600/20",
+  INTERVENTION: "bg-accent/5 text-accent border border-accent/20",
+  INCIDENT: "bg-orange-50 text-orange-700 border border-orange-600/20",
+  ASSIGNATION: "bg-white text-ink/60 border border-ink/15",
+  NOTE: "bg-white text-ink/60 border border-ink/15",
 };

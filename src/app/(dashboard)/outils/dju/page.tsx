@@ -75,33 +75,31 @@ export default function DjuToolPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* En-tête */}
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
-          <Thermometer size={20} className="text-accent" />
-        </div>
-        <h1 className="text-xl font-semibold text-text-primary">Calculateur DJU</h1>
+      <div className="flex items-center gap-2.5">
+        <Thermometer size={18} className="text-accent" />
+        <h1 className="text-xl font-semibold text-ink">Calculateur DJU</h1>
       </div>
 
       {/* Contrôles compacts, au-dessus de la grille → carte et résultat
           démarrent à la même hauteur (alignés). */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 text-xs">
+        <div className="inline-flex border border-ink/20">
           <button
             onClick={() => setMode("station")}
-            className={`px-2.5 py-1.5 rounded-md transition-colors ${
+            className={`px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
               mode === "station"
-                ? "bg-accent text-white"
-                : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+                ? "bg-ink text-paper"
+                : "text-ink/50 hover:text-ink"
             }`}
           >
             Carte
           </button>
           <button
             onClick={() => setMode("postalCode")}
-            className={`px-2.5 py-1.5 rounded-md transition-colors ${
+            className={`border-l border-ink/20 px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
               mode === "postalCode"
-                ? "bg-accent text-white"
-                : "bg-gray-100 text-text-secondary hover:bg-gray-200"
+                ? "bg-ink text-paper"
+                : "text-ink/50 hover:text-ink"
             }`}
           >
             Code postal
@@ -109,29 +107,29 @@ export default function DjuToolPage() {
         </div>
 
         {/* Période : un seul champ regroupant les deux dates */}
-        <div className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-gray-300 focus-within:border-accent focus-within:ring-1 focus-within:ring-accent">
-          <CalendarRange size={14} className="text-text-muted shrink-0" />
+        <div className="inline-flex h-9 items-center gap-1.5 border border-ink/20 px-2.5 focus-within:border-accent">
+          <CalendarRange size={14} className="shrink-0 text-ink/40" />
           <input
             type="date"
             value={start}
             max={end || undefined}
             onChange={(e) => setDates((d) => ({ ...d, start: e.target.value }))}
-            className="bg-transparent text-sm outline-none text-text-primary w-[112px]"
+            className="w-[112px] bg-transparent font-mono text-sm tabular-nums text-ink outline-none"
           />
-          <span className="text-text-muted text-sm">→</span>
+          <span className="text-sm text-ink/40">→</span>
           <input
             type="date"
             value={end}
             min={start || undefined}
             onChange={(e) => setDates((d) => ({ ...d, end: e.target.value }))}
-            className="bg-transparent text-sm outline-none text-text-primary w-[112px]"
+            className="w-[112px] bg-transparent font-mono text-sm tabular-nums text-ink outline-none"
           />
         </div>
 
         <button
           onClick={handleCalculate}
           disabled={!canSubmit || loading}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex h-9 items-center gap-2 bg-ink px-4 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading && <Loader2 size={15} className="animate-spin" />}
           Calculer
@@ -141,7 +139,7 @@ export default function DjuToolPage() {
       </div>
 
       {/* Carte à gauche, résultat à droite — colonnes égales, tops alignés */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Colonne gauche : carte (ou saisie code postal) */}
         <div>
           {mode === "station" ? (
@@ -154,9 +152,9 @@ export default function DjuToolPage() {
                 placeholder="ex. 91270"
                 value={postalCode}
                 onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                className="w-full h-10 px-3 rounded-lg border border-gray-300 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+                className="h-10 w-full border border-ink/20 bg-white px-3 font-mono text-sm tabular-nums text-ink outline-none focus:border-accent"
               />
-              <p className="mt-1 text-xs text-text-muted">
+              <p className="mt-1.5 text-xs text-ink/50">
                 La station Météo France la plus proche sera utilisée.
               </p>
             </div>
@@ -166,47 +164,53 @@ export default function DjuToolPage() {
         {/* Colonne droite : résultat */}
         <div>
           {result ? (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-soft overflow-hidden">
+            <div className="panel overflow-hidden">
               {/* KPIs */}
-              <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
-                <div className="p-5">
-                  <div className="text-xs text-text-muted uppercase tracking-wide">DJU total</div>
-                  <div className="mt-1 text-3xl font-semibold text-accent tabular-nums">
+              <div className="grid grid-cols-2 divide-x divide-ink/10 border-b border-ink/10">
+                <div className="px-4 py-3">
+                  <div className="label-tech">DJU total</div>
+                  <div className="mt-1 font-mono text-3xl font-semibold tabular-nums text-accent">
                     {result.djuTotal.toLocaleString("fr-FR")}
                   </div>
                 </div>
-                <div className="p-5">
-                  <div className="text-xs text-text-muted uppercase tracking-wide">Station</div>
-                  <div className="mt-1 text-sm font-medium text-text-primary">{result.station}</div>
-                  <div className="text-xs text-text-muted">{result.days} jours</div>
+                <div className="px-4 py-3">
+                  <div className="label-tech">Station</div>
+                  <div className="mt-1 text-sm font-medium text-ink">{result.station}</div>
+                  <div className="font-mono text-xs tabular-nums text-ink/50">
+                    {result.days} jours
+                  </div>
                 </div>
               </div>
 
               {/* Détail mensuel */}
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-text-muted uppercase tracking-wide bg-gray-50">
-                    <th className="text-left font-medium px-5 py-2.5">Mois</th>
-                    <th className="text-right font-medium px-5 py-2.5">Jours</th>
-                    <th className="text-right font-medium px-5 py-2.5">DJU</th>
+                  <tr className="border-b border-ink/10">
+                    <th className="label-tech px-4 py-2 text-left font-normal">Mois</th>
+                    <th className="label-tech px-4 py-2 text-right font-normal">Jours</th>
+                    <th className="label-tech px-4 py-2 text-right font-normal">DJU</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-ink/[0.06]">
                   {result.monthlyData.map((m) => (
-                    <tr key={m.month} className="hover:bg-gray-50/50">
-                      <td className="px-5 py-2 text-text-primary">{m.label}</td>
-                      <td className="px-5 py-2 text-right text-text-secondary tabular-nums">{m.days}</td>
-                      <td className="px-5 py-2 text-right font-medium text-text-primary tabular-nums">
+                    <tr key={m.month} className="hover:bg-ink/[0.02]">
+                      <td className="px-4 py-2 text-ink">{m.label}</td>
+                      <td className="px-4 py-2 text-right font-mono tabular-nums text-ink/60">
+                        {m.days}
+                      </td>
+                      <td className="px-4 py-2 text-right font-mono font-medium tabular-nums text-ink">
                         {m.dju.toLocaleString("fr-FR")}
                       </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-gray-200 font-semibold bg-gray-50/50">
-                    <td className="px-5 py-2.5 text-text-primary">Total</td>
-                    <td className="px-5 py-2.5 text-right text-text-secondary tabular-nums">{result.days}</td>
-                    <td className="px-5 py-2.5 text-right text-accent tabular-nums">
+                  <tr className="border-t border-ink/15 font-semibold">
+                    <td className="px-4 py-2 text-ink">Total</td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-ink/60">
+                      {result.days}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono tabular-nums text-accent">
                       {result.djuTotal.toLocaleString("fr-FR")}
                     </td>
                   </tr>
@@ -214,7 +218,7 @@ export default function DjuToolPage() {
               </table>
             </div>
           ) : (
-            <div className="h-full min-h-[200px] rounded-xl border border-dashed border-gray-200 flex items-center justify-center text-sm text-text-muted">
+            <div className="flex h-full min-h-[200px] items-center justify-center border border-dashed border-ink/15 text-sm text-ink/40">
               Choisissez une station et une période, puis cliquez sur Calculer.
             </div>
           )}

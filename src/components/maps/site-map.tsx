@@ -22,18 +22,10 @@ const Popup = dynamic(
   { ssr: false }
 );
 
-// Site type colors
-const SITE_TYPE_COLORS: Record<string, string> = {
-  LYCEE: "#3b82f6",
-  COLLEGE: "#8b5cf6",
-  ECOLE: "#06b6d4",
-  MAIRIE: "#f59e0b",
-  HOPITAL: "#ef4444",
-  GYMNASE: "#22c55e",
-  PISCINE: "#0ea5e9",
-  MEDIATHEQUE: "#a855f7",
-  AUTRE: "#6b7280",
-};
+// Thème « bureau d'études » : pas de code couleur décoratif par type.
+// L'encre marque le repère, l'accent la sélection.
+const INK = "#0F1E33";
+const ACCENT = "#2563EB";
 
 const SITE_TYPE_LABELS: Record<string, string> = {
   LYCEE: "Lycée",
@@ -68,8 +60,8 @@ interface SiteMapProps {
   showLegend?: boolean;
 }
 
-// Create custom colored marker
-function createColoredIcon(color: string) {
+// Repère de plan : carré à hairline + croix de visée, pas de goutte pastel
+function createColoredIcon(color: string, opacity: number) {
   if (typeof window === "undefined") return null;
 
   // Chargement paresseux volontaire : leaflet touche `window` à l'import, donc
@@ -78,18 +70,19 @@ function createColoredIcon(color: string) {
   const L = require("leaflet");
 
   const svgIcon = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32">
-      <path fill="${color}" stroke="#fff" stroke-width="1" d="M12 0C7.58 0 4 3.58 4 8c0 5.25 8 13 8 13s8-7.75 8-13c0-4.42-3.58-8-8-8z"/>
-      <circle cx="12" cy="8" r="3" fill="#fff"/>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" opacity="${opacity}">
+      <rect x="5.5" y="5.5" width="13" height="13" fill="#ffffff" stroke="${color}" stroke-width="1.5"/>
+      <rect x="10" y="10" width="4" height="4" fill="${color}"/>
+      <path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke="${color}" stroke-width="1"/>
     </svg>
   `;
 
   return L.divIcon({
     html: svgIcon,
     className: "custom-marker",
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -14],
   });
 }
 
@@ -109,12 +102,12 @@ export function SiteMap({
     // @ts-expect-error - CSS module import
     import("leaflet/dist/leaflet.css");
 
-    // Create icons for each site type
+    // Deux repères seulement : encre (neutre) et accent (sélection)
     const newIcons: Record<string, L.DivIcon> = {};
-    Object.entries(SITE_TYPE_COLORS).forEach(([type, color]) => {
-      const icon = createColoredIcon(color);
-      if (icon) newIcons[type] = icon;
-    });
+    const base = createColoredIcon(INK, 0.45);
+    const selected = createColoredIcon(ACCENT, 1);
+    if (base) newIcons.default = base;
+    if (selected) newIcons.selected = selected;
     setIcons(newIcons);
   }, []);
 
@@ -158,10 +151,10 @@ export function SiteMap({
   if (!isClient) {
     return (
       <div
-        className="bg-gray-50 rounded-xl flex items-center justify-center"
+        className="flex items-center justify-center border border-ink/10 bg-white"
         style={{ height }}
       >
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <Loader2 className="h-6 w-6 animate-spin text-ink/30" />
       </div>
     );
   }
@@ -169,13 +162,13 @@ export function SiteMap({
   if (mappableSites.length === 0) {
     return (
       <div
-        className="bg-gray-50 rounded-xl flex flex-col items-center justify-center text-center p-6"
+        className="flex flex-col items-center justify-center border border-ink/10 bg-white p-4 text-center"
         style={{ height }}
       >
-        <div className="text-gray-400 mb-2">
+        <div className="mb-2 text-ink/20">
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            className="w-12 h-12 mx-auto"
+            className="mx-auto h-10 w-10"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -194,10 +187,10 @@ export function SiteMap({
             />
           </svg>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
           Aucun site avec coordonnées GPS
         </p>
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="mt-1 text-xs text-ink/40">
           Les coordonnées sont calculées automatiquement à partir des adresses
         </p>
       </div>
@@ -212,18 +205,45 @@ export function SiteMap({
           border: none !important;
         }
         .leaflet-popup-content-wrapper {
-          border-radius: 12px;
-          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          border-radius: 0;
+          border: 1px solid rgb(15 30 51 / 0.15);
+          box-shadow: 0 12px 32px -8px rgb(15 30 51 / 0.18);
+        }
+        .leaflet-popup-tip {
+          border: 1px solid rgb(15 30 51 / 0.15);
         }
         .leaflet-popup-content {
-          margin: 12px 16px;
+          margin: 10px 14px;
+        }
+        .leaflet-container {
+          font-family: inherit;
+        }
+        /* Fond de plan en encre très claire : la carte reste un calque, pas un décor */
+        .leaflet-tile-pane {
+          filter: grayscale(1) contrast(0.78) brightness(1.12);
+        }
+        .leaflet-control-zoom a {
+          border-radius: 0 !important;
+          border: 1px solid rgb(15 30 51 / 0.15) !important;
+          background: rgb(255 255 255 / 0.95) !important;
+          color: rgb(15 30 51 / 0.6) !important;
+          width: 32px !important;
+          height: 32px !important;
+          line-height: 30px !important;
+        }
+        .leaflet-control-zoom a:hover {
+          color: #2563eb !important;
+        }
+        .leaflet-control-attribution {
+          border-radius: 0;
+          font-size: 10px;
         }
       `}</style>
 
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
-        style={{ height, width: "100%", borderRadius: "12px" }}
+        style={{ height, width: "100%" }}
         scrollWheelZoom={true}
       >
         <TileLayer
@@ -235,30 +255,33 @@ export function SiteMap({
           <Marker
             key={site.id}
             position={[site.latitude!, site.longitude!]}
-            icon={icons[site.type] || icons.AUTRE}
+            icon={
+              selectedSiteId === site.id
+                ? icons.selected || icons.default
+                : icons.default
+            }
             eventHandlers={{
               click: () => onSiteClick?.(site.id),
             }}
           >
             <Popup>
               <div className="min-w-[180px]">
-                <h3 className="font-semibold text-primary-dark mb-1">
+                <h3 className="mb-1 text-sm font-semibold text-ink">
                   {site.name}
                 </h3>
-                <p className="text-xs text-text-secondary mb-2">
+                <p className="mb-2 text-xs text-ink/50">
                   {site.address}
                   <br />
                   {site.postalCode} {site.city}
                 </p>
-                <div className="flex items-center gap-2 text-xs">
-                  <span
-                    className="px-2 py-0.5 rounded-full text-white"
-                    style={{ backgroundColor: SITE_TYPE_COLORS[site.type] || SITE_TYPE_COLORS.AUTRE }}
-                  >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest text-ink/60">
                     {SITE_TYPE_LABELS[site.type] || site.type}
                   </span>
                   {site.contractName && (
-                    <span className="text-gray-500">{site.contractName}</span>
+                    <span className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
+                      {site.contractName}
+                    </span>
                   )}
                 </div>
               </div>
@@ -269,19 +292,18 @@ export function SiteMap({
 
       {/* Legend */}
       {showLegend && usedTypes.length > 0 && (
-        <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur rounded-lg p-3 shadow-lg z-[1000]">
-          <div className="text-xs font-medium text-gray-500 mb-2">Légende</div>
-          <div className="flex flex-wrap gap-2">
+        <div className="absolute bottom-4 left-4 z-[1000] border border-ink/15 bg-white/95 p-3 shadow-large backdrop-blur">
+          <div className="mb-2 font-mono text-[11px] uppercase tracking-widest text-ink/50">
+            Types de sites
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
             {usedTypes.map((type) => (
-              <div key={type} className="flex items-center gap-1.5">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: SITE_TYPE_COLORS[type] || SITE_TYPE_COLORS.AUTRE }}
-                />
-                <span className="text-xs text-gray-700">
-                  {SITE_TYPE_LABELS[type] || type}
-                </span>
-              </div>
+              <span
+                key={type}
+                className="font-mono text-[11px] uppercase tracking-widest text-ink/70"
+              >
+                {SITE_TYPE_LABELS[type] || type}
+              </span>
             ))}
           </div>
         </div>
@@ -289,9 +311,9 @@ export function SiteMap({
 
       {/* Warning for sites without coordinates */}
       {sitesWithoutCoords > 0 && (
-        <div className="absolute top-4 right-4 bg-yellow-50 text-yellow-700 px-3 py-2 rounded-lg shadow-lg z-[1000] text-xs">
-          {sitesWithoutCoords} site{sitesWithoutCoords > 1 ? "s" : ""} sans
-          coordonnées
+        <div className="absolute right-4 top-4 z-[1000] border border-amber-600/20 bg-amber-50 px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-widest text-amber-700 shadow-large">
+          <span className="tabular-nums">{sitesWithoutCoords}</span> site
+          {sitesWithoutCoords > 1 ? "s" : ""} sans coordonnées
         </div>
       )}
     </div>

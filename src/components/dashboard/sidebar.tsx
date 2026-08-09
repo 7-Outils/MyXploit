@@ -97,7 +97,7 @@ export function Sidebar() {
       {/* Backdrop mobile */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 bg-ink/50 z-40"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
@@ -105,7 +105,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed left-0 top-0 h-screen bg-primary-dark flex flex-col transition-transform duration-300 z-50 w-64",
+          "fixed left-0 top-0 h-screen bg-white border-r border-ink/10 flex flex-col transition-transform duration-300 z-50 w-64",
           // Desktop: largeur dépend de collapsed
           collapsed ? "md:w-20" : "md:w-64",
           // Mobile: hors-écran sauf si mobileOpen
@@ -115,17 +115,17 @@ export function Sidebar() {
         )}
       >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
-        {showLabels && <Logo size="sm" variant="white" />}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-ink/10">
+        {showLabels && <Logo size="sm" />}
         {!showLabels && (
-          <div className="w-10 h-10 mx-auto">
-            <Logo size="sm" showText={false} variant="white" />
+          <div className="w-10 h-10 mx-auto flex items-center justify-center">
+            <Logo size="sm" showText={false} />
           </div>
         )}
         {/* Bouton fermer mobile */}
         <button
           onClick={() => setMobileOpen(false)}
-          className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white"
+          className="md:hidden p-1.5 text-ink/40 hover:text-accent hover:bg-ink/[0.03]"
           aria-label="Fermer le menu"
         >
           <X size={20} />
@@ -134,7 +134,7 @@ export function Sidebar() {
         <button
           onClick={toggle}
           className={cn(
-            "hidden md:block p-1.5 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all",
+            "hidden md:block p-1.5 text-ink/40 hover:text-accent hover:bg-ink/[0.03] transition-colors",
             collapsed && "mx-auto rotate-180"
           )}
           aria-label={collapsed ? "Déplier" : "Replier"}
@@ -151,7 +151,7 @@ export function Sidebar() {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         {visibleNavigation.map((item) => {
           const active = isActive(item.href);
           return (
@@ -159,19 +159,19 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+                "flex items-center gap-3 border-l-2 px-3 py-2 transition-colors duration-200 group",
                 active
-                  ? "bg-accent text-white"
-                  : "text-gray-400 hover:text-white hover:bg-white/10"
+                  ? "border-accent bg-accent/5 text-accent"
+                  : "border-transparent text-ink/60 hover:text-ink hover:bg-ink/[0.02]"
               )}
             >
               <item.icon
-                size={20}
+                size={18}
                 className={cn(
                   "flex-shrink-0",
                   active
-                    ? "text-white"
-                    : "text-gray-400 group-hover:text-white"
+                    ? "text-accent"
+                    : "text-ink/40 group-hover:text-ink/70"
                 )}
               />
               {showLabels && (
@@ -185,17 +185,17 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom navigation */}
-      <div className="py-4 px-3 border-t border-white/10 space-y-1">
+      <div className="py-3 px-2 border-t border-ink/10 space-y-0.5">
         {/* SUPER_ADMIN → Plateforme link */}
         {isSuperAdmin && (
           <Link
             href="/platform"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
-              "text-orange-400 hover:text-orange-300 hover:bg-orange-500/20"
+              "flex items-center gap-3 border-l-2 border-transparent px-3 py-2 transition-colors duration-200 group",
+              "text-amber-600 hover:bg-amber-600/5"
             )}
           >
-            <Shield size={20} className="flex-shrink-0" />
+            <Shield size={18} className="flex-shrink-0" />
             {showLabels && (
               <span className="text-sm font-medium">Plateforme</span>
             )}
@@ -207,13 +207,13 @@ export function Sidebar() {
           <Link
             href="/team"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group",
+              "flex items-center gap-3 border-l-2 px-3 py-2 transition-colors duration-200 group",
               isActive("/team")
-                ? "bg-accent text-white"
-                : "text-gray-400 hover:text-white hover:bg-white/10"
+                ? "border-accent bg-accent/5 text-accent"
+                : "border-transparent text-ink/60 hover:text-ink hover:bg-ink/[0.02]"
             )}
           >
-            <Users size={20} className="flex-shrink-0" />
+            <Users size={18} className="flex-shrink-0" />
             {showLabels && (
               <span className="text-sm font-medium">Equipe</span>
             )}
@@ -226,13 +226,13 @@ export function Sidebar() {
           href="/outils/dju"
           title="Calculateur DJU"
           className={cn(
-            "h-10 w-10 flex items-center justify-center rounded-lg transition-all duration-200",
+            "h-9 w-9 flex items-center justify-center transition-colors duration-200",
             isActive("/outils/dju")
-              ? "bg-accent text-white"
-              : "text-gray-400 hover:text-white hover:bg-white/10"
+              ? "bg-accent/5 text-accent"
+              : "text-ink/40 hover:text-accent hover:bg-ink/[0.02]"
           )}
         >
-          <Thermometer size={20} className="flex-shrink-0" />
+          <Thermometer size={18} className="flex-shrink-0" />
         </Link>
       </div>
       </aside>

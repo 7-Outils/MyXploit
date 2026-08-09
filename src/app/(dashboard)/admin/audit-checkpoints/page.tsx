@@ -285,15 +285,15 @@ export default function AuditCheckpointsPage() {
         <div>
           <Link
             href="/admin"
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-accent mb-2"
+            className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-accent mb-2"
           >
             <ArrowLeft size={16} />
             Administration
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-semibold text-ink">
             Points de contrôle
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="mt-1 text-sm text-text-secondary">
             {checkpoints.length} points configurés
           </p>
         </div>
@@ -307,24 +307,24 @@ export default function AuditCheckpointsPage() {
       <div className="relative">
         <Search
           size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40"
         />
         <input
           type="text"
           placeholder="Rechercher un point de contrôle..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          className="w-full border border-ink/20 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink/30 focus:border-accent focus:outline-none"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
-          <ClipboardCheck size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700">
+        <div className="border border-ink/10 bg-white p-8 text-center">
+          <ClipboardCheck size={48} className="mx-auto text-ink/20 mb-4" />
+          <h3 className="text-sm font-medium text-ink">
             {search ? "Aucun résultat" : "Aucun point de contrôle configuré"}
           </h3>
-          <p className="text-gray-500 mt-2">
+          <p className="mt-1 text-sm text-text-secondary">
             {search
               ? "Essayez une autre recherche"
               : "Créez vos premiers points de contrôle pour les audits."}
@@ -345,46 +345,46 @@ export default function AuditCheckpointsPage() {
             const isExpanded = expandedCategories.has(category);
 
             return (
-              <div key={category} className="bg-white rounded-xl border border-gray-100">
+              <div key={category} className="border border-ink/10 bg-white">
                 <button
                   onClick={() => toggleCategory(category)}
                   className="w-full flex items-center justify-between p-4 text-left"
                 >
-                  <h2 className="text-lg font-semibold text-gray-800">
+                  <h2 className="label-tech">
                     {category} ({categoryCheckpoints.length})
                   </h2>
                   {isExpanded ? (
-                    <ChevronDown size={20} className="text-gray-400" />
+                    <ChevronDown size={20} className="text-ink/40" />
                   ) : (
-                    <ChevronRight size={20} className="text-gray-400" />
+                    <ChevronRight size={20} className="text-ink/40" />
                   )}
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t divide-y">
+                  <div className="border-t border-ink/10 divide-y divide-ink/10">
                     {categoryCheckpoints.map((cp) => (
                       <div
                         key={cp.id}
-                        className="p-4 hover:bg-gray-50 transition-colors"
+                        className="p-4 hover:bg-ink/[0.02] transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h3 className="font-medium text-gray-900">
+                            <h3 className="text-sm font-medium text-ink">
                               {cp.label}
                             </h3>
                             {cp.description && (
-                              <p className="text-sm text-gray-500 mt-1">
+                              <p className="text-sm text-ink/50 mt-1">
                                 {cp.description}
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-2">
                               {cp.findings.length > 0 && (
-                                <span className="px-2 py-0.5 text-xs bg-accent/10 text-accent rounded">
+                                <span className="border border-accent/20 bg-accent/5 px-2 py-0.5 font-mono text-[11px] tabular-nums text-accent">
                                   {cp.findings.length} constats
                                 </span>
                               )}
                               {cp.regulatoryRef && (
-                                <span className="px-2 py-0.5 text-xs bg-blue-50 text-blue-600 rounded">
+                                <span className="border border-accent/20 bg-accent/5 px-2 py-0.5 font-mono text-[11px] text-accent">
                                   {cp.regulatoryRef}
                                 </span>
                               )}
@@ -393,14 +393,14 @@ export default function AuditCheckpointsPage() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => openEditModal(cp)}
-                              className="p-2 text-gray-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                              className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                             >
                               <Pencil size={18} />
                             </button>
                             <button
                               onClick={() => handleDelete(cp.id, cp.label)}
                               disabled={deleting === cp.id}
-                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                             >
                               {deleting === cp.id ? (
                                 <Loader2 size={18} className="animate-spin" />
@@ -422,15 +422,15 @@ export default function AuditCheckpointsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b sticky top-0 bg-white">
-              <h2 className="text-lg font-semibold">
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5 sticky top-0 bg-white">
+              <h2 className="label-tech">
                 {editingId ? "Modifier le point de contrôle" : "Nouveau point de contrôle"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-1 hover:bg-ink/[0.02]"
               >
                 <X size={20} />
               </button>
@@ -438,7 +438,7 @@ export default function AuditCheckpointsPage() {
 
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Libellé *
                 </label>
                 <input
@@ -447,13 +447,13 @@ export default function AuditCheckpointsPage() {
                   onChange={(e) => setForm({ ...form, label: e.target.value })}
                   required
                   placeholder="ex: Schéma de principe"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 />
               </div>
 
               {/* Category selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Catégorie *
                 </label>
                 {!showCategoryInput ? (
@@ -461,7 +461,7 @@ export default function AuditCheckpointsPage() {
                     <select
                       value={form.category}
                       onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                      className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                     >
                       <option value="">Sélectionner une catégorie</option>
                       {existingCategories.map((cat) => (
@@ -485,7 +485,7 @@ export default function AuditCheckpointsPage() {
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
                       placeholder="Nom de la nouvelle catégorie"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                      className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                       autoFocus
                     />
                     <button
@@ -494,7 +494,7 @@ export default function AuditCheckpointsPage() {
                         setShowCategoryInput(false);
                         setNewCategory("");
                       }}
-                      className="text-sm text-gray-500 hover:underline"
+                      className="text-sm text-ink/50 hover:underline"
                     >
                       ← Utiliser une catégorie existante
                     </button>
@@ -503,7 +503,7 @@ export default function AuditCheckpointsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Description
                 </label>
                 <textarea
@@ -511,12 +511,12 @@ export default function AuditCheckpointsPage() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
                   placeholder="Description optionnelle"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Référence réglementaire
                 </label>
                 <input
@@ -524,14 +524,14 @@ export default function AuditCheckpointsPage() {
                   value={form.regulatoryRef}
                   onChange={(e) => setForm({ ...form, regulatoryRef: e.target.value })}
                   placeholder="ex: Article R.224-41-4"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 />
               </div>
 
               {/* Findings section */}
-              <div className="border rounded-lg p-4">
+              <div className="border p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-ink">
                     Constats possibles
                   </label>
                   <Button type="button" variant="outline" size="sm" onClick={addFinding}>
@@ -541,7 +541,7 @@ export default function AuditCheckpointsPage() {
                 </div>
 
                 {form.findings.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">
+                  <p className="text-sm text-ink/50 text-center py-4">
                     Ajoutez les différents constats possibles pour ce point
                   </p>
                 ) : (
@@ -549,7 +549,7 @@ export default function AuditCheckpointsPage() {
                     {form.findings.map((finding, index) => (
                       <div
                         key={finding.id}
-                        className={`border rounded-lg p-3 ${finding.isConform ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
+                        className={`border p-3 ${finding.isConform ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex-1 space-y-2">
@@ -562,7 +562,7 @@ export default function AuditCheckpointsPage() {
                                   updateFinding(index, { label: e.target.value })
                                 }
                                 placeholder="ex: Absent"
-                                className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                className="flex-1 px-3 py-1.5 text-sm border border-ink/10 focus:ring-1 focus:ring-accent focus:border-accent bg-white"
                               />
                               <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                                 <input
@@ -571,7 +571,7 @@ export default function AuditCheckpointsPage() {
                                   onChange={(e) =>
                                     updateFinding(index, { isConform: e.target.checked })
                                   }
-                                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                  className="border-ink/10 text-green-600 focus:ring-green-500"
                                 />
                                 Conforme
                               </label>
@@ -579,7 +579,7 @@ export default function AuditCheckpointsPage() {
 
                             {/* Texte du rapport */}
                             <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">
+                              <label className="block text-xs font-medium text-text-secondary mb-1">
                                 Texte du rapport
                               </label>
                               <textarea
@@ -592,14 +592,14 @@ export default function AuditCheckpointsPage() {
                                   : "ex: Absence de schéma de principe. (Art. R.224-41-4)"
                                 }
                                 rows={2}
-                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                className="w-full px-3 py-1.5 text-sm border border-ink/10 focus:ring-1 focus:ring-accent focus:border-accent bg-white"
                               />
                             </div>
 
                             {/* Préconisation liée (si non conforme) */}
                             {!finding.isConform && (
                               <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">
+                                <label className="block text-xs font-medium text-text-secondary mb-1">
                                   Préconisation associée
                                 </label>
                                 <select
@@ -609,7 +609,7 @@ export default function AuditCheckpointsPage() {
                                       recommendationId: e.target.value || null,
                                     })
                                   }
-                                  className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white"
+                                  className="w-full px-2 py-1.5 text-sm border border-ink/10 focus:ring-1 focus:ring-accent focus:border-accent bg-white"
                                 >
                                   <option value="">Aucune préconisation</option>
                                   {recommendations.map((r) => (
@@ -624,7 +624,7 @@ export default function AuditCheckpointsPage() {
                           <button
                             type="button"
                             onClick={() => removeFinding(index)}
-                            className="p-1 text-gray-400 hover:text-red-500"
+                            className="p-1 text-ink/40 hover:text-red-500"
                           >
                             <X size={16} />
                           </button>
@@ -635,7 +635,7 @@ export default function AuditCheckpointsPage() {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t border-ink/10">
                 <Button
                   type="button"
                   variant="outline"

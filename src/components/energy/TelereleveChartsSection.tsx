@@ -292,12 +292,12 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
 
   if (sites.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
-        <Wifi size={32} className="text-gray-300 mb-3" />
-        <p className="text-sm font-medium text-gray-700">
+      <div className="flex flex-col items-center justify-center border border-dashed border-ink/15 py-12">
+        <Wifi size={32} className="mb-3 text-ink/20" />
+        <p className="text-sm font-medium text-ink">
           Aucun site avec un PCE ou PDL configuré
         </p>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="mt-1 text-xs text-ink/50">
           Renseignez le PCE ou PDL sur la fiche bâtiment.
         </p>
       </div>
@@ -329,21 +329,21 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
                   );
                 }
               }}
-              className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="h-8 border border-ink/20 bg-white px-3 text-sm text-ink focus:border-accent focus:outline-none"
             >
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
             <div className="flex-1" />
-            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-8 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20" />
-            <span className="text-xs text-text-secondary">→</span>
-            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-8 px-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20" />
+            <input type="date" value={dateFrom} max={dateTo} onChange={(e) => setDateFrom(e.target.value)} className="h-8 border border-ink/20 bg-white px-2 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none" />
+            <span className="font-mono text-xs text-ink/40">→</span>
+            <input type="date" value={dateTo} min={dateFrom} max={today} onChange={(e) => setDateTo(e.target.value)} className="h-8 border border-ink/20 bg-white px-2 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none" />
             <div className="flex-1" />
             <select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as Frequency)}
-              className="h-8 px-3 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="h-8 border border-ink/20 bg-white px-3 text-sm text-ink focus:border-accent focus:outline-none"
             >
               {FREQUENCY_ORDER.map((f) => {
                 const disabled = FREQUENCY_ORDER.indexOf(f) < FREQUENCY_ORDER.indexOf(naturalGranularity);
@@ -353,13 +353,20 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
           </div>
         }
       >
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           {/* GRDF (Gaz) */}
           <div className="min-w-0">
-            <p className="text-xs font-medium text-text-secondary mb-2">
-              Gaz (GRDF){sharedKpis ? ` — ${formatKwh(sharedKpis.totalNc)}` : ""}
+            <p className="mb-2 flex flex-wrap items-baseline gap-x-2 border-b border-ink/10 pb-1.5">
+              <span className="label-tech">Gaz (GRDF)</span>
+              {sharedKpis && (
+                <span className="font-mono text-xs tabular-nums text-ink">
+                  {formatKwh(sharedKpis.totalNc)}
+                </span>
+              )}
               {sharedKpis?.ncDeltaPct != null && (
-                <span className={`ml-1 ${sharedKpis.ncDeltaPct > 0 ? "text-red-500" : "text-green-600"}`}>
+                <span
+                  className={`font-mono text-xs tabular-nums ${sharedKpis.ncDeltaPct > 0 ? "text-red-600" : "text-green-700"}`}
+                >
                   ({sharedKpis.ncDeltaPct > 0 ? "+" : ""}{sharedKpis.ncDeltaPct.toFixed(1)}%)
                 </span>
               )}
@@ -381,9 +388,11 @@ export function TelereleveChartsSection({ contractId, yearType = "HEATING_SEASON
 
           {/* Enedis (Électricité) — placeholder */}
           <div className="min-w-0 flex flex-col">
-            <p className="text-xs font-medium text-text-secondary mb-2">Électricité (Enedis)</p>
-            <div className="flex-1 flex items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200 min-h-[200px]">
-              <p className="text-sm text-gray-400">Bientôt disponible</p>
+            <p className="mb-2 border-b border-ink/10 pb-1.5">
+              <span className="label-tech">Électricité (Enedis)</span>
+            </p>
+            <div className="flex min-h-[200px] flex-1 items-center justify-center border border-dashed border-ink/15 bg-white">
+              <p className="label-tech">Bientôt disponible</p>
             </div>
           </div>
         </div>

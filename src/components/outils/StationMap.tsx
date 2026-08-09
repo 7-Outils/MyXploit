@@ -180,7 +180,15 @@ export function StationMap({ stations, selected, onSelect }: Props) {
         <g transform={`translate(${view.tx},${view.ty}) scale(${view.k})`}>
           {/* Fond pays (continent + Corse + îles) */}
           {paths.map((d, i) => (
-            <path key={i} d={d} fill="#F0F4F8" stroke="#CBD5E0" strokeWidth={1 / view.k} />
+            <path
+              key={i}
+              d={d}
+              fill="#0F1E33"
+              fillOpacity={0.04}
+              stroke="#0F1E33"
+              strokeOpacity={0.2}
+              strokeWidth={1 / view.k}
+            />
           ))}
           {/* Séparations départementales (traits fins, sans remplissage) */}
           {deptPaths.map((d, i) => (
@@ -189,7 +197,8 @@ export function StationMap({ stations, selected, onSelect }: Props) {
               d={d}
               fill="#2563EB"
               fillOpacity={hoverDept === i ? 0.12 : 0}
-              stroke={hoverDept === i ? "#2563EB" : "#D7DEE6"}
+              stroke={hoverDept === i ? "#2563EB" : "#0F1E33"}
+              strokeOpacity={hoverDept === i ? 1 : 0.12}
               strokeWidth={(hoverDept === i ? 1 : 0.5) / view.k}
               strokeLinejoin="round"
               style={{ pointerEvents: "all" }}
@@ -223,7 +232,8 @@ export function StationMap({ stations, selected, onSelect }: Props) {
               {isSelected && <circle r={9} fill="#2563EB" opacity={0.18} />}
               <circle
                 r={isSelected ? 5.5 : isHover ? 4.5 : 3}
-                fill={isSelected ? "#2563EB" : isHover ? "#60A5FA" : "#94A3B8"}
+                fill={isSelected || isHover ? "#2563EB" : "#0F1E33"}
+                fillOpacity={isSelected ? 1 : isHover ? 0.7 : 0.45}
                 stroke="#fff"
                 strokeWidth={1}
                 className="transition-all"
@@ -235,8 +245,8 @@ export function StationMap({ stations, selected, onSelect }: Props) {
 
       {/* Étiquette de la station active (hover prioritaire, sinon sélectionnée) */}
       {activeStation && (
-        <div className="absolute top-2 left-2 rounded-lg bg-white/95 shadow-soft border border-gray-200 px-3 py-1.5 pointer-events-none">
-          <div className="text-sm font-medium text-text-primary">
+        <div className="pointer-events-none absolute left-2 top-2 border border-ink/15 bg-white/95 px-3 py-1.5 shadow-large">
+          <div className="font-mono text-[11px] uppercase tracking-widest text-ink">
             {activeStation.name}
           </div>
         </div>
@@ -247,7 +257,7 @@ export function StationMap({ stations, selected, onSelect }: Props) {
         <button
           type="button"
           onClick={() => zoomAt(W / 2, H / 2, 1.4)}
-          className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/95 border border-gray-200 shadow-soft text-text-secondary hover:text-text-primary hover:bg-white"
+          className="flex h-8 w-8 items-center justify-center border border-ink/15 bg-white/95 text-ink/60 shadow-large hover:bg-white hover:text-accent"
           title="Zoomer"
         >
           <Plus size={16} />
@@ -255,7 +265,7 @@ export function StationMap({ stations, selected, onSelect }: Props) {
         <button
           type="button"
           onClick={() => zoomAt(W / 2, H / 2, 1 / 1.4)}
-          className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/95 border border-gray-200 shadow-soft text-text-secondary hover:text-text-primary hover:bg-white"
+          className="flex h-8 w-8 items-center justify-center border border-ink/15 bg-white/95 text-ink/60 shadow-large hover:bg-white hover:text-accent"
           title="Dézoomer"
         >
           <Minus size={16} />
@@ -264,7 +274,7 @@ export function StationMap({ stations, selected, onSelect }: Props) {
           <button
             type="button"
             onClick={() => setView({ k: 1, tx: 0, ty: 0 })}
-            className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/95 border border-gray-200 shadow-soft text-text-secondary hover:text-text-primary hover:bg-white"
+            className="flex h-8 w-8 items-center justify-center border border-ink/15 bg-white/95 text-ink/60 shadow-large hover:bg-white hover:text-accent"
             title="Réinitialiser"
           >
             <Maximize2 size={14} />

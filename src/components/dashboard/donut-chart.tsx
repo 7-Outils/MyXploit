@@ -57,10 +57,10 @@ export function DonutChart({
     return (
       <div className="flex flex-col items-center justify-center" style={{ minHeight: size }}>
         <div
-          className="rounded-full border-4 border-gray-100 flex items-center justify-center"
+          className="rounded-full border-4 border-ink/10 flex items-center justify-center"
           style={{ width: size, height: size }}
         >
-          <span className="text-gray-400 text-sm">Aucune donnée</span>
+          <span className="label-tech">Aucune donnée</span>
         </div>
       </div>
     );
@@ -77,7 +77,8 @@ export function DonutChart({
             cy={center}
             r={(size - strokeWidth) / 2}
             fill="none"
-            stroke="#f3f4f6"
+            stroke="#0F1E33"
+            strokeOpacity={0.08}
             strokeWidth={strokeWidth}
           />
           {/* Segments */}
@@ -101,13 +102,11 @@ export function DonutChart({
         {(centerLabel || centerValue !== undefined) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             {centerValue !== undefined && (
-              <span className="text-2xl font-bold text-primary-dark">
+              <span className="font-mono text-2xl font-semibold tabular-nums text-ink">
                 {centerValue}
               </span>
             )}
-            {centerLabel && (
-              <span className="text-xs text-text-secondary">{centerLabel}</span>
-            )}
+            {centerLabel && <span className="label-tech">{centerLabel}</span>}
           </div>
         )}
       </div>
@@ -118,14 +117,12 @@ export function DonutChart({
           {segments.map((segment, index) => (
             <div key={index} className="flex items-center gap-2">
               <div
-                className="w-3 h-3 rounded-full shrink-0"
+                className="w-2.5 h-2.5 shrink-0"
                 style={{ backgroundColor: segment.color }}
               />
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-primary-dark truncate">
-                  {segment.label}
-                </div>
-                <div className="text-xs text-text-secondary">
+                <div className="text-sm text-ink truncate">{segment.label}</div>
+                <div className="font-mono text-xs tabular-nums text-ink/50">
                   {segment.value} ({Math.round(segment.percentage * 100)}%)
                 </div>
               </div>
@@ -137,37 +134,41 @@ export function DonutChart({
   );
 }
 
-// Predefined color palettes
+/**
+ * Palettes — thème « bureau d'études » : dégradé encre → accent, aucune
+ * couleur décorative. Seul `equipmentStatus` garde des teintes sémantiques
+ * (vert = OK, ambre = attention, rouge = panne).
+ */
 export const CHART_COLORS = {
   siteTypes: {
-    LYCEE: "#3b82f6",     // blue
-    COLLEGE: "#8b5cf6",   // violet
-    ECOLE: "#06b6d4",     // cyan
-    MAIRIE: "#f59e0b",    // amber
-    HOPITAL: "#ef4444",   // red
-    GYMNASE: "#22c55e",   // green
-    PISCINE: "#0ea5e9",   // sky
-    MEDIATHEQUE: "#a855f7", // purple
-    AUTRE: "#6b7280",     // gray
+    LYCEE: "#2563EB",       // accent
+    COLLEGE: "#0F1E33",     // encre
+    ECOLE: "#60A5FA",       // accent clair
+    MAIRIE: "#4A5568",      // encre atténuée
+    HOPITAL: "#1E40AF",     // accent foncé
+    GYMNASE: "#93C5FD",     // accent très clair
+    PISCINE: "#334E68",     // encre moyenne
+    MEDIATHEQUE: "#BFDBFE", // accent pâle
+    AUTRE: "#94A3B8",       // gris neutre
   },
   energyTypes: {
-    GAZ: "#f59e0b",       // amber
-    ELECTRICITE: "#3b82f6", // blue
-    FIOUL: "#78716c",     // stone
-    BOIS: "#84cc16",      // lime
-    RESEAU_CHALEUR: "#ef4444", // red
-    AUTRE: "#6b7280",     // gray
+    GAZ: "#2563EB",            // accent
+    ELECTRICITE: "#0F1E33",    // encre
+    FIOUL: "#4A5568",          // encre atténuée
+    BOIS: "#60A5FA",           // accent clair
+    RESEAU_CHALEUR: "#1E40AF", // accent foncé
+    AUTRE: "#94A3B8",          // gris neutre
   },
   equipmentStatus: {
-    OPERATIONNEL: "#22c55e",  // green
-    MAINTENANCE: "#f59e0b",   // amber
-    PANNE: "#ef4444",         // red
-    HORS_SERVICE: "#6b7280",  // gray
+    OPERATIONNEL: "#16a34a",  // green-600
+    MAINTENANCE: "#d97706",   // amber-600
+    PANNE: "#dc2626",         // red-600
+    HORS_SERVICE: "#94A3B8",  // gris neutre
   },
   prestations: {
-    P1: "#3b82f6",  // blue
-    P2: "#8b5cf6",  // violet
-    P3: "#06b6d4",  // cyan
-    P4: "#22c55e",  // green
+    P1: "#0F1E33",  // encre
+    P2: "#2563EB",  // accent
+    P3: "#60A5FA",  // accent clair
+    P4: "#94A3B8",  // gris neutre
   },
 };

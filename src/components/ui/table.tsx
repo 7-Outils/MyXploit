@@ -1,7 +1,7 @@
 /**
- * Primitives de table partagées — reprennent l'idiome des tables existantes
- * (card blanche arrondie, thead gris, en-têtes uppercase) pour remplacer
- * les <table> réécrites page par page.
+ * Primitives de table partagées — thème « bureau d'études » : panneau à
+ * hairline (pas d'ombre, coins carrés), en-têtes de colonne en label mono
+ * (.label-tech), lignes séparées par des hairlines ink/10.
  *
  * Usage :
  *   <Table>
@@ -33,7 +33,7 @@ export function Table({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-gray-100 bg-white",
+        "overflow-hidden border border-ink/10 bg-white",
         className
       )}
     >
@@ -46,7 +46,7 @@ export function Table({
 
 export function THead({ children }: { children: React.ReactNode }) {
   return (
-    <thead className="border-b border-gray-100 bg-gray-50/50">
+    <thead className="border-b border-ink/10 bg-white">
       <tr>{children}</tr>
     </thead>
   );
@@ -64,7 +64,7 @@ export function Th({
   return (
     <th
       className={cn(
-        "px-6 py-3 text-xs font-medium uppercase text-gray-500",
+        "label-tech whitespace-nowrap px-4 py-2.5",
         align === "left" && "text-left",
         align === "center" && "text-center",
         align === "right" && "text-right",
@@ -77,7 +77,7 @@ export function Th({
 }
 
 export function TBody({ children }: { children: React.ReactNode }) {
-  return <tbody className="divide-y divide-gray-50">{children}</tbody>;
+  return <tbody className="divide-y divide-ink/10">{children}</tbody>;
 }
 
 export function Tr({
@@ -94,7 +94,7 @@ export function Tr({
       onClick={onClick}
       className={cn(
         "transition-colors",
-        onClick && "cursor-pointer hover:bg-gray-50",
+        onClick && "cursor-pointer hover:bg-ink/[0.02]",
         className
       )}
     >
@@ -115,9 +115,10 @@ export function Td({
   return (
     <td
       className={cn(
-        "px-6 py-3.5 text-sm text-gray-700",
+        "px-4 py-2.5 text-sm text-ink/80",
         align === "center" && "text-center",
-        align === "right" && "text-right",
+        // Colonnes de droite = valeurs chiffrées : chiffres alignés
+        align === "right" && "text-right tabular-nums",
         className
       )}
     >
@@ -137,7 +138,7 @@ export function TableEmpty({
     <tr>
       <td
         colSpan={colSpan}
-        className="px-6 py-12 text-center text-sm text-gray-400"
+        className="px-4 py-10 text-center text-sm text-ink/40"
       >
         {message}
       </td>

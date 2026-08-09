@@ -21,41 +21,37 @@ export function ActivitySection({
   quickActions,
 }: ActivitySectionProps) {
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
+    <div className="grid lg:grid-cols-2 gap-4">
       {/* Recent Activity */}
       <ChartCard
         title="Activité récente"
         action={
-          <button className="text-sm text-accent hover:underline">
+          <button className="font-mono text-[11px] uppercase tracking-widest text-ink underline decoration-ink/30 underline-offset-4 hover:text-accent hover:decoration-accent transition-colors">
             Voir tout
           </button>
         }
       >
         {recentActivities.length === 0 ? (
-          <p className="text-center text-text-secondary py-8">
+          <p className="text-center text-sm text-ink/50 py-8">
             Aucune activité récente
           </p>
         ) : (
-          <div className="space-y-4">
+          <div className="-mx-4 -my-4 divide-y divide-ink/10">
             {recentActivities.slice(0, 4).map((activity) => (
               <div
                 key={activity.id}
-                className="flex items-start gap-4 pb-4 border-b border-gray-100 last:border-0 last:pb-0"
+                className="flex items-start gap-3 px-4 py-2.5"
               >
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${activity.iconBg}`}
-                >
-                  <activity.icon size={18} className={activity.iconColor} />
-                </div>
+                <activity.icon size={16} className="text-ink/40 flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-primary-dark">
+                  <p className="text-sm font-medium text-ink">
                     {activity.title}
                   </p>
-                  <p className="text-sm text-text-secondary truncate">
+                  <p className="text-xs text-ink/50 truncate">
                     {activity.description}
                   </p>
                 </div>
-                <span className="text-xs text-gray-400 flex-shrink-0">
+                <span className="font-mono text-[11px] tabular-nums text-ink/40 flex-shrink-0">
                   {activity.time}
                 </span>
               </div>
@@ -66,15 +62,15 @@ export function ActivitySection({
 
       {/* Quick Actions - Profile specific */}
       <ChartCard title="Actions rapides">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="-mx-4 -my-4 grid grid-cols-2 divide-x divide-y divide-ink/10 border-t border-ink/10">
           {quickActions.map((action) => (
             <Link
               key={action.href}
               href={action.href}
-              className="flex flex-col items-center gap-2 p-4 bg-background-secondary rounded-xl hover:bg-gray-100 transition-colors"
+              className="group flex flex-col items-center gap-2 px-3 py-4 hover:bg-ink/[0.02] transition-colors"
             >
-              <action.icon size={24} className="text-accent" />
-              <span className="text-sm text-text-secondary text-center">
+              <action.icon size={18} className="text-ink/40 group-hover:text-accent transition-colors" />
+              <span className="font-mono text-[11px] uppercase tracking-widest text-ink/50 text-center leading-relaxed">
                 {action.label}
               </span>
             </Link>

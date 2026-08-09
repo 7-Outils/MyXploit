@@ -39,7 +39,7 @@ interface Assignment {
   contract: ContractSummary;
 }
 
-import { ROLE_LABELS, ROLE_COLORS } from "@/lib/permissions";
+import { ROLE_LABELS } from "@/lib/permissions";
 
 export default function PortfolioAdminPage() {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -215,13 +215,13 @@ export default function PortfolioAdminPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/admin"
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="p-2 hover:bg-ink/[0.02] transition-colors"
           >
-            <ArrowLeft size={20} className="text-gray-500" />
+            <ArrowLeft size={20} className="text-ink/50" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Portefeuilles ingénieurs</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-xl font-semibold text-ink">Portefeuilles ingénieurs</h1>
+            <p className="mt-1 text-sm text-text-secondary">
               Assigner des contrats aux membres de votre équipe
             </p>
           </div>
@@ -231,39 +231,39 @@ export default function PortfolioAdminPage() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Left Panel: User List */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-                <Users size={18} className="text-accent" />
+          <div className="border border-ink/10 bg-white">
+            <div className="border-b border-ink/10 px-4 py-2.5">
+              <h2 className="label-tech flex items-center gap-2">
+                <Users size={12} className="text-ink/30" />
                 Équipe ({users.length})
               </h2>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-ink/10">
               {users.length === 0 ? (
-                <p className="p-4 text-sm text-gray-500">Aucun membre trouvé</p>
+                <p className="p-4 text-sm text-ink/50">Aucun membre trouvé</p>
               ) : (
                 users.map((u) => (
                   <button
                     key={u.id}
                     onClick={() => setSelectedUserId(u.id)}
-                    className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
+                    className={`w-full text-left p-4 hover:bg-ink/[0.02] transition-colors ${
                       selectedUserId === u.id ? "bg-accent/5 border-l-2 border-accent" : ""
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-ink">
                           {u.firstName || ""} {u.lastName || ""}
                         </p>
-                        <p className="text-xs text-gray-500">{u.email}</p>
+                        <p className="text-xs text-ink/50">{u.email}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         {(userAssignmentCounts[u.id] || 0) > 0 && (
-                          <span className="px-2 py-0.5 bg-accent/10 text-accent rounded-full text-xs font-medium">
+                          <span className="border border-accent/20 bg-accent/5 px-2 py-0.5 font-mono text-[11px] tabular-nums text-accent">
                             {userAssignmentCounts[u.id]} contrat{(userAssignmentCounts[u.id] || 0) > 1 ? "s" : ""}
                           </span>
                         )}
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_COLORS[u.role as keyof typeof ROLE_COLORS] || "bg-gray-100 text-gray-700"}`}>
+                        <span className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
                           {ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] || u.role}
                         </span>
                       </div>
@@ -278,27 +278,27 @@ export default function PortfolioAdminPage() {
         {/* Right Panel: Contract Assignments */}
         <div className="lg:col-span-2">
           {!selectedUserId ? (
-            <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-              <Users size={48} className="mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">Sélectionnez un membre pour gérer ses contrats</p>
+            <div className="border border-ink/10 bg-white p-12 text-center">
+              <Users size={48} className="mx-auto text-ink/20 mb-4" />
+              <p className="text-ink/50">Sélectionnez un membre pour gérer ses contrats</p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Selected User Header */}
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="border border-ink/10 bg-white p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="font-semibold text-gray-900">
+                    <h2 className="text-sm font-medium text-ink">
                       {selectedUser?.firstName || ""} {selectedUser?.lastName || ""}
                     </h2>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-ink/50">
                       {assignments.length} contrat{assignments.length > 1 ? "s" : ""} assigné{assignments.length > 1 ? "s" : ""}
                     </p>
                   </div>
                   {assignments.length > 0 && (
                     <button
                       onClick={() => setShowTransferModal(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition-colors text-sm font-medium"
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors text-sm font-medium"
                     >
                       <ArrowLeftRight size={16} />
                       Passation
@@ -309,23 +309,23 @@ export default function PortfolioAdminPage() {
 
               {/* Assigned Contracts */}
               {assignments.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-100">
-                  <div className="p-4 border-b border-gray-100">
-                    <h3 className="font-medium text-gray-900 flex items-center gap-2">
+                <div className="border border-ink/10 bg-white">
+                  <div className="border-b border-ink/10 px-4 py-2.5">
+                    <h3 className="font-medium text-ink flex items-center gap-2">
                       <Check size={16} className="text-green-600" />
                       Contrats assignés
                     </h3>
                   </div>
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-ink/10">
                     {assignments.map((a) => (
                       <div key={a.id} className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-green-50 flex items-center justify-center">
                             <FileText size={18} className="text-green-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{a.contract.title}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="font-medium text-ink">{a.contract.title}</p>
+                            <p className="text-xs text-ink/50">
                               {a.contract.reference} - {a.contract.provider} - {a.contract._count.contractSites} site{a.contract._count.contractSites > 1 ? "s" : ""}
                             </p>
                           </div>
@@ -333,7 +333,7 @@ export default function PortfolioAdminPage() {
                         <button
                           onClick={() => handleRemoveAssignment(a.contractId)}
                           disabled={saving}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                           title="Retirer"
                         >
                           <X size={16} />
@@ -346,23 +346,23 @@ export default function PortfolioAdminPage() {
 
               {/* Available Contracts */}
               {unassignedContracts.length > 0 && (
-                <div className="bg-white rounded-xl border border-gray-100">
-                  <div className="p-4 border-b border-gray-100">
-                    <h3 className="font-medium text-gray-900 flex items-center gap-2">
-                      <Building2 size={16} className="text-gray-400" />
+                <div className="border border-ink/10 bg-white">
+                  <div className="border-b border-ink/10 px-4 py-2.5">
+                    <h3 className="font-medium text-ink flex items-center gap-2">
+                      <Building2 size={16} className="text-ink/40" />
                       Contrats disponibles ({unassignedContracts.length})
                     </h3>
                   </div>
-                  <div className="divide-y divide-gray-50">
+                  <div className="divide-y divide-ink/10">
                     {unassignedContracts.map((c) => (
                       <div key={c.id} className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center">
-                            <FileText size={18} className="text-gray-400" />
+                          <div className="w-10 h-10 bg-ink/[0.015] flex items-center justify-center">
+                            <FileText size={18} className="text-ink/40" />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{c.title}</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="font-medium text-ink">{c.title}</p>
+                            <p className="text-xs text-ink/50">
                               {c.reference} - {c.provider} - {c._count.contractSites} site{c._count.contractSites > 1 ? "s" : ""}
                             </p>
                           </div>
@@ -370,7 +370,7 @@ export default function PortfolioAdminPage() {
                         <button
                           onClick={() => handleAssignContract(c.id)}
                           disabled={saving}
-                          className="flex items-center gap-1 px-3 py-1.5 text-accent bg-accent/5 hover:bg-accent/10 rounded-lg transition-colors text-sm font-medium"
+                          className="flex items-center gap-1 px-3 py-1.5 text-accent bg-accent/5 hover:bg-accent/10 transition-colors text-sm font-medium"
                         >
                           <Plus size={14} />
                           Assigner
@@ -382,8 +382,8 @@ export default function PortfolioAdminPage() {
               )}
 
               {assignments.length === 0 && unassignedContracts.length === 0 && (
-                <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
-                  <p className="text-gray-500">Aucun contrat disponible</p>
+                <div className="border border-ink/10 bg-white p-8 text-center">
+                  <p className="text-ink/50">Aucun contrat disponible</p>
                 </div>
               )}
             </div>
@@ -393,10 +393,10 @@ export default function PortfolioAdminPage() {
 
       {/* Transfer Modal */}
       {showTransferModal && selectedUserId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Passation de portefeuille</h3>
-            <p className="text-sm text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 w-full max-w-md mx-4">
+            <h3 className="text-sm font-medium text-ink mb-2">Passation de portefeuille</h3>
+            <p className="text-sm text-text-secondary mb-4">
               Transférer les {assignments.length} contrat{assignments.length > 1 ? "s" : ""} de{" "}
               <strong>{selectedUser?.firstName} {selectedUser?.lastName}</strong> vers :
             </p>
@@ -404,7 +404,7 @@ export default function PortfolioAdminPage() {
             <select
               value={transferToUserId}
               onChange={(e) => setTransferToUserId(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg mb-4"
+              className="w-full p-3 border border-ink/10 mb-4"
             >
               <option value="">Sélectionner un destinataire</option>
               {users
@@ -417,10 +417,10 @@ export default function PortfolioAdminPage() {
             </select>
 
             {/* Liste des contrats qui seront transférés */}
-            <div className="max-h-40 overflow-y-auto mb-4 bg-gray-50 rounded-lg p-3">
-              <p className="text-xs font-medium text-gray-500 mb-2">Contrats concernés :</p>
+            <div className="max-h-40 overflow-y-auto mb-4 bg-ink/[0.015] p-3">
+              <p className="text-xs font-medium text-ink/50 mb-2">Contrats concernés :</p>
               {assignments.map((a) => (
-                <p key={a.id} className="text-sm text-gray-700">
+                <p key={a.id} className="text-sm text-ink">
                   {a.contract.reference} - {a.contract.title}
                 </p>
               ))}
@@ -432,14 +432,14 @@ export default function PortfolioAdminPage() {
                   setShowTransferModal(false);
                   setTransferToUserId("");
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-ink/10 text-ink hover:bg-ink/[0.02]"
               >
                 Annuler
               </button>
               <button
                 onClick={handleTransfer}
                 disabled={!transferToUserId || transferring}
-                className="flex-1 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {transferring ? (
                   <Loader2 size={16} className="animate-spin" />

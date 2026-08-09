@@ -28,7 +28,6 @@ export default function KPIGrid({ site, siteAnalytics, siteDju }: KPIGridProps) 
         change={site.nb ? `NB: ${formatNumber(site.nb)} MWh` : undefined}
         changeType="neutral"
         icon={Zap}
-        iconColor="text-orange-600"
       />
       <StatsCard
         title="N'B (Objectif ajusté)"
@@ -36,7 +35,6 @@ export default function KPIGrid({ site, siteAnalytics, siteDju }: KPIGridProps) 
         change="Ajusté selon DJU réels"
         changeType="neutral"
         icon={Target}
-        iconColor="text-blue-600"
       />
       <StatsCard
         title="Écart NC/N'B"
@@ -44,7 +42,6 @@ export default function KPIGrid({ site, siteAnalytics, siteDju }: KPIGridProps) 
         change={siteAnalytics ? `${toMWh(siteAnalytics.delta)} MWh` : undefined}
         changeType={siteAnalytics && siteAnalytics.deltaPercent < 0 ? "positive" : siteAnalytics && siteAnalytics.deltaPercent > 0 ? "negative" : "neutral"}
         icon={siteAnalytics && siteAnalytics.deltaPercent < 0 ? TrendingDown : TrendingUp}
-        iconColor={siteAnalytics && siteAnalytics.deltaPercent < 0 ? "text-green-600" : "text-red-600"}
       />
       <StatsCard
         title="DJU réels"
@@ -52,7 +49,6 @@ export default function KPIGrid({ site, siteAnalytics, siteDju }: KPIGridProps) 
         change={siteDju ? `vs ${formatNumber(siteDju.djuTrentenaire)} trentenaire` : undefined}
         changeType="neutral"
         icon={Thermometer}
-        iconColor="text-indigo-600"
       />
     </div>
   );

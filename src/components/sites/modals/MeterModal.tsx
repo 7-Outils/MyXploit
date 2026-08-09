@@ -85,23 +85,24 @@ export function MeterModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-primary-dark">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-ink/15 bg-white shadow-large">
+        <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 py-3">
+          <h2 className="text-base font-semibold text-ink">
             {editingMeter ? "Modifier le compteur" : "Nouveau compteur"}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Fermer"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSaveMeter} className="p-6 space-y-4">
+        <form onSubmit={handleSaveMeter} className="space-y-4 px-5 py-4">
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">
+            <label className="label-tech mb-1.5 block">
               Nom du compteur *
             </label>
             <input
@@ -109,14 +110,14 @@ export function MeterModal({
               required
               value={meterForm.name}
               onChange={(e) => setMeterForm({ ...meterForm, name: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               placeholder="Ex: Compteur gaz principal"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">
+              <label className="label-tech mb-1.5 block">
                 Type de compteur *
               </label>
               <select
@@ -125,7 +126,7 @@ export function MeterModal({
                 onChange={(e) =>
                   setMeterForm({ ...meterForm, type: e.target.value as MeterType })
                 }
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               >
                 {Object.entries(meterTypeLabels).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -136,7 +137,7 @@ export function MeterModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">
+              <label className="label-tech mb-1.5 block">
                 Fluide *
               </label>
               <select
@@ -145,7 +146,7 @@ export function MeterModal({
                 onChange={(e) =>
                   setMeterForm({ ...meterForm, fluid: e.target.value as MeterFluid })
                 }
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               >
                 {Object.entries(meterFluidLabels).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -158,7 +159,7 @@ export function MeterModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">
+              <label className="label-tech mb-1.5 block">
                 Source des données *
               </label>
               <select
@@ -167,7 +168,7 @@ export function MeterModal({
                 onChange={(e) =>
                   setMeterForm({ ...meterForm, dataSource: e.target.value as MeterDataSource })
                 }
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               >
                 {Object.entries(dataSourceLabels).map(([value, label]) => (
                   <option key={value} value={value}>
@@ -178,12 +179,12 @@ export function MeterModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">Unité *</label>
+              <label className="label-tech mb-1.5 block">Unité *</label>
               <select
                 required
                 value={meterForm.unit}
                 onChange={(e) => setMeterForm({ ...meterForm, unit: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               >
                 {unitOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -195,14 +196,14 @@ export function MeterModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">
+            <label className="label-tech mb-1.5 block">
               Référence (PCE, PDL, n° série)
             </label>
             <input
               type="text"
               value={meterForm.reference}
               onChange={(e) => setMeterForm({ ...meterForm, reference: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               placeholder="Ex: GI123456"
             />
           </div>
@@ -210,13 +211,13 @@ export function MeterModal({
           {meterForm.type === "DIVISIONNAIRE" && principalMeters.length > 0 && (
             <>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Rattaché au compteur principal
                 </label>
                 <select
                   value={meterForm.parentId}
                   onChange={(e) => setMeterForm({ ...meterForm, parentId: e.target.value })}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   <option value="">Aucun (indépendant)</option>
                   {principalMeters.map((m) => (
@@ -228,7 +229,7 @@ export function MeterModal({
               </div>
 
               {meterForm.parentId && (
-                <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
+                <div className="flex items-center gap-3 border border-orange-600/20 bg-orange-50 p-3">
                   <input
                     type="checkbox"
                     id="isDeducted"
@@ -236,12 +237,12 @@ export function MeterModal({
                     onChange={(e) =>
                       setMeterForm({ ...meterForm, isDeductedFromParent: e.target.checked })
                     }
-                    className="w-4 h-4 rounded text-accent focus:ring-accent"
+                    className="h-4 w-4 accent-orange-600"
                   />
                   <label htmlFor="isDeducted" className="text-sm text-orange-800">
                     <span className="font-medium">Déduit du principal</span>
                     <br />
-                    <span className="text-orange-600">
+                    <span className="text-orange-700/80">
                       Ce compteur sera soustrait pour calculer le chauffage
                     </span>
                   </label>
@@ -254,7 +255,7 @@ export function MeterModal({
           {meterForm.fluid === "EAU_CHAUDE" && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Coefficient Q (MWh/m³)
                 </label>
                 <input
@@ -264,15 +265,15 @@ export function MeterModal({
                   onChange={(e) =>
                     setMeterForm({ ...meterForm, conversionCoefficient: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   placeholder="Ex: 0.12"
                 />
-                <p className="text-xs text-text-secondary mt-1">
+                <p className="mt-1 font-mono text-[11px] tabular-nums text-ink/50">
                   Entre 0.10 et 0.14 selon le contrat
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Unité convertie
                 </label>
                 <select
@@ -280,7 +281,7 @@ export function MeterModal({
                   onChange={(e) =>
                     setMeterForm({ ...meterForm, conversionUnit: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   <option value="">-</option>
                   <option value="MWh">MWh</option>
@@ -290,16 +291,15 @@ export function MeterModal({
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div className="-mx-5 flex items-center justify-end gap-2 border-t border-ink/10 px-5 pt-3">
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
               onClick={onClose}
             >
               Annuler
             </Button>
-            <Button type="submit" className="flex-1" disabled={savingMeter}>
+            <Button type="submit" disabled={savingMeter}>
               {savingMeter ? (
                 <>
                   <Loader2 size={18} className="mr-2 animate-spin" />

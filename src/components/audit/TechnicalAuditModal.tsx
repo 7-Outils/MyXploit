@@ -126,35 +126,35 @@ const STATUS_CONFIG = {
     icon: CheckCircle2,
     color: "text-green-600",
     bg: "bg-green-50",
-    border: "border-green-200",
+    border: "border-green-600/20",
     label: "Conforme",
   },
   NON_CONFORME: {
     icon: XCircle,
     color: "text-red-600",
     bg: "bg-red-50",
-    border: "border-red-200",
+    border: "border-red-600/20",
     label: "Non conforme",
   },
   AVERTISSEMENT: {
     icon: AlertTriangle,
     color: "text-amber-600",
     bg: "bg-amber-50",
-    border: "border-amber-200",
+    border: "border-amber-600/20",
     label: "Avertissement",
   },
   NA: {
     icon: MinusCircle,
-    color: "text-gray-500",
-    bg: "bg-gray-50",
-    border: "border-gray-200",
+    color: "text-ink/50",
+    bg: "bg-ink/[0.02]",
+    border: "border-ink/10",
     label: "N/A",
   },
   NON_EVALUE: {
     icon: MinusCircle,
-    color: "text-gray-400",
-    bg: "bg-gray-50",
-    border: "border-gray-100",
+    color: "text-ink/40",
+    bg: "bg-ink/[0.02]",
+    border: "border-ink/10",
     label: "Non évalué",
   },
 };
@@ -385,17 +385,17 @@ export default function TechnicalAuditModal({
   const { minTotal, maxTotal } = calculateTotalCost();
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-ink/15 shadow-large w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <div className="flex items-center justify-between p-4 border-b border-ink/10 sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Audit technique</h2>
-            <p className="text-sm text-gray-600">{siteName}</p>
+            <h2 className="text-base font-semibold text-ink">Audit technique</h2>
+            <p className="text-sm text-ink/60">{siteName}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 hover:bg-ink/5"
           >
             <X size={20} />
           </button>
@@ -405,22 +405,22 @@ export default function TechnicalAuditModal({
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center">
             <Loader2 size={32} className="animate-spin text-accent mb-4" />
-            <p className="text-gray-500">Chargement des points de contrôle...</p>
+            <p className="text-ink/50">Chargement des points de contrôle...</p>
           </div>
         ) : noCheckpointsConfigured ? (
-          <div className="p-6">
-            <div className="border border-amber-200 rounded-xl bg-amber-50 p-6 text-center">
-              <AlertCircle size={48} className="mx-auto text-amber-500 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <div className="p-4">
+            <div className="border border-amber-600/20 bg-amber-50 p-4 text-center">
+              <AlertCircle size={48} className="mx-auto text-amber-600 mb-4" />
+              <h3 className="text-base font-semibold text-ink mb-2">
                 Aucun point de contrôle configuré
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-ink/60 mb-4">
                 Configurez d&apos;abord vos points de contrôle et préconisations
                 dans le panneau d&apos;administration.
               </p>
               <a
                 href="/admin"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-ink text-paper hover:bg-accent transition-colors"
               >
                 <Settings size={18} />
                 Configurer les audits
@@ -428,11 +428,11 @@ export default function TechnicalAuditModal({
             </div>
           </div>
         ) : (
-          <div className="p-6 space-y-6">
+          <div className="p-4 space-y-6">
             {/* Date and auditor */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-1.5 block">
                   Date de l&apos;audit
                 </label>
                 <input
@@ -441,11 +441,11 @@ export default function TechnicalAuditModal({
                   onChange={(e) =>
                     setFormData({ ...formData, auditDate: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-1.5 block">
                   Auditeur
                 </label>
                 <input
@@ -455,7 +455,7 @@ export default function TechnicalAuditModal({
                     setFormData({ ...formData, auditor: e.target.value })
                   }
                   placeholder="Nom de l'auditeur"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none"
                 />
               </div>
             </div>
@@ -470,15 +470,17 @@ export default function TechnicalAuditModal({
               return (
                 <div
                   key={category.id}
-                  className="border border-gray-200 rounded-xl overflow-hidden"
+                  className="border border-ink/10 overflow-hidden"
                 >
                   <button
                     onClick={() => toggleCategory(category.id)}
-                    className="w-full bg-accent px-4 py-3 text-white font-medium flex items-center justify-between"
+                    className="w-full border-b border-ink/10 bg-white px-4 py-2.5 flex items-center justify-between transition-colors hover:bg-ink/[0.02]"
                   >
                     <div className="flex items-center gap-2">
-                      <ClipboardCheck size={18} />
-                      {category.label} ({categoryCheckpoints.length})
+                      <ClipboardCheck size={16} className="text-ink/40" />
+                      <span className="label-tech text-ink">
+                        {category.label} ({categoryCheckpoints.length})
+                      </span>
                     </div>
                     {isExpanded ? (
                       <ChevronDown size={20} />
@@ -488,7 +490,7 @@ export default function TechnicalAuditModal({
                   </button>
 
                   {isExpanded && (
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-ink/10">
                       {categoryCheckpoints.map((checkpoint) => {
                         const response = formData.checkpointResponses.find(
                           (r) => r.checkpointId === checkpoint.id
@@ -498,16 +500,16 @@ export default function TechnicalAuditModal({
                           <div key={checkpoint.id} className="p-4">
                             <div className="flex items-start justify-between gap-4 mb-2">
                               <div className="flex-1">
-                                <span className="text-sm font-medium text-gray-900">
+                                <span className="text-sm font-medium text-ink">
                                   {checkpoint.label}
                                 </span>
                                 {checkpoint.regulatoryRef && (
-                                  <span className="ml-2 text-xs text-blue-600">
+                                  <span className="ml-2 text-xs text-accent">
                                     ({checkpoint.regulatoryRef})
                                   </span>
                                 )}
                                 {checkpoint.description && (
-                                  <p className="text-xs text-gray-500 mt-0.5">
+                                  <p className="text-xs text-ink/50 mt-0.5">
                                     {checkpoint.description}
                                   </p>
                                 )}
@@ -530,12 +532,12 @@ export default function TechnicalAuditModal({
                                           isConform: finding.isConform,
                                         })
                                       }
-                                      className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                      className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                                         response?.selectedFindingId === finding.id
                                           ? finding.isConform
-                                            ? "bg-green-500 text-white"
-                                            : "bg-red-500 text-white"
-                                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                            ? "bg-green-600 text-white"
+                                            : "bg-red-600 text-white"
+                                          : "bg-ink/5 text-ink/60 hover:bg-ink/10"
                                       }`}
                                     >
                                       {finding.label}
@@ -554,10 +556,10 @@ export default function TechnicalAuditModal({
                                       selectedFindingId: null,
                                     })
                                   }
-                                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                                     response?.isConform === true
-                                      ? "bg-green-500 text-white"
-                                      : "bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700"
+                                      ? "bg-green-600 text-white"
+                                      : "bg-ink/5 text-ink/60 hover:bg-green-50 hover:text-green-700"
                                   }`}
                                 >
                                   Oui
@@ -570,10 +572,10 @@ export default function TechnicalAuditModal({
                                       selectedFindingId: null,
                                     })
                                   }
-                                  className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                  className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                                     response?.isConform === false
-                                      ? "bg-red-500 text-white"
-                                      : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700"
+                                      ? "bg-red-600 text-white"
+                                      : "bg-ink/5 text-ink/60 hover:bg-red-50 hover:text-red-700"
                                   }`}
                                 >
                                   Non
@@ -592,10 +594,10 @@ export default function TechnicalAuditModal({
                                         hasDate: true,
                                       })
                                     }
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                                       response?.isConform === true
-                                        ? "bg-green-500 text-white"
-                                        : "bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700"
+                                        ? "bg-green-600 text-white"
+                                        : "bg-ink/5 text-ink/60 hover:bg-green-50 hover:text-green-700"
                                     }`}
                                   >
                                     Oui
@@ -608,10 +610,10 @@ export default function TechnicalAuditModal({
                                         hasDate: false,
                                       })
                                     }
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                                       response?.isConform === false
-                                        ? "bg-red-500 text-white"
-                                        : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700"
+                                        ? "bg-red-600 text-white"
+                                        : "bg-ink/5 text-ink/60 hover:bg-red-50 hover:text-red-700"
                                     }`}
                                   >
                                     Non
@@ -619,7 +621,7 @@ export default function TechnicalAuditModal({
                                 </div>
                                 {response?.isConform === true && (
                                   <div className="flex items-center gap-2">
-                                    <Calendar size={16} className="text-gray-400" />
+                                    <Calendar size={16} className="text-ink/40" />
                                     <input
                                       type="date"
                                       value={response?.dateValue || ""}
@@ -628,7 +630,7 @@ export default function TechnicalAuditModal({
                                           dateValue: e.target.value,
                                         })
                                       }
-                                      className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                                      className="px-3 py-1.5 text-sm border border-ink/20 focus:border-accent focus:outline-none"
                                     />
                                   </div>
                                 )}
@@ -645,10 +647,10 @@ export default function TechnicalAuditModal({
                                           response?.isConform === true ? undefined : true,
                                       })
                                     }
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                                       response?.isConform === true
-                                        ? "bg-green-500 text-white"
-                                        : "bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700"
+                                        ? "bg-green-600 text-white"
+                                        : "bg-ink/5 text-ink/60 hover:bg-green-50 hover:text-green-700"
                                     }`}
                                   >
                                     Oui
@@ -660,10 +662,10 @@ export default function TechnicalAuditModal({
                                           response?.isConform === false ? undefined : false,
                                       })
                                     }
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    className={`px-4 py-1.5 text-sm font-medium transition-colors ${
                                       response?.isConform === false
-                                        ? "bg-red-500 text-white"
-                                        : "bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700"
+                                        ? "bg-red-600 text-white"
+                                        : "bg-ink/5 text-ink/60 hover:bg-red-50 hover:text-red-700"
                                     }`}
                                   >
                                     Non
@@ -675,7 +677,7 @@ export default function TechnicalAuditModal({
                                     <div className="grid grid-cols-3 gap-2 mt-2">
                                       {checkpoint.valueFields.map((field) => (
                                         <div key={field.key}>
-                                          <label className="block text-xs text-gray-600 mb-1">
+                                          <label className="label-tech mb-1.5 block">
                                             {field.label}{" "}
                                             {field.unit && `(${field.unit})`}
                                           </label>
@@ -690,7 +692,7 @@ export default function TechnicalAuditModal({
                                                 },
                                               })
                                             }
-                                            className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                                            className="w-full px-2 py-1.5 text-sm border border-ink/20 focus:border-accent focus:outline-none"
                                           />
                                         </div>
                                       ))}
@@ -717,12 +719,12 @@ export default function TechnicalAuditModal({
                                             isConform: finding.isConform,
                                           })
                                         }
-                                        className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                        className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                                           response?.selectedFindingId === finding.id
                                             ? finding.isConform
-                                              ? "bg-green-500 text-white"
-                                              : "bg-red-500 text-white"
-                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                              ? "bg-green-600 text-white"
+                                              : "bg-red-600 text-white"
+                                            : "bg-ink/5 text-ink/60 hover:bg-ink/10"
                                         }`}
                                       >
                                         {finding.label}
@@ -731,11 +733,11 @@ export default function TechnicalAuditModal({
                                   </div>
                                   {/* Date + Attestation when selected (not N/A) */}
                                   {response?.selectedFindingId && response.selectedFindingId !== "na" && (
-                                    <div className="flex flex-wrap items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex flex-wrap items-center gap-4 p-3 bg-ink/[0.02]">
                                       {/* Date du dernier contrôle */}
                                       <div className="flex items-center gap-2">
-                                        <Calendar size={16} className="text-gray-400" />
-                                        <span className="text-xs text-gray-600">Date :</span>
+                                        <Calendar size={16} className="text-ink/40" />
+                                        <span className="text-xs text-ink/60">Date :</span>
                                         <input
                                           type="date"
                                           value={response?.dateValue || ""}
@@ -744,12 +746,12 @@ export default function TechnicalAuditModal({
                                               dateValue: e.target.value,
                                             })
                                           }
-                                          className="px-2 py-1 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                                          className="px-2 py-1 text-sm border border-ink/20 focus:border-accent focus:outline-none"
                                         />
                                       </div>
                                       {/* Attestation disponible */}
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-600">Attestation :</span>
+                                        <span className="text-xs text-ink/60">Attestation :</span>
                                         <button
                                           onClick={() =>
                                             updateResponse(checkpoint.id, {
@@ -759,10 +761,10 @@ export default function TechnicalAuditModal({
                                               },
                                             })
                                           }
-                                          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                                          className={`px-2 py-1 text-xs font-medium transition-colors ${
                                             response?.values?.attestation === "oui"
-                                              ? "bg-green-500 text-white"
-                                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                              ? "bg-green-600 text-white"
+                                              : "bg-ink/10 text-ink/60 hover:bg-ink/20"
                                           }`}
                                         >
                                           Présente
@@ -776,10 +778,10 @@ export default function TechnicalAuditModal({
                                               },
                                             })
                                           }
-                                          className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                                          className={`px-2 py-1 text-xs font-medium transition-colors ${
                                             response?.values?.attestation === "non"
-                                              ? "bg-amber-500 text-white"
-                                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                                              ? "bg-amber-600 text-white"
+                                              : "bg-ink/10 text-ink/60 hover:bg-ink/20"
                                           }`}
                                         >
                                           Absente
@@ -803,7 +805,7 @@ export default function TechnicalAuditModal({
                                   updateResponse(checkpoint.id, { notes: e.target.value })
                                 }
                                 placeholder="Remarque..."
-                                className="mt-2 w-full px-3 py-1.5 text-sm border border-red-200 rounded-lg focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                                className="mt-2 w-full px-3 py-1.5 text-sm border border-red-600/20 focus:border-red-600 focus:outline-none"
                               />
                             )}
 
@@ -817,7 +819,7 @@ export default function TechnicalAuditModal({
 
                               return (
                                 <div
-                                  className={`mt-3 p-3 rounded-lg text-sm ${statusConfig.bg} ${statusConfig.border} border`}
+                                  className={`mt-3 p-3 text-sm ${statusConfig.bg} ${statusConfig.border} border`}
                                 >
                                   <div className="font-medium mb-1 flex items-center gap-2">
                                     <StatusIcon size={16} className={statusConfig.color} />
@@ -825,7 +827,7 @@ export default function TechnicalAuditModal({
                                       {statusConfig.label}
                                     </span>
                                   </div>
-                                  <p className="text-gray-700">{evalResult.reportText}</p>
+                                  <p className="text-ink/80">{evalResult.reportText}</p>
                                 </div>
                               );
                             })()}
@@ -840,10 +842,10 @@ export default function TechnicalAuditModal({
 
             {/* Recommendations Section */}
             {formData.recommendations.length > 0 && (
-              <div className="border border-orange-200 rounded-xl overflow-hidden">
+              <div className="border border-orange-600/20 overflow-hidden">
                 <button
                   onClick={() => setShowRecommendations(!showRecommendations)}
-                  className="w-full bg-orange-500 px-4 py-3 text-white font-medium flex items-center justify-between"
+                  className="w-full bg-orange-600 px-4 py-3 text-white font-medium flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2">
                     <Banknote size={18} />
@@ -870,15 +872,15 @@ export default function TechnicalAuditModal({
                     {formData.recommendations.map((rec, index) => (
                       <div
                         key={rec.id}
-                        className="border border-gray-200 rounded-lg p-4 bg-orange-50/50"
+                        className="border border-ink/10 p-4 bg-orange-50"
                       >
                         <div className="flex items-start justify-between gap-3 mb-3">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium px-2 py-0.5 bg-orange-100 text-orange-700 rounded">
+                              <span className="text-xs font-medium px-2 py-0.5 bg-orange-50 text-orange-700 border border-orange-600/20">
                                 #{index + 1}
                               </span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-ink/50">
                                 Priorité:{" "}
                                 {rec.priority === 1
                                   ? "Urgent"
@@ -889,23 +891,23 @@ export default function TechnicalAuditModal({
                                   : "Long terme"}
                               </span>
                             </div>
-                            <h4 className="font-medium text-gray-900">{rec.title}</h4>
+                            <h4 className="font-medium text-ink">{rec.title}</h4>
                             {rec.description && (
-                              <p className="text-sm text-gray-600 mt-1">
+                              <p className="text-sm text-ink/60 mt-1">
                                 {rec.description}
                               </p>
                             )}
                           </div>
                           <button
                             onClick={() => removeRecommendation(rec.id)}
-                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                            className="p-1 text-ink/40 hover:text-red-600 hover:bg-red-50"
                           >
                             <Trash2 size={16} />
                           </button>
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="label-tech mb-1.5 block">
                               Coût min (€)
                             </label>
                             <input
@@ -919,11 +921,11 @@ export default function TechnicalAuditModal({
                                 })
                               }
                               placeholder="0"
-                              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                              className="w-full px-2 py-1.5 text-sm border border-ink/10 focus:border-orange-600 focus:outline-none"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="label-tech mb-1.5 block">
                               Coût max (€)
                             </label>
                             <input
@@ -937,11 +939,11 @@ export default function TechnicalAuditModal({
                                 })
                               }
                               placeholder="0"
-                              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                              className="w-full px-2 py-1.5 text-sm border border-ink/10 focus:border-orange-600 focus:outline-none"
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
+                            <label className="label-tech mb-1.5 block">
                               Priorité
                             </label>
                             <select
@@ -951,7 +953,7 @@ export default function TechnicalAuditModal({
                                   priority: parseInt(e.target.value),
                                 })
                               }
-                              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                              className="w-full px-2 py-1.5 text-sm border border-ink/10 focus:border-orange-600 focus:outline-none"
                             >
                               <option value={1}>Urgent</option>
                               <option value={2}>Court terme</option>
@@ -961,7 +963,7 @@ export default function TechnicalAuditModal({
                           </div>
                         </div>
                         <div className="mt-3">
-                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                          <label className="label-tech mb-1.5 block">
                             Notes de l&apos;auditeur
                           </label>
                           <input
@@ -973,7 +975,7 @@ export default function TechnicalAuditModal({
                               })
                             }
                             placeholder="Notes complémentaires..."
-                            className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                            className="w-full px-2 py-1.5 text-sm border border-ink/10 focus:border-orange-600 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -985,7 +987,7 @@ export default function TechnicalAuditModal({
 
             {/* General notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="label-tech mb-1.5 block">
                 Observations générales
               </label>
               <textarea
@@ -995,12 +997,12 @@ export default function TechnicalAuditModal({
                 }
                 placeholder="Notes et observations..."
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                className="w-full px-3 py-2 border border-ink/20 focus:border-accent focus:outline-none"
               />
             </div>
 
             {/* Summary */}
-            <div className="p-4 rounded-xl border bg-gray-50">
+            <div className="p-4 border bg-ink/[0.02]">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">
                   Points évalués:{" "}
@@ -1029,7 +1031,7 @@ export default function TechnicalAuditModal({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t border-gray-100 sticky bottom-0 bg-white">
+            <div className="flex gap-3 pt-4 border-t border-ink/10 sticky bottom-0 bg-white">
               <Button variant="outline" className="flex-1" onClick={onClose}>
                 Annuler
               </Button>

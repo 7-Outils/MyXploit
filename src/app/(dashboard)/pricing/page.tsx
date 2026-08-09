@@ -338,10 +338,10 @@ export default function PricingPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 border-b border-ink/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Chiffrage Appel d&apos;Offres</h1>
-          <p className="text-text-secondary">
+          <h1 className="text-xl font-semibold text-ink">Chiffrage Appel d&apos;Offres</h1>
+          <p className="mt-1 text-sm text-ink/50">
             Importez les équipements et obtenez un chiffrage instantané
           </p>
         </div>
@@ -373,12 +373,12 @@ export default function PricingPage() {
 
       {/* Saved project banner */}
       {savedProject && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex items-center justify-between border border-green-600/20 bg-green-50 p-4">
           <div className="flex items-center gap-3">
-            <Check className="text-green-600" size={20} />
+            <Check className="text-green-700" size={16} />
             <div>
-              <p className="font-medium text-green-800">Projet sauvegardé</p>
-              <p className="text-sm text-green-600">Référence: {savedProject.reference}</p>
+              <p className="text-sm font-medium text-green-800">Projet sauvegardé</p>
+              <p className="font-mono text-xs tabular-nums text-green-700">Référence: {savedProject.reference}</p>
             </div>
           </div>
           <Button
@@ -398,21 +398,21 @@ export default function PricingPage() {
           <ChartCard title="Ajouter un équipement">
             <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-primary-dark mb-1">Site</label>
+                <label className="label-tech mb-1 block">Site</label>
                 <input
                   type="text"
                   value={newEntry.siteName}
                   onChange={(e) => setNewEntry({ ...newEntry, siteName: e.target.value })}
                   placeholder="Nom du site"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Type</label>
+                <label className="label-tech mb-1 block">Type</label>
                 <select
                   value={newEntry.type}
                   onChange={(e) => setNewEntry({ ...newEntry, type: e.target.value as EquipmentType })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   {EQUIPMENT_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -422,24 +422,24 @@ export default function PricingPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">Puissance (kW)</label>
+                <label className="label-tech mb-1 block">Puissance (kW)</label>
                 <input
                   type="number"
                   value={newEntry.power}
                   onChange={(e) => setNewEntry({ ...newEntry, power: e.target.value })}
                   placeholder="Ex: 300"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Qté</label>
+                  <label className="label-tech mb-1 block">Qté</label>
                   <input
                     type="number"
                     value={newEntry.quantity}
                     onChange={(e) => setNewEntry({ ...newEntry, quantity: e.target.value })}
                     min="1"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   />
                 </div>
                 <Button onClick={addEquipment} disabled={!newEntry.siteName}>
@@ -451,12 +451,12 @@ export default function PricingPage() {
 
           {/* Import summary */}
           {importedSites.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FileSpreadsheet size={18} className="text-blue-600" />
-                <span className="font-medium text-blue-800">Import réussi</span>
+            <div className="panel p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <FileSpreadsheet size={14} className="text-accent" />
+                <span className="label-tech text-accent">Import réussi</span>
               </div>
-              <p className="text-sm text-blue-700">
+              <p className="text-sm tabular-nums text-ink/70">
                 {importedSites.length} sites, {importedEquipments.length} équipements importés
                 {importErrors.length > 0 && ` (${importErrors.length} erreurs ignorées)`}
               </p>
@@ -471,20 +471,20 @@ export default function PricingPage() {
             >
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {Array.from(equipmentsBySite.entries()).map(([siteName, siteEquipments]) => (
-                  <div key={siteName} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2 flex items-center gap-2">
-                      <Building2 size={16} className="text-gray-500" />
-                      <span className="font-medium text-primary-dark">{siteName}</span>
-                      <span className="text-xs text-gray-500">({siteEquipments.length})</span>
+                  <div key={siteName} className="overflow-hidden border border-ink/10">
+                    <div className="flex items-center gap-2 border-b border-ink/10 px-4 py-2">
+                      <Building2 size={14} className="text-ink/40" />
+                      <span className="text-sm font-medium text-ink">{siteName}</span>
+                      <span className="font-mono text-xs tabular-nums text-ink/40">({siteEquipments.length})</span>
                     </div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-ink/10">
                       {siteEquipments.map((eq) => (
-                        <div key={eq.id} className="px-4 py-2 flex items-center justify-between">
+                        <div key={eq.id} className="flex items-center justify-between px-4 py-2">
                           <div className="flex items-center gap-3">
-                            <Wrench size={16} className="text-orange-500" />
+                            <Wrench size={14} className="text-ink/40" />
                             <div>
-                              <p className="text-sm font-medium">{EQUIPMENT_TYPE_LABELS[eq.type] || eq.type}</p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-sm font-medium text-ink">{EQUIPMENT_TYPE_LABELS[eq.type] || eq.type}</p>
+                              <p className="font-mono text-xs tabular-nums text-ink/50">
                                 {eq.power && `${eq.power} kW`}
                                 {eq.quantity && eq.quantity > 1 && ` × ${eq.quantity}`}
                                 {eq.year && ` (${eq.year})`}
@@ -493,9 +493,10 @@ export default function PricingPage() {
                           </div>
                           <button
                             onClick={() => removeEquipment(eq.id)}
-                            className="p-1 text-gray-400 hover:text-red-500"
+                            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
+                            title="Retirer"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ))}
@@ -513,7 +514,7 @@ export default function PricingPage() {
           <ChartCard title="Paramètres">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1 block">
                   Durée du marché
                 </label>
                 <select
@@ -522,7 +523,7 @@ export default function PricingPage() {
                     setDuration(parseInt(e.target.value));
                     setResult(null);
                   }}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   {[4, 5, 6, 7, 8, 9, 10, 12, 15].map((y) => (
                     <option key={y} value={y}>{y} ans</option>
@@ -531,7 +532,7 @@ export default function PricingPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1 block">
                   Marge (%)
                 </label>
                 <input
@@ -543,18 +544,18 @@ export default function PricingPage() {
                   }}
                   min="0"
                   max="100"
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1 block">
                   Taux horaire (€/h)
                 </label>
-                <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                  <p>Technicien: {HOURLY_RATES.TECHNICIEN} €</p>
-                  <p>Spécialisé: {HOURLY_RATES.TECHNICIEN_SPECIALISE} €</p>
-                  <p>Ingénieur: {HOURLY_RATES.INGENIEUR} €</p>
+                <div className="divide-y divide-ink/10 border border-ink/10 bg-white text-sm text-ink/70">
+                  <p className="flex justify-between px-3 py-1.5">Technicien <span className="font-mono tabular-nums text-ink">{HOURLY_RATES.TECHNICIEN} €</span></p>
+                  <p className="flex justify-between px-3 py-1.5">Spécialisé <span className="font-mono tabular-nums text-ink">{HOURLY_RATES.TECHNICIEN_SPECIALISE} €</span></p>
+                  <p className="flex justify-between px-3 py-1.5">Ingénieur <span className="font-mono tabular-nums text-ink">{HOURLY_RATES.INGENIEUR} €</span></p>
                 </div>
               </div>
 
@@ -572,46 +573,48 @@ export default function PricingPage() {
           {/* Results */}
           {result && (
             <ChartCard title="Chiffrage">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-gray-600">P2 Annuel</p>
-                    <p className="text-xs text-gray-400">{result.totalHoursP2}h/an</p>
+              <div>
+                <div className="divide-y divide-ink/10 border-y border-ink/10">
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <p className="label-tech">P2 Annuel</p>
+                      <p className="font-mono text-xs tabular-nums text-ink/40">{result.totalHoursP2}h/an</p>
+                    </div>
+                    <p className="font-mono text-sm font-semibold tabular-nums text-ink">{result.totalP2Annual.toLocaleString()} €</p>
                   </div>
-                  <p className="font-bold text-blue-600">{result.totalP2Annual.toLocaleString()} €</p>
+
+                  <div className="flex items-center justify-between py-2">
+                    <p className="label-tech">P3 GE Annuel</p>
+                    <p className="font-mono text-sm font-semibold tabular-nums text-ink">{result.totalP3GEAnnual.toLocaleString()} €</p>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <p className="label-tech">P3 R Annuel</p>
+                    <p className="font-mono text-sm font-semibold tabular-nums text-ink">{result.totalP3RAnnual.toLocaleString()} €</p>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <p className="label-tech">Total annuel</p>
+                    <p className="font-mono text-sm tabular-nums text-ink">{result.totalAnnual.toLocaleString()} €</p>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <p className="label-tech">× {duration} ans</p>
+                    <p className="font-mono text-sm tabular-nums text-ink">{result.totalContract.toLocaleString()} €</p>
+                  </div>
+
+                  <div className="flex items-center justify-between py-2">
+                    <p className="label-tech">+ Marge {marginPercent}%</p>
+                    <p className="font-mono text-sm tabular-nums text-ink">+{result.margin.toLocaleString()} €</p>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-accent/10 rounded-lg">
-                  <p className="text-sm text-gray-600">P3 GE Annuel</p>
-                  <p className="font-bold text-accent">{result.totalP3GEAnnual.toLocaleString()} €</p>
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                  <p className="text-sm text-gray-600">P3 R Annuel</p>
-                  <p className="font-bold text-purple-600">{result.totalP3RAnnual.toLocaleString()} €</p>
-                </div>
-
-                <div className="border-t pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">Total annuel</p>
-                    <p className="font-medium">{result.totalAnnual.toLocaleString()} €</p>
-                  </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">× {duration} ans</p>
-                    <p className="font-medium">{result.totalContract.toLocaleString()} €</p>
-                  </div>
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm text-gray-600">+ Marge {marginPercent}%</p>
-                    <p className="font-medium text-green-600">+{result.margin.toLocaleString()} €</p>
-                  </div>
-                </div>
-
-                <div className="bg-orange-100 p-4 rounded-lg">
-                  <p className="text-sm text-orange-800 mb-1">Prix de vente</p>
-                  <p className="text-3xl font-bold text-orange-600">
+                <div className="mt-4 border-t-2 border-accent pt-3">
+                  <p className="label-tech text-accent">Prix de vente</p>
+                  <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-ink">
                     {result.finalPrice.toLocaleString()} € HT
                   </p>
-                  <p className="text-xs text-orange-600 mt-1">
+                  <p className="mt-1 font-mono text-xs tabular-nums text-ink/50">
                     soit {Math.round(result.finalPrice / duration).toLocaleString()} €/an
                   </p>
                 </div>
@@ -623,31 +626,31 @@ export default function PricingPage() {
 
       {/* Import Modal */}
       {showImport && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-ink/10 shadow-large w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="panel-header">
               <div>
-                <h2 className="text-xl font-bold text-primary-dark">Importer des équipements</h2>
-                <p className="text-sm text-text-secondary">Format Excel (.xlsx) ou CSV</p>
+                <h2 className="label-tech">Importer des équipements</h2>
+                <p className="mt-0.5 text-xs text-ink/50">Format Excel (.xlsx) ou CSV</p>
               </div>
-              <button onClick={() => setShowImport(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} />
+              <button onClick={() => setShowImport(false)} className="p-1.5 text-ink/50 hover:bg-ink/[0.03] hover:text-accent">
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="space-y-4 p-4">
               <label className="block cursor-pointer">
-                <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${importing ? "border-gray-300 bg-gray-50" : "border-gray-300 hover:border-accent"}`}>
+                <div className={`border border-dashed p-8 text-center transition-colors ${importing ? "border-ink/20 bg-white" : "border-ink/20 hover:border-accent"}`}>
                   {importing ? (
                     <div className="flex flex-col items-center">
-                      <Loader2 className="w-12 h-12 text-accent animate-spin mb-4" />
-                      <p className="font-medium">Import en cours...</p>
+                      <Loader2 className="mb-4 h-8 w-8 animate-spin text-accent" />
+                      <p className="text-sm font-medium text-ink">Import en cours...</p>
                     </div>
                   ) : (
                     <>
-                      <FileSpreadsheet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                      <p className="font-medium mb-2">Glissez votre fichier Excel</p>
-                      <p className="text-sm text-gray-500">ou cliquez pour sélectionner</p>
+                      <FileSpreadsheet className="mx-auto mb-4 h-8 w-8 text-ink/30" />
+                      <p className="mb-2 text-sm font-medium text-ink">Glissez votre fichier Excel</p>
+                      <p className="text-sm text-ink/50">ou cliquez pour sélectionner</p>
                     </>
                   )}
                 </div>
@@ -660,21 +663,21 @@ export default function PricingPage() {
                 />
               </label>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="font-medium text-primary-dark mb-2">Colonnes attendues</p>
-                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+              <div className="panel p-4">
+                <p className="label-tech mb-2">Colonnes attendues</p>
+                <div className="grid grid-cols-2 gap-2 text-sm text-ink/70">
                   <div>
-                    <p className="font-medium text-xs text-gray-400 uppercase mb-1">Site</p>
+                    <p className="label-tech mb-1">Site</p>
                     <p>Site, Type Site, Adresse, Ville, CP</p>
                   </div>
                   <div>
-                    <p className="font-medium text-xs text-gray-400 uppercase mb-1">Équipement</p>
+                    <p className="label-tech mb-1">Équipement</p>
                     <p>Équipement/Type, Puissance, Quantité, Année</p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 text-sm text-ink/50">
                 <FileDown size={16} />
                 <a href="/templates/import-equipements.xlsx" className="text-accent hover:underline">
                   Télécharger le modèle Excel
@@ -682,7 +685,7 @@ export default function PricingPage() {
               </div>
             </div>
 
-            <div className="p-6 border-t flex gap-3">
+            <div className="flex gap-3 border-t border-ink/10 p-4">
               <Button variant="outline" onClick={() => setShowImport(false)}>Annuler</Button>
             </div>
           </div>
@@ -691,26 +694,24 @@ export default function PricingPage() {
 
       {/* Save Dialog */}
       {showSaveDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-6 border-b">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
-                  <FolderPlus className="text-accent" size={20} />
-                </div>
+        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-ink/10 shadow-large w-full max-w-md">
+            <div className="panel-header">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="text-accent" size={14} />
                 <div>
-                  <h2 className="text-lg font-bold text-primary-dark">Sauvegarder le projet</h2>
-                  <p className="text-sm text-text-secondary">Créer un projet avec ces données</p>
+                  <h2 className="label-tech">Sauvegarder le projet</h2>
+                  <p className="mt-0.5 text-xs text-ink/50">Créer un projet avec ces données</p>
                 </div>
               </div>
-              <button onClick={() => setShowSaveDialog(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} />
+              <button onClick={() => setShowSaveDialog(false)} className="p-1.5 text-ink/50 hover:bg-ink/[0.03] hover:text-accent">
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 p-4">
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-2">
+                <label className="label-tech mb-1 block">
                   Nom du projet / Appel d&apos;offres
                 </label>
                 <input
@@ -718,27 +719,27 @@ export default function PricingPage() {
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   placeholder="Ex: AO Chauffage Lycées Région Sud"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   autoFocus
                 />
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4 text-sm">
-                <p className="font-medium text-primary-dark mb-2">Résumé</p>
-                <div className="space-y-1 text-gray-600">
+              <div className="panel p-4 text-sm">
+                <p className="label-tech mb-2">Résumé</p>
+                <div className="space-y-1 font-mono tabular-nums text-ink/70">
                   <p>{equipmentsBySite.size} sites</p>
                   <p>{equipments.length} équipements</p>
                   <p>Durée: {duration} ans</p>
-                  {result && <p className="font-medium text-accent">Prix: {result.finalPrice.toLocaleString()} € HT</p>}
+                  {result && <p className="font-semibold text-accent">Prix: {result.finalPrice.toLocaleString()} € HT</p>}
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-ink/50">
                 Les sites et équipements seront créés dans votre organisation et liés à un contrat &quot;En attente&quot;.
               </p>
             </div>
 
-            <div className="p-6 border-t flex gap-3">
+            <div className="flex gap-3 border-t border-ink/10 p-4">
               <Button variant="outline" onClick={() => setShowSaveDialog(false)} className="flex-1">
                 Annuler
               </Button>
@@ -762,12 +763,12 @@ export default function PricingPage() {
 
       {/* Empty state */}
       {equipments.length === 0 && (
-        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-          <FileSpreadsheet size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-primary-dark mb-2">
+        <div className="panel py-16 text-center">
+          <FileSpreadsheet size={32} className="mx-auto mb-4 text-ink/20" />
+          <h3 className="mb-2 text-sm font-semibold text-ink">
             Aucun équipement
           </h3>
-          <p className="text-text-secondary max-w-md mx-auto mb-4">
+          <p className="mx-auto mb-4 max-w-md text-sm text-ink/50">
             Importez un fichier Excel avec la liste des sites et équipements ou ajoutez-les manuellement.
           </p>
           <Button onClick={() => setShowImport(true)}>

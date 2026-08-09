@@ -49,11 +49,11 @@ interface TeamMember {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PROSPECT: { label: "Pipeline", color: "bg-purple-100 text-purple-700" },
-  ACTIVE: { label: "Active", color: "bg-green-100 text-green-700" },
-  EN_PAUSE: { label: "En pause", color: "bg-yellow-100 text-yellow-700" },
-  TERMINEE: { label: "Terminee", color: "bg-gray-100 text-gray-700" },
-  ANNULEE: { label: "Annulee", color: "bg-red-100 text-red-700" },
+  PROSPECT: { label: "Pipeline", color: "bg-white text-ink/60 border border-ink/20" },
+  ACTIVE: { label: "Active", color: "bg-green-50 text-green-700 border border-green-600/20" },
+  EN_PAUSE: { label: "En pause", color: "bg-amber-50 text-amber-700 border border-amber-600/20" },
+  TERMINEE: { label: "Terminee", color: "bg-white text-ink/50 border border-ink/15" },
+  ANNULEE: { label: "Annulee", color: "bg-red-50 text-red-700 border border-red-600/20" },
 };
 
 const BILLING_OPTIONS = [
@@ -183,38 +183,40 @@ export default function MissionsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between border-b border-ink/10 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-            <FolderKanban size={28} className="text-accent" />
+          <h1 className="flex items-center gap-2 text-xl font-semibold text-ink">
+            <FolderKanban size={18} className="text-ink/40" />
             Missions
           </h1>
-          <p className="text-gray-500 mt-1">{missions.length} mission(s)</p>
+          <p className="mt-1 text-sm text-ink/50">
+            <span className="font-mono tabular-nums">{missions.length}</span> mission(s)
+          </p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90"
+          className="flex items-center gap-2 bg-ink px-4 py-2 text-sm text-paper transition-colors hover:bg-accent"
         >
-          <Plus size={18} />
+          <Plus size={16} />
           Nouvelle mission
         </button>
       </div>
 
       {/* Filters */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Status tabs */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+        <div className="flex w-fit items-center border border-ink/10 divide-x divide-ink/10">
           {statusTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setStatusFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium transition-colors ${
                 statusFilter === tab.key
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
+                  ? "bg-accent/5 text-accent"
+                  : "text-ink/60 hover:bg-ink/[0.02] hover:text-ink"
               }`}
             >
-              {tab.label} ({tab.count})
+              {tab.label} (<span className="font-mono tabular-nums">{tab.count}</span>)
             </button>
           ))}
         </div>
@@ -222,19 +224,19 @@ export default function MissionsPage() {
         {/* Search + type filter */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-md">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher une mission..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="w-full border border-ink/20 bg-white py-2 pl-10 pr-3 text-sm focus:border-accent focus:outline-none"
             />
           </div>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
           >
             <option value="all">Tous les types</option>
             {missionTypes.map((t) => (
@@ -246,90 +248,90 @@ export default function MissionsPage() {
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <FolderKanban size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Aucune mission</h3>
-          <p className="text-gray-500 mb-4">Commencez par creer votre premiere mission</p>
+        <div className="panel py-16 text-center">
+          <FolderKanban size={32} className="mx-auto mb-4 text-ink/20" />
+          <h3 className="mb-2 text-sm font-semibold text-ink">Aucune mission</h3>
+          <p className="mb-4 text-sm text-ink/50">Commencez par creer votre premiere mission</p>
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90"
+            className="inline-flex items-center gap-2 bg-ink px-4 py-2 text-sm text-paper transition-colors hover:bg-accent"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             Nouvelle mission
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="panel overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Mission</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Statut</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Ingenieur(s)</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Livrables</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Montant HT</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Echeance</th>
+              <thead className="border-b border-ink/10 bg-white">
+                <tr>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Reference</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Mission</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Client</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Type</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-center">Statut</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-left">Ingenieur(s)</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-center">Livrables</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-right">Montant HT</th>
+                  <th className="label-tech whitespace-nowrap px-4 py-2.5 text-right">Echeance</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-ink/10">
                 {filtered.map((m) => {
                   const statusCfg = STATUS_CONFIG[m.status] || STATUS_CONFIG.ACTIVE;
                   return (
                     <tr
                       key={m.id}
                       onClick={() => router.push(`/missions/${m.id}`)}
-                      className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                      className="cursor-pointer transition-colors hover:bg-ink/[0.02]"
                     >
-                      <td className="py-3 px-4 text-sm font-mono text-gray-500">{m.reference}</td>
-                      <td className="py-3 px-4">
-                        <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{m.title}</p>
+                      <td className="px-4 py-2.5 font-mono text-sm tabular-nums text-ink/50">{m.reference}</td>
+                      <td className="px-4 py-2.5">
+                        <p className="max-w-[200px] truncate text-sm font-medium text-ink">{m.title}</p>
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{m.client.name}</td>
-                      <td className="py-3 px-4">
-                        <span className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">
+                      <td className="px-4 py-2.5 text-sm text-ink/80">{m.client.name}</td>
+                      <td className="px-4 py-2.5">
+                        <span className="border border-ink/15 px-2 py-0.5 text-xs text-ink/70">
                           {m.missionType.name}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`text-xs px-2 py-1 rounded font-medium ${statusCfg.color}`}>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`px-2 py-0.5 text-xs font-medium ${statusCfg.color}`}>
                           {statusCfg.label}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-700">
+                      <td className="px-4 py-2.5 text-sm text-ink/80">
                         {m.engineers.length === 0 ? (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-ink/30">-</span>
                         ) : (
                           m.engineers.map((e) =>
                             `${e.user.firstName || ""} ${e.user.lastName || ""}`.trim() || e.user.email
                           ).join(", ")
                         )}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="px-4 py-2.5 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <span className="text-sm text-gray-700">
+                          <span className="font-mono text-sm tabular-nums text-ink/80">
                             {m.deliverableStats.completed}/{m.deliverableStats.total}
                           </span>
                           {m.deliverableStats.overdue > 0 && (
-                            <span className="flex items-center gap-0.5 text-xs text-red-600">
+                            <span className="flex items-center gap-0.5 font-mono text-xs tabular-nums text-red-600">
                               <AlertTriangle size={12} />
                               {m.deliverableStats.overdue}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right text-sm text-gray-700">
+                      <td className="px-4 py-2.5 text-right font-mono text-sm tabular-nums text-ink">
                         {m.amountHT ? `${m.amountHT.toLocaleString("fr-FR")} €` : "-"}
                       </td>
-                      <td className="py-3 px-4 text-right text-sm text-gray-500">
+                      <td className="px-4 py-2.5 text-right font-mono text-sm tabular-nums text-ink/50">
                         {m.endDate ? new Date(m.endDate).toLocaleDateString("fr-FR") : "-"}
                       </td>
-                      <td className="py-3 px-4">
-                        <ChevronRight size={16} className="text-gray-400" />
+                      <td className="px-4 py-2.5">
+                        <ChevronRight size={16} className="text-ink/30" />
                       </td>
                     </tr>
                   );
@@ -342,27 +344,27 @@ export default function MissionsPage() {
 
       {/* Modal creation */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-semibold">Nouvelle mission</h2>
-              <button onClick={() => setShowCreate(false)} className="p-1.5 hover:bg-gray-100 rounded-lg">
-                <X size={18} />
+        <div className="fixed inset-0 bg-ink/40 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto border border-ink/10 bg-white shadow-large">
+            <div className="panel-header">
+              <h2 className="label-tech">Nouvelle mission</h2>
+              <button onClick={() => setShowCreate(false)} className="p-1.5 text-ink/50 hover:bg-ink/[0.03] hover:text-accent">
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 p-4">
               {createError && (
-                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">{createError}</div>
+                <div className="border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">{createError}</div>
               )}
 
               {/* Client */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
+                <label className="label-tech mb-1 block">Client *</label>
                 <select
                   value={form.clientId}
                   onChange={(e) => setForm({ ...form, clientId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   <option value="">Selectionner un client</option>
                   {clients.map((c) => (
@@ -373,11 +375,11 @@ export default function MissionsPage() {
 
               {/* Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type de mission *</label>
+                <label className="label-tech mb-1 block">Type de mission *</label>
                 <select
                   value={form.missionTypeId}
                   onChange={(e) => setForm({ ...form, missionTypeId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   <option value="">Selectionner un type</option>
                   {missionTypes.map((t) => (
@@ -388,34 +390,34 @@ export default function MissionsPage() {
 
               {/* Titre */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Titre *</label>
+                <label className="label-tech mb-1 block">Titre *</label>
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="Ex: Suivi contrat chauffage Mairie de Lyon"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="label-tech mb-1 block">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-none"
+                  className="w-full resize-none border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
 
               {/* Statut */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                <label className="label-tech mb-1 block">Statut</label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   <option value="ACTIVE">Active</option>
                   <option value="PROSPECT">Pipeline (en negociation)</option>
@@ -425,21 +427,21 @@ export default function MissionsPage() {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date debut</label>
+                  <label className="label-tech mb-1 block">Date debut</label>
                   <input
                     type="date"
                     value={form.startDate}
                     onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date fin</label>
+                  <label className="label-tech mb-1 block">Date fin</label>
                   <input
                     type="date"
                     value={form.endDate}
                     onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
@@ -447,21 +449,21 @@ export default function MissionsPage() {
               {/* Montant + facturation */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Montant HT (€)</label>
+                  <label className="label-tech mb-1 block">Montant HT (€)</label>
                   <input
                     type="number"
                     value={form.amountHT}
                     onChange={(e) => setForm({ ...form, amountHT: e.target.value })}
                     placeholder="0"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Facturation</label>
+                  <label className="label-tech mb-1 block">Facturation</label>
                   <select
                     value={form.billingModality}
                     onChange={(e) => setForm({ ...form, billingModality: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   >
                     <option value="">-</option>
                     {BILLING_OPTIONS.map((opt) => (
@@ -473,10 +475,10 @@ export default function MissionsPage() {
 
               {/* Ingenieurs */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ingenieur(s) affecte(s)</label>
-                <div className="space-y-1 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                <label className="label-tech mb-1 block">Ingenieur(s) affecte(s)</label>
+                <div className="max-h-32 space-y-1 overflow-y-auto border border-ink/20 p-2">
                   {teamMembers.map((m) => (
-                    <label key={m.id} className="flex items-center gap-2 py-1 px-2 hover:bg-gray-50 rounded cursor-pointer">
+                    <label key={m.id} className="flex cursor-pointer items-center gap-2 px-2 py-1 hover:bg-ink/[0.02]">
                       <input
                         type="checkbox"
                         checked={form.engineerIds.includes(m.id)}
@@ -488,31 +490,31 @@ export default function MissionsPage() {
                               : form.engineerIds.filter((id) => id !== m.id),
                           });
                         }}
-                        className="rounded border-gray-300"
+                        className="border-ink/30 accent-accent"
                       />
-                      <span className="text-sm text-gray-700">
+                      <span className="text-sm text-ink/80">
                         {m.firstName || ""} {m.lastName || ""} {!m.firstName && !m.lastName ? m.email : ""}
                       </span>
                     </label>
                   ))}
                   {teamMembers.length === 0 && (
-                    <p className="text-xs text-gray-400 py-2 text-center">Aucun ingenieur dans l&apos;equipe</p>
+                    <p className="py-2 text-center text-xs text-ink/40">Aucun ingenieur dans l&apos;equipe</p>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t">
+            <div className="flex items-center justify-end gap-3 border-t border-ink/10 p-4">
               <button
                 onClick={() => setShowCreate(false)}
-                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="border border-ink/20 px-4 py-2 text-sm text-ink transition-colors hover:border-accent hover:text-accent"
               >
                 Annuler
               </button>
               <button
                 onClick={handleCreate}
                 disabled={creating}
-                className="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-2"
+                className="flex items-center gap-2 bg-ink px-4 py-2 text-sm text-paper transition-colors hover:bg-accent disabled:opacity-50"
               >
                 {creating && <Loader2 size={14} className="animate-spin" />}
                 Creer la mission

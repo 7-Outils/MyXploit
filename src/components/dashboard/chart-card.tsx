@@ -19,23 +19,20 @@ export function ChartCard({
 }: ChartCardProps) {
   return (
     <div
-      className={cn(
-        "bg-white rounded-xl border border-gray-100 overflow-hidden",
-        className
-      )}
+      className={cn("panel overflow-hidden", className)}
     >
       {(title || action) && (
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            {title && <h3 className="font-semibold text-primary-dark">{title}</h3>}
+        <div className="panel-header">
+          <div className="min-w-0">
+            {title && <h3 className="label-tech truncate">{title}</h3>}
             {subtitle && (
-              <p className="text-sm text-text-secondary">{subtitle}</p>
+              <p className="mt-0.5 text-xs text-ink/50">{subtitle}</p>
             )}
           </div>
           {action}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div className="p-4">{children}</div>
     </div>
   );
 }

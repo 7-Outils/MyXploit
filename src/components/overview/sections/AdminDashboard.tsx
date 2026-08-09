@@ -28,40 +28,40 @@ export function AdminDashboard({
   return (
     <>
       {/* Overdue Deliverables + Pipeline side by side */}
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid lg:grid-cols-2 gap-4">
         {/* Overdue deliverables */}
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <Clock size={18} className="text-red-500" />
+              <Clock size={14} className="text-red-600" />
               Livrables en retard
             </span>
           }
           subtitle={`${missionStats.overdueDeliverables.length} livrable(s) en retard`}
           action={
-            <Link href="/rapports?status=EN_RETARD" className="text-sm text-accent hover:underline flex items-center gap-1">
-              Voir tous <ChevronRight size={14} />
+            <Link href="/rapports?status=EN_RETARD" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-accent flex items-center gap-1 transition-colors">
+              Voir tous <ChevronRight size={13} />
             </Link>
           }
         >
           {missionStats.overdueDeliverables.length === 0 ? (
             <div className="text-center py-8">
-              <CheckCircle size={32} className="mx-auto text-green-500 mb-2" />
-              <p className="text-sm text-gray-500">Aucun livrable en retard</p>
+              <CheckCircle size={24} className="mx-auto text-green-600 mb-2" />
+              <p className="text-sm text-ink/50">Aucun livrable en retard</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="-mx-4 -my-4 divide-y divide-ink/10">
               {missionStats.overdueDeliverables.slice(0, 5).map((d) => (
                 <Link
                   key={d.id}
                   href={`/missions/${d.mission.id}`}
-                  className="flex items-center justify-between p-3 bg-red-50/50 rounded-lg hover:bg-red-50"
+                  className="flex items-center justify-between gap-3 border-l-2 border-l-red-600 px-4 py-2.5 hover:bg-ink/[0.02] transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{d.title}</p>
-                    <p className="text-xs text-gray-500">{d.mission.reference} • {d.mission.client.name}</p>
+                    <p className="text-sm font-medium text-ink truncate">{d.title}</p>
+                    <p className="text-xs text-ink/50">{d.mission.reference} • {d.mission.client.name}</p>
                   </div>
-                  <span className="text-xs text-red-600 font-medium flex-shrink-0">
+                  <span className="font-mono text-xs tabular-nums text-red-700 font-medium flex-shrink-0">
                     {new Date(d.dueDate).toLocaleDateString("fr-FR")}
                   </span>
                 </Link>
@@ -74,36 +74,36 @@ export function AdminDashboard({
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <TrendingDown size={18} className="text-purple-500" style={{ transform: "scaleY(-1)" }} />
+              <TrendingDown size={14} className="text-ink/40" style={{ transform: "scaleY(-1)" }} />
               Pipeline
             </span>
           }
           subtitle={`${missionStats.pipeline.missions.length} mission(s) • ${(missionStats.pipeline.totalAmount / 1000).toFixed(0)}k€ potentiel`}
           action={
-            <Link href="/missions?status=PROSPECT" className="text-sm text-accent hover:underline flex items-center gap-1">
-              Voir tout <ChevronRight size={14} />
+            <Link href="/missions?status=PROSPECT" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-accent flex items-center gap-1 transition-colors">
+              Voir tout <ChevronRight size={13} />
             </Link>
           }
         >
           {missionStats.pipeline.missions.length === 0 ? (
             <div className="text-center py-8">
-              <FolderKanban size={32} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-sm text-gray-500">Aucune mission en negociation</p>
+              <FolderKanban size={24} className="mx-auto text-ink/25 mb-2" />
+              <p className="text-sm text-ink/50">Aucune mission en negociation</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="-mx-4 -my-4 divide-y divide-ink/10">
               {missionStats.pipeline.missions.slice(0, 5).map((m) => (
                 <Link
                   key={m.id}
                   href={`/missions/${m.id}`}
-                  className="flex items-center justify-between p-3 bg-purple-50/50 rounded-lg hover:bg-purple-50"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-ink/[0.02] transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
-                    <p className="text-xs text-gray-500">{m.missionType.name} • {m.client.name}</p>
+                    <p className="text-sm font-medium text-ink truncate">{m.title}</p>
+                    <p className="text-xs text-ink/50">{m.missionType.name} • {m.client.name}</p>
                   </div>
                   {m.amountHT && (
-                    <span className="text-sm text-purple-700 font-medium flex-shrink-0">
+                    <span className="font-mono text-sm tabular-nums text-ink font-medium flex-shrink-0">
                       {m.amountHT.toLocaleString("fr-FR")} €
                     </span>
                   )}
@@ -119,45 +119,45 @@ export function AdminDashboard({
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <Users size={18} className="text-purple-600" />
+              <Users size={14} className="text-ink/40" />
               Charge equipe
             </span>
           }
           subtitle={`${missionStats.engineerWorkload.length} ingenieur(s)`}
           action={
-            <Link href="/team" className="text-sm text-accent hover:underline flex items-center gap-1">
-              Gerer <ChevronRight size={14} />
+            <Link href="/team" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-accent flex items-center gap-1 transition-colors">
+              Gerer <ChevronRight size={13} />
             </Link>
           }
         >
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-4 -my-4">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-2 px-3 text-sm font-medium text-gray-500">Ingenieur</th>
-                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Missions actives</th>
-                  <th className="text-center py-2 px-3 text-sm font-medium text-gray-500">Livrables a produire</th>
+                <tr className="border-b border-ink/10">
+                  <th className="label-tech text-left py-2 px-4">Ingenieur</th>
+                  <th className="label-tech text-center py-2 px-4">Missions actives</th>
+                  <th className="label-tech text-center py-2 px-4">Livrables a produire</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-ink/10">
                 {missionStats.engineerWorkload.map((eng) => (
-                  <tr key={eng.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-2 px-3">
-                      <p className="text-sm font-medium text-gray-900">
+                  <tr key={eng.id} className="hover:bg-ink/[0.02]">
+                    <td className="py-2 px-4">
+                      <p className="text-sm font-medium text-ink">
                         {eng.firstName || ""} {eng.lastName || ""}
                       </p>
-                      <p className="text-xs text-gray-500">{eng.email}</p>
+                      <p className="text-xs text-ink/50">{eng.email}</p>
                     </td>
-                    <td className="py-2 px-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                        eng.activeMissions > 0 ? "bg-accent/10 text-accent" : "bg-gray-100 text-gray-500"
+                    <td className="py-2 px-4 text-center">
+                      <span className={`font-mono text-sm tabular-nums font-medium ${
+                        eng.activeMissions > 0 ? "text-ink" : "text-ink/30"
                       }`}>
                         {eng.activeMissions}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-center">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                        eng.pendingDeliverables > 0 ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-500"
+                    <td className="py-2 px-4 text-center">
+                      <span className={`font-mono text-sm tabular-nums font-medium ${
+                        eng.pendingDeliverables > 0 ? "text-amber-700" : "text-ink/30"
                       }`}>
                         {eng.pendingDeliverables}
                       </span>
@@ -175,34 +175,34 @@ export function AdminDashboard({
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <Bell size={18} className="text-orange-500" />
+              <Bell size={14} className="text-amber-600" />
               Missions a renouveler
             </span>
           }
           subtitle={`${missionStats.expiringMissions.length} mission(s) arrivent a echeance dans les 6 prochains mois`}
           action={
-            <Link href="/missions" className="text-sm text-accent hover:underline flex items-center gap-1">
-              Voir tout <ChevronRight size={14} />
+            <Link href="/missions" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-accent flex items-center gap-1 transition-colors">
+              Voir tout <ChevronRight size={13} />
             </Link>
           }
         >
-          <div className="space-y-3">
+          <div className="-mx-4 -my-4 divide-y divide-ink/10">
             {missionStats.expiringMissions.slice(0, 5).map((m) => {
               const daysUntil = Math.ceil((new Date(m.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               return (
                 <Link
                   key={m.id}
                   href={`/missions/${m.id}`}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-ink/[0.02] transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
-                    <p className="text-xs text-gray-500">{m.missionType.name} • {m.client.name}</p>
+                    <p className="text-sm font-medium text-ink truncate">{m.title}</p>
+                    <p className="text-xs text-ink/50">{m.missionType.name} • {m.client.name}</p>
                   </div>
-                  <span className={`text-xs px-2 py-1 rounded font-medium flex-shrink-0 ${
-                    daysUntil <= 30 ? "bg-red-100 text-red-700" :
-                    daysUntil <= 90 ? "bg-orange-100 text-orange-700" :
-                    "bg-yellow-100 text-yellow-700"
+                  <span className={`font-mono text-xs tabular-nums font-medium flex-shrink-0 ${
+                    daysUntil <= 30 ? "text-red-700" :
+                    daysUntil <= 90 ? "text-amber-700" :
+                    "text-ink/60"
                   }`}>
                     {daysUntil}j
                   </span>
@@ -218,42 +218,42 @@ export function AdminDashboard({
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <Bell size={18} className="text-orange-500" />
+              <Bell size={14} className="text-amber-600" />
               Contrats à échéance
             </span>
           }
           subtitle={`${expiringContracts.length} contrat(s) arrivent à échéance dans les 6 prochains mois`}
           action={
-            <Link href="/contrat" className="text-sm text-accent hover:underline flex items-center gap-1">
-              Voir tous les contrats <ChevronRight size={14} />
+            <Link href="/contrat" className="font-mono text-[11px] uppercase tracking-widest text-ink hover:text-accent flex items-center gap-1 transition-colors">
+              Voir tous les contrats <ChevronRight size={13} />
             </Link>
           }
         >
-          <div className="space-y-3">
+          <div className="-mx-4 -mt-4 divide-y divide-ink/10">
             {expiringContracts.slice(0, 5).map((contract) => {
               const urgencyConfig = {
-                EXPIRED: { color: "bg-gray-100 text-gray-700", dot: "bg-gray-500", label: "Expiré" },
-                CRITICAL: { color: "bg-red-100 text-red-700", dot: "bg-red-500", label: "Critique" },
-                HIGH: { color: "bg-orange-100 text-orange-700", dot: "bg-orange-500", label: "Urgent" },
-                MEDIUM: { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500", label: "Moyen" },
-                LOW: { color: "bg-blue-100 text-blue-700", dot: "bg-blue-500", label: "Planifié" },
+                EXPIRED: { color: "text-ink/50", dot: "bg-ink/40", label: "Expiré" },
+                CRITICAL: { color: "text-red-700", dot: "bg-red-600", label: "Critique" },
+                HIGH: { color: "text-amber-700", dot: "bg-amber-600", label: "Urgent" },
+                MEDIUM: { color: "text-amber-700", dot: "bg-amber-500", label: "Moyen" },
+                LOW: { color: "text-ink/60", dot: "bg-ink/30", label: "Planifié" },
               };
               const config = urgencyConfig[contract.urgency];
 
               return (
                 <div
                   key={contract.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dot}`} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-primary-dark truncate">{contract.title}</p>
-                      <p className="text-xs text-gray-500">{contract.reference} • {contract.provider} • {contract.siteCount} site(s)</p>
+                      <p className="text-sm font-medium text-ink truncate">{contract.title}</p>
+                      <p className="text-xs text-ink/50">{contract.reference} • {contract.provider} • {contract.siteCount} site(s)</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${config.color}`}>
+                    <span className={`font-mono text-xs tabular-nums font-medium ${config.color}`}>
                       {contract.daysUntilExpiry < 0
                         ? `Expiré depuis ${Math.abs(contract.daysUntilExpiry)}j`
                         : contract.daysUntilExpiry === 0
@@ -268,7 +268,7 @@ export function AdminDashboard({
           {expiringContracts.length > 5 && (
             <Link
               href="/contrat"
-              className="mt-4 block text-center text-sm text-accent hover:underline"
+              className="mt-3 block text-center font-mono text-[11px] uppercase tracking-widest text-ink hover:text-accent transition-colors"
             >
               +{expiringContracts.length - 5} autre(s) contrat(s)
             </Link>
@@ -281,41 +281,41 @@ export function AdminDashboard({
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <AlertTriangle size={18} className="text-red-500" />
+              <AlertTriangle size={14} className="text-red-600" />
               Alertes récentes
             </span>
           }
           subtitle={`${activeAlerts.length} alerte(s) non lue(s)`}
         >
-          <div className="space-y-3">
+          <div className="-mx-4 -my-4 divide-y divide-ink/10">
             {activeAlerts.slice(0, 5).map((alert) => {
               const priorityConfig = {
-                CRITIQUE: { color: "bg-red-100 text-red-700", dot: "bg-red-500" },
-                HAUTE: { color: "bg-orange-100 text-orange-700", dot: "bg-orange-500" },
-                MOYENNE: { color: "bg-yellow-100 text-yellow-700", dot: "bg-yellow-500" },
-                BASSE: { color: "bg-blue-100 text-blue-700", dot: "bg-blue-500" },
+                CRITIQUE: { color: "text-red-700 border-red-600/25 bg-red-50", dot: "bg-red-600" },
+                HAUTE: { color: "text-amber-700 border-amber-600/25 bg-amber-50", dot: "bg-amber-600" },
+                MOYENNE: { color: "text-amber-700 border-amber-500/25 bg-amber-50/60", dot: "bg-amber-500" },
+                BASSE: { color: "text-ink/60 border-ink/15 bg-ink/[0.03]", dot: "bg-ink/30" },
               };
               const config = priorityConfig[alert.priority];
 
               return (
                 <div
                   key={alert.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dot}`} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-primary-dark truncate">{alert.title}</p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-sm font-medium text-ink truncate">{alert.title}</p>
+                      <p className="text-xs text-ink/50 truncate">
                         {alert.site?.name ? `${alert.site.name} — ` : ""}{alert.message}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-xs px-2 py-1 rounded font-medium ${config.color}`}>
+                    <span className={`font-mono text-[10px] uppercase tracking-widest px-1.5 py-0.5 border ${config.color}`}>
                       {alert.priority}
                     </span>
-                    <span className="text-xs text-gray-400">
+                    <span className="font-mono text-[11px] tabular-nums text-ink/40">
                       {new Date(alert.createdAt).toLocaleDateString("fr-FR")}
                     </span>
                   </div>

@@ -137,21 +137,21 @@ function PendingSection({ pending, onApply }: { pending: PendingRevision[]; onAp
   if (pending.length === 0) return null;
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-primary-dark mb-4 flex items-center gap-2">
+    <section className="panel p-4">
+      <h2 className="label-tech mb-3 flex items-center gap-2">
         <Clock size={18} />
         Révisions à venir
       </h2>
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y divide-ink/10">
         {pending.map((p) => {
           const dueLabel = new Date(p.nextDueDate).toLocaleDateString("fr-FR");
           return (
             <li key={p.pType} className="py-3 flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-700">{p.pType}</span>
-                <div className="text-sm text-gray-700">
-                  <div>Prochaine révision : <span className="font-medium">{dueLabel}</span></div>
-                  <div className="text-xs text-gray-500">
+                <span className="px-2 py-1 text-xs font-medium bg-ink/5 text-ink/70">{p.pType}</span>
+                <div className="text-sm text-ink/70">
+                  <div>Prochaine révision : <span className="font-mono font-semibold tabular-nums text-ink">{dueLabel}</span></div>
+                  <div className="text-xs text-ink/50">
                     {p.lastAppliedDate
                       ? `Dernière révision : ${new Date(p.lastAppliedDate).toLocaleDateString("fr-FR")}`
                       : "Aucune révision appliquée"}
@@ -160,10 +160,10 @@ function PendingSection({ pending, onApply }: { pending: PendingRevision[]; onAp
               </div>
               <div className="flex items-center gap-2">
                 {p.isOverdue && (
-                  <span className="px-2 py-1 rounded text-xs bg-red-50 text-red-700">En retard</span>
+                  <span className="px-2 py-1 text-xs bg-red-50 text-red-700">En retard</span>
                 )}
                 {!p.indicesReady ? (
-                  <span className="px-2 py-1 rounded text-xs bg-yellow-50 text-yellow-700 flex items-center gap-1">
+                  <span className="flex items-center gap-1 border border-amber-600/20 bg-amber-50 px-2 py-1 text-xs text-amber-700">
                     <AlertTriangle size={12} />
                     Indice {p.missingIndex} manquant
                   </span>
@@ -171,7 +171,7 @@ function PendingSection({ pending, onApply }: { pending: PendingRevision[]; onAp
                   <ReadOnlyGate>
                     <button
                       onClick={() => onApply(p)}
-                      className="px-3 py-1.5 text-sm bg-accent text-white rounded hover:bg-accent/90 flex items-center gap-1"
+                      className="px-3 py-1.5 text-sm bg-ink text-paper hover:bg-accent flex items-center gap-1"
                     >
                       <ArrowDown size={14} />
                       Appliquer
@@ -274,20 +274,20 @@ function IndicesSection({
   };
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-primary-dark mb-4">Indices de révision</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <section className="panel p-4">
+      <h2 className="label-tech mb-3">Indices de révision</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Liste indices */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Indices</span>
+        <div className="border border-ink/10 overflow-hidden">
+          <div className="panel-header">
+            <span className="label-tech">Indices</span>
           </div>
-          <ul className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+          <ul className="divide-y divide-ink/10 max-h-80 overflow-y-auto">
             {indices.length === 0 && (
-              <li className="px-4 py-6 text-sm text-text-secondary text-center">Aucun indice</li>
+              <li className="px-4 py-6 text-sm text-ink/60 text-center">Aucun indice</li>
             )}
             {indices.map((i) => (
-              <li key={i.id} className={`px-4 py-2 flex items-start justify-between gap-2 cursor-pointer ${selectedIndex?.id === i.id ? "bg-accent/5" : "hover:bg-gray-50"}`} onClick={() => onSelect(i.id)}>
+              <li key={i.id} className={`px-4 py-2 flex items-start justify-between gap-2 cursor-pointer ${selectedIndex?.id === i.id ? "bg-accent/5" : "hover:bg-ink/[0.02]"}`} onClick={() => onSelect(i.id)}>
                 {editingIndexId === i.id ? (
                   <div className="flex-1 space-y-1" onClick={(e) => e.stopPropagation()}>
                     <input
@@ -296,32 +296,32 @@ function IndicesSection({
                       onChange={(e) => setEditingName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") renameIndex(i.id); if (e.key === "Escape") setEditingIndexId(null); }}
                       placeholder="Nom"
-                      className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                      className="w-full text-sm border border-ink/20 px-2 py-1"
                     />
                     <input
                       value={editingIdentifier}
                       onChange={(e) => setEditingIdentifier(e.target.value)}
                       placeholder="Identifiant INSEE (ex: 001710973)"
-                      className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                      className="w-full text-xs border border-ink/20 px-2 py-1"
                     />
                   </div>
                 ) : (
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{i.name}</div>
-                    {i.identifier && <div className="text-xs text-gray-500 truncate">Id. {i.identifier}</div>}
+                    {i.identifier && <div className="text-xs text-ink/50 truncate">Id. {i.identifier}</div>}
                   </div>
                 )}
                 <ReadOnlyGate>
                   <div className="flex items-center gap-1">
                     {editingIndexId === i.id ? (
                       <>
-                        <button onClick={(e) => { e.stopPropagation(); renameIndex(i.id); }} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check size={14} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(null); }} className="p-1 text-gray-500 hover:bg-gray-100 rounded"><X size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); renameIndex(i.id); }} className="p-1 text-green-600 hover:bg-green-50 "><Check size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(null); }} className="p-1 text-ink/50 hover:bg-ink/5 "><X size={14} /></button>
                       </>
                     ) : (
                       <>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(i.id); setEditingName(i.name); setEditingIdentifier(i.identifier ?? ""); }} className="p-1 text-gray-500 hover:bg-gray-100 rounded"><Pencil size={14} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteIndex(i.id); }} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(i.id); setEditingName(i.name); setEditingIdentifier(i.identifier ?? ""); }} className="p-1 text-ink/50 hover:bg-ink/5 "><Pencil size={14} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); deleteIndex(i.id); }} className="p-1 text-red-500 hover:bg-red-50 "><Trash2 size={14} /></button>
                       </>
                     )}
                   </div>
@@ -330,11 +330,11 @@ function IndicesSection({
             ))}
           </ul>
           <ReadOnlyGate>
-            <div className="border-t border-gray-100 p-3 space-y-2">
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nom (ex: BT40 — Chauffage central)" className="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+            <div className="border-t border-ink/10 p-3 space-y-2">
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nom (ex: BT40 — Chauffage central)" className="w-full text-sm border border-ink/20 px-2 py-1.5" />
               <div className="flex gap-2">
-                <input value={newIdentifier} onChange={(e) => setNewIdentifier(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createIndex(); }} placeholder="Identifiant INSEE (optionnel)" className="flex-1 text-sm border border-gray-300 rounded px-2 py-1.5" />
-                <button onClick={createIndex} disabled={creating || !newName.trim()} className="px-3 py-1.5 bg-accent text-white text-sm rounded hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1">
+                <input value={newIdentifier} onChange={(e) => setNewIdentifier(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createIndex(); }} placeholder="Identifiant INSEE (optionnel)" className="flex-1 text-sm border border-ink/20 px-2 py-1.5" />
+                <button onClick={createIndex} disabled={creating || !newName.trim()} className="px-3 py-1.5 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-1">
                   {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                   Ajouter
                 </button>
@@ -344,43 +344,43 @@ function IndicesSection({
         </div>
 
         {/* Valeurs */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-            <span className="text-sm font-medium text-gray-700">
+        <div className="border border-ink/10 overflow-hidden">
+          <div className="panel-header">
+            <span className="label-tech">
               Valeurs {selectedIndex ? `de ${selectedIndex.name}` : ""}
             </span>
           </div>
           {!selectedIndex ? (
-            <div className="p-6 text-sm text-text-secondary text-center">Sélectionnez un indice à gauche</div>
+            <div className="p-4 text-center text-sm text-ink/50">Sélectionnez un indice à gauche</div>
           ) : (
             <>
-              <ul className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+              <ul className="divide-y divide-ink/10 max-h-72 overflow-y-auto">
                 {selectedIndex.values.length === 0 && (
-                  <li className="px-4 py-6 text-sm text-text-secondary text-center">Aucune valeur</li>
+                  <li className="px-4 py-6 text-sm text-ink/60 text-center">Aucune valeur</li>
                 )}
                 {selectedIndex.values.map((v) => (
                   <li key={v.id} className="px-4 py-2 flex items-center justify-between gap-2">
                     {editingValueId === v.id ? (
                       <>
-                        <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1 w-32" />
-                        <input type="number" step="0.001" value={editValue} onChange={(e) => setEditValue(e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1 w-20 text-right" />
-                        <label className="flex items-center gap-1 text-xs text-gray-600"><input type="checkbox" checked={editProvisional} onChange={(e) => setEditProvisional(e.target.checked)} />Prov.</label>
+                        <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="text-sm border border-ink/20 px-2 py-1 w-32" />
+                        <input type="number" step="0.001" value={editValue} onChange={(e) => setEditValue(e.target.value)} className="text-sm border border-ink/20 px-2 py-1 w-20 text-right" />
+                        <label className="flex items-center gap-1 text-xs text-ink/60"><input type="checkbox" checked={editProvisional} onChange={(e) => setEditProvisional(e.target.checked)} />Prov.</label>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => saveValue(v.id)} className="p-1 text-green-600 hover:bg-green-50 rounded"><Check size={14} /></button>
-                          <button onClick={() => setEditingValueId(null)} className="p-1 text-gray-500 hover:bg-gray-100 rounded"><X size={14} /></button>
+                          <button onClick={() => saveValue(v.id)} className="p-1 text-green-600 hover:bg-green-50 "><Check size={14} /></button>
+                          <button onClick={() => setEditingValueId(null)} className="p-1 text-ink/50 hover:bg-ink/5 "><X size={14} /></button>
                         </div>
                       </>
                     ) : (
                       <>
-                        <span className="text-sm text-gray-700">{new Date(v.date).toLocaleDateString("fr-FR")}</span>
+                        <span className="font-mono text-sm tabular-nums text-ink/70">{new Date(v.date).toLocaleDateString("fr-FR")}</span>
                         <div className="flex items-center gap-2 flex-1 justify-end">
-                          {v.isProvisional && <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-50 text-yellow-700 border border-yellow-200">provisoire</span>}
-                          <span className="text-sm font-medium">{v.value}</span>
+                          {v.isProvisional && <span className="border border-amber-600/20 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">provisoire</span>}
+                          <span className="font-mono text-sm font-semibold tabular-nums text-ink">{v.value}</span>
                         </div>
                         <ReadOnlyGate>
                           <div className="flex items-center gap-1">
-                            <button onClick={() => { setEditingValueId(v.id); setEditDate(v.date.slice(0, 10)); setEditValue(String(v.value)); setEditProvisional(v.isProvisional); }} className="p-1 text-gray-500 hover:bg-gray-100 rounded"><Pencil size={14} /></button>
-                            <button onClick={() => deleteValue(v.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={14} /></button>
+                            <button onClick={() => { setEditingValueId(v.id); setEditDate(v.date.slice(0, 10)); setEditValue(String(v.value)); setEditProvisional(v.isProvisional); }} className="p-1 text-ink/50 hover:bg-ink/5 "><Pencil size={14} /></button>
+                            <button onClick={() => deleteValue(v.id)} className="p-1 text-red-500 hover:bg-red-50 "><Trash2 size={14} /></button>
                           </div>
                         </ReadOnlyGate>
                       </>
@@ -389,15 +389,15 @@ function IndicesSection({
                 ))}
               </ul>
               <ReadOnlyGate>
-                <div className="border-t border-gray-100 p-3 space-y-2">
+                <div className="border-t border-ink/10 p-3 space-y-2">
                   <div className="flex gap-2">
-                    <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1.5 w-36" />
-                    <input type="number" step="0.001" value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="Valeur" className="text-sm border border-gray-300 rounded px-2 py-1.5 flex-1" />
-                    <button onClick={addValue} disabled={addingValue || !newDate || !newValue} className="px-3 py-1.5 bg-accent text-white text-sm rounded hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1">
+                    <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="text-sm border border-ink/20 px-2 py-1.5 w-36" />
+                    <input type="number" step="0.001" value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="Valeur" className="text-sm border border-ink/20 px-2 py-1.5 flex-1" />
+                    <button onClick={addValue} disabled={addingValue || !newDate || !newValue} className="px-3 py-1.5 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-1">
                       {addingValue ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                     </button>
                   </div>
-                  <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <label className="flex items-center gap-2 text-xs text-ink/60">
                     <input type="checkbox" checked={newProvisional} onChange={(e) => setNewProvisional(e.target.checked)} />
                     Valeur provisoire (à confirmer ensuite)
                   </label>
@@ -422,13 +422,13 @@ function FormulasSection({
   onChanged: () => void;
 }) {
   return (
-    <section className="bg-white rounded-xl border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-primary-dark mb-4">Formules de révision</h2>
+    <section className="panel p-4">
+      <h2 className="label-tech mb-3">Formules de révision</h2>
       {indices.length === 0 ? (
-        <p className="text-sm text-text-secondary">Ajoutez d'abord au moins un indice ci-dessus avant de définir une formule.</p>
+        <p className="text-sm text-ink/60">Ajoutez d'abord au moins un indice ci-dessus avant de définir une formule.</p>
       ) : (
         <>
-          <p className="text-xs text-text-secondary mb-3">P1 (énergie) n'est pas révisable par formule indicielle — feature dédiée à venir pour le décompte MTI (NB / N&apos;B).</p>
+          <p className="text-xs text-ink/60 mb-3">P1 (énergie) n'est pas révisable par formule indicielle — feature dédiée à venir pour le décompte MTI (NB / N&apos;B).</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(["P2", "P3"] as const).map((p) => (
               <FormulaCard
@@ -528,9 +528,9 @@ function FormulaCard({
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+    <div className="border border-ink/10 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-primary-dark">{pType}</h3>
+        <h3 className="label-tech">{pType}</h3>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
           Activer
@@ -540,35 +540,35 @@ function FormulaCard({
         <>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Périodicité</label>
-              <select value={periodicity} onChange={(e) => setPeriodicity(e.target.value as Periodicity)} className="w-full text-sm border border-gray-300 rounded px-2 py-1.5">
+              <label className="label-tech mb-1 block">Périodicité</label>
+              <select value={periodicity} onChange={(e) => setPeriodicity(e.target.value as Periodicity)} className="w-full text-sm border border-ink/20 px-2 py-1.5">
                 {(Object.keys(PERIOD_LABEL) as Periodicity[]).map((p) => (
                   <option key={p} value={p}>{PERIOD_LABEL[p]}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-600 block mb-1">Arrondi K (déc.)</label>
-              <input type="number" min="0" max="10" step="1" value={roundingDecimals} onChange={(e) => setRoundingDecimals(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+              <label className="label-tech mb-1 block">Arrondi K (déc.)</label>
+              <input type="number" min="0" max="10" step="1" value={roundingDecimals} onChange={(e) => setRoundingDecimals(e.target.value)} className="w-full text-sm border border-ink/20 px-2 py-1.5" />
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Date de base (I_0)</label>
-            <input type="date" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+            <label className="label-tech mb-1 block">Date de base (I_0)</label>
+            <input type="date" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} className="w-full text-sm border border-ink/20 px-2 py-1.5" />
           </div>
           <div>
-            <label className="text-xs text-gray-600 block mb-1">Partie constante</label>
-            <input type="number" step="0.01" value={constantPart} onChange={(e) => setConstantPart(e.target.value)} className="w-full text-sm border border-gray-300 rounded px-2 py-1.5" />
+            <label className="label-tech mb-1 block">Partie constante</label>
+            <input type="number" step="0.01" value={constantPart} onChange={(e) => setConstantPart(e.target.value)} className="w-full text-sm border border-ink/20 px-2 py-1.5" />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs text-gray-600">Composantes (indice / coef / I₀ / raccord.)</label>
+            <label className="label-tech">Composantes (indice / coef / I₀ / raccord.)</label>
             {components.map((c, i) => (
               <div key={i} className="flex items-center gap-1">
                 <select
                   value={c.indexId}
                   onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, indexId: e.target.value } : x))}
-                  className="text-xs border border-gray-300 rounded px-1 py-1 flex-1 min-w-0"
+                  className="text-xs border border-ink/20 px-1 py-1 flex-1 min-w-0"
                 >
                   <option value="">— Indice —</option>
                   {indices.map((idx) => <option key={idx.id} value={idx.id}>{idx.name}</option>)}
@@ -576,43 +576,43 @@ function FormulaCard({
                 <input
                   type="number" step="0.01" value={c.coefficient}
                   onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, coefficient: parseFloat(e.target.value) || 0 } : x))}
-                  className="text-xs border border-gray-300 rounded px-1 py-1 w-12 text-right" title="Coefficient"
+                  className="text-xs border border-ink/20 px-1 py-1 w-12 text-right" title="Coefficient"
                 />
                 <input
                   type="number" step="0.001" value={c.baseValue}
                   onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, baseValue: parseFloat(e.target.value) || 0 } : x))}
-                  className="text-xs border border-gray-300 rounded px-1 py-1 w-14 text-right" title="I₀"
+                  className="text-xs border border-ink/20 px-1 py-1 w-14 text-right" title="I₀"
                 />
                 <input
                   type="number" step="0.001" value={c.reconnectionCoef}
                   onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, reconnectionCoef: parseFloat(e.target.value) || 1 } : x))}
-                  className="text-xs border border-gray-300 rounded px-1 py-1 w-12 text-right" title="Coef. raccordement (changement de base INSEE, défaut 1)"
+                  className="text-xs border border-ink/20 px-1 py-1 w-12 text-right" title="Coef. raccordement (changement de base INSEE, défaut 1)"
                 />
-                <button onClick={() => setComponents((prev) => prev.filter((_, j) => j !== i))} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                <button onClick={() => setComponents((prev) => prev.filter((_, j) => j !== i))} className="p-1 text-red-500 hover:bg-red-50 ">
                   <Trash2 size={12} />
                 </button>
               </div>
             ))}
             <button
               onClick={() => setComponents((prev) => [...prev, { indexId: "", coefficient: 0, baseValue: 0, reconnectionCoef: 1 }])}
-              className="w-full text-xs border border-dashed border-gray-300 rounded py-1.5 text-gray-500 hover:bg-gray-50"
+              className="w-full text-xs border border-dashed border-ink/20 py-1.5 text-ink/50 hover:bg-ink/[0.02]"
             >
               + Composante
             </button>
           </div>
 
-          <div className="text-xs font-mono bg-gray-50 border border-gray-200 rounded p-2 text-gray-700 break-words">
+          <div className="text-xs font-mono bg-white border border-ink/10 p-2 text-ink/70 break-words">
             {formulaText}
           </div>
 
-          <div className={`text-xs px-2 py-1 rounded ${Math.abs(sum - 1) < 0.001 ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"}`}>
+          <div className={`border px-2 py-1 font-mono text-xs tabular-nums ${Math.abs(sum - 1) < 0.001 ? "border-green-600/20 bg-green-50 text-green-700" : "border-amber-600/20 bg-amber-50 text-amber-700"}`}>
             Somme : {sum.toFixed(3)} {Math.abs(sum - 1) < 0.001 ? "✓" : "⚠ devrait être 1"}
           </div>
         </>
       )}
 
       <ReadOnlyGate>
-        <button onClick={save} disabled={saving} className="w-full px-3 py-2 bg-accent text-white text-sm rounded hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-1">
+        <button onClick={save} disabled={saving} className="w-full px-3 py-2 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center justify-center gap-1">
           {saving ? <Loader2 size={14} className="animate-spin" /> : null}
           Enregistrer
         </button>
@@ -713,28 +713,28 @@ function ApplySection({
 
   if (formulas.length === 0) {
     return (
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-primary-dark mb-2">Appliquer une révision</h2>
-        <p className="text-sm text-text-secondary">Définissez d'abord une formule pour pouvoir appliquer une révision.</p>
+      <section className="panel p-4">
+        <h2 className="label-tech mb-2">Appliquer une révision</h2>
+        <p className="text-sm text-ink/60">Définissez d'abord une formule pour pouvoir appliquer une révision.</p>
       </section>
     );
   }
 
   return (
-    <section id="revision-apply" className="bg-white rounded-xl border border-gray-200 p-6 scroll-mt-20">
-      <h2 className="text-lg font-semibold text-primary-dark mb-4">Appliquer une révision</h2>
+    <section id="revision-apply" className="panel p-4 scroll-mt-20">
+      <h2 className="label-tech mb-3">Appliquer une révision</h2>
       <div className="flex flex-wrap items-end gap-3 mb-4">
         <div>
-          <label className="text-xs text-gray-600 block mb-1">P</label>
-          <select value={pType} onChange={(e) => setPType(e.target.value as PType)} className="text-sm border border-gray-300 rounded px-2 py-1.5">
+          <label className="label-tech mb-1 block">P</label>
+          <select value={pType} onChange={(e) => setPType(e.target.value as PType)} className="text-sm border border-ink/20 px-2 py-1.5">
             {availablePTypes.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-xs text-gray-600 block mb-1">Date de la période</label>
-          <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="text-sm border border-gray-300 rounded px-2 py-1.5" />
+          <label className="label-tech mb-1 block">Date de la période</label>
+          <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="text-sm border border-ink/20 px-2 py-1.5" />
         </div>
-        <button onClick={computePreview} disabled={loading || !pType || !periodStart} className="h-9 px-3 border border-gray-300 text-sm rounded hover:bg-gray-50 disabled:opacity-50 flex items-center gap-1">
+        <button onClick={computePreview} disabled={loading || !pType || !periodStart} className="h-9 px-3 border border-ink/20 text-sm hover:bg-ink/[0.02] disabled:opacity-50 flex items-center gap-1">
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
           Calculer
         </button>
@@ -743,15 +743,15 @@ function ApplySection({
       {preview && (
         <div className="space-y-4">
           {preview.hasProvisionalIndex && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+            <div className="flex items-center gap-2 border border-amber-600/20 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               <AlertTriangle size={14} />
               Au moins un indice utilisé est <strong>provisoire</strong>. Une régularisation sera probablement nécessaire.
             </div>
           )}
 
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-2">
-            <div className="text-xs text-gray-600 uppercase tracking-wider">Détail du calcul</div>
-            <div className="font-mono text-sm text-gray-800">
+          <div className="border border-ink/10 p-4 space-y-2">
+            <div className="label-tech">Détail du calcul</div>
+            <div className="font-mono text-sm text-ink">
               K = {preview.constantPart}
               {preview.components.map((c, i) => (
                 <span key={i}>
@@ -763,31 +763,31 @@ function ApplySection({
                 </span>
               ))}
             </div>
-            <div className="font-mono text-sm text-gray-800">
-              K = {preview.Kraw.toFixed(8)} <span className="text-gray-500">→ arrondi à {preview.roundingDecimals} décimales →</span>{" "}
+            <div className="font-mono text-sm text-ink">
+              K = {preview.Kraw.toFixed(8)} <span className="text-ink/50">→ arrondi à {preview.roundingDecimals} décimales →</span>{" "}
               <span className="font-semibold">{preview.K.toFixed(preview.roundingDecimals)}</span>
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+          <div className="overflow-x-auto border border-ink/10">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-600 uppercase">
+              <thead className="border-b border-ink/10">
                 <tr>
-                  <th className="px-3 py-2 text-left">Site</th>
-                  <th className="px-3 py-2 text-right">Base P₀</th>
-                  <th className="px-3 py-2 text-right">Avant</th>
-                  <th className="px-3 py-2 text-right">Après (P₀ × K)</th>
-                  <th className="px-3 py-2 text-right">Delta</th>
+                  <th className="label-tech px-3 py-2 text-left">Site</th>
+                  <th className="label-tech px-3 py-2 text-right">Base P₀</th>
+                  <th className="label-tech px-3 py-2 text-right">Avant</th>
+                  <th className="label-tech px-3 py-2 text-right">Après (P₀ × K)</th>
+                  <th className="label-tech px-3 py-2 text-right">Delta</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-ink/10">
                 {preview.sites.map((s) => (
                   <tr key={s.contractSiteId}>
                     <td className="px-3 py-2">{s.siteName}</td>
-                    <td className="px-3 py-2 text-right">{s.base.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
-                    <td className="px-3 py-2 text-right">{s.before.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
-                    <td className="px-3 py-2 text-right font-medium">{s.after.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
-                    <td className={`px-3 py-2 text-right ${s.delta >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/80">{s.base.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
+                    <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/80">{s.before.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
+                    <td className="px-3 py-2 text-right font-mono font-semibold tabular-nums text-ink">{s.after.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
+                    <td className={`px-3 py-2 text-right font-mono tabular-nums ${s.delta >= 0 ? "text-green-700" : "text-red-700"}`}>
                       {s.delta >= 0 ? "+" : ""}{s.delta.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
                     </td>
                   </tr>
@@ -796,7 +796,7 @@ function ApplySection({
             </table>
           </div>
           <ReadOnlyGate>
-            <button onClick={apply} disabled={applying} className="px-4 py-2 bg-accent text-white text-sm rounded hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1">
+            <button onClick={apply} disabled={applying} className="px-4 py-2 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-1">
               {applying ? <Loader2 size={14} className="animate-spin" /> : null}
               Valider et appliquer
             </button>

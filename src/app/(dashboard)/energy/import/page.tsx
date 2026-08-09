@@ -532,44 +532,44 @@ export default function ImportTestPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
+      <div className="flex items-center gap-2.5">
+        <FileSpreadsheet className="h-4 w-4 text-ink/40" />
         <div>
-          <h1 className="text-xl font-semibold">Import exploitant</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-xl font-semibold text-ink">Import exploitant</h1>
+          <p className="label-tech mt-0.5">
             Toutes trames · mapping mémorisé pour l&apos;organisation · aperçu avant import
           </p>
         </div>
       </div>
 
       {/* Upload */}
-      <label className="block border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 transition">
+      <label className="block cursor-pointer border border-dashed border-ink/20 bg-white p-6 text-center transition-colors hover:border-accent">
         <input
           type="file"
           accept=".xlsx,.xls,.csv"
           className="hidden"
           onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
         />
-        <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-        <div className="text-sm text-gray-600">
-          {fileName ? <span className="font-medium text-gray-900">{fileName}</span> : "Glisse un fichier exploitant (.xlsx, .csv) ou clique"}
+        <Upload className="mx-auto mb-2 h-6 w-6 text-ink/25" />
+        <div className="text-sm text-ink/60">
+          {fileName ? <span className="font-medium text-ink">{fileName}</span> : "Glisse un fichier exploitant (.xlsx, .csv) ou clique"}
         </div>
       </label>
 
       {error && (
-        <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded p-3">
-          <AlertTriangle className="w-4 h-4" /> {error}
+        <div className="flex items-center gap-2 border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
+          <AlertTriangle className="h-4 w-4" /> {error}
         </div>
       )}
 
       {headers.length > 0 && (
         <>
           {/* Réglages détection */}
-          <div className="flex flex-wrap items-end gap-4 bg-gray-50 rounded-lg p-4">
+          <div className="flex flex-wrap items-end gap-4 border border-ink/10 p-4">
             <div>
-              <label className="block text-xs text-gray-500 mb-1">Ligne d'en-têtes détectée</label>
+              <label className="label-tech mb-1.5 block">Ligne d&apos;en-têtes détectée</label>
               <select
-                className="border rounded px-2 py-1 text-sm"
+                className="border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 value={headerRow}
                 onChange={(e) => {
                   const hr = +e.target.value;
@@ -585,7 +585,7 @@ export default function ImportTestPage() {
                 ))}
               </select>
             </div>
-            <p className="text-[11px] text-gray-400 flex-1 min-w-[16rem]">
+            <p className="min-w-[16rem] flex-1 text-[11px] text-ink/50">
               Aperçu en unité relevée (m³, L…). La conversion en kWh se fait par site à
               l&apos;import, avec le coefficient gaz du contrat de chaque site.
             </p>
@@ -593,21 +593,25 @@ export default function ImportTestPage() {
 
           {/* Mapping colonnes → notions */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 mb-2">Mapping des colonnes</h2>
+            <h2 className="label-tech mb-2">Mapping des colonnes</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {FIELDS.map((f) => {
                 const val = mapping[f.key];
                 const auto = val != null && val >= 0;
                 return (
-                  <div key={f.key} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">
-                        {f.label} {f.required && <span className="text-red-500">*</span>}
+                  <div key={f.key} className="panel p-3">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-ink">
+                        {f.label} {f.required && <span className="text-red-600">*</span>}
                       </span>
-                      {auto && <span className="text-[10px] uppercase tracking-wide text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">auto</span>}
+                      {auto && (
+                        <span className="border border-ink/15 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-ink/50">
+                          auto
+                        </span>
+                      )}
                     </div>
                     <select
-                      className={`w-full border rounded px-2 py-1 text-sm ${f.required && !auto ? "border-red-300" : ""}`}
+                      className={`w-full border bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none ${f.required && !auto ? "border-red-600/40" : "border-ink/20"}`}
                       value={val ?? -1}
                       onChange={(e) => setMapping((m) => ({ ...m, [f.key]: +e.target.value }))}
                     >
@@ -616,7 +620,7 @@ export default function ImportTestPage() {
                         <option key={i} value={i}>{h || `Colonne ${i + 1}`}</option>
                       ))}
                     </select>
-                    <p className="text-[11px] text-gray-400 mt-1">{f.hint}</p>
+                    <p className="mt-1 text-[11px] text-ink/50">{f.hint}</p>
                   </div>
                 );
               })}
@@ -624,76 +628,76 @@ export default function ImportTestPage() {
           </div>
 
           {missingRequired.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded p-3">
-              <Info className="w-4 h-4" />
+            <div className="flex items-center gap-2 border border-amber-600/20 bg-amber-50 p-3 text-sm text-amber-700">
+              <Info className="h-4 w-4" />
               Champs obligatoires non mappés : {missingRequired.map((f) => f.label).join(", ")}
             </div>
           )}
 
           {/* Aperçu lignes normalisées */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 mb-2">
-              Lignes normalisées <span className="font-normal text-gray-400">({normalized.length})</span>
+            <h2 className="label-tech mb-2">
+              Lignes normalisées <span className="text-ink/40">({normalized.length})</span>
             </h2>
-            <div className="overflow-x-auto border rounded-lg">
+            <div className="panel overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Site</th>
-                    <th className="px-3 py-2 text-left">Date</th>
-                    <th className="px-3 py-2 text-left">Compteur</th>
-                    <th className="px-3 py-2 text-right">Index</th>
-                    <th className="px-3 py-2 text-right">Conso</th>
-                    <th className="px-3 py-2 text-left">Fluide</th>
-                    <th className="px-3 py-2 text-left">Unité</th>
+                <thead>
+                  <tr className="border-b border-ink/10">
+                    <th className="label-tech px-3 py-2 text-left font-normal">Site</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Date</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Compteur</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">Index</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">Conso</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Fluide</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Unité</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-ink/[0.06]">
                   {normalized.slice(0, 50).map((r, i) => (
-                    <tr key={i} className={!r.date || !r.site || !r.compteur ? "bg-red-50" : ""}>
-                      <td className="px-3 py-1.5">{r.site || "—"}</td>
-                      <td className="px-3 py-1.5">{fmtDate(r.date)}</td>
-                      <td className="px-3 py-1.5">{r.compteur || "—"}</td>
-                      <td className="px-3 py-1.5 text-right">{r.index ?? "—"}</td>
-                      <td className="px-3 py-1.5 text-right">{r.conso ?? "—"}</td>
-                      <td className="px-3 py-1.5">{r.fluide || "—"}</td>
-                      <td className="px-3 py-1.5">{r.unite || "—"}</td>
+                    <tr key={i} className={!r.date || !r.site || !r.compteur ? "bg-red-50" : "hover:bg-ink/[0.02]"}>
+                      <td className="px-3 py-1.5 text-ink">{r.site || "—"}</td>
+                      <td className="px-3 py-1.5 font-mono tabular-nums text-ink/70">{fmtDate(r.date)}</td>
+                      <td className="px-3 py-1.5 text-ink">{r.compteur || "—"}</td>
+                      <td className="px-3 py-1.5 text-right font-mono tabular-nums text-ink">{r.index ?? "—"}</td>
+                      <td className="px-3 py-1.5 text-right font-mono tabular-nums text-ink">{r.conso ?? "—"}</td>
+                      <td className="px-3 py-1.5 text-ink/70">{r.fluide || "—"}</td>
+                      <td className="px-3 py-1.5 text-ink/70">{r.unite || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {normalized.length > 50 && <p className="text-xs text-gray-400 mt-1">Aperçu limité à 50 lignes.</p>}
+            {normalized.length > 50 && <p className="mt-1 text-xs text-ink/50">Aperçu limité à 50 lignes.</p>}
           </div>
 
           {/* Aperçu consommations calculées */}
           <div>
-            <h2 className="text-sm font-semibold text-gray-700 mb-2">
-              Consommations mensuelles calculées <span className="font-normal text-gray-400">({monthly.length})</span>
+            <h2 className="label-tech mb-2">
+              Consommations mensuelles calculées <span className="text-ink/40">({monthly.length})</span>
             </h2>
-            <div className="overflow-x-auto border rounded-lg">
+            <div className="panel overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Site</th>
-                    <th className="px-3 py-2 text-left">Mois</th>
-                    <th className="px-3 py-2 text-left">Énergie</th>
-                    <th className="px-3 py-2 text-left">Usage</th>
-                    <th className="px-3 py-2 text-right">Quantité</th>
-                    <th className="px-3 py-2 text-left">Unité</th>
-                    <th className="px-3 py-2 text-left">Compteur(s)</th>
+                <thead>
+                  <tr className="border-b border-ink/10">
+                    <th className="label-tech px-3 py-2 text-left font-normal">Site</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Mois</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Énergie</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Usage</th>
+                    <th className="label-tech px-3 py-2 text-right font-normal">Quantité</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Unité</th>
+                    <th className="label-tech px-3 py-2 text-left font-normal">Compteur(s)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-ink/[0.06]">
                   {monthly.map((m, i) => (
-                    <tr key={i}>
-                      <td className="px-3 py-1.5">{m.site}</td>
-                      <td className="px-3 py-1.5 tabular-nums">{fmtMonth(m.period)}</td>
-                      <td className="px-3 py-1.5">{m.energyType}</td>
-                      <td className="px-3 py-1.5">{m.usage}</td>
-                      <td className="px-3 py-1.5 text-right tabular-nums font-medium">{fmtQty(m.qty)}</td>
-                      <td className="px-3 py-1.5">{m.unit}</td>
-                      <td className="px-3 py-1.5 text-gray-500">{m.meterNames}</td>
+                    <tr key={i} className="hover:bg-ink/[0.02]">
+                      <td className="px-3 py-1.5 text-ink">{m.site}</td>
+                      <td className="px-3 py-1.5 font-mono tabular-nums text-ink/70">{fmtMonth(m.period)}</td>
+                      <td className="px-3 py-1.5 text-ink/70">{m.energyType}</td>
+                      <td className="px-3 py-1.5 text-ink/70">{m.usage}</td>
+                      <td className="px-3 py-1.5 text-right font-mono font-medium tabular-nums text-ink">{fmtQty(m.qty)}</td>
+                      <td className="px-3 py-1.5 text-ink/70">{m.unit}</td>
+                      <td className="px-3 py-1.5 text-ink/50">{m.meterNames}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -701,21 +705,21 @@ export default function ImportTestPage() {
             </div>
           </div>
           {/* Écriture en base */}
-          <div className="border-2 border-emerald-200 rounded-lg p-4 bg-emerald-50/40 space-y-3">
+          <div className="panel space-y-3 p-4">
             <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-emerald-600" />
-              <h2 className="text-sm font-semibold text-gray-800">Importer en base</h2>
+              <Database className="h-4 w-4 text-ink/40" />
+              <h2 className="label-tech">Importer en base</h2>
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-ink/50">
               Crée les compteurs + relevés et recalcule les consommations. Le coefficient gaz (PCS) et le
               Q ECS de chaque site sont pris depuis son contrat — la conversion en kWh est donc propre à
               chaque site, jamais un coef global.
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Type d&apos;import</label>
+                <label className="label-tech mb-1.5 block">Type d&apos;import</label>
                 <select
-                  className="border rounded px-2 py-1.5 text-sm"
+                  className="border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   value={importType}
                   onChange={(e) => setImportType(e.target.value as "RELEVE_MENSUEL" | "ALLUMAGE" | "ARRET")}
                 >
@@ -725,9 +729,9 @@ export default function ImportTestPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Contrat cible</label>
+                <label className="label-tech mb-1.5 block">Contrat cible</label>
                 <select
-                  className="border rounded px-2 py-1.5 text-sm min-w-[16rem]"
+                  className="min-w-[16rem] border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   value={targetContractId || selectedContract?.id || ""}
                   onChange={(e) => setTargetContractId(e.target.value)}
                 >
@@ -754,7 +758,7 @@ export default function ImportTestPage() {
                   !(targetContractId || selectedContract?.id)
                 }
                 onClick={handleImport}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
                 Importer {payloadRows.length} relevés
@@ -762,14 +766,14 @@ export default function ImportTestPage() {
             </div>
 
             {importResult && "error" in importResult && (
-              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded p-3">
+              <div className="flex items-center gap-2 border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
                 <AlertTriangle className="w-4 h-4" /> {importResult.error}
               </div>
             )}
             {importResult && !("error" in importResult) && (
-              <div className="text-sm bg-white border rounded p-3 space-y-1">
-                <div className="font-medium text-emerald-700">Import terminé ✓</div>
-                <div className="text-gray-600">
+              <div className="space-y-1 border border-ink/10 bg-white p-3 text-sm">
+                <div className="font-medium text-green-700">Import terminé ✓</div>
+                <div className="font-mono text-xs tabular-nums text-ink/60">
                   {importResult.imported} relevés créés · {importResult.updated} mis à jour ·{" "}
                   {importResult.metersCreated} compteurs créés · {importResult.sitesImpacted} sites recalculés ·{" "}
                   {importResult.heatingPeriods} période(s) de chauffe
@@ -777,18 +781,18 @@ export default function ImportTestPage() {
                   {importResult.skipped > 0 ? ` · ${importResult.skipped} ignorés` : ""}
                 </div>
                 {importResult.unmatchedSites.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t mt-2">
+                  <div className="mt-2 space-y-2 border-t border-ink/10 pt-2">
                     <div className="text-amber-700 font-medium">
                       {importResult.unmatchedSites.length} site(s) non reconnu(s) — associe-les manuellement :
                     </div>
                     {importResult.unmatchedSites.map((s) => (
                       <div key={s.name} className="flex flex-wrap items-center gap-2">
-                        <span className="text-gray-700 min-w-[14rem]">
-                          {s.name} <span className="text-gray-400">({s.count} relevés)</span>
+                        <span className="min-w-[14rem] text-ink">
+                          {s.name} <span className="font-mono tabular-nums text-ink/40">({s.count} relevés)</span>
                         </span>
-                        <span className="text-gray-400">→</span>
+                        <span className="text-ink/40">→</span>
                         <select
-                          className="border rounded px-2 py-1 text-sm min-w-[16rem]"
+                          className="min-w-[16rem] border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                           value={manualMappings[s.name] ?? s.suggestionId ?? ""}
                           onChange={(e) => setManualMappings((m) => ({ ...m, [s.name]: e.target.value }))}
                         >
@@ -804,7 +808,7 @@ export default function ImportTestPage() {
                       type="button"
                       disabled={importing || Object.values(manualMappings).filter(Boolean).length === 0}
                       onClick={handleRemap}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 border border-ink/20 px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                       Mémoriser les correspondances et ré-importer

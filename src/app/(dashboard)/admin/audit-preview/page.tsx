@@ -164,29 +164,29 @@ export default function AuditPreviewPage() {
       <div>
         <Link
           href="/admin"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-accent mb-2"
+          className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-accent mb-2"
         >
           <ArrowLeft size={16} />
           Administration
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Aperçu du rapport</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-xl font-semibold text-ink">Aperçu du rapport</h1>
+        <p className="mt-1 text-sm text-text-secondary">
           Cliquez sur un constat pour voir le texte du rapport correspondant
         </p>
       </div>
 
       {checkpoints.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
-          <FileText size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700">
+        <div className="border border-ink/10 bg-white p-8 text-center">
+          <FileText size={48} className="mx-auto text-ink/20 mb-4" />
+          <h3 className="text-sm font-medium text-ink">
             Aucun point de contrôle configuré
           </h3>
-          <p className="text-gray-500 mt-2">
+          <p className="mt-1 text-sm text-text-secondary">
             Configurez d&apos;abord vos points de contrôle pour voir l&apos;aperçu.
           </p>
           <Link
             href="/admin/audit-checkpoints"
-            className="inline-block mt-4 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90"
+            className="inline-block mt-4 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent"
           >
             Configurer les points de contrôle
           </Link>
@@ -195,8 +195,8 @@ export default function AuditPreviewPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Left: Selection Panel */}
           <div className="lg:col-span-1 space-y-4">
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <h2 className="font-semibold text-gray-900 mb-4">
+            <div className="border border-ink/10 bg-white p-4">
+              <h2 className="label-tech mb-3">
                 Sélectionnez les constats
               </h2>
               <div className="space-y-3">
@@ -207,24 +207,24 @@ export default function AuditPreviewPage() {
                   const isExpanded = expandedCategories.has(category);
 
                   return (
-                    <div key={category} className="border rounded-lg">
+                    <div key={category} className="border">
                       <button
                         onClick={() => toggleCategory(category)}
-                        className="w-full flex items-center justify-between p-3 text-left text-sm font-medium hover:bg-gray-50"
+                        className="w-full flex items-center justify-between p-3 text-left text-sm font-medium hover:bg-ink/[0.02]"
                       >
                         <span>{CATEGORY_LABELS[category]}</span>
                         {isExpanded ? (
-                          <ChevronDown size={16} className="text-gray-400" />
+                          <ChevronDown size={16} className="text-ink/40" />
                         ) : (
-                          <ChevronRight size={16} className="text-gray-400" />
+                          <ChevronRight size={16} className="text-ink/40" />
                         )}
                       </button>
 
                       {isExpanded && (
-                        <div className="border-t divide-y">
+                        <div className="border-t border-ink/10 divide-y divide-ink/10">
                           {categoryCheckpoints.map((cp) => (
                             <div key={cp.id} className="p-3">
-                              <p className="text-sm font-medium text-gray-800 mb-2">
+                              <p className="text-sm font-medium text-ink mb-2">
                                 {cp.label}
                               </p>
                               <div className="flex flex-wrap gap-1">
@@ -234,12 +234,12 @@ export default function AuditPreviewPage() {
                                     onClick={() =>
                                       selectFinding(cp.id, finding.id)
                                     }
-                                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                                    className={`px-2 py-1 text-xs transition-colors ${
                                       selectedFindings.get(cp.id) === finding.id
                                         ? finding.isConform
                                           ? "bg-green-500 text-white"
                                           : "bg-red-500 text-white"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        : "bg-ink/[0.03] text-text-secondary hover:bg-ink/[0.05]"
                                     }`}
                                   >
                                     {finding.label}
@@ -260,34 +260,34 @@ export default function AuditPreviewPage() {
           {/* Right: Report Preview */}
           <div className="lg:col-span-2 space-y-4">
             {/* Report Document */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+            <div className="border border-ink/10 bg-white">
               {/* Report Header */}
-              <div className="p-6 border-b bg-gray-50">
+              <div className="border-b border-ink/10 bg-ink/[0.015] p-4">
                 <div className="flex items-center gap-3 mb-4">
                   <FileText size={24} className="text-accent" />
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className="text-xl font-semibold text-ink">
                     Rapport d&apos;audit technique
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500">Site :</span>
+                    <span className="text-ink/50">Site :</span>
                     <span className="ml-2 font-medium">
                       [Nom du site]
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Date :</span>
+                    <span className="text-ink/50">Date :</span>
                     <span className="ml-2 font-medium">
                       {new Date().toLocaleDateString("fr-FR")}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Auditeur :</span>
+                    <span className="text-ink/50">Auditeur :</span>
                     <span className="ml-2 font-medium">[Nom auditeur]</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Référence :</span>
+                    <span className="text-ink/50">Référence :</span>
                     <span className="ml-2 font-medium">AUD-2026-001</span>
                   </div>
                 </div>
@@ -301,7 +301,7 @@ export default function AuditPreviewPage() {
 
                   return (
                     <div key={category}>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3 pb-2 border-b">
+                      <h3 className="text-sm font-medium text-ink mb-3 pb-2 border-b border-ink/10">
                         {CATEGORY_LABELS[category]}
                       </h3>
                       <div className="space-y-3">
@@ -319,7 +319,7 @@ export default function AuditPreviewPage() {
                           return (
                             <div
                               key={cp.id}
-                              className={`flex items-start gap-3 p-3 rounded-lg ${
+                              className={`flex items-start gap-3 p-3 ${
                                 isConform ? "bg-green-50" : "bg-red-50"
                               }`}
                             >
@@ -360,25 +360,25 @@ export default function AuditPreviewPage() {
 
                 {/* Recommendations Section */}
                 {linkedRecommendations.length > 0 && (
-                  <div className="border-t pt-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                  <div className="border-t border-ink/10 pt-4">
+                    <h3 className="text-sm font-medium text-ink mb-3">
                       Préconisations
                     </h3>
                     <div className="space-y-2">
                       {linkedRecommendations.map((reco, index) => (
                         <div
                           key={reco.id}
-                          className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg"
+                          className="flex items-start gap-3 p-3 bg-orange-50"
                         >
-                          <span className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center border border-amber-600/30 bg-amber-50 font-mono text-[11px] text-amber-700">
                             {index + 1}
                           </span>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-ink">
                               {reco.title}
                             </p>
                             {reco.description && (
-                              <p className="text-xs text-gray-600 mt-1">
+                              <p className="text-xs text-text-secondary mt-1">
                                 {reco.description}
                               </p>
                             )}
@@ -394,11 +394,11 @@ export default function AuditPreviewPage() {
                     </div>
 
                     {/* Total */}
-                    <div className="mt-4 p-4 bg-gray-100 rounded-lg flex items-center justify-between">
-                      <span className="font-semibold text-gray-900">
+                    <div className="mt-4 p-4 bg-ink/[0.03] flex items-center justify-between">
+                      <span className="font-semibold text-ink">
                         Estimation totale des travaux
                       </span>
-                      <span className="text-xl font-bold text-accent">
+                      <span className="font-mono text-lg font-medium tabular-nums text-accent">
                         {totalCost.toLocaleString("fr-FR")} €
                       </span>
                     </div>
@@ -411,7 +411,7 @@ export default function AuditPreviewPage() {
             {checkpoints.some((cp) =>
               cp.findings.some((f) => !f.reportText)
             ) && (
-              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200">
                 <AlertCircle size={20} className="text-amber-600 shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-amber-800">

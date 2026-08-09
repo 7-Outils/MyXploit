@@ -117,10 +117,8 @@ export default function AdminPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Administration
-          </h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-xl font-semibold text-ink">Administration</h1>
+          <p className="text-sm text-text-secondary mt-1">
             Configuration des audits techniques et paramètres avancés
           </p>
         </div>
@@ -128,12 +126,12 @@ export default function AdminPage() {
 
       {/* Info Banner */}
       {stats.recommendations === 0 && stats.checkpoints === 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="border border-accent/20 bg-accent/5 p-4">
           <div className="flex items-start gap-3">
-            <ClipboardCheck className="text-blue-600 mt-0.5" size={20} />
+            <ClipboardCheck className="mt-0.5 flex-shrink-0 text-accent" size={16} />
             <div className="flex-1">
-              <h3 className="font-medium text-blue-900">Commencez par configurer vos audits</h3>
-              <p className="text-sm text-blue-800 mt-1">
+              <h3 className="text-sm font-medium text-ink">Commencez par configurer vos audits</h3>
+              <p className="text-sm text-text-secondary mt-1">
                 1. Créez d&apos;abord vos préconisations types avec leurs tarifs<br />
                 2. Ensuite, configurez vos points de contrôle en les liant aux préconisations
               </p>
@@ -144,36 +142,32 @@ export default function AdminPage() {
 
       {/* Configuration Sections */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Configuration des audits
-        </h2>
+        <h2 className="label-tech mb-3">Configuration des audits</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {configSections.map((section) => (
             <Link
               key={section.href}
               href={section.href}
-              className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-md transition-shadow group"
+              className="group border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"
             >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-accent/10">
-                  <section.icon size={24} className="text-accent" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 group-hover:text-accent transition-colors">
+              <div className="flex items-start gap-3">
+                <section.icon size={18} className="mt-0.5 flex-shrink-0 text-ink/40 group-hover:text-accent" />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-medium text-ink transition-colors group-hover:text-accent">
                     {section.title}
                   </h3>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-text-secondary mt-1">
                     {section.description}
                   </p>
                   {section.count !== null && (
-                    <p className="text-sm font-medium mt-2 text-accent">
+                    <p className="mt-2 font-mono text-[11px] uppercase tracking-widest tabular-nums text-accent">
                       {section.count} {section.countLabel}
                     </p>
                   )}
                 </div>
                 <ArrowRight
-                  size={20}
-                  className="text-gray-400 group-hover:text-accent transition-colors"
+                  size={16}
+                  className="flex-shrink-0 text-ink/30 transition-colors group-hover:text-accent"
                 />
               </div>
             </Link>
@@ -183,43 +177,41 @@ export default function AdminPage() {
 
       {/* Quick Actions */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          Actions rapides
-        </h2>
+        <h2 className="label-tech mb-3">Actions rapides</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/admin/users"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
+            className="group flex items-center gap-3 border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"
           >
-            <Users size={20} className="text-gray-400 group-hover:text-accent" />
-            <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
+            <Users size={18} className="flex-shrink-0 text-ink/40 group-hover:text-accent" />
+            <span className="text-sm font-medium text-ink group-hover:text-accent">
               Gestion des utilisateurs
             </span>
           </Link>
           <Link
             href="/admin/portfolio"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
+            className="group flex items-center gap-3 border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"
           >
-            <UserCheck size={20} className="text-gray-400 group-hover:text-accent" />
-            <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
+            <UserCheck size={18} className="flex-shrink-0 text-ink/40 group-hover:text-accent" />
+            <span className="text-sm font-medium text-ink group-hover:text-accent">
               Portefeuilles ingénieurs
             </span>
           </Link>
           <Link
             href="/admin/organizations"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
+            className="group flex items-center gap-3 border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"
           >
-            <Building2 size={20} className="text-gray-400 group-hover:text-accent" />
-            <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
+            <Building2 size={18} className="flex-shrink-0 text-ink/40 group-hover:text-accent" />
+            <span className="text-sm font-medium text-ink group-hover:text-accent">
               Gestion des organisations
             </span>
           </Link>
           <Link
             href="/settings"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow group"
+            className="group flex items-center gap-3 border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"
           >
-            <Settings size={20} className="text-gray-400 group-hover:text-accent" />
-            <span className="text-sm font-medium text-gray-700 group-hover:text-accent">
+            <Settings size={18} className="flex-shrink-0 text-ink/40 group-hover:text-accent" />
+            <span className="text-sm font-medium text-ink group-hover:text-accent">
               Paramètres généraux
             </span>
           </Link>
@@ -227,29 +219,31 @@ export default function AdminPage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="border border-red-200 rounded-xl bg-red-50/50 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={20} className="text-red-600" />
-          <h2 className="text-lg font-semibold text-red-900">
+      <div className="border border-red-600/20 bg-white">
+        <div className="flex items-center gap-2 border-b border-red-600/20 px-4 py-2.5">
+          <AlertTriangle size={14} className="text-red-600" />
+          <h2 className="font-mono text-[11px] uppercase tracking-widest text-red-700">
             Zone dangereuse
           </h2>
         </div>
-        <p className="text-sm text-red-700 mb-4">
-          Ces actions sont irréversibles. Utilisez-les avec précaution.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={handleDeleteAllEquipments}
-            disabled={deleting}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-          >
-            {deleting ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Trash2 size={16} />
-            )}
-            Supprimer tous les équipements
-          </button>
+        <div className="p-4">
+          <p className="text-sm text-text-secondary mb-4">
+            Ces actions sont irréversibles. Utilisez-les avec précaution.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleDeleteAllEquipments}
+              disabled={deleting}
+              className="flex items-center gap-2 border border-red-600/30 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              {deleting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Trash2 size={16} />
+              )}
+              Supprimer tous les équipements
+            </button>
+          </div>
         </div>
       </div>
     </div>

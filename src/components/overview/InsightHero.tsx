@@ -181,19 +181,19 @@ export default function InsightHero({ contractId, yearType }: Props) {
       // Pas de dérive : célébration nette ou équilibre calme
       detail = tone === "good" ? (
         <>
-          Équivalent à <strong className="text-emerald-700 tabular-nums">
+          Équivalent à <strong className="font-mono text-green-700 tabular-nums">
             {fmtMwh(summary.totalDelta)} MWh économisés
           </strong> sur la saison. Aucun site en dérive.
           {best && (
             <>
-              {" "}Le plus performant : <strong className="text-primary-dark">{best.siteName}</strong>{" "}
-              <span className="tabular-nums">{fmtPct(best.deltaPercent)}</span>.
+              {" "}Le plus performant : <strong className="text-ink">{best.siteName}</strong>{" "}
+              <span className="font-mono tabular-nums">{fmtPct(best.deltaPercent)}</span>.
             </>
           )}
         </>
       ) : (
         <>
-          <strong className="text-primary-dark tabular-nums">{total} sites</strong> comparables,
+          <strong className="font-mono text-ink tabular-nums">{total} sites</strong> comparables,
           tous dans la fenêtre de performance. Pas de site en dérive.
         </>
       );
@@ -201,17 +201,17 @@ export default function InsightHero({ contractId, yearType }: Props) {
       // Un seul outlier — on le nomme, on explique la pondération s'il y a de l'économie
       detail = tone === "good" ? (
         <>
-          Malgré <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
-          <span className="text-text-secondary">
-            (+<span className="tabular-nums">{fmtMwh(worst.delta)}</span> MWh · {fmtPct(worst.deltaPercent)})
+          Malgré <strong className="text-ink">{worst.siteName}</strong>{" "}
+          <span className="text-ink/50">
+            (+<span className="font-mono tabular-nums">{fmtMwh(worst.delta)}</span> MWh · {fmtPct(worst.deltaPercent)})
           </span>,
           les {eco} sites en économie tirent le contrat vers le bas.
         </>
       ) : (
         <>
-          Un seul site en cause : <strong className="text-primary-dark">{worst.siteName}</strong>,{" "}
-          <strong className="text-amber-800 tabular-nums">+{fmtMwh(worst.delta)} MWh</strong>{" "}
-          <span className="text-text-secondary">(soit {fmtPct(worst.deltaPercent)} vs cible)</span>.
+          Un seul site en cause : <strong className="text-ink">{worst.siteName}</strong>,{" "}
+          <strong className="font-mono text-amber-700 tabular-nums">+{fmtMwh(worst.delta)} MWh</strong>{" "}
+          <span className="text-ink/50">(soit {fmtPct(worst.deltaPercent)} vs cible)</span>.
         </>
       );
     } else if (dep >= 2 && worst) {
@@ -220,17 +220,17 @@ export default function InsightHero({ contractId, yearType }: Props) {
       const compensation = eco > 0 && globalDelta < 5
         ? (
           <>
-            {" "}Les <strong className="text-emerald-700 tabular-nums">{eco} sites en économie</strong>{" "}
+            {" "}Les <strong className="font-mono text-green-700 tabular-nums">{eco} sites en économie</strong>{" "}
             compensent et maintiennent le contrat à l&apos;équilibre.
           </>
         )
         : null;
       detail = (
         <>
-          <strong className="text-primary-dark tabular-nums">{dep} sites en dérive</strong>.
-          Impact principal : <strong className="text-primary-dark">{worst.siteName}</strong>{" "}
-          <strong className="text-amber-800 tabular-nums">+{fmtMwh(worst.delta)} MWh</strong>{" "}
-          <span className="text-text-secondary">(soit {fmtPct(worst.deltaPercent)} vs cible)</span>.
+          <strong className="font-mono text-ink tabular-nums">{dep} sites en dérive</strong>.
+          Impact principal : <strong className="text-ink">{worst.siteName}</strong>{" "}
+          <strong className="font-mono text-amber-700 tabular-nums">+{fmtMwh(worst.delta)} MWh</strong>{" "}
+          <span className="text-ink/50">(soit {fmtPct(worst.deltaPercent)} vs cible)</span>.
           {compensation}
         </>
       );
@@ -260,15 +260,15 @@ export default function InsightHero({ contractId, yearType }: Props) {
     if (climate.kind === "doux" && summary.deltaPercent >= 5) {
       return (
         <>
-          Hiver plus doux que la cible (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>, −{pctStr} %) : ces dérives sont
-          <strong className="text-primary-dark"> 100 % comportementales</strong>, aucune excuse météo.
+          Hiver plus doux que la cible (<span className="font-mono tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>, −{pctStr} %) : ces dérives sont
+          <strong className="text-ink"> 100 % comportementales</strong>, aucune excuse météo.
         </>
       );
     }
     if (climate.kind === "doux" && summary.deltaPercent <= -5) {
       return (
         <>
-          À noter : l&apos;hiver a été −{pctStr} % plus doux (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>).
+          À noter : l&apos;hiver a été −{pctStr} % plus doux (<span className="font-mono tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>).
           Une partie de l&apos;économie est attribuable au climat — la N&apos;B en tient compte mais reste un signal à lire avec ce contexte.
         </>
       );
@@ -276,17 +276,17 @@ export default function InsightHero({ contractId, yearType }: Props) {
     if (climate.kind === "rigoureux" && summary.deltaPercent >= 5) {
       return (
         <>
-          Hiver plus rigoureux que la cible (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>, +{pctStr} %) :
+          Hiver plus rigoureux que la cible (<span className="font-mono tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>, +{pctStr} %) :
           la N&apos;B est déjà ajustée climatiquement, la dérive restante est
-          <strong className="text-primary-dark"> bien d&apos;origine exploitation</strong>.
+          <strong className="text-ink"> bien d&apos;origine exploitation</strong>.
         </>
       );
     }
     if (climate.kind === "rigoureux" && summary.deltaPercent <= -5) {
       return (
         <>
-          Performance remarquable : <strong className="text-emerald-700">économie malgré un hiver +{pctStr} % plus rigoureux</strong>{" "}
-          (<span className="tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>).
+          Performance remarquable : <strong className="text-green-700">économie malgré un hiver +{pctStr} % plus rigoureux</strong>{" "}
+          (<span className="font-mono tabular-nums">DJR {djrStr} vs DJC {djcStr}</span>).
         </>
       );
     }
@@ -295,38 +295,38 @@ export default function InsightHero({ contractId, yearType }: Props) {
 
   if (isLoading && !data) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200/80 p-12 flex items-center justify-center min-h-[280px]">
-        <Loader2 className="w-5 h-5 animate-spin text-text-secondary" />
+      <div className="panel p-12 flex items-center justify-center min-h-[240px]">
+        <Loader2 className="w-5 h-5 animate-spin text-ink/40" />
       </div>
     );
   }
 
   if (!summary || total === 0 || !insight) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200/80 overflow-hidden min-h-[280px] flex flex-col">
-        <div className="flex items-center justify-between px-8 pt-6 pb-2">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold">
-            Saison <span className="tabular-nums ml-1 text-primary-dark">{periodLabel}</span>
+      <div className="panel overflow-hidden min-h-[240px] flex flex-col">
+        <div className="panel-header">
+          <div className="label-tech">
+            Saison <span className="ml-1 tabular-nums text-ink">{periodLabel}</span>
           </div>
           <div className="flex items-center gap-0.5">
             <button
               onClick={() => { setYear(year - 1); setAutoAdvanced(true); }}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              className="w-7 h-7 flex items-center justify-center text-ink/40 hover:bg-ink/[0.04] hover:text-ink"
             >
               <ChevronLeft size={14} />
             </button>
             <button
               onClick={() => { setYear(year + 1); setAutoAdvanced(true); }}
               disabled={!canNext}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent"
+              className="w-7 h-7 flex items-center justify-center text-ink/40 hover:bg-ink/[0.04] hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <ChevronRight size={14} />
             </button>
           </div>
         </div>
-        <div className="flex-1 flex items-center justify-center p-8">
-          <div className="text-sm text-text-secondary max-w-sm text-center">
-            Aucun site avec cible énergétique (NB) renseignée pour <span className="tabular-nums">{periodLabel}</span>.
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-sm text-ink/50 max-w-sm text-center">
+            Aucun site avec cible énergétique (NB) renseignée pour <span className="font-mono tabular-nums">{periodLabel}</span>.
             Renseigne les cibles dans <Link href="/contrat?tab=cibles" className="text-accent hover:underline">Contrat &gt; Cibles</Link>, ou navigue vers une autre saison ci-dessus.
           </div>
         </div>
@@ -334,30 +334,31 @@ export default function InsightHero({ contractId, yearType }: Props) {
     );
   }
 
-  const toneBorder =
-    insight.tone === "bad" ? "border-rose-200/70"
-    : insight.tone === "warning" ? "border-amber-200/60"
-    : insight.tone === "good" ? "border-emerald-200/60"
-    : "border-gray-200/80";
+  // Le statut du contrat est porté par un filet haut sémantique (pas de card colorée).
+  const toneRule =
+    insight.tone === "bad" ? "border-t-2 border-t-red-600"
+    : insight.tone === "warning" ? "border-t-2 border-t-amber-600"
+    : insight.tone === "good" ? "border-t-2 border-t-green-600"
+    : "border-t-2 border-t-ink";
 
   return (
-    <section className={`bg-white rounded-xl border ${toneBorder} overflow-hidden`}>
-      {/* Header : saison + navigation ─────────────────────────────── */}
-      <div className="flex items-center justify-between px-8 pt-6 pb-2">
-        <div className="text-[10px] uppercase tracking-[0.2em] text-text-secondary font-semibold">
-          Saison <span className="tabular-nums ml-1 text-primary-dark">{periodLabel}</span>
+    <section className={`panel overflow-hidden ${toneRule}`}>
+      {/* Cartouche : saison + navigation ─────────────────────────── */}
+      <div className="panel-header">
+        <div className="label-tech">
+          Saison <span className="ml-1 tabular-nums text-ink">{periodLabel}</span>
         </div>
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => setYear(year - 1)}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="w-7 h-7 flex items-center justify-center text-ink/40 hover:bg-ink/[0.04] hover:text-ink"
           >
             <ChevronLeft size={14} />
           </button>
           <button
             onClick={() => setYear(year + 1)}
             disabled={!canNext}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="w-7 h-7 flex items-center justify-center text-ink/40 hover:bg-ink/[0.04] hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronRight size={14} />
           </button>
@@ -365,22 +366,22 @@ export default function InsightHero({ contractId, yearType }: Props) {
       </div>
 
       {/* Narratif ──────────────────────────────────────────────── */}
-      <div className="px-8 pt-6 pb-8">
-        <h2 className="text-[28px] leading-[1.15] font-semibold text-primary-dark tracking-tight max-w-3xl">
+      <div className="px-4 py-4">
+        <h2 className="text-xl font-semibold leading-snug tracking-tight text-ink max-w-3xl">
           {insight.headline}
         </h2>
-        <p className="text-[15px] text-text-secondary mt-3 leading-relaxed max-w-3xl">
+        <p className="text-sm text-ink/60 mt-2 leading-relaxed max-w-3xl">
           {insight.detail}
         </p>
         {climateContext && (
-          <div className="mt-4 text-[13px] text-text-secondary border-l-2 border-gray-200 pl-3 max-w-3xl">
+          <div className="mt-3 text-[13px] text-ink/60 border-l border-ink/15 pl-3 max-w-3xl">
             {climateContext}
           </div>
         )}
       </div>
 
       {/* Gauge distribution ────────────────────────────────────── */}
-      <div className="px-8 pb-6">
+      <div className="px-4 pb-4">
         <DistributionGauge
           economie={summary.sitesEnEconomie}
           objectif={summary.sitesObjectifAtteint}
@@ -389,13 +390,13 @@ export default function InsightHero({ contractId, yearType }: Props) {
       </div>
 
       {/* CTA footer ─────────────────────────────────────────────── */}
-      <div className="px-8 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end">
+      <div className="px-4 py-2.5 border-t border-ink/10 flex items-center justify-end">
         <Link
           href={insight.cta.href}
-          className="inline-flex items-center gap-1.5 text-sm text-primary-dark font-medium hover:text-accent transition-colors"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-ink underline decoration-ink/30 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent"
         >
           {insight.cta.label}
-          <ArrowRight size={14} />
+          <ArrowRight size={13} />
         </Link>
       </div>
     </section>
@@ -419,21 +420,21 @@ function DistributionGauge({
 
   return (
     <div>
-      <div className="flex h-1.5 rounded-full overflow-hidden bg-gray-100 gap-[2px]">
+      <div className="flex h-1.5 overflow-hidden bg-ink/[0.06] gap-[2px]">
         {economie > 0 && (
-          <div className="bg-emerald-500 transition-all" style={{ width: `${pctE}%` }} />
+          <div className="bg-green-600 transition-all" style={{ width: `${pctE}%` }} />
         )}
         {objectif > 0 && (
-          <div className="bg-gray-300 transition-all" style={{ width: `${pctO}%` }} />
+          <div className="bg-ink/25 transition-all" style={{ width: `${pctO}%` }} />
         )}
         {depassement > 0 && (
-          <div className="bg-amber-500 transition-all" style={{ width: `${pctD}%` }} />
+          <div className="bg-amber-600 transition-all" style={{ width: `${pctD}%` }} />
         )}
       </div>
-      <div className="flex items-center gap-6 mt-3 text-xs">
-        <GaugeLegend color="bg-emerald-500" count={economie} label="en économie" tone="text-emerald-700" />
-        <GaugeLegend color="bg-gray-300" count={objectif} label="à l'objectif" tone="text-gray-600" />
-        <GaugeLegend color="bg-amber-500" count={depassement} label="en dépassement" tone="text-amber-700" />
+      <div className="flex items-center gap-6 mt-2.5 text-xs">
+        <GaugeLegend color="bg-green-600" count={economie} label="en économie" tone="text-green-700" />
+        <GaugeLegend color="bg-ink/25" count={objectif} label="à l'objectif" tone="text-ink" />
+        <GaugeLegend color="bg-amber-600" count={depassement} label="en dépassement" tone="text-amber-700" />
       </div>
     </div>
   );
@@ -453,8 +454,8 @@ function GaugeLegend({
   return (
     <div className="flex items-baseline gap-1.5">
       <span className={`w-1.5 h-1.5 rounded-full ${color} shrink-0 translate-y-[-2px]`} />
-      <span className={`tabular-nums font-semibold ${tone}`}>{count}</span>
-      <span className="text-text-secondary">{label}</span>
+      <span className={`font-mono tabular-nums font-semibold ${tone}`}>{count}</span>
+      <span className="text-ink/50">{label}</span>
     </div>
   );
 }

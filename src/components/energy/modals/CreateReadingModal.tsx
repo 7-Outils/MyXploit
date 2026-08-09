@@ -123,28 +123,28 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-primary-dark">Saisir un relevé</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className="w-full border border-ink/15 bg-white shadow-large max-w-md">
+        <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-5 py-3">
+          <h2 className="text-base font-semibold text-ink">Saisir un relevé</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:text-ink"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
           {/* Site */}
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">
+            <label className="label-tech mb-1.5 block">
               Site *
             </label>
             <select
               value={selectedSiteId}
               onChange={(e) => setSelectedSiteId(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
               required
             >
               {sites.map((s) => (
@@ -155,7 +155,7 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
 
           {/* Compteur */}
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">
+            <label className="label-tech mb-1.5 block">
               Compteur *
             </label>
             {loadingMeters ? (
@@ -164,7 +164,7 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
                 Chargement des compteurs...
               </div>
             ) : meters.length === 0 ? (
-              <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+              <p className="border border-amber-600/20 bg-amber-50 p-3 text-sm text-amber-700">
                 Aucun compteur configuré sur ce site.{" "}
                 <a
                   href={`/buildings/${selectedSiteId}?tab=meters`}
@@ -177,7 +177,7 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
               <select
                 value={selectedMeterId}
                 onChange={(e) => setSelectedMeterId(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 required
               >
                 {meters.map((m) => (
@@ -193,7 +193,7 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
           {selectedMeter && (
             <>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Date du relevé *
                 </label>
                 <input
@@ -201,12 +201,12 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
                   required
                   value={readingDate}
                   onChange={(e) => setReadingDate(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink font-mono tabular-nums focus:border-accent focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Index compteur ({selectedMeter.unit}) *
                 </label>
                 <input
@@ -215,25 +215,25 @@ export function CreateReadingModal({ sites, onClose, onSaved }: Props) {
                   required
                   value={indexValue}
                   onChange={(e) => setIndexValue(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink font-mono tabular-nums focus:border-accent focus:outline-none"
                   placeholder="Ex: 15230.5"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Notes
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   placeholder="Optionnel"
                 />
               </div>
 
-              <label className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg cursor-pointer">
+              <label className="flex cursor-pointer items-start gap-2 border border-amber-600/20 bg-amber-50 p-3">
                 <input
                   type="checkbox"
                   checked={isReset}

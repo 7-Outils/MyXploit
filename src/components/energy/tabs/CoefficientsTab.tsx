@@ -176,7 +176,7 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
   };
 
   if (!contractId) {
-    return <p className="text-sm text-text-secondary py-8 text-center">Sélectionne un contrat.</p>;
+    return <p className="py-8 text-center text-sm text-ink/50">Sélectionne un contrat.</p>;
   }
 
   if (loading && sites.length === 0) {
@@ -188,13 +188,13 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Bandeau presets + explication */}
-      <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
-        <div className="flex flex-wrap items-end gap-5">
-          <div className="flex items-center gap-2 text-primary-dark">
-            <Gauge size={18} className="text-accent" />
-            <span className="font-semibold text-sm">Presets de pression</span>
+      <div className="panel p-4">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex items-center gap-2 text-ink">
+            <Gauge size={16} className="text-ink/40" />
+            <span className="label-tech">Presets de pression</span>
           </div>
           <PresetInput
             label="20 mbar (BP)"
@@ -212,7 +212,7 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
               type="button"
               disabled={bulkRunning}
               onClick={() => applyToAll(presets.p20, true)}
-              className="px-3 py-2 text-xs font-medium rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50"
+              className="border border-ink/20 px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
             >
               20 mbar → non définis
             </button>
@@ -220,15 +220,15 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
               type="button"
               disabled={bulkRunning}
               onClick={() => applyToAll(presets.p300, true)}
-              className="px-3 py-2 text-xs font-medium rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50"
+              className="border border-ink/20 px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
             >
               300 mbar → non définis
             </button>
             {bulkRunning && <Loader2 size={16} className="animate-spin text-accent" />}
           </div>
         </div>
-        <p className="text-[11px] text-gray-500 mt-3 flex items-start gap-1.5">
-          <Info size={13} className="mt-0.5 flex-shrink-0" />
+        <p className="mt-3 flex items-start gap-1.5 text-[11px] text-ink/50">
+          <Info size={13} className="mt-0.5 flex-shrink-0 text-ink/40" />
           L&apos;import d&apos;AE ne renseigne pas le coefficient gaz : les sites importés restent au défaut {fmt(SCHEMA_DEFAULT)}.
           Choisis un preset selon la pression de livraison du compteur (20 mbar basse pression / 300 mbar moyenne pression).
           Les presets sont éditables et mémorisés sur ce navigateur.
@@ -237,66 +237,66 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
 
       {/* Barre outils tableau */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-sm text-text-secondary">
-          <span className="font-semibold text-primary-dark">{rows.length}</span> site{rows.length > 1 ? "s" : ""}
+        <div className="font-mono text-[11px] uppercase tracking-widest text-ink/50">
+          <span className="font-semibold tabular-nums text-ink">{rows.length}</span> site{rows.length > 1 ? "s" : ""}
           {!showAll && ` gaz`} ·{" "}
-          <span className={toDefineCount > 0 ? "text-amber-600 font-medium" : ""}>
+          <span className={toDefineCount > 0 ? "tabular-nums text-amber-600" : "tabular-nums"}>
             {toDefineCount} à définir
           </span>{" "}
-          / {gasCount} gaz
+          / <span className="tabular-nums">{gasCount}</span> gaz
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer select-none">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-ink/60">
             <input
               type="checkbox"
               checked={showAll}
               onChange={(e) => setShowAll(e.target.checked)}
-              className="rounded border-gray-300 text-accent focus:ring-accent"
+              className="border-ink/30 text-accent focus:ring-0"
             />
             Inclure les sites non-gaz
           </label>
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
             <input
               type="text"
               placeholder="Rechercher…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent w-56 bg-gray-50/50"
+              className="w-56 border border-ink/20 bg-white py-2 pl-9 pr-3 text-sm text-ink focus:border-accent focus:outline-none"
             />
           </div>
         </div>
       </div>
 
       {/* Tableau */}
-      <div className="overflow-x-auto border border-gray-200 rounded-xl">
+      <div className="panel overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-[11px] uppercase tracking-wide">
+          <thead className="border-b border-ink/10">
             <tr>
-              <th className="px-4 py-2.5 text-left w-10">#</th>
-              <th className="px-4 py-2.5 text-left">Site</th>
-              <th className="px-4 py-2.5 text-left">Énergie</th>
-              <th className="px-4 py-2.5 text-right">Coef actuel</th>
-              <th className="px-4 py-2.5 text-left">État</th>
-              <th className="px-4 py-2.5 text-right">Appliquer</th>
+              <th className="label-tech px-3 py-2 font-normal text-left w-10">#</th>
+              <th className="label-tech px-3 py-2 font-normal text-left">Site</th>
+              <th className="label-tech px-3 py-2 font-normal text-left">Énergie</th>
+              <th className="label-tech px-3 py-2 font-normal text-right">Coef actuel</th>
+              <th className="label-tech px-3 py-2 font-normal text-left">État</th>
+              <th className="label-tech px-3 py-2 font-normal text-right">Appliquer</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-ink/[0.06]">
             {rows.map((s, i) => {
               const coef = coefOf(s);
               const isSaving = savingId === s.id;
               return (
-                <tr key={s.id} className="hover:bg-accent/5">
-                  <td className="px-4 py-2.5 text-gray-300 tabular-nums">{String(i + 1).padStart(2, "0")}</td>
-                  <td className="px-4 py-2.5 font-medium text-primary-dark">{s.name}</td>
-                  <td className="px-4 py-2.5 text-text-secondary">{s.energyType}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-primary-dark">
-                    {fmt(coef)} <span className="text-[10px] text-gray-400 font-normal">kWh/m³</span>
+                <tr key={s.id} className="hover:bg-ink/[0.02]">
+                  <td className="px-3 py-2 font-mono tabular-nums text-ink/30">{String(i + 1).padStart(2, "0")}</td>
+                  <td className="px-3 py-2 font-medium text-ink">{s.name}</td>
+                  <td className="px-3 py-2 font-mono text-[11px] uppercase tracking-widest text-ink/50">{s.energyType}</td>
+                  <td className="px-3 py-2 text-right font-mono tabular-nums font-semibold text-ink">
+                    {fmt(coef)} <span className="text-[10px] font-normal text-ink/40">kWh/m³</span>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2">
                     <CoefBadge coef={coef} p20={presets.p20} p300={presets.p300} />
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1.5">
                       {isSaving ? (
                         <Loader2 size={15} className="animate-spin text-accent" />
@@ -306,10 +306,10 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
                             type="button"
                             onClick={() => saveCoef(s, presets.p20)}
                             title={`Appliquer 20 mbar (${fmt(presets.p20)})`}
-                            className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                            className={`border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors ${
                               coef === presets.p20
-                                ? "border-blue-300 bg-blue-100 text-blue-800"
-                                : "border-gray-200 text-blue-700 hover:bg-blue-50"
+                                ? "border-accent bg-accent text-paper"
+                                : "border-ink/20 text-ink hover:border-accent hover:text-accent"
                             }`}
                           >
                             20
@@ -318,10 +318,10 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
                             type="button"
                             onClick={() => saveCoef(s, presets.p300)}
                             title={`Appliquer 300 mbar (${fmt(presets.p300)})`}
-                            className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-colors ${
+                            className={`border px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest transition-colors ${
                               coef === presets.p300
-                                ? "border-amber-300 bg-amber-100 text-amber-800"
-                                : "border-gray-200 text-amber-700 hover:bg-amber-50"
+                                ? "border-accent bg-accent text-paper"
+                                : "border-ink/20 text-ink hover:border-accent hover:text-accent"
                             }`}
                           >
                             300
@@ -336,7 +336,7 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-text-secondary">
+                <td colSpan={6} className="px-3 py-10 text-center text-sm text-ink/50">
                   Aucun site {showAll ? "" : "gaz "}sur ce contrat.
                 </td>
               </tr>
@@ -353,7 +353,7 @@ export function CoefficientsContent({ contractId }: { contractId: string | null 
 function PresetInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <div>
-      <label className="block text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-1">{label}</label>
+      <label className="label-tech mb-1 block">{label}</label>
       <div className="flex items-center gap-1">
         <input
           type="number"
@@ -364,28 +364,29 @@ function PresetInput({ label, value, onChange }: { label: string; value: number;
             const v = parseFloat(e.target.value);
             if (!isNaN(v)) onChange(v);
           }}
-          className="w-20 px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent tabular-nums"
+          className="w-20 border border-ink/20 bg-white px-2 py-1.5 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none"
         />
-        <span className="text-[10px] text-gray-400">kWh/m³</span>
+        <span className="text-[10px] text-ink/40">kWh/m³</span>
       </div>
     </div>
   );
 }
 
 function CoefBadge({ coef, p20, p300 }: { coef: number | null; p20: number; p300: number }) {
+  const base = "inline-block font-mono text-[11px] uppercase tracking-widest px-1.5 py-0.5 border";
   if (coef == null) {
-    return <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">non renseigné</span>;
+    return <span className={`${base} border-amber-600/20 bg-amber-50 text-amber-700`}>non renseigné</span>;
   }
   if (coef === p20) {
-    return <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">20 mbar</span>;
+    return <span className={`${base} border-accent/25 bg-accent/5 text-accent`}>20 mbar</span>;
   }
   if (coef === p300) {
-    return <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">300 mbar</span>;
+    return <span className={`${base} border-accent/25 bg-accent/5 text-accent`}>300 mbar</span>;
   }
   if (coef === SCHEMA_DEFAULT) {
-    return <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">défaut {fmt(SCHEMA_DEFAULT)}</span>;
+    return <span className={`${base} border-amber-600/20 bg-amber-50 text-amber-700`}>défaut {fmt(SCHEMA_DEFAULT)}</span>;
   }
-  return <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">personnalisé</span>;
+  return <span className={`${base} border-ink/15 bg-ink/[0.04] text-ink/60`}>personnalisé</span>;
 }
 
 function ManualCoef({ current, onSave }: { current: number | null; onSave: (v: number) => void }) {
@@ -401,7 +402,7 @@ function ManualCoef({ current, onSave }: { current: number | null; onSave: (v: n
           setEditing(true);
         }}
         title="Saisir une valeur manuelle"
-        className="px-2.5 py-1 text-xs font-medium rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50"
+        className="border border-ink/20 px-2.5 py-1 font-mono text-[11px] uppercase tracking-widest text-ink/50 transition-colors hover:border-accent hover:text-accent"
       >
         …
       </button>
@@ -425,16 +426,17 @@ function ManualCoef({ current, onSave }: { current: number | null; onSave: (v: n
             setEditing(false);
           }
         }}
-        className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-accent/20 focus:border-accent tabular-nums"
+        className="w-20 border border-ink/20 bg-white px-2 py-1 font-mono text-xs tabular-nums text-ink focus:border-accent focus:outline-none"
       />
       <button
         type="button"
+        title="Enregistrer"
         onClick={() => {
           const v = parseFloat(val);
           if (!isNaN(v)) onSave(v);
           setEditing(false);
         }}
-        className="p-1 text-accent hover:bg-accent/10 rounded"
+        className="p-1 text-accent transition-colors hover:bg-accent/5"
       >
         <Check size={14} />
       </button>

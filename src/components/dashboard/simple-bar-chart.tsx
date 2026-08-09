@@ -28,13 +28,13 @@ export function SimpleBarChart({ data, height = 200 }: SimpleBarChartProps) {
               {/* Target bar */}
               {item.target !== undefined && item.target > 0 && (
                 <div
-                  className="w-6 bg-gray-200 rounded-t transition-all duration-500"
+                  className="w-6 bg-ink/15 transition-all duration-500"
                   style={{ height: Math.max(targetHeight, 4) }}
                 />
               )}
               {/* Value bar */}
               <div
-                className="w-6 bg-gradient-to-t from-accent to-accent-light rounded-t transition-all duration-500"
+                className="w-6 bg-accent transition-all duration-500"
                 style={{ height: Math.max(valueHeight, 4) }}
               />
             </div>
@@ -43,11 +43,13 @@ export function SimpleBarChart({ data, height = 200 }: SimpleBarChartProps) {
       </div>
 
       {/* Labels area */}
-      <div className="flex justify-around gap-4 mt-2">
+      <div className="flex justify-around gap-4 mt-2 border-t border-ink/10 pt-2">
         {data.map((item, index) => (
           <div key={index} className="flex flex-col items-center">
-            <span className="text-sm font-semibold text-primary-dark">{item.value}</span>
-            <span className="text-xs text-text-secondary">{item.label}</span>
+            <span className="font-mono text-sm font-semibold tabular-nums text-ink">
+              {item.value}
+            </span>
+            <span className="label-tech">{item.label}</span>
           </div>
         ))}
       </div>

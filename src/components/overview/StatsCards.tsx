@@ -58,7 +58,6 @@ export function StatsCards({
           change={missionStats.pipeline.missions.length > 0 ? `${missionStats.pipeline.missions.length} en pipeline` : undefined}
           changeType="neutral"
           icon={FolderKanban}
-          iconColor="text-accent"
         />
         <StatsCard
           title="CA en cours"
@@ -66,7 +65,6 @@ export function StatsCards({
           change={missionStats.ca.terminated > 0 ? `${(missionStats.ca.terminated / 1000).toFixed(0)}k€ termine` : undefined}
           changeType="positive"
           icon={Euro}
-          iconColor="text-blue-600"
         />
         <StatsCard
           title="Livrables ce mois"
@@ -74,7 +72,6 @@ export function StatsCards({
           change={`${missionStats.deliverablesThisMonth.produit + missionStats.deliverablesThisMonth.transmis} produits`}
           changeType="positive"
           icon={ClipboardCheck}
-          iconColor="text-purple-600"
         />
         <StatsCard
           title="En retard"
@@ -82,7 +79,6 @@ export function StatsCards({
           change={overdueCount > 0 ? "A traiter" : "Tout est a jour"}
           changeType={overdueCount > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
-          iconColor={overdueCount > 0 ? "text-red-600" : "text-green-600"}
         />
       </>
     );
@@ -95,7 +91,6 @@ export function StatsCards({
           title="Équipements actifs"
           value={operationalEquipments.toString()}
           icon={Wrench}
-          iconColor="text-orange-600"
         />
         <StatsCard
           title="En maintenance/panne"
@@ -103,7 +98,6 @@ export function StatsCards({
           change={equipmentInMaintenance > 0 ? "À traiter" : "Tout OK"}
           changeType={equipmentInMaintenance > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
-          iconColor="text-red-600"
         />
         <StatsCard
           title="Devis en cours"
@@ -111,13 +105,11 @@ export function StatsCards({
           change={`${acceptedQuotes} acceptés`}
           changeType="positive"
           icon={Receipt}
-          iconColor="text-blue-600"
         />
         <StatsCard
           title="Sites gérés"
           value={uniqueSitesCount.toString()}
           icon={Building2}
-          iconColor="text-accent"
         />
       </>
     );
@@ -128,13 +120,11 @@ export function StatsCards({
           title="Contrats pilotés"
           value={activeContracts.toString()}
           icon={ClipboardCheck}
-          iconColor="text-purple-600"
         />
         <StatsCard
           title="Sites sous contrat"
           value={uniqueSitesCount.toString()}
           icon={Building2}
-          iconColor="text-accent"
         />
         <StatsCard
           title="Alertes dérives"
@@ -142,13 +132,11 @@ export function StatsCards({
           change={criticalAlerts > 0 ? `${criticalAlerts} critiques` : "RAS"}
           changeType={criticalAlerts > 0 ? "negative" : "positive"}
           icon={Target}
-          iconColor="text-red-600"
         />
         <StatsCard
           title="Réunions à venir"
           value={upcomingMeetings.toString()}
           icon={Calendar}
-          iconColor="text-blue-600"
         />
       </>
     );
@@ -162,7 +150,6 @@ export function StatsCards({
           change={criticalAlerts > 0 ? `${criticalAlerts} critiques` : "Aucune critique"}
           changeType={criticalAlerts > 0 ? "negative" : "positive"}
           icon={AlertTriangle}
-          iconColor="text-red-600"
         />
         <StatsCard
           title="Factures en attente"
@@ -170,13 +157,11 @@ export function StatsCards({
           change={totalPendingAmount > 0 ? `${(totalPendingAmount / 1000).toFixed(0)}k€ à valider` : undefined}
           changeType="neutral"
           icon={Euro}
-          iconColor="text-yellow-600"
         />
         <StatsCard
           title="Réunions à venir"
           value={upcomingMeetings.toString()}
           icon={Calendar}
-          iconColor="text-blue-600"
         />
         <StatsCard
           title="Équipements en panne"
@@ -184,7 +169,6 @@ export function StatsCards({
           change={equipmentInMaintenance > 0 ? "À traiter" : "Tout OK"}
           changeType={equipmentInMaintenance > 0 ? "negative" : "positive"}
           icon={Wrench}
-          iconColor={equipmentInMaintenance > 0 ? "text-red-600" : "text-green-600"}
         />
       </>
     );

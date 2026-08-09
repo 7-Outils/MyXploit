@@ -56,11 +56,9 @@ export function PlatformTopbar() {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
+    <header className="h-16 bg-white border-b border-ink/10 flex items-center justify-between px-6">
       <div className="flex items-center gap-3">
-        <h1 className="text-lg font-semibold text-gray-900">
-          Administration Plateforme
-        </h1>
+        <h1 className="label-tech">Administration Plateforme</h1>
       </div>
 
       {/* Right side */}
@@ -68,18 +66,19 @@ export function PlatformTopbar() {
         <div className="relative">
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 p-1.5 hover:bg-ink/[0.03] transition-colors"
           >
-            <div className="w-9 h-9 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+            {/* Avatar : seul cas où rounded-full reste (cf. thème) */}
+            <div className="w-8 h-8 bg-ink rounded-full flex items-center justify-center text-paper text-xs font-medium">
               {getInitials()}
             </div>
-            <ChevronDown size={16} className="text-gray-500" />
+            <ChevronDown size={14} className="text-ink/40" />
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-12 w-64 bg-white rounded-xl shadow-large border border-gray-100 py-2 z-50">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="font-medium text-primary-dark">
+            <div className="absolute right-0 top-12 w-64 bg-white shadow-large border border-ink/15 py-1 z-50">
+              <div className="px-4 py-3 border-b border-ink/10">
+                <p className="font-medium text-ink">
                   {currentUser?.firstName} {currentUser?.lastName}
                 </p>
                 <p className="text-sm text-text-secondary truncate">

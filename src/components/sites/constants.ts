@@ -50,13 +50,15 @@ export const meterFluidIcons: Record<MeterFluid, typeof Flame> = {
   FIOUL: Droplets,
 };
 
+// Thème « bureau d'études » : le cadre reste neutre (papier + hairline encre),
+// seule l'icône garde la teinte du fluide — repère métier, jamais décoratif.
 export const meterFluidColors: Record<MeterFluid, { bg: string; border: string; text: string; icon: string }> = {
-  GAZ: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-700", icon: "text-amber-500" },
-  ELECTRICITE: { bg: "bg-yellow-50", border: "border-yellow-300", text: "text-yellow-700", icon: "text-yellow-500" },
-  EAU_CHAUDE: { bg: "bg-red-50", border: "border-red-300", text: "text-red-700", icon: "text-red-500" },
-  EAU_FROIDE: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-700", icon: "text-blue-500" },
-  CHALEUR: { bg: "bg-orange-50", border: "border-orange-300", text: "text-orange-700", icon: "text-orange-500" },
-  FIOUL: { bg: "bg-purple-50", border: "border-purple-300", text: "text-purple-700", icon: "text-purple-500" },
+  GAZ: { bg: "bg-white", border: "border-ink/15", text: "text-ink", icon: "text-amber-600" },
+  ELECTRICITE: { bg: "bg-white", border: "border-ink/15", text: "text-ink", icon: "text-yellow-600" },
+  EAU_CHAUDE: { bg: "bg-white", border: "border-ink/15", text: "text-ink", icon: "text-red-600" },
+  EAU_FROIDE: { bg: "bg-white", border: "border-ink/15", text: "text-ink", icon: "text-accent" },
+  CHALEUR: { bg: "bg-white", border: "border-ink/15", text: "text-ink", icon: "text-orange-600" },
+  FIOUL: { bg: "bg-white", border: "border-ink/15", text: "text-ink", icon: "text-ink/50" },
 };
 
 export const dataSourceLabels: Record<MeterDataSource, string> = {

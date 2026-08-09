@@ -57,14 +57,21 @@ const CANONICAL_FLUID: Record<string, string> = {
   FIOUL: "Fioul",
 };
 
+// Palette énergie « bureau d'études » : teintes sobres dérivées de ink/accent,
+// suffisamment distinctes pour rester lisibles empilées.
 const FLUID_COLORS: Record<string, string> = {
-  GAZ: "#f59e0b",
-  ELECTRICITE: "#eab308",
-  EAU_CHAUDE: "#3b82f6",
-  EAU_FROIDE: "#06b6d4",
-  CHALEUR: "#ef4444",
-  FIOUL: "#8b5cf6",
+  GAZ: "#0F1E33",
+  ELECTRICITE: "#2563EB",
+  EAU_CHAUDE: "#60A5FA",
+  EAU_FROIDE: "#94A3B8",
+  CHALEUR: "#B45309",
+  FIOUL: "#475569",
 };
+
+// Couleur de la courbe signature énergétique (ratio conso/DJU)
+const RATIO_COLOR = "#2563EB";
+const GRID_COLOR = "rgba(15,30,51,0.08)";
+const AXIS_COLOR = "rgba(15,30,51,0.5)";
 
 // Ordre de stack stable (bas → haut) pour que l'ECS soit toujours
 // au même endroit quel que soit l'ordre d'arrivée des relevés.
@@ -197,7 +204,7 @@ function StackedMonthlyChart({
         type: "bar" as const,
         stack: "total",
         barMaxWidth: 48,
-        itemStyle: { color: FLUID_COLORS[fluid] || "#9ca3af", borderRadius: [3, 3, 0, 0] },
+        itemStyle: { color: FLUID_COLORS[fluid] || "#94A3B8", borderRadius: 0 },
         data: months.map((m) => {
           const v = (byMonth.get(m) ?? 0) / divisor;
           return displayUnit === "MWh" ? Math.round(v * 10) / 10 : Math.round(v);
@@ -208,10 +215,10 @@ function StackedMonthlyChart({
     if (targetInUnit != null && targetInUnit > 0 && base.length > 0) {
       (base[0] as Record<string, unknown>).markLine = {
         symbol: "none",
-        lineStyle: { color: "#64748b", type: "dashed", width: 1.5 },
+        lineStyle: { color: "#2563EB", type: "dashed", width: 1.5 },
         label: {
           formatter: `Cible ${displayUnit === "MWh" ? targetInUnit.toFixed(1) : Math.round(targetInUnit).toLocaleString("fr-FR")} ${displayUnit}/mois`,
-          color: "#64748b",
+          color: "#2563EB",
           fontSize: 10,
           position: "insideEndTop",
         },
@@ -229,14 +236,19 @@ function StackedMonthlyChart({
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
-        backgroundColor: "rgba(17,24,39,0.95)",
-        borderWidth: 0,
-        textStyle: { color: "#fff", fontSize: 12 },
+        backgroundColor: "#ffffff",
+        borderColor: "rgba(15,30,51,0.15)",
+        borderWidth: 1,
+        borderRadius: 0,
+        textStyle: { color: "#0F1E33", fontSize: 12 },
       },
       legend: {
         data: series.map((s) => s.name),
         bottom: 8,
-        textStyle: { fontSize: 11, color: "#6b7280" },
+        icon: "rect",
+        itemWidth: 10,
+        itemHeight: 2,
+        textStyle: { fontSize: 11, color: AXIS_COLOR },
       },
       xAxis: {
         type: "category",
@@ -246,18 +258,18 @@ function StackedMonthlyChart({
         }),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { fontSize: 11, color: "#6b7280" },
+        axisLabel: { fontSize: 11, color: AXIS_COLOR },
       },
       yAxis: {
         type: "value",
         name: displayUnit,
-        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        nameTextStyle: { color: AXIS_COLOR, fontSize: 10 },
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: "#f3f4f6" } },
+        splitLine: { lineStyle: { color: GRID_COLOR } },
         axisLabel: {
           fontSize: 11,
-          color: "#6b7280",
+          color: AXIS_COLOR,
           formatter: (v: number) =>
             displayUnit === "MWh" ? v.toString() : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toString(),
         },
@@ -303,9 +315,11 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
       grid: { left: 56, right: 16, top: 24, bottom: 56 },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "rgba(17,24,39,0.95)",
-        borderWidth: 0,
-        textStyle: { color: "#fff", fontSize: 12 },
+        backgroundColor: "#ffffff",
+        borderColor: "rgba(15,30,51,0.15)",
+        borderWidth: 1,
+        borderRadius: 0,
+        textStyle: { color: "#0F1E33", fontSize: 12 },
         formatter: (params: unknown) => {
           const p = (params as { axisValueLabel: string; value: number }[])[0];
           return `<div style="font-weight:600;margin-bottom:2px">${p.axisValueLabel}</div>
@@ -321,16 +335,16 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
         }),
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { fontSize: 11, color: "#6b7280" },
+        axisLabel: { fontSize: 11, color: AXIS_COLOR },
       },
       yAxis: {
         type: "value",
         name: "kWh/DJU",
-        nameTextStyle: { color: "#6b7280", fontSize: 10 },
+        nameTextStyle: { color: AXIS_COLOR, fontSize: 10 },
         axisLine: { show: false },
         axisTick: { show: false },
-        splitLine: { lineStyle: { color: "#f3f4f6" } },
-        axisLabel: { fontSize: 11, color: "#6b7280" },
+        splitLine: { lineStyle: { color: GRID_COLOR } },
+        axisLabel: { fontSize: 11, color: AXIS_COLOR },
       },
       series: [
         {
@@ -338,10 +352,10 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
           data: ratios,
           smooth: true,
           symbol: "circle",
-          symbolSize: 6,
-          lineStyle: { color: "#6366f1", width: 2 },
-          itemStyle: { color: "#6366f1" },
-          areaStyle: { color: "rgba(99,102,241,0.08)" },
+          symbolSize: 5,
+          lineStyle: { color: RATIO_COLOR, width: 2 },
+          itemStyle: { color: RATIO_COLOR },
+          areaStyle: { color: "rgba(37,99,235,0.06)" },
         },
       ],
     });
@@ -358,7 +372,7 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
 
   if (months.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[240px] text-xs text-text-secondary">
+      <div className="flex items-center justify-center h-[240px] text-xs text-ink/50">
         Données insuffisantes (besoin de conso chauffage + DJU &gt; 10 par mois)
       </div>
     );
@@ -765,13 +779,13 @@ export function RelevesContent({
   const hasActiveFilter = filterFluid !== "all" || filterSite !== "all" || filterMeter !== "all" || filterDateFrom || filterDateTo;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Filters + Actions — one row */}
       <div className="flex items-center gap-2 flex-wrap">
         <select
           value={filterFluid}
           onChange={(e) => setFilterFluid(e.target.value)}
-          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+          className="h-9 border border-ink/20 bg-white px-3 text-sm text-ink focus:border-accent focus:outline-none"
         >
           <option value="all">Tous fluides</option>
           {fluids.map((f) => (
@@ -785,14 +799,14 @@ export function RelevesContent({
             onChange={(e) => { setSiteSearch(e.target.value); setSiteOpen(true); }}
             onFocus={() => { setSiteSearch(""); setSiteOpen(true); }}
             placeholder="Tous sites"
-            className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white w-56"
+            className="h-9 w-56 border border-ink/20 bg-white px-3 text-sm text-ink focus:border-accent focus:outline-none"
           />
           {siteOpen && (
-            <div className="absolute z-20 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+            <div className="absolute z-20 mt-1 w-56 max-h-64 overflow-y-auto border border-ink/15 bg-white shadow-large">
               <button
                 type="button"
                 onClick={() => { setFilterSite("all"); setFilterMeter("all"); setSiteOpen(false); setSiteSearch(""); }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${filterSite === "all" ? "bg-accent/10 text-accent" : ""}`}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-ink/[0.02] ${filterSite === "all" ? "bg-accent/5 text-accent" : "text-ink"}`}
               >
                 Tous sites
               </button>
@@ -803,13 +817,13 @@ export function RelevesContent({
                     key={s.id}
                     type="button"
                     onClick={() => { setFilterSite(s.id); setFilterMeter("all"); setSiteOpen(false); setSiteSearch(""); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${filterSite === s.id ? "bg-accent/10 text-accent" : ""}`}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-ink/[0.02] ${filterSite === s.id ? "bg-accent/5 text-accent" : "text-ink"}`}
                   >
                     {s.name}
                   </button>
                 ))}
               {sitesList.filter((s) => s.name.toLowerCase().includes(siteSearch.toLowerCase())).length === 0 && (
-                <div className="px-3 py-2 text-xs text-text-secondary">Aucun site</div>
+                <div className="px-3 py-2 text-xs text-ink/50">Aucun site</div>
               )}
             </div>
           )}
@@ -817,7 +831,7 @@ export function RelevesContent({
         <select
           value={filterMeter}
           onChange={(e) => setFilterMeter(e.target.value)}
-          className="h-9 px-3 rounded-lg border border-gray-200 text-sm bg-white"
+          className="h-9 border border-ink/20 bg-white px-3 text-sm text-ink focus:border-accent focus:outline-none"
         >
           <option value="all">Tous compteurs</option>
           {availableMeters.map((m) => (
@@ -828,14 +842,14 @@ export function RelevesContent({
           type="date"
           value={filterDateFrom}
           onChange={(e) => setFilterDateFrom(e.target.value)}
-          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white"
+          className="h-9 border border-ink/20 bg-white px-2 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none"
         />
-        <span className="text-xs text-text-secondary">→</span>
+        <span className="text-xs text-ink/40">→</span>
         <input
           type="date"
           value={filterDateTo}
           onChange={(e) => setFilterDateTo(e.target.value)}
-          className="h-9 px-2 rounded-lg border border-gray-200 text-sm bg-white"
+          className="h-9 border border-ink/20 bg-white px-2 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none"
         />
         {hasActiveFilter && (
           <button
@@ -843,7 +857,7 @@ export function RelevesContent({
               setFilterFluid("all"); setFilterSite("all"); setFilterMeter("all");
               setFilterDateFrom(""); setFilterDateTo("");
             }}
-            className="text-xs text-accent hover:underline"
+            className="font-mono text-[11px] uppercase tracking-widest text-ink/50 transition-colors hover:text-accent"
           >
             Réinitialiser
           </button>
@@ -854,14 +868,14 @@ export function RelevesContent({
         <button
           onClick={() => router.push("/energy/import")}
           title="Import Exploitant"
-          className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          className="h-9 w-9 flex items-center justify-center border border-ink/20 text-ink transition-colors hover:border-accent hover:text-accent"
         >
           <Upload size={16} />
         </button>
         <button
           onClick={() => setShowCreateModal(true)}
           title="Saisir relevé"
-          className="h-9 w-9 flex items-center justify-center rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
+          className="h-9 w-9 flex items-center justify-center bg-ink text-paper transition-colors hover:bg-accent"
         >
           <Plus size={16} />
         </button>
@@ -871,21 +885,21 @@ export function RelevesContent({
       {(kpiCards.length > 0 || monthlyRatio.size > 0) && (
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
           {kpiCards.map((k) => (
-            <div key={k.fluid} className="bg-white border border-gray-100 rounded-xl p-4">
+            <div key={k.fluid} className="panel p-4">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-text-secondary flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: k.color }} />
+                <p className="label-tech flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: k.color }} />
                   {k.label}
                 </p>
                 {k.trend != null && (
-                  <span className={`text-[10px] font-medium ${k.trend > 0 ? "text-red-600" : k.trend < 0 ? "text-green-600" : "text-text-secondary"}`}>
+                  <span className={`font-mono text-[10px] tabular-nums font-medium ${k.trend > 0 ? "text-red-600" : k.trend < 0 ? "text-green-600" : "text-ink/50"}`}>
                     {k.trend > 0 ? "↑" : k.trend < 0 ? "↓" : "="} {Math.abs(k.trend).toFixed(0)}%
                   </span>
                 )}
               </div>
-              <p className="text-2xl font-semibold text-primary-dark">{formatForced(k.total, displayUnit)}</p>
+              <p className="font-mono text-xl sm:text-2xl font-semibold tabular-nums text-ink">{formatForced(k.total, displayUnit)}</p>
               {k.nativeTotal != null && k.nativeUnit && (
-                <p className="text-xs text-text-secondary mt-0.5">
+                <p className="font-mono text-xs tabular-nums text-ink/50 mt-0.5">
                   {k.nativeTotal.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} {k.nativeUnit}
                 </p>
               )}
@@ -903,25 +917,25 @@ export function RelevesContent({
               ratioTrend = ((ratioSpark[ratioSpark.length - 1] - ratioSpark[ratioSpark.length - 2]) / ratioSpark[ratioSpark.length - 2]) * 100;
             }
             return (
-              <div className="bg-white border border-gray-100 rounded-xl p-4">
+              <div className="panel p-4">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-text-secondary flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: "#6366f1" }} />
+                  <p className="label-tech flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: RATIO_COLOR }} />
                     Ratio conso/DJU
                   </p>
                   {ratioTrend != null && (
-                    <span className={`text-[10px] font-medium ${ratioTrend > 0 ? "text-red-600" : ratioTrend < 0 ? "text-green-600" : "text-text-secondary"}`}>
+                    <span className={`font-mono text-[10px] tabular-nums font-medium ${ratioTrend > 0 ? "text-red-600" : ratioTrend < 0 ? "text-green-600" : "text-ink/50"}`}>
                       {ratioTrend > 0 ? "↑" : ratioTrend < 0 ? "↓" : "="} {Math.abs(ratioTrend).toFixed(0)}%
                     </span>
                   )}
                 </div>
-                <p className="text-2xl font-semibold text-primary-dark">
+                <p className="font-mono text-xl sm:text-2xl font-semibold tabular-nums text-ink">
                   {avgRatio.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}
-                  <span className="text-sm font-normal text-text-secondary ml-1">kWh/DJU</span>
+                  <span className="ml-1 text-sm font-normal text-ink/50">kWh/DJU</span>
                 </p>
-                <p className="text-xs text-text-secondary mt-0.5">Moyenne {ratioSpark.length} mois</p>
+                <p className="text-xs text-ink/50 mt-0.5">Moyenne {ratioSpark.length} mois</p>
                 <div className="mt-2">
-                  <Sparkline values={ratioSpark} color="#6366f1" />
+                  <Sparkline values={ratioSpark} color={RATIO_COLOR} />
                 </div>
               </div>
             );
@@ -937,12 +951,12 @@ export function RelevesContent({
             title="Consommation mensuelle"
             subtitle="Répartition par énergie"
             action={
-              <div className="flex rounded-lg border border-gray-200 bg-white overflow-hidden text-xs">
+              <div className="flex border border-ink/15 bg-white font-mono text-[11px] uppercase tracking-widest">
                 <button
                   type="button"
                   onClick={() => setDisplayUnit("kWh")}
-                  className={`px-3 py-1 transition-colors ${
-                    displayUnit === "kWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                  className={`px-2.5 py-1 transition-colors ${
+                    displayUnit === "kWh" ? "bg-ink text-paper" : "text-ink/50 hover:text-ink"
                   }`}
                 >
                   kWh
@@ -950,8 +964,8 @@ export function RelevesContent({
                 <button
                   type="button"
                   onClick={() => setDisplayUnit("MWh")}
-                  className={`px-3 py-1 transition-colors border-l border-gray-200 ${
-                    displayUnit === "MWh" ? "bg-accent text-white" : "text-gray-600 hover:bg-gray-50"
+                  className={`border-l border-ink/15 px-2.5 py-1 transition-colors ${
+                    displayUnit === "MWh" ? "bg-ink text-paper" : "text-ink/50 hover:text-ink"
                   }`}
                 >
                   MWh
@@ -985,97 +999,97 @@ export function RelevesContent({
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Building2 className="w-12 h-12 text-gray-300 mb-3" />
-            <p className="text-text-secondary">Aucun relevé</p>
+            <Building2 className="w-8 h-8 text-ink/25 mb-3" />
+            <p className="text-sm text-ink/60">Aucun relevé</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-6 -my-6">
+          <div className="overflow-x-auto -mx-4 -my-4">
             <table className="w-full">
-              <thead className="bg-background-secondary border-b border-gray-100">
+              <thead className="border-b border-ink/10">
                 <tr>
-                  <th onClick={() => toggleSort("site")} className="text-left text-xs font-medium text-text-secondary uppercase px-4 py-3 cursor-pointer select-none">
+                  <th onClick={() => toggleSort("site")} className="label-tech px-3 py-2 font-normal text-left cursor-pointer select-none">
                     <span className="inline-flex items-center gap-1">Site <SortIcon col="site" /></span>
                   </th>
-                  <th onClick={() => toggleSort("meter")} className="text-left text-xs font-medium text-text-secondary uppercase px-4 py-3 cursor-pointer select-none">
+                  <th onClick={() => toggleSort("meter")} className="label-tech px-3 py-2 font-normal text-left cursor-pointer select-none">
                     <span className="inline-flex items-center gap-1">Compteur <SortIcon col="meter" /></span>
                   </th>
-                  <th onClick={() => toggleSort("fluid")} className="text-left text-xs font-medium text-text-secondary uppercase px-4 py-3 cursor-pointer select-none">
+                  <th onClick={() => toggleSort("fluid")} className="label-tech px-3 py-2 font-normal text-left cursor-pointer select-none">
                     <span className="inline-flex items-center gap-1">Fluide <SortIcon col="fluid" /></span>
                   </th>
-                  <th className="text-center text-xs font-medium text-text-secondary uppercase px-4 py-3">Date préc.</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase px-4 py-3">Index préc.</th>
-                  <th onClick={() => toggleSort("date")} className="text-center text-xs font-medium text-text-secondary uppercase px-4 py-3 cursor-pointer select-none">
+                  <th className="label-tech px-3 py-2 font-normal text-center">Date préc.</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">Index préc.</th>
+                  <th onClick={() => toggleSort("date")} className="label-tech px-3 py-2 font-normal text-center cursor-pointer select-none">
                     <span className="inline-flex items-center gap-1">Date <SortIcon col="date" /></span>
                   </th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase px-4 py-3">Index</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase px-4 py-3">Conso</th>
-                  <th className="text-right text-xs font-medium text-text-secondary uppercase px-4 py-3">Converti</th>
-                  <th className="text-center text-xs font-medium text-text-secondary uppercase px-4 py-3 w-20"></th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">Index</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">Conso</th>
+                  <th className="label-tech px-3 py-2 font-normal text-right">Converti</th>
+                  <th className="label-tech px-3 py-2 font-normal text-center w-20"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-ink/[0.06]">
                 {pagedRows.map((r) => {
                   const isEditing = editingId === r.id;
                   return (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-primary-dark">{r.meter.site.name}</td>
-                      <td className="px-4 py-3 text-sm text-primary-dark">{r.meter.name}</td>
-                      <td className="px-4 py-3">
+                    <tr key={r.id} className="hover:bg-ink/[0.02]">
+                      <td className="px-3 py-2 text-sm font-medium text-ink">{r.meter.site.name}</td>
+                      <td className="px-3 py-2 text-sm text-ink">{r.meter.name}</td>
+                      <td className="px-3 py-2">
                         <span
-                          className="inline-block px-2 py-0.5 rounded text-[10px] font-medium"
-                          style={{ backgroundColor: `${FLUID_COLORS[r.meter.fluid] || "#9ca3af"}20`, color: FLUID_COLORS[r.meter.fluid] || "#6b7280" }}
+                          className="inline-block font-mono text-[11px] uppercase tracking-widest px-1.5 py-0.5 border"
+                          style={{ borderColor: `${FLUID_COLORS[r.meter.fluid] || "#94A3B8"}33`, color: FLUID_COLORS[r.meter.fluid] || "#64748B" }}
                         >
                           {FLUID_LABELS[r.meter.fluid] || r.meter.fluid}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center text-xs text-text-secondary">
+                      <td className="px-3 py-2 text-center font-mono text-xs tabular-nums text-ink/50">
                         {r.previous ? new Date(r.previous.readingDate).toLocaleDateString("fr-FR") : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-mono text-text-secondary">
+                      <td className="px-3 py-2 text-right font-mono text-sm tabular-nums text-ink/50">
                         {r.previous?.indexValue != null ? `${r.previous.indexValue.toLocaleString("fr-FR")} ${r.unit}` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-center text-sm">
+                      <td className="px-3 py-2 text-center font-mono text-sm tabular-nums text-ink">
                         {isEditing ? (
-                          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="px-2 py-1 text-sm border rounded w-32 text-center" />
+                          <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="w-32 border border-ink/20 bg-white px-2 py-1 text-center font-mono text-sm tabular-nums focus:border-accent focus:outline-none" />
                         ) : (
                           new Date(r.readingDate).toLocaleDateString("fr-FR")
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sm font-medium text-primary-dark">
+                      <td className="px-3 py-2 text-right font-mono text-sm tabular-nums font-medium text-ink">
                         {isEditing ? (
                           <input
                             type="number" step="0.01" value={editIndex} onChange={(e) => setEditIndex(e.target.value)}
-                            className="px-2 py-1 text-sm border rounded w-28 text-right font-mono"
+                            className="w-28 border border-ink/20 bg-white px-2 py-1 text-right font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
                             onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") cancelEdit(); }}
                           />
                         ) : (
                           r.indexValue != null ? `${r.indexValue.toLocaleString("fr-FR")} ${r.unit}` : "—"
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm font-medium text-primary-dark">
-                        {r.consumption != null ? `${r.consumption.toLocaleString("fr-FR")} ${r.unit}` : <span className="text-text-secondary text-xs">1er relevé</span>}
+                      <td className="px-3 py-2 text-right font-mono text-sm tabular-nums font-medium text-ink">
+                        {r.consumption != null ? `${r.consumption.toLocaleString("fr-FR")} ${r.unit}` : <span className="font-sans text-xs text-ink/40">1er relevé</span>}
                       </td>
-                      <td className="px-4 py-3 text-right text-sm text-text-secondary">
+                      <td className="px-3 py-2 text-right font-mono text-sm tabular-nums text-ink/60">
                         {r.consumptionConverted != null && r.unitConverted
                           ? formatValue(r.consumptionConverted, r.unitConverted)
                           : "—"}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-3 py-2 text-center">
                         {isEditing ? (
                           <div className="flex items-center justify-center gap-1">
-                            <button onClick={saveEdit} disabled={saving} className="p-1.5 text-green-600 hover:bg-green-50 rounded">
+                            <button onClick={saveEdit} disabled={saving} title="Enregistrer" className="p-1.5 text-green-700 transition-colors hover:bg-green-50">
                               {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                             </button>
-                            <button onClick={cancelEdit} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded">
+                            <button onClick={cancelEdit} title="Annuler" className="p-1.5 text-ink/40 transition-colors hover:text-ink">
                               <X size={14} />
                             </button>
                           </div>
                         ) : (
                           <div className="flex items-center justify-center gap-1">
-                            <button onClick={() => startEdit(r)} className="p-1.5 text-gray-400 hover:text-accent hover:bg-gray-100 rounded" title="Modifier">
+                            <button onClick={() => startEdit(r)} className="p-1.5 text-ink/40 transition-colors hover:text-accent" title="Modifier">
                               <Pencil size={14} />
                             </button>
-                            <button onClick={() => handleDelete(r.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Supprimer">
+                            <button onClick={() => handleDelete(r.id)} className="p-1.5 text-ink/40 transition-colors hover:text-red-600" title="Supprimer">
                               <Trash2 size={14} />
                             </button>
                           </div>
@@ -1089,25 +1103,25 @@ export function RelevesContent({
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm">
-                <span className="text-text-secondary">
+              <div className="flex items-center justify-between border-t border-ink/10 px-4 py-2">
+                <span className="font-mono text-[11px] uppercase tracking-widest tabular-nums text-ink/50">
                   {(pageClamped - 1) * PAGE_SIZE + 1}–{Math.min(pageClamped * PAGE_SIZE, filtered.length)} sur {filtered.length}
                 </span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={pageClamped === 1}
-                    className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-8 border border-ink/20 px-3 font-mono text-[11px] uppercase tracking-widest text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Précédent
                   </button>
-                  <span className="text-xs text-text-secondary px-2">
+                  <span className="px-2 font-mono text-[11px] uppercase tracking-widest tabular-nums text-ink/50">
                     Page {pageClamped} / {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={pageClamped === totalPages}
-                    className="h-8 px-3 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="h-8 border border-ink/20 px-3 font-mono text-[11px] uppercase tracking-widest text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Suivant
                   </button>

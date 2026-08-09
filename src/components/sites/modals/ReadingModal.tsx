@@ -61,24 +61,25 @@ export function ReadingModal({ meter, siteId, onClose, onSaved }: ReadingModalPr
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <div>
-            <h2 className="text-xl font-bold text-primary-dark">Nouveau relevé</h2>
-            <p className="text-sm text-text-secondary">{meter.name}</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
+      <div className="w-full max-w-md border border-ink/15 bg-white shadow-large">
+        <div className="flex items-start justify-between gap-3 border-b border-ink/10 px-5 py-3">
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-ink">Nouveau relevé</h2>
+            <p className="mt-0.5 truncate text-sm text-ink/50">{meter.name}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Fermer"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSaveReading} className="p-6 space-y-4">
+        <form onSubmit={handleSaveReading} className="space-y-4 px-5 py-4">
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">
+            <label className="label-tech mb-1.5 block">
               Date du relevé *
             </label>
             <input
@@ -86,13 +87,13 @@ export function ReadingModal({ meter, siteId, onClose, onSaved }: ReadingModalPr
               required
               value={readingForm.readingDate}
               onChange={(e) => setReadingForm({ ...readingForm, readingDate: e.target.value })}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm font-mono tabular-nums focus:border-accent focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">
+              <label className="label-tech mb-1.5 block">
                 Index compteur
               </label>
               <input
@@ -100,12 +101,12 @@ export function ReadingModal({ meter, siteId, onClose, onSaved }: ReadingModalPr
                 step="0.01"
                 value={readingForm.indexValue}
                 onChange={(e) => setReadingForm({ ...readingForm, indexValue: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm font-mono tabular-nums focus:border-accent focus:outline-none"
                 placeholder="Ex: 12345.67"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-primary-dark mb-1">
+              <label className="label-tech mb-1.5 block">
                 Consommation ({meter.unit})
               </label>
               <input
@@ -113,17 +114,17 @@ export function ReadingModal({ meter, siteId, onClose, onSaved }: ReadingModalPr
                 step="0.01"
                 value={readingForm.consumption}
                 onChange={(e) => setReadingForm({ ...readingForm, consumption: e.target.value })}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm font-mono tabular-nums focus:border-accent focus:outline-none"
                 placeholder="Ex: 150"
               />
             </div>
           </div>
 
           {meter.conversionCoefficient && (
-            <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-700">
+            <div className="border border-ink/15 bg-ink/[0.02] p-3 text-sm text-ink/70">
               La consommation sera convertie automatiquement :
               <br />
-              <span className="font-mono">
+              <span className="font-mono tabular-nums text-ink">
                 × {meter.conversionCoefficient} ={" "}
                 {meter.conversionUnit}
               </span>
@@ -131,26 +132,25 @@ export function ReadingModal({ meter, siteId, onClose, onSaved }: ReadingModalPr
           )}
 
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-1">Notes</label>
+            <label className="label-tech mb-1.5 block">Notes</label>
             <textarea
               value={readingForm.notes}
               onChange={(e) => setReadingForm({ ...readingForm, notes: e.target.value })}
               rows={2}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
               placeholder="Observations éventuelles..."
             />
           </div>
 
-          <div className="flex gap-3 pt-4">
+          <div className="-mx-5 flex items-center justify-end gap-2 border-t border-ink/10 px-5 pt-3">
             <Button
               type="button"
               variant="outline"
-              className="flex-1"
               onClick={onClose}
             >
               Annuler
             </Button>
-            <Button type="submit" className="flex-1" disabled={savingReading}>
+            <Button type="submit" disabled={savingReading}>
               {savingReading ? (
                 <>
                   <Loader2 size={18} className="mr-2 animate-spin" />

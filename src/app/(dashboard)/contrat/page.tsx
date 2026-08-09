@@ -60,10 +60,10 @@ function AdministratifContent() {
   // No contract selected
   if (!selectedContract) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-primary-dark">Contrat</h1>
-          <p className="text-text-secondary">Sélectionnez ou créez un contrat depuis le sélecteur en haut de page</p>
+      <div className="space-y-4">
+        <div className="border-b border-ink/10 pb-2">
+          <h1 className="text-xl font-semibold text-ink">Contrat</h1>
+          <p className="label-tech mt-1">Sélectionnez ou créez un contrat depuis le sélecteur en haut de page</p>
         </div>
       </div>
     );
@@ -72,9 +72,9 @@ function AdministratifContent() {
   const contractSites = contractDetail?.contractSites || [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Tabs + actions */}
-      <div className="border-b border-gray-200 flex items-end justify-between gap-2">
+      <div className="border-b border-ink/10 flex items-end justify-between gap-2">
       <div className="flex gap-2 -mb-px overflow-x-auto">
         {CONTRAT_TABS.map((tab) => {
           const count =
@@ -97,8 +97,8 @@ function AdministratifContent() {
                   preload(`/api/contracts/${selectedContract.id}/amounts-timeline`, fetcher);
                 }
               }}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id ? "border-accent text-accent" : "border-transparent text-text-secondary hover:text-primary-dark"
+              className={`px-4 py-2 font-mono text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.id ? "border-accent text-accent" : "border-transparent text-ink/50 hover:text-ink"
               }`}
             >
               {tab.label}{count !== null ? ` (${count})` : ""}
@@ -111,7 +111,7 @@ function AdministratifContent() {
             type="button"
             onClick={() => setShowEditContractModal(true)}
             title="Modifier le contrat"
-            className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            className="h-9 w-9 flex items-center justify-center border border-ink/20 text-ink hover:border-accent hover:text-accent transition-colors"
           >
             <Pencil size={16} />
           </button>

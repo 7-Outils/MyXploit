@@ -40,21 +40,22 @@ export function UserMenu() {
     <div className="relative">
       <button
         onClick={() => setShowMenu(!showMenu)}
-        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+        className="flex items-center gap-2 p-1.5 transition-colors hover:bg-white/10"
       >
-        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white text-sm font-medium">
+        {/* Avatar : seul cas où rounded-full reste (cf. thème) */}
+        <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-white text-sm font-medium tabular-nums">
           {getInitials()}
         </div>
         <ChevronDown size={14} className="text-white/70" />
       </button>
 
       {showMenu && (
-        <div className="absolute right-0 top-11 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50">
-          <div className="px-4 py-3 border-b border-gray-100">
-            <p className="font-medium text-gray-900 text-sm">
+        <div className="absolute right-0 top-11 w-60 bg-white border border-ink/15 shadow-large py-1 z-50">
+          <div className="px-4 py-3 border-b border-ink/10">
+            <p className="font-medium text-ink text-sm">
               {currentUser?.firstName} {currentUser?.lastName}
             </p>
-            <p className="text-xs text-gray-500 truncate">{currentUser?.email}</p>
+            <p className="text-xs text-ink/50 truncate">{currentUser?.email}</p>
           </div>
           <div className="py-1">
             <button

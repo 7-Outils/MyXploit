@@ -135,28 +135,32 @@ export function MetersTab({ siteId }: { siteId: string }) {
         subtitle={`${meters.length} compteur${meters.length > 1 ? "s" : ""} configuré${meters.length > 1 ? "s" : ""}`}
         action={
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center">
               <button
                 onClick={() => setViewMode("visual")}
-                className={`p-1.5 rounded-md transition-colors ${
-                  viewMode === "visual" ? "bg-white text-accent shadow-sm" : "text-gray-500 hover:text-gray-700"
+                className={`h-9 w-9 flex items-center justify-center border transition-colors ${
+                  viewMode === "visual"
+                    ? "border-accent bg-accent/5 text-accent"
+                    : "border-ink/20 text-ink/50 hover:border-accent hover:text-accent"
                 }`}
                 title="Vue diagramme"
               >
-                <Network size={18} />
+                <Network size={16} />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded-md transition-colors ${
-                  viewMode === "list" ? "bg-white text-accent shadow-sm" : "text-gray-500 hover:text-gray-700"
+                className={`h-9 w-9 flex items-center justify-center border border-l-0 transition-colors ${
+                  viewMode === "list"
+                    ? "border-accent bg-accent/5 text-accent"
+                    : "border-ink/20 text-ink/50 hover:border-accent hover:text-accent"
                 }`}
                 title="Vue liste"
               >
-                <List size={18} />
+                <List size={16} />
               </button>
             </div>
-            <Button onClick={openCreateMeterModal}>
-              <Plus size={18} className="mr-2" />
+            <Button size="sm" onClick={openCreateMeterModal}>
+              <Plus size={16} className="mr-2" />
               Ajouter un compteur
             </Button>
           </div>
@@ -164,13 +168,13 @@ export function MetersTab({ siteId }: { siteId: string }) {
       >
         {meters.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
-            <GitBranch size={48} className="text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-primary-dark mb-2">Aucun compteur configuré</h3>
-            <p className="text-text-secondary mb-4 text-center max-w-md">
+            <GitBranch size={36} className="text-ink/20 mb-4" />
+            <h3 className="text-base font-semibold text-ink mb-2">Aucun compteur configuré</h3>
+            <p className="text-sm text-ink/60 mb-4 text-center max-w-md">
               Configurez le schéma de comptage de ce site pour suivre les consommations (gaz, ECS, électricité...)
             </p>
-            <Button onClick={openCreateMeterModal}>
-              <Plus size={18} className="mr-2" />
+            <Button size="sm" onClick={openCreateMeterModal}>
+              <Plus size={16} className="mr-2" />
               Ajouter un compteur
             </Button>
           </div>
@@ -198,15 +202,15 @@ export function MetersTab({ siteId }: { siteId: string }) {
       </ChartCard>
 
       {meters.some((m) => m.children?.some((c) => c.isDeductedFromParent)) && (
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <div className="panel mt-4 p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle size={20} className="text-blue-600 mt-0.5" />
+            <AlertCircle size={16} className="text-accent mt-0.5 flex-shrink-0" />
             <div>
-              <h4 className="font-medium text-blue-900">Calcul automatique du chauffage</h4>
-              <p className="text-sm text-blue-700 mt-1">
+              <h4 className="label-tech">Calcul automatique du chauffage</h4>
+              <p className="text-sm text-ink/60 mt-1">
                 Les compteurs marqués &quot;Déduit&quot; seront soustraits du compteur principal pour calculer la consommation de chauffage.
               </p>
-              <p className="text-sm text-blue-700 mt-1 font-mono">
+              <p className="mt-2 border-l-2 border-accent pl-3 font-mono text-sm text-ink">
                 Chauffage = Gaz Total - (ECS × coefficient Q)
               </p>
             </div>

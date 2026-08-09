@@ -77,35 +77,35 @@ const RESULT_CONFIG = {
     icon: CheckCircle2,
     color: "text-green-600",
     bgColor: "bg-green-50",
-    borderColor: "border-green-200",
+    borderColor: "border-green-600/20",
   },
   NON_CONFORME: {
     label: "Non conforme",
     icon: XCircle,
     color: "text-red-600",
     bgColor: "bg-red-50",
-    borderColor: "border-red-200",
+    borderColor: "border-red-600/20",
   },
   NA: {
     label: "Non applicable",
     icon: MinusCircle,
-    color: "text-gray-500",
-    bgColor: "bg-gray-50",
-    borderColor: "border-gray-200",
+    color: "text-ink/50",
+    bgColor: "bg-ink/[0.02]",
+    borderColor: "border-ink/10",
   },
   NON_VERIFIE: {
     label: "Non vérifié",
     icon: AlertCircle,
-    color: "text-yellow-600",
-    bgColor: "bg-yellow-50",
-    borderColor: "border-yellow-200",
+    color: "text-amber-600",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-600/20",
   },
   PARTIEL: {
     label: "Partiellement conforme",
     icon: AlertCircle,
     color: "text-orange-600",
     bgColor: "bg-orange-50",
-    borderColor: "border-orange-200",
+    borderColor: "border-orange-600/20",
   },
 };
 
@@ -180,15 +180,15 @@ export function TechnicalAuditReportView({
   const GlobalIcon = globalConfig.icon;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div className="bg-white border border-ink/10 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-5 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold">Rapport d&apos;Audit Technique</h2>
-            <p className="text-purple-100 mt-1">{site.name}</p>
+      <div className="border-b border-ink/10 px-4 py-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="label-tech">Rapport d&apos;audit technique</p>
+            <h2 className="mt-1 text-base font-semibold text-ink">{site.name}</h2>
             {site.address && (
-              <p className="text-purple-200 text-sm">
+              <p className="text-sm text-ink/50">
                 {site.address}
                 {site.postalCode && `, ${site.postalCode}`}
                 {site.city && ` ${site.city}`}
@@ -197,12 +197,12 @@ export function TechnicalAuditReportView({
           </div>
           {onGeneratePDF && (
             <Button
-              variant="outline"
+              variant="secondary"
+              size="sm"
               onClick={onGeneratePDF}
               disabled={generatingPDF}
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20"
             >
-              <Download size={18} className="mr-2" />
+              <Download size={16} className="mr-2" />
               {generatingPDF ? "Génération..." : "Exporter PDF"}
             </Button>
           )}
@@ -210,9 +210,9 @@ export function TechnicalAuditReportView({
       </div>
 
       {/* Meta info */}
-      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+      <div className="px-4 py-3 border-b border-ink/10 bg-ink/[0.02]">
         <div className="flex flex-wrap items-center gap-6 text-sm">
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-ink/60">
             <Calendar size={16} />
             <span>
               {new Date(audit.auditDate).toLocaleDateString("fr-FR", {
@@ -223,12 +223,12 @@ export function TechnicalAuditReportView({
             </span>
           </div>
           {audit.auditor && (
-            <div className="flex items-center gap-2 text-gray-600">
+            <div className="flex items-center gap-2 text-ink/60">
               <User size={16} />
               <span>{audit.auditor}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-gray-600">
+          <div className="flex items-center gap-2 text-ink/60">
             <FileText size={16} />
             <span>{stats.total} points de contrôle</span>
           </div>
@@ -236,36 +236,36 @@ export function TechnicalAuditReportView({
       </div>
 
       {/* Global result */}
-      <div className={`px-6 py-4 ${globalConfig.bgColor} border-b ${globalConfig.borderColor}`}>
+      <div className={`px-4 py-3 ${globalConfig.bgColor} border-b ${globalConfig.borderColor}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <GlobalIcon size={24} className={globalConfig.color} />
             <div>
-              <p className="text-sm text-gray-500">Résultat global</p>
+              <p className="text-sm text-ink/50">Résultat global</p>
               <p className={`text-lg font-semibold ${globalConfig.color}`}>
                 {globalConfig.label}
               </p>
             </div>
           </div>
-          <div className="flex gap-4 text-sm">
-            <div className="text-center">
-              <p className="text-green-600 font-semibold">{stats.conforme}</p>
-              <p className="text-gray-500">Conforme</p>
+          <div className="flex divide-x divide-ink/15 text-sm">
+            <div className="px-4 text-center first:pl-0 last:pr-0">
+              <p className="font-mono text-base font-semibold tabular-nums text-green-700">{stats.conforme}</p>
+              <p className="label-tech">Conforme</p>
             </div>
-            <div className="text-center">
-              <p className="text-red-600 font-semibold">{stats.nonConforme}</p>
-              <p className="text-gray-500">Non conforme</p>
+            <div className="px-4 text-center first:pl-0 last:pr-0">
+              <p className="font-mono text-base font-semibold tabular-nums text-red-700">{stats.nonConforme}</p>
+              <p className="label-tech">Non conforme</p>
             </div>
-            <div className="text-center">
-              <p className="text-gray-500 font-semibold">{stats.na}</p>
-              <p className="text-gray-500">N/A</p>
+            <div className="px-4 text-center first:pl-0 last:pr-0">
+              <p className="font-mono text-base font-semibold tabular-nums text-ink">{stats.na}</p>
+              <p className="label-tech">N/A</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Checklist items by category */}
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-ink/10">
         {Object.entries(itemsByCategory).map(([category, items]) => {
           const isExpanded = expandedCategories.has(category);
           const categoryStats = {
@@ -277,35 +277,35 @@ export function TechnicalAuditReportView({
             <div key={category}>
               <button
                 onClick={() => toggleCategory(category)}
-                className="w-full px-6 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-ink/[0.02] transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-ink">
                     {categoryLabels[category] || category}
                   </span>
-                  <span className="text-sm text-gray-500">({items.length})</span>
+                  <span className="text-sm text-ink/50">({items.length})</span>
                 </div>
                 <div className="flex items-center gap-4">
                   {categoryStats.conforme > 0 && (
-                    <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                    <span className="text-xs px-2 py-1 bg-green-50 text-green-700 border border-green-600/20">
                       {categoryStats.conforme} OK
                     </span>
                   )}
                   {categoryStats.nonConforme > 0 && (
-                    <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full">
+                    <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-600/20">
                       {categoryStats.nonConforme} NOK
                     </span>
                   )}
                   {isExpanded ? (
-                    <ChevronUp size={18} className="text-gray-400" />
+                    <ChevronUp size={18} className="text-ink/40" />
                   ) : (
-                    <ChevronDown size={18} className="text-gray-400" />
+                    <ChevronDown size={18} className="text-ink/40" />
                   )}
                 </div>
               </button>
 
               {isExpanded && (
-                <div className="px-6 pb-4 space-y-2">
+                <div className="px-4 pb-3 space-y-2">
                   {items.map((item) => {
                     const config = RESULT_CONFIG[item.result];
                     const Icon = config.icon;
@@ -313,12 +313,12 @@ export function TechnicalAuditReportView({
                     return (
                       <div
                         key={`${item.equipmentType}-${item.itemId}`}
-                        className={`p-3 rounded-lg border ${config.borderColor} ${config.bgColor}`}
+                        className={`p-3 border ${config.borderColor} ${config.bgColor}`}
                       >
                         <div className="flex items-start gap-3">
                           <Icon size={18} className={`${config.color} mt-0.5 flex-shrink-0`} />
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">{item.label}</p>
+                            <p className="text-sm font-medium text-ink">{item.label}</p>
 
                             {/* Afficher le texte de rapport */}
                             {item.result === "CONFORME" && item.conformeText && (
@@ -330,14 +330,14 @@ export function TechnicalAuditReportView({
 
                             {/* Référence réglementaire */}
                             {item.result === "NON_CONFORME" && item.regulatoryReference && (
-                              <p className="text-xs text-gray-500 mt-1 italic">
+                              <p className="text-xs text-ink/50 mt-1 italic">
                                 Réf. : {item.regulatoryReference}
                               </p>
                             )}
 
                             {/* Notes de l'auditeur */}
                             {item.notes && (
-                              <p className="text-sm text-gray-600 mt-1 bg-white/50 px-2 py-1 rounded">
+                              <p className="text-sm text-ink/60 mt-1 bg-white/50 px-2 py-1">
                                 Remarque : {item.notes}
                               </p>
                             )}
@@ -355,22 +355,22 @@ export function TechnicalAuditReportView({
 
       {/* Recommendations */}
       {audit.recommendations && audit.recommendations.length > 0 && (
-        <div className="border-t border-gray-200">
-          <div className="bg-orange-50 px-6 py-4 border-b border-orange-200">
+        <div className="border-t border-ink/10">
+          <div className="bg-orange-50 px-4 py-3 border-b border-orange-600/20">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Banknote size={20} className="text-orange-600" />
                 <div>
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-ink">
                     Préconisations ({audit.recommendations.length})
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-ink/60">
                     Actions correctives recommandées
                   </p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm text-gray-500">Estimation totale</p>
+                <p className="text-sm text-ink/50">Estimation totale</p>
                 <p className="text-lg font-semibold text-orange-600">
                   {totalCost.min === 0 && totalCost.max === 0 ? (
                     "À chiffrer"
@@ -384,39 +384,39 @@ export function TechnicalAuditReportView({
             </div>
           </div>
 
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-ink/10">
             {audit.recommendations.map((rec, index) => (
-              <div key={rec.id} className="px-6 py-4">
+              <div key={rec.id} className="px-4 py-3">
                 <div className="flex items-start gap-4">
-                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-100 text-orange-700 font-semibold flex items-center justify-center text-sm">
+                  <span className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-50 text-orange-700 font-semibold flex items-center justify-center text-sm">
                     {index + 1}
                   </span>
                   <div className="flex-1">
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h4 className="font-medium text-gray-900">{rec.title}</h4>
-                        <p className="text-sm text-gray-600 mt-1">{rec.description}</p>
+                        <h4 className="font-medium text-ink">{rec.title}</h4>
+                        <p className="text-sm text-ink/60 mt-1">{rec.description}</p>
                         {rec.auditorNotes && (
-                          <p className="text-sm text-gray-500 mt-2 italic">
+                          <p className="text-sm text-ink/50 mt-2 italic">
                             Note : {rec.auditorNotes}
                           </p>
                         )}
                       </div>
                       <div className="text-right flex-shrink-0">
                         <span
-                          className={`text-xs px-2 py-1 rounded-full ${
+                          className={`text-xs px-2 py-1 ${
                             rec.priority === 1
-                              ? "bg-red-100 text-red-700"
+                              ? "bg-red-50 text-red-700"
                               : rec.priority === 2
-                              ? "bg-orange-100 text-orange-700"
+                              ? "bg-orange-50 text-orange-700"
                               : rec.priority === 3
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-gray-100 text-gray-700"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-ink/5 text-ink/80"
                           }`}
                         >
                           {PRIORITY_LABELS[rec.priority] || "Moyen terme"}
                         </span>
-                        <p className="text-sm font-medium text-gray-900 mt-2">
+                        <p className="text-sm font-medium text-ink mt-2">
                           {rec.estimatedCostMin === null && rec.estimatedCostMax === null ? (
                             "À chiffrer"
                           ) : rec.estimatedCostMin === rec.estimatedCostMax ? (
@@ -437,11 +437,11 @@ export function TechnicalAuditReportView({
 
       {/* General notes */}
       {audit.generalNotes && (
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">
+        <div className="px-4 py-3 border-t border-ink/10 bg-ink/[0.02]">
+          <h3 className="label-tech mb-2">
             Observations générales
           </h3>
-          <p className="text-sm text-gray-600 whitespace-pre-wrap">
+          <p className="text-sm text-ink/60 whitespace-pre-wrap">
             {audit.generalNotes}
           </p>
         </div>

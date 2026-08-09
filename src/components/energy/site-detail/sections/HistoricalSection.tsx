@@ -30,73 +30,73 @@ export default function HistoricalSection({
     <ChartCard
         title={
           <span className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-accent" />
+            <Calendar className="h-3.5 w-3.5 text-ink/40" />
             Historique multi-saisons
           </span>
         }
       >
         {multiSeasonData.length > 0 ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-5 gap-4">
+          <div className="space-y-4">
+            <div className="grid grid-cols-5 gap-3">
               {multiSeasonData.map((season) => (
                 <div key={season.season} className="text-center">
-                  <div className="text-sm font-medium mb-2">{season.season}</div>
-                  <div className="relative h-32 flex items-end justify-center gap-1">
+                  <div className="label-tech mb-2">{season.season}</div>
+                  <div className="relative flex h-32 items-end justify-center gap-1 border-b border-ink/10">
                     <div
-                      className="w-6 bg-red-400 rounded-t"
+                      className="w-6 bg-ink"
                       style={{ height: `${Math.min((season.nc / Math.max(...multiSeasonData.map(s => s.nc))) * 100, 100)}%` }}
                       title={`NC: ${toMWh(season.nc)} MWh`}
                     />
                     <div
-                      className="w-6 bg-blue-400 rounded-t"
+                      className="w-6 bg-accent"
                       style={{ height: `${Math.min((season.nbPrime / Math.max(...multiSeasonData.map(s => s.nbPrime))) * 100, 100)}%` }}
                       title={`N'B: ${toMWh(season.nbPrime)} MWh`}
                     />
                   </div>
-                  <div className={`text-sm font-medium mt-1 ${
-                    season.deltaPercent < 0 ? "text-green-600" : season.deltaPercent > 0 ? "text-red-600" : ""
+                  <div className={`mt-1.5 font-mono text-sm font-medium tabular-nums ${
+                    season.deltaPercent < 0 ? "text-green-600" : season.deltaPercent > 0 ? "text-red-600" : "text-ink"
                   }`}>
                     {season.deltaPercent > 0 ? "+" : ""}{season.deltaPercent.toFixed(1)}%
                   </div>
-                  {getStatusBadge(season.status)}
+                  <div className="mt-1 inline-block">{getStatusBadge(season.status)}</div>
                 </div>
               ))}
             </div>
 
-            <div className="flex items-center gap-6 justify-center text-xs">
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-red-400 rounded"></span> NC (Réel)
+            <div className="flex items-center justify-center gap-6 font-mono text-[11px] uppercase tracking-widest text-ink/50">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 bg-ink" /> NC (réel)
               </span>
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 bg-blue-400 rounded"></span> N&apos;B (Objectif)
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2 w-2 bg-accent" /> N&apos;B (objectif)
               </span>
             </div>
 
-            <div className="overflow-x-auto border-t pt-4">
+            <div className="overflow-x-auto border-t border-ink/10 pt-3">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2 font-medium">Saison</th>
-                    <th className="text-right py-2 font-medium">NC (MWh)</th>
-                    <th className="text-right py-2 font-medium">N&apos;B (MWh)</th>
-                    <th className="text-right py-2 font-medium">Écart</th>
-                    <th className="text-right py-2 font-medium">DJU réels</th>
-                    <th className="text-center py-2 font-medium">Status</th>
+                  <tr className="border-b border-ink/10">
+                    <th className="label-tech py-2 text-left font-normal">Saison</th>
+                    <th className="label-tech py-2 text-right font-normal">NC (MWh)</th>
+                    <th className="label-tech py-2 text-right font-normal">N&apos;B (MWh)</th>
+                    <th className="label-tech py-2 text-right font-normal">Écart</th>
+                    <th className="label-tech py-2 text-right font-normal">DJU réels</th>
+                    <th className="label-tech py-2 text-center font-normal">Statut</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-ink/[0.06]">
                   {multiSeasonData.map((season) => (
-                    <tr key={season.season} className="border-b">
-                      <td className="py-2">{season.season}</td>
-                      <td className="text-right py-2">{toMWh(season.nc)}</td>
-                      <td className="text-right py-2">{toMWh(season.nbPrime)}</td>
-                      <td className={`text-right py-2 font-medium ${
-                        season.deltaPercent < 0 ? "text-green-600" : season.deltaPercent > 0 ? "text-red-600" : ""
+                    <tr key={season.season} className="hover:bg-ink/[0.02]">
+                      <td className="py-2 text-ink">{season.season}</td>
+                      <td className="py-2 text-right font-mono tabular-nums text-ink">{toMWh(season.nc)}</td>
+                      <td className="py-2 text-right font-mono tabular-nums text-ink">{toMWh(season.nbPrime)}</td>
+                      <td className={`py-2 text-right font-mono font-medium tabular-nums ${
+                        season.deltaPercent < 0 ? "text-green-600" : season.deltaPercent > 0 ? "text-red-600" : "text-ink"
                       }`}>
                         {season.deltaPercent > 0 ? "+" : ""}{season.deltaPercent.toFixed(1)}%
                       </td>
-                      <td className="text-right py-2">{formatNumber(season.djuReel)}</td>
-                      <td className="text-center py-2">{getStatusBadge(season.status)}</td>
+                      <td className="py-2 text-right font-mono tabular-nums text-ink/60">{formatNumber(season.djuReel)}</td>
+                      <td className="py-2 text-center">{getStatusBadge(season.status)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -104,7 +104,7 @@ export default function HistoricalSection({
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-[200px] text-text-secondary">
+          <div className="flex h-[200px] items-center justify-center text-sm text-ink/40">
             Aucun historique disponible
           </div>
         )}
@@ -128,7 +128,7 @@ export function DJUChart({
     <ChartCard
       title={
         <span className="flex items-center gap-2">
-          <Thermometer className="h-5 w-5 text-accent" />
+          <Thermometer className="h-3.5 w-3.5 text-ink/40" />
           DJU mensuels
         </span>
       }
@@ -142,29 +142,33 @@ export function DJUChart({
             }))}
             height={200}
           />
-          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <div className="mt-3 grid grid-cols-2 gap-x-4 border-t border-ink/10 pt-3 sm:grid-cols-4">
             <div>
-              <span className="text-text-secondary">DJU réels:</span>
-              <span className="ml-2 font-medium">{formatNumber(filteredDjuTotal)}</span>
+              <p className="label-tech">DJU réels</p>
+              <p className="font-mono text-sm font-medium tabular-nums text-ink">
+                {formatNumber(filteredDjuTotal)}
+              </p>
             </div>
             <div>
-              <span className="text-text-secondary">DJU trentenaire:</span>
-              <span className="ml-2 font-medium">{siteDju ? formatNumber(siteDju.djuTrentenaire) : "-"}</span>
+              <p className="label-tech">DJU trentenaire</p>
+              <p className="font-mono text-sm font-medium tabular-nums text-ink">
+                {siteDju ? formatNumber(siteDju.djuTrentenaire) : "—"}
+              </p>
             </div>
             <div>
-              <span className="text-text-secondary">Écart:</span>
-              <span className={`ml-2 font-medium ${siteDju && siteDju.ecartPercent > 0 ? "text-blue-600" : "text-orange-600"}`}>
-                {siteDju ? `${siteDju.ecartPercent > 0 ? "+" : ""}${siteDju.ecartPercent}%` : "-"}
-              </span>
+              <p className="label-tech">Écart</p>
+              <p className="font-mono text-sm font-medium tabular-nums text-accent">
+                {siteDju ? `${siteDju.ecartPercent > 0 ? "+" : ""}${siteDju.ecartPercent}%` : "—"}
+              </p>
             </div>
             <div>
-              <span className="text-text-secondary">Station:</span>
-              <span className="ml-2 font-medium">{siteDju?.station || "-"}</span>
+              <p className="label-tech">Station</p>
+              <p className="text-sm font-medium text-ink">{siteDju?.station || "—"}</p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center h-[250px] text-text-secondary">
+        <div className="flex h-[250px] items-center justify-center text-sm text-ink/40">
           Aucune donnée DJU disponible
         </div>
       )}

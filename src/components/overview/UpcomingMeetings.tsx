@@ -41,9 +41,9 @@ function relativeDays(iso: string): { days: number; label: string } {
 }
 
 function tone(days: number) {
-  if (days <= 1) return { border: "border-rose-200/70", emphasis: "text-rose-700" };
-  if (days <= 7) return { border: "border-amber-200/60", emphasis: "text-amber-700" };
-  return { border: "border-gray-200/80", emphasis: "text-primary-dark" };
+  if (days <= 1) return { rule: "border-l-2 border-l-red-600", emphasis: "text-red-700" };
+  if (days <= 7) return { rule: "border-l-2 border-l-amber-600", emphasis: "text-amber-700" };
+  return { rule: "border-l-2 border-l-ink", emphasis: "text-ink" };
 }
 
 export default function UpcomingMeetings({ contractId }: Props) {
@@ -77,24 +77,20 @@ export default function UpcomingMeetings({ contractId }: Props) {
   return (
     <Link
       href={`/exploitation?tab=reunions&contractId=${contractId}`}
-      className={`group bg-white rounded-xl border ${t.border} hover:border-accent/50 px-5 py-4 flex items-center gap-4 transition-colors`}
+      className={`group panel ${t.rule} hover:border-accent/40 px-4 py-3 flex items-center gap-3 transition-colors`}
     >
-      <div className="w-10 h-10 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
-        <Calendar size={16} />
-      </div>
+      <Calendar size={16} className="text-ink/40 shrink-0 group-hover:text-accent transition-colors" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${t.emphasis}`}>
-            Prochaine réunion
-          </span>
+          <span className="label-tech">Prochaine réunion</span>
           <span className={`text-sm font-semibold ${t.emphasis}`}>
             {next.title}
           </span>
-          <span className={`text-[11px] tabular-nums ${t.emphasis}`}>· {rel.label}</span>
+          <span className={`font-mono text-[11px] tabular-nums ${t.emphasis}`}>· {rel.label}</span>
         </div>
-        <p className="text-[12px] text-text-secondary mt-1 leading-snug">
-          <span className="tabular-nums">{dateStr} · {timeStr}</span>
+        <p className="text-[12px] text-ink/50 mt-1 leading-snug">
+          <span className="font-mono tabular-nums">{dateStr} · {timeStr}</span>
           {" · "}
           <span>{TYPE_LABEL[next.type] ?? next.type}</span>
           {next.location && <> · {next.location}</>}
@@ -102,13 +98,13 @@ export default function UpcomingMeetings({ contractId }: Props) {
           {others > 0 && (
             <>
               {" · "}
-              <span className="tabular-nums font-semibold text-primary-dark">+{others}</span> autre{others > 1 ? "s" : ""} planifiée{others > 1 ? "s" : ""}
+              <span className="font-mono tabular-nums font-semibold text-ink">+{others}</span> autre{others > 1 ? "s" : ""} planifiée{others > 1 ? "s" : ""}
             </>
           )}
         </p>
       </div>
 
-      <ArrowRight size={16} className="text-gray-300 group-hover:text-accent transition-colors shrink-0" />
+      <ArrowRight size={14} className="text-ink/30 group-hover:text-accent transition-colors shrink-0" />
     </Link>
   );
 }

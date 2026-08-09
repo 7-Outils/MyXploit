@@ -4,24 +4,27 @@ import { Settings } from "lucide-react";
 
 export default function PlatformSettingsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Configuration</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-xl font-semibold text-ink">Configuration</h1>
+        <p className="text-sm text-text-secondary mt-1">
           Configuration globale de la plateforme
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-          <Settings size={32} className="text-gray-400" />
+      <div className="panel">
+        <div className="panel-header">
+          <span className="label-tech">Paramètres globaux</span>
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
-          Bientot disponible
-        </h2>
-        <p className="text-gray-500 max-w-md mx-auto">
-          La configuration de la plateforme (facturation, abonnements, parametres globaux) sera disponible prochainement.
-        </p>
+        <div className="flex flex-col items-center p-10 text-center">
+          <Settings size={24} className="text-ink/30" />
+          <h2 className="mt-4 text-sm font-medium text-ink">
+            Bientot disponible
+          </h2>
+          <p className="mt-1 max-w-md text-sm text-text-secondary">
+            La configuration de la plateforme (facturation, abonnements, parametres globaux) sera disponible prochainement.
+          </p>
+        </div>
       </div>
     </div>
   );

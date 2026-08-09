@@ -224,15 +224,15 @@ export default function AdminOrganizationsPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/admin"
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink"
           >
-            <ArrowLeft size={20} className="text-gray-600" />
+            <ArrowLeft size={20} className="text-text-secondary" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl font-semibold text-ink">
               Gestion des organisations
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="mt-1 text-sm text-text-secondary">
               Creer et gerer les organisations (clients)
             </p>
           </div>
@@ -241,7 +241,7 @@ export default function AdminOrganizationsPage() {
           <button
             onClick={seedAllModules}
             disabled={seeding}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 border border-ink/20 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
           >
             {seeding ? (
               <Loader2 size={20} className="animate-spin" />
@@ -252,7 +252,7 @@ export default function AdminOrganizationsPage() {
           </button>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+            className="flex items-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent"
           >
             <Plus size={20} />
             Nouvelle organisation
@@ -262,40 +262,34 @@ export default function AdminOrganizationsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Building2 size={20} className="text-blue-600" />
-            </div>
+            <Building2 size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">{organizations.length}</p>
-              <p className="text-sm text-gray-600">Organisations</p>
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">{organizations.length}</p>
+              <p className="text-sm text-text-secondary">Organisations</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-              <Users size={20} className="text-green-600" />
-            </div>
+            <Users size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">
                 {organizations.reduce((acc, o) => acc + (o._count?.users || 0), 0)}
               </p>
-              <p className="text-sm text-gray-600">Utilisateurs total</p>
+              <p className="text-sm text-text-secondary">Utilisateurs total</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
+        <div className="border border-ink/10 bg-white p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <MapPin size={20} className="text-purple-600" />
-            </div>
+            <MapPin size={16} className="flex-shrink-0 text-ink/30" />
             <div>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="font-mono text-xl font-medium tabular-nums text-ink">
                 {organizations.reduce((acc, o) => acc + (o._count?.sites || 0), 0)}
               </p>
-              <p className="text-sm text-gray-600">Sites total</p>
+              <p className="text-sm text-text-secondary">Sites total</p>
             </div>
           </div>
         </div>
@@ -304,7 +298,7 @@ export default function AdminOrganizationsPage() {
       {/* Organizations Cards */}
       <div className="space-y-4">
         {organizations.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-100 p-8 text-center text-gray-500">
+          <div className="border border-ink/10 bg-white p-8 text-center text-ink/50">
             Aucune organisation
           </div>
         ) : (
@@ -313,7 +307,7 @@ export default function AdminOrganizationsPage() {
             const enabledModulesCount = org.modules?.filter((m) => m.isEnabled).length || 0;
 
             return (
-              <div key={org.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div key={org.id} className="border border-ink/10 bg-white">
                 {/* Organization Header */}
                 <div className="p-4">
                   <div className="flex items-center justify-between">
@@ -324,30 +318,30 @@ export default function AdminOrganizationsPage() {
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent flex-1 max-w-md"
+                            className="border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none flex-1 max-w-md"
                             autoFocus
                           />
                           <button
                             onClick={() => handleUpdateOrg(org.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            className="p-2 text-green-600 hover:bg-green-50 transition-colors"
                           >
                             <Check size={18} />
                           </button>
                           <button
                             onClick={() => { setEditingId(null); setEditName(""); }}
-                            className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 text-ink/40 hover:bg-ink/[0.02] transition-colors"
                           >
                             <X size={18} />
                           </button>
                         </div>
                       ) : (
                         <>
-                          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                          <div className="w-10 h-10 bg-accent/10 flex items-center justify-center flex-shrink-0">
                             <Building2 size={20} className="text-accent" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900">{org.name}</h3>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                            <h3 className="text-sm font-medium text-ink">{org.name}</h3>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-text-secondary">
                               <span className="flex items-center gap-1">
                                 <Users size={14} />
                                 {org._count?.users || 0} users
@@ -370,21 +364,21 @@ export default function AdminOrganizationsPage() {
                         <>
                           <button
                             onClick={() => toggleOrgExpansion(org.id)}
-                            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                             title={isExpanded ? "Réduire" : "Gérer les modules"}
                           >
                             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                           </button>
                           <button
                             onClick={() => { setEditingId(org.id); setEditName(org.name); }}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                             title="Renommer"
                           >
                             <Edit2 size={18} />
                           </button>
                           <button
                             onClick={() => handleDeleteOrg(org.id, org.name)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
                             title="Supprimer"
                           >
                             <Trash2 size={18} />
@@ -397,8 +391,8 @@ export default function AdminOrganizationsPage() {
 
                 {/* Modules Section (Expandable) */}
                 {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50 p-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-3">Gestion des modules</p>
+                  <div className="border-t border-ink/10 bg-ink/[0.015] p-4">
+                    <p className="text-sm font-semibold text-ink mb-3">Gestion des modules</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                       {Object.entries(MODULE_LABELS).map(([moduleKey, label]) => {
                         const module = moduleKey as Module;
@@ -408,18 +402,18 @@ export default function AdminOrganizationsPage() {
                         return (
                           <label
                             key={module}
-                            className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            className={`flex items-center justify-between p-3 border-2 cursor-pointer transition-all ${
                               isEnabled
                                 ? "border-accent bg-white"
-                                : "border-gray-200 bg-white hover:border-gray-300"
+                                : "border-ink/10 bg-white hover:border-ink/10"
                             }`}
                           >
-                            <span className="text-sm font-medium text-gray-900">{label}</span>
+                            <span className="text-sm font-medium text-ink">{label}</span>
                             <button
                               type="button"
                               onClick={() => toggleModule(org.id, module, isEnabled)}
                               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                isEnabled ? "bg-accent" : "bg-gray-300"
+                                isEnabled ? "bg-accent" : "bg-ink/20"
                               }`}
                             >
                               <span
@@ -443,13 +437,13 @@ export default function AdminOrganizationsPage() {
 
       {/* Modal creation */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl w-full max-w-md mx-4 overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Nouvelle organisation</h2>
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-md mx-4 border border-ink/15 bg-white shadow-large">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="label-tech">Nouvelle organisation</h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink"
               >
                 <X size={20} />
               </button>
@@ -457,13 +451,13 @@ export default function AdminOrganizationsPage() {
 
             <form onSubmit={handleCreateOrg} className="p-4 space-y-4">
               {error && (
-                <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
+                <div className="border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
                   {error}
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Nom de l&apos;organisation *
                 </label>
                 <input
@@ -471,7 +465,7 @@ export default function AdminOrganizationsPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   placeholder="Ex: Ville de Lyon"
                 />
               </div>
@@ -480,14 +474,14 @@ export default function AdminOrganizationsPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="flex-1 border border-ink/20 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex flex-1 items-center justify-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50"
                 >
                   {saving && <Loader2 size={16} className="animate-spin" />}
                   Creer

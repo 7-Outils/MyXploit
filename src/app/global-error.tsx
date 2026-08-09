@@ -28,60 +28,77 @@ export default function GlobalError({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#F5F6F7",
+          background: "#FFFFFF",
           fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-          color: "#14181B",
+            "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          color: "#0F1E33",
         }}
       >
         <div
           style={{
             maxWidth: 420,
-            padding: 32,
             background: "#FFFFFF",
-            border: "1px solid #E1E5E7",
-            borderRadius: 12,
-            textAlign: "center",
+            border: "1px solid rgba(15, 30, 51, 0.15)",
           }}
         >
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-            L&apos;application n&apos;a pas pu démarrer
-          </h1>
-          <p style={{ margin: "10px 0 0", fontSize: 14, lineHeight: 1.6, color: "#5A666D" }}>
-            Une erreur est survenue au chargement. Recharger la page suffit
-            généralement à repartir.
-          </p>
-
-          {error.digest && (
-            <p
-              style={{
-                margin: "20px 0 0",
-                fontFamily: "ui-monospace, Menlo, Consolas, monospace",
-                fontSize: 12,
-                color: "#9AA4AA",
-              }}
-            >
-              Code d&apos;erreur : {error.digest}
-            </p>
-          )}
-
-          <button
-            onClick={reset}
+          <div
             style={{
-              marginTop: 24,
-              height: 40,
-              padding: "0 20px",
-              border: "none",
-              borderRadius: 8,
-              background: "#17505E",
-              color: "#FFFFFF",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "10px 16px",
+              borderBottom: "1px solid rgba(15, 30, 51, 0.15)",
+              fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
             }}
           >
-            Recharger
-          </button>
+            <span style={{ color: "rgba(15, 30, 51, 0.5)" }}>Erreur</span>
+            <span style={{ color: "#2563EB" }}>Démarrage</span>
+          </div>
+
+          <div style={{ padding: 24 }}>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
+              L&apos;application n&apos;a pas pu démarrer
+            </h1>
+            <p style={{ margin: "8px 0 0", fontSize: 14, lineHeight: 1.6, color: "#4A5568" }}>
+              Une erreur est survenue au chargement. Recharger la page suffit
+              généralement à repartir.
+            </p>
+
+            {error.digest && (
+              <p
+                style={{
+                  margin: "16px 0 0",
+                  fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+                  fontSize: 12,
+                  color: "rgba(15, 30, 51, 0.4)",
+                }}
+              >
+                Code d&apos;erreur : {error.digest}
+              </p>
+            )}
+
+            <button
+              onClick={reset}
+              style={{
+                marginTop: 20,
+                height: 40,
+                padding: "0 20px",
+                border: "none",
+                borderRadius: 0,
+                background: "#0F1E33",
+                color: "#FFFFFF",
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Recharger
+            </button>
+          </div>
         </div>
       </body>
     </html>

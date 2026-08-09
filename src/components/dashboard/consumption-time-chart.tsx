@@ -22,7 +22,7 @@ export interface ConsumptionPoint {
 
 interface ConsumptionTimeChartProps {
   data: ConsumptionPoint[];
-  /** Color of the bars (Tailwind hex). Defaults to amber/gas color. */
+  /** Color of the bars (hex). Defaults to l'accent unique du thème. */
   color?: string;
   /** Chart height in pixels (excluding labels). */
   height?: number;
@@ -100,7 +100,7 @@ function pickGranularity(pointCount: number): Granularity {
 
 export function ConsumptionTimeChart({
   data,
-  color = "#f59e0b",
+  color = "#2563EB",
   height = 320,
   forceUnit,
 }: ConsumptionTimeChartProps) {
@@ -127,7 +127,7 @@ export function ConsumptionTimeChart({
   if (buckets.length === 0) {
     return (
       <div
-        className="flex flex-col items-center justify-center w-full text-text-secondary"
+        className="flex flex-col items-center justify-center w-full text-ink/40"
         style={{ height }}
       >
         <p className="text-sm">Aucune donnée pour la période sélectionnée</p>
@@ -173,16 +173,17 @@ export function ConsumptionTimeChart({
                   y1={y}
                   x2={baseWidth - padRight}
                   y2={y}
-                  stroke="#e5e7eb"
+                  stroke="#0F1E33"
+                  strokeOpacity={i === yTicks ? 0.15 : 0.08}
                   strokeWidth={1}
-                  strokeDasharray={i === yTicks ? "0" : "2 4"}
                 />
                 <text
                   x={padLeft - 8}
                   y={y + 4}
                   textAnchor="end"
-                  className="fill-gray-500"
-                  style={{ fontSize: "10px" }}
+                  fill="#0F1E33"
+                  fillOpacity={0.5}
+                  style={{ fontSize: "10px", fontFamily: "var(--font-mono, ui-monospace, monospace)" }}
                 >
                   {useMwh
                     ? v.toLocaleString("fr-FR", { maximumFractionDigits: 1 })
@@ -207,7 +208,6 @@ export function ConsumptionTimeChart({
                   height={Math.max(barH, 1)}
                   fill={color}
                   opacity={isHover ? 1 : 0.85}
-                  rx={1}
                 />
                 {/* Hit area for hover */}
                 <rect
@@ -237,8 +237,9 @@ export function ConsumptionTimeChart({
                   x={x}
                   y={height - 12}
                   textAnchor="middle"
-                  className="fill-gray-500"
-                  style={{ fontSize: "10px" }}
+                  fill="#0F1E33"
+                  fillOpacity={0.5}
+                  style={{ fontSize: "10px", fontFamily: "var(--font-mono, ui-monospace, monospace)" }}
                 >
                   {b.label}
                 </text>
@@ -266,15 +267,14 @@ export function ConsumptionTimeChart({
                       y={tipY}
                       width={tipW}
                       height={tipH}
-                      fill="#111827"
-                      rx={4}
-                      opacity={0.95}
+                      fill="#0F1E33"
+                      opacity={0.96}
                     />
                     <text
                       x={tipX + tipW / 2}
                       y={tipY + 15}
                       textAnchor="middle"
-                      fill="#fff"
+                      fill="#FFFFFF"
                       style={{ fontSize: "11px", fontWeight: 600 }}
                     >
                       {b.label}
@@ -283,8 +283,9 @@ export function ConsumptionTimeChart({
                       x={tipX + tipW / 2}
                       y={tipY + 30}
                       textAnchor="middle"
-                      fill="#fbbf24"
-                      style={{ fontSize: "11px" }}
+                      fill="#FFFFFF"
+                      fillOpacity={0.75}
+                      style={{ fontSize: "11px", fontFamily: "var(--font-mono, ui-monospace, monospace)" }}
                     >
                       {formatValue(b.total)}
                     </text>
@@ -297,8 +298,8 @@ export function ConsumptionTimeChart({
       </div>
 
       {/* Footer info */}
-      <div className="flex items-center justify-between mt-2 px-2 text-xs text-text-secondary">
-        <span>
+      <div className="flex items-center justify-between mt-2 border-t border-ink/10 px-1 pt-2 text-xs text-ink/50">
+        <span className="label-tech">
           {buckets.length}{" "}
           {granularity === "day"
             ? "jour(s)"
@@ -306,7 +307,7 @@ export function ConsumptionTimeChart({
             ? "semaine(s)"
             : "mois"}
         </span>
-        <span className="font-medium text-primary-dark">
+        <span className="font-mono tabular-nums font-semibold text-ink">
           Total : {formatValue(totals.sum)}
         </span>
       </div>

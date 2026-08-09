@@ -59,7 +59,7 @@ export function ContractSelector() {
   }, []);
 
   if (isLoading) {
-    return <div className="h-9 w-64 bg-gray-100 rounded-lg animate-pulse" />;
+    return <div className="h-9 w-64 bg-ink/5 animate-pulse" />;
   }
 
   // Un groupe par client (même à 0 contrat), + un groupe "Sans client" pour les orphelins.
@@ -104,33 +104,33 @@ export function ContractSelector() {
         <button
           onClick={() => setOpen(!open)}
           className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors border max-w-[420px]",
+            "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border max-w-[420px]",
             open
-              ? "border-accent/30 bg-accent/5 text-accent"
-              : "border-gray-200 hover:border-gray-300 text-gray-700 hover:bg-gray-50"
+              ? "border-accent bg-accent/5 text-accent"
+              : "border-ink/20 text-ink hover:border-accent hover:text-accent"
           )}
         >
-          <Building2 size={15} className="text-gray-400 flex-shrink-0" />
+          <Building2 size={15} className="text-ink/40 flex-shrink-0" />
           <span className="font-medium truncate">
             {currentClient?.name || "Sélectionner un client"}
           </span>
           <ChevronDown
             size={14}
             className={cn(
-              "text-gray-400 transition-transform ml-auto flex-shrink-0",
+              "text-ink/40 transition-transform ml-auto flex-shrink-0",
               open && "rotate-180"
             )}
           />
         </button>
 
         {open && (
-          <div className="absolute left-0 top-full mt-1 w-[420px] bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+          <div className="absolute left-0 top-full mt-1 w-[420px] bg-white shadow-large border border-ink/15 py-1 z-50">
             {/* Lien fiche patrimoine pour le client courant */}
             {currentClient && (
               <Link
                 href={`/clients/${currentClient.id}`}
                 onClick={() => setOpen(false)}
-                className="mx-2 mt-2 mb-1 flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-accent/5 hover:bg-accent/10 text-accent text-sm font-medium transition-colors"
+                className="mx-2 mt-1 mb-1 flex items-center justify-between gap-2 border-l-2 border-accent bg-accent/5 px-3 py-2 hover:bg-accent/10 text-accent text-sm font-medium transition-colors"
               >
                 <span className="flex items-center gap-2 truncate">
                   <Building2 size={14} className="flex-shrink-0" />
@@ -142,10 +142,8 @@ export function ContractSelector() {
 
             {groups.length > 0 && (
               <>
-                <div className="px-3 py-2 border-b border-gray-100">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-                    Clients & contrats actifs
-                  </p>
+                <div className="px-3 py-2 border-b border-ink/10">
+                  <p className="label-tech">Clients &amp; contrats actifs</p>
                 </div>
                 <div className="max-h-80 overflow-y-auto py-1">
                   {groups.map((g) => (
@@ -155,28 +153,28 @@ export function ContractSelector() {
                         <Link
                           href={`/clients/${g.id}`}
                           onClick={() => setOpen(false)}
-                          className="group/h mx-2 px-2 py-1.5 flex items-center gap-2 rounded-md hover:bg-gray-50 transition-colors"
+                          className="group/h mx-2 px-2 py-1.5 flex items-center gap-2 hover:bg-ink/[0.02] transition-colors"
                         >
-                          <span className="text-sm font-semibold text-gray-900 truncate">
+                          <span className="text-sm font-semibold text-ink truncate">
                             {g.name}
                           </span>
                           <ArrowRight
                             size={13}
-                            className="text-gray-300 opacity-0 group-hover/h:opacity-100 group-hover/h:text-accent transition-all flex-shrink-0"
+                            className="text-ink/20 opacity-0 group-hover/h:opacity-100 group-hover/h:text-accent transition-all flex-shrink-0"
                           />
                         </Link>
                       ) : (
                         <div className="mx-2 px-2 py-1.5">
-                          <span className="text-sm font-semibold text-gray-400 truncate">
+                          <span className="text-sm font-semibold text-ink/40 truncate">
                             {g.name}
                           </span>
                         </div>
                       )}
 
                       {/* Contrats : enfants subordonnés, rail d'indentation */}
-                      <div className="ml-[18px] pl-3 border-l border-gray-100">
+                      <div className="ml-[18px] pl-3 border-l border-ink/10">
                         {g.contracts.length === 0 && (
-                          <p className="px-2 py-1.5 text-[11px] text-gray-300 italic">
+                          <p className="px-2 py-1.5 text-[11px] text-ink/30">
                             Aucun contrat
                           </p>
                         )}
@@ -195,14 +193,14 @@ export function ContractSelector() {
                                 setOpen(false);
                               }}
                               className={cn(
-                                "w-full px-2 py-1.5 text-left rounded-md hover:bg-gray-50 flex items-center gap-2 transition-colors",
-                                isSelected && "bg-accent/5"
+                                "w-full px-2 py-1.5 text-left hover:bg-ink/[0.02] flex items-center gap-2 transition-colors",
+                                isSelected && "bg-accent/5 text-accent"
                               )}
                             >
                               <div className="flex-1 min-w-0">
-                                <p className="text-[13px] text-gray-600 truncate">
+                                <p className="text-[13px] text-ink/70 truncate">
                                   {showRef && (
-                                    <span className="text-gray-800 font-medium">
+                                    <span className="font-mono text-ink font-medium">
                                       {contract.reference} ·{" "}
                                     </span>
                                   )}
@@ -210,7 +208,7 @@ export function ContractSelector() {
                                 </p>
                               </div>
                               {contract._count && (
-                                <span className="text-[10px] text-gray-400 flex-shrink-0">
+                                <span className="font-mono text-[10px] tabular-nums text-ink/40 flex-shrink-0">
                                   {contract._count.contractSites} site
                                   {contract._count.contractSites > 1 ? "s" : ""}
                                 </span>
@@ -232,19 +230,19 @@ export function ContractSelector() {
             )}
 
             {groups.length === 0 && (
-              <div className="px-3 py-6 text-center text-sm text-gray-400">
+              <div className="px-3 py-6 text-center text-sm text-ink/40">
                 Aucun client. Commence par en créer un.
               </div>
             )}
 
             {/* Actions de création — discrètes, en pied de menu */}
-            <div className="border-t border-gray-100 p-1.5 flex items-center gap-1">
+            <div className="border-t border-ink/10 p-1.5 flex items-center gap-1">
               <button
                 onClick={() => {
                   setOpen(false);
                   router.push("/clients");
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 rounded-md transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
               >
                 <Plus size={14} />
                 Client
@@ -254,9 +252,9 @@ export function ContractSelector() {
                   setOpen(false);
                   setShowCreateModal(true);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-ink/70 hover:bg-ink/[0.02] hover:text-accent transition-colors"
               >
-                <FileText size={14} className="text-gray-400" />
+                <FileText size={14} className="text-ink/40" />
                 Contrat
               </button>
               <button
@@ -264,9 +262,9 @@ export function ContractSelector() {
                   setOpen(false);
                   setShowAEModal(true);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-gray-600 hover:bg-gray-50 rounded-md transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-ink/70 hover:bg-ink/[0.02] hover:text-accent transition-colors"
               >
-                <FileSpreadsheet size={14} className="text-gray-400" />
+                <FileSpreadsheet size={14} className="text-ink/40" />
                 Depuis AE
               </button>
             </div>

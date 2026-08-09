@@ -9,6 +9,10 @@ interface StatsCardProps {
   change?: string;
   changeType?: "positive" | "negative" | "neutral";
   icon: LucideIcon;
+  /**
+   * Conservé pour compatibilité avec les appelants : l'icône est désormais
+   * neutre (ink/40), sans pastille colorée — cette prop est ignorée.
+   */
   iconColor?: string;
   /** Quand fourni, la card devient cliquable (cursor pointer + hover renforcé). */
   onClick?: () => void;
@@ -22,7 +26,6 @@ export function StatsCard({
   change,
   changeType = "neutral",
   icon: Icon,
-  iconColor = "text-accent",
   onClick,
   active,
 }: StatsCardProps) {
@@ -34,22 +37,24 @@ export function StatsCard({
       onClick={onClick}
       onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick?.(); } } : undefined}
       className={cn(
-        "bg-white rounded-xl p-4 sm:p-6 border transition-all",
-        active ? "border-accent ring-2 ring-accent/30" : "border-gray-100",
-        isClickable ? "cursor-pointer hover:shadow-md hover:border-accent/40" : "hover:shadow-soft"
+        "bg-white p-4 border transition-colors",
+        active ? "border-accent ring-1 ring-accent/30" : "border-ink/10",
+        isClickable && "cursor-pointer hover:border-accent/40"
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-xs sm:text-sm text-text-secondary mb-1 truncate">{title}</p>
-          <p className="text-xl sm:text-2xl font-bold text-primary-dark">{value}</p>
+          <p className="label-tech mb-1.5 truncate">{title}</p>
+          <p className="font-mono text-xl sm:text-2xl font-semibold tabular-nums text-ink">
+            {value}
+          </p>
           {change && (
             <p
               className={cn(
-                "text-xs sm:text-sm mt-1 sm:mt-2 font-medium",
+                "text-xs mt-1.5 font-medium tabular-nums",
                 changeType === "positive" && "text-green-600",
                 changeType === "negative" && "text-red-600",
-                changeType === "neutral" && "text-text-secondary"
+                changeType === "neutral" && "text-ink/50"
               )}
             >
               {changeType === "positive" && "↑ "}
@@ -58,14 +63,8 @@ export function StatsCard({
             </p>
           )}
         </div>
-        <div
-          className={cn(
-            "w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center bg-opacity-10 flex-shrink-0",
-            iconColor.replace("text-", "bg-").replace("-600", "-100")
-          )}
-        >
-          <Icon className={cn("w-5 h-5 sm:w-6 sm:h-6", iconColor)} />
-        </div>
+        {/* Icône nue : plus de pastille colorée (thème bureau d'études) */}
+        <Icon className="w-4 h-4 flex-shrink-0 text-ink/40" />
       </div>
     </div>
   );

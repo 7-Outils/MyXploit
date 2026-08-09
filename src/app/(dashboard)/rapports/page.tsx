@@ -46,10 +46,10 @@ interface Stats {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ size?: number | string; className?: string }>; color: string; bg: string }> = {
-  A_FAIRE: { label: "A faire", icon: Clock, color: "text-gray-600", bg: "bg-gray-100" },
-  EN_COURS: { label: "En cours", icon: Pencil, color: "text-blue-600", bg: "bg-blue-100" },
-  PRODUIT: { label: "Produit", icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
-  TRANSMIS: { label: "Transmis", icon: Send, color: "text-purple-600", bg: "bg-purple-100" },
+  A_FAIRE: { label: "A faire", icon: Clock, color: "text-ink/50", bg: "bg-white border border-ink/15" },
+  EN_COURS: { label: "En cours", icon: Pencil, color: "text-accent", bg: "bg-white border border-accent/30" },
+  PRODUIT: { label: "Produit", icon: CheckCircle, color: "text-green-700", bg: "bg-green-50 border border-green-600/20" },
+  TRANSMIS: { label: "Transmis", icon: Send, color: "text-ink", bg: "bg-white border border-ink/20" },
 };
 
 export default function RapportsPage() {
@@ -120,35 +120,29 @@ export default function RapportsPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <ClipboardList size={28} className="text-accent" />
-          Rapports & Livrables
-        </h1>
-        <p className="text-gray-500 mt-1">Vue croisee de tous les livrables</p>
+      <div className="flex items-center gap-2 border-b border-ink/10 pb-2">
+        <ClipboardList size={16} className="text-ink/40" />
+        <h1 className="text-xl font-semibold text-ink">Rapports &amp; Livrables</h1>
+        <span className="label-tech">Vue croisee de tous les livrables</span>
       </div>
 
       {/* Rapports d'expertise — sous-rapports analytiques */}
       <div>
-        <div className="text-[10px] uppercase tracking-[0.18em] text-text-secondary font-semibold mb-2">
-          Rapports d&apos;expertise
-        </div>
+        <div className="label-tech mb-2">Rapports d&apos;expertise</div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <Link
             href={selectedContract ? `/rapports/calibration-cibles?contract=${selectedContract.id}` : "/rapports/calibration-cibles"}
-            className="group bg-white border border-gray-200 hover:border-accent/50 rounded-lg px-4 py-3 flex items-start gap-3 transition-colors"
+            className="group panel hover:border-accent/40 px-4 py-3 flex items-start gap-3 transition-colors"
           >
-            <div className="w-9 h-9 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
-              <Sliders size={16} />
-            </div>
+            <Sliders size={16} className="text-ink/40 shrink-0 mt-0.5 group-hover:text-accent transition-colors" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-primary-dark flex items-center gap-1 group-hover:text-accent">
+              <div className="text-sm font-semibold text-ink flex items-center gap-1 group-hover:text-accent">
                 Calibration des cibles NB
-                <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ChevronRight size={13} className="opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">
+              <p className="text-xs text-ink/50 mt-0.5 line-clamp-2">
                 Diagnostic par signature énergétique — cibles trop lâches ou trop serrées
               </p>
             </div>
@@ -156,49 +150,43 @@ export default function RapportsPage() {
         </div>
       </div>
 
-      {/* Stats cards */}
+      {/* Bandeau de faits : KPIs hairline, sans boîte colorée */}
       {stats && (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-            <p className="text-sm text-gray-500">Total livrables</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-2xl font-bold text-gray-900">{stats.aFaire + stats.enCours}</p>
-            <p className="text-sm text-gray-500">A produire</p>
-          </div>
-          <div className="bg-white rounded-xl border border-red-200 p-4">
-            <p className={`text-2xl font-bold ${stats.enRetard > 0 ? "text-red-600" : "text-gray-900"}`}>
-              {stats.enRetard}
-            </p>
-            <p className="text-sm text-gray-500">En retard</p>
-          </div>
-          <div className="bg-white rounded-xl border border-green-200 p-4">
-            <p className="text-2xl font-bold text-green-600">{stats.produit}</p>
-            <p className="text-sm text-gray-500">Produits</p>
-          </div>
-          <div className="bg-white rounded-xl border border-purple-200 p-4">
-            <p className="text-2xl font-bold text-purple-600">{stats.transmis}</p>
-            <p className="text-sm text-gray-500">Transmis</p>
+        <div className="border-y border-ink/15">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-ink/15">
+            {[
+              { label: "Total livrables", value: stats.total, tone: "text-ink" },
+              { label: "A produire", value: stats.aFaire + stats.enCours, tone: "text-ink" },
+              { label: "En retard", value: stats.enRetard, tone: stats.enRetard > 0 ? "text-red-700" : "text-ink" },
+              { label: "Produits", value: stats.produit, tone: "text-green-700" },
+              { label: "Transmis", value: stats.transmis, tone: "text-ink" },
+            ].map((kpi) => (
+              <div key={kpi.label} className="py-3 sm:px-5 first:sm:pl-0">
+                <p className="label-tech mb-1">{kpi.label}</p>
+                <p className={`font-mono text-xl font-semibold tabular-nums ${kpi.tone}`}>
+                  {kpi.value}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* Status filter tabs */}
       <div className="flex items-center gap-2">
-        <Filter size={14} className="text-gray-400" />
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <Filter size={14} className="text-ink/40" />
+        <div className="flex items-center gap-0 border border-ink/15 divide-x divide-ink/15">
           {statusTabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => { setLoading(true); setStatusFilter(tab.key); }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                 statusFilter === tab.key
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              } ${tab.key === "EN_RETARD" && tab.count > 0 ? "text-red-600" : ""}`}
+                  ? "bg-accent/5 text-accent"
+                  : "text-ink/60 hover:text-ink hover:bg-ink/[0.02]"
+              } ${tab.key === "EN_RETARD" && tab.count > 0 && statusFilter !== tab.key ? "text-red-700" : ""}`}
             >
-              {tab.label} ({tab.count})
+              {tab.label} <span className="font-mono tabular-nums">({tab.count})</span>
             </button>
           ))}
         </div>
@@ -206,69 +194,69 @@ export default function RapportsPage() {
 
       {/* Deliverables table */}
       {deliverables.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <ClipboardList size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Aucun livrable</h3>
-          <p className="text-gray-500">Les livrables apparaitront ici quand vous en ajouterez a vos missions</p>
+        <div className="panel py-12 text-center">
+          <ClipboardList size={28} className="mx-auto text-ink/25 mb-3" />
+          <h3 className="text-sm font-semibold text-ink mb-1">Aucun livrable</h3>
+          <p className="text-sm text-ink/50">Les livrables apparaitront ici quand vous en ajouterez a vos missions</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="panel overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Livrable</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Mission</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Client</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Ingenieur</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Echeance</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Statut</th>
+                <tr className="border-b border-ink/10">
+                  <th className="label-tech text-left py-2 px-4">Livrable</th>
+                  <th className="label-tech text-left py-2 px-4">Mission</th>
+                  <th className="label-tech text-left py-2 px-4">Client</th>
+                  <th className="label-tech text-left py-2 px-4">Ingenieur</th>
+                  <th className="label-tech text-left py-2 px-4">Echeance</th>
+                  <th className="label-tech text-center py-2 px-4">Statut</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-ink/10">
                 {deliverables.map((d) => {
                   const cfg = STATUS_CONFIG[d.status] || STATUS_CONFIG.A_FAIRE;
                   const isOverdue = d.dueDate && new Date(d.dueDate) < now && d.status !== "TRANSMIS" && d.status !== "PRODUIT";
                   const IconComponent = cfg.icon;
 
                   return (
-                    <tr key={d.id} className={`border-b border-gray-100 ${isOverdue ? "bg-red-50/50" : "hover:bg-gray-50"}`}>
-                      <td className="py-3 px-4">
+                    <tr key={d.id} className={isOverdue ? "bg-red-50/60" : "hover:bg-ink/[0.02]"}>
+                      <td className="py-2 px-4">
                         <div className="flex items-center gap-2">
-                          <IconComponent size={14} className={cfg.color} />
-                          <span className="text-sm font-medium text-gray-900">{d.title}</span>
-                          {isOverdue && <AlertTriangle size={12} className="text-red-500" />}
+                          <IconComponent size={13} className={cfg.color} />
+                          <span className="text-sm font-medium text-ink">{d.title}</span>
+                          {isOverdue && <AlertTriangle size={12} className="text-red-600" />}
                         </div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-4">
                         <Link
                           href={`/missions/${d.mission.id}`}
                           className="text-sm text-accent hover:underline"
                         >
                           {d.mission.title}
                         </Link>
-                        <p className="text-xs text-gray-400">{d.mission.reference}</p>
+                        <p className="font-mono text-[11px] text-ink/40">{d.mission.reference}</p>
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-700">
+                      <td className="py-2 px-4 text-sm text-ink/70">
                         {d.mission.client.name}
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-700">
+                      <td className="py-2 px-4 text-sm text-ink/70">
                         {d.mission.engineers.length > 0
                           ? d.mission.engineers.map((e) =>
                               `${e.user.firstName || ""} ${e.user.lastName || ""}`.trim()
                             ).join(", ")
                           : "-"}
                       </td>
-                      <td className="py-3 px-4">
-                        <span className={`text-sm ${isOverdue ? "text-red-600 font-medium" : "text-gray-700"}`}>
+                      <td className="py-2 px-4">
+                        <span className={`font-mono text-xs tabular-nums ${isOverdue ? "text-red-700 font-medium" : "text-ink/70"}`}>
                           {d.dueDate ? new Date(d.dueDate).toLocaleDateString("fr-FR") : "-"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2 px-4 text-center">
                         <select
                           value={d.status}
                           onChange={(e) => handleStatusChange(d.id, e.target.value)}
-                          className={`text-xs px-2 py-1 rounded border-0 font-medium cursor-pointer ${cfg.bg} ${cfg.color}`}
+                          className={`text-xs px-2 py-1 font-medium cursor-pointer focus:border-accent focus:outline-none ${cfg.bg} ${cfg.color}`}
                         >
                           <option value="A_FAIRE">A faire</option>
                           <option value="EN_COURS">En cours</option>

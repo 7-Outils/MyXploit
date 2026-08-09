@@ -128,39 +128,38 @@ export function Onboarding() {
   const step3Done = data.sitesCreated > 0;
 
   return (
-    <div className="bg-gradient-to-r from-accent/10 via-accent/5 to-transparent border border-accent/20 rounded-2xl p-6">
+    <div className="border border-ink/10 bg-white p-4">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
-            <Sparkles size={20} className="text-accent" />
-          </div>
+          <Sparkles size={16} className="text-accent flex-shrink-0" />
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Bienvenue{data.organizationName ? ` ${data.organizationName}` : ""}</h2>
-            <p className="text-sm text-gray-600">Configurez votre espace en quelques etapes</p>
+            <p className="label-tech mb-0.5">Prise en main</p>
+            <h2 className="text-base font-semibold text-ink">Bienvenue{data.organizationName ? ` ${data.organizationName}` : ""}</h2>
+            <p className="text-sm text-ink/50">Configurez votre espace en quelques etapes</p>
           </div>
         </div>
         <button
           onClick={handleComplete}
           disabled={completing}
-          className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+          className="h-9 w-9 flex items-center justify-center text-ink/40 hover:text-accent hover:bg-ink/[0.03]"
           title="Fermer"
         >
           {completing ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
         </button>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Step 1: Mission Types */}
-        <div className={`p-4 rounded-xl border ${step1Done ? "bg-green-50 border-green-200" : "bg-white border-gray-200"}`}>
+        <div className={`p-4 border ${step1Done ? "border-green-600/20 bg-green-50" : "border-ink/10 bg-white"}`}>
           <div className="flex items-start gap-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${step1Done ? "bg-green-100" : "bg-purple-100"}`}>
-              {step1Done ? <CheckCircle size={18} className="text-green-600" /> : <FolderKanban size={18} className="text-purple-600" />}
+            <div className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+              {step1Done ? <CheckCircle size={16} className="text-green-600" /> : <FolderKanban size={16} className="text-ink/40" />}
             </div>
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-gray-900">
+              <h3 className="text-sm font-semibold text-ink">
                 {step1Done ? "Types de missions configures" : "Configurez vos types de missions"}
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-ink/50 mt-0.5">
                 {step1Done
                   ? "Vous pouvez en ajouter dans Parametres"
                   : "Cochez les missions que votre bureau d'etudes realise"}
@@ -173,10 +172,10 @@ export function Onboarding() {
                       <button
                         key={type}
                         onClick={() => toggleType(type)}
-                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                        className={`text-xs px-3 py-1.5 border transition-colors ${
                           selectedTypes.includes(type)
-                            ? "bg-accent text-white border-accent"
-                            : "bg-white text-gray-700 border-gray-200 hover:border-accent/50"
+                            ? "bg-accent/5 text-accent border-accent"
+                            : "bg-white text-ink/70 border-ink/15 hover:border-accent hover:text-accent"
                         }`}
                       >
                         {type}
@@ -192,12 +191,13 @@ export function Onboarding() {
                       onChange={(e) => setCustomType(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleAddCustomType()}
                       placeholder="Ajouter un type personnalise..."
-                      className="flex-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg"
+                      className="flex-1 border border-ink/20 bg-white px-3 py-1.5 text-xs focus:border-accent focus:outline-none"
                     />
                     <button
                       onClick={handleAddCustomType}
                       disabled={!customType.trim()}
-                      className="p-1.5 text-accent hover:bg-accent/10 rounded-lg disabled:opacity-30"
+                      title="Ajouter"
+                      className="h-8 w-8 flex items-center justify-center text-accent hover:bg-accent/5 disabled:opacity-30"
                     >
                       <Plus size={14} />
                     </button>
@@ -207,7 +207,7 @@ export function Onboarding() {
                     <button
                       onClick={handleSaveMissionTypes}
                       disabled={savingTypes}
-                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50"
                     >
                       {savingTypes && <Loader2 size={12} className="animate-spin" />}
                       Valider ({selectedTypes.length} type{selectedTypes.length > 1 ? "s" : ""})
@@ -220,18 +220,18 @@ export function Onboarding() {
         </div>
 
         {/* Step 2 & 3 grid */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-3">
           {/* Step 2: Invite team */}
-          <div className={`p-4 rounded-xl border ${step2Done ? "bg-green-50 border-green-200" : "bg-white border-gray-200"}`}>
+          <div className={`p-4 border ${step2Done ? "border-green-600/20 bg-green-50" : "border-ink/10 bg-white"}`}>
             <div className="flex items-start gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${step2Done ? "bg-green-100" : "bg-blue-100"}`}>
-                {step2Done ? <CheckCircle size={18} className="text-green-600" /> : <Users size={18} className="text-blue-600" />}
+              <div className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+                {step2Done ? <CheckCircle size={16} className="text-green-600" /> : <Users size={16} className="text-ink/40" />}
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-ink">
                   {step2Done ? "Equipe invitee" : "Invitez votre equipe"}
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-ink/50 mt-0.5">
                   {step2Done
                     ? `${data.membersInvited} membre(s) invite(s)`
                     : "Ajoutez vos ingenieurs pour commencer"}
@@ -249,16 +249,16 @@ export function Onboarding() {
           </div>
 
           {/* Step 3: Import portfolio */}
-          <div className={`p-4 rounded-xl border ${step3Done ? "bg-green-50 border-green-200" : "bg-white border-gray-200"}`}>
+          <div className={`p-4 border ${step3Done ? "border-green-600/20 bg-green-50" : "border-ink/10 bg-white"}`}>
             <div className="flex items-start gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${step3Done ? "bg-green-100" : "bg-blue-100"}`}>
-                {step3Done ? <CheckCircle size={18} className="text-green-600" /> : <Building2 size={18} className="text-blue-600" />}
+              <div className="flex h-5 w-5 items-center justify-center flex-shrink-0">
+                {step3Done ? <CheckCircle size={16} className="text-green-600" /> : <Building2 size={16} className="text-ink/40" />}
               </div>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-gray-900">
+                <h3 className="text-sm font-semibold text-ink">
                   {step3Done ? "Portefeuille importe" : "Importez votre portefeuille"}
                 </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <p className="text-xs text-ink/50 mt-0.5">
                   {step3Done
                     ? `${data.sitesCreated} site(s) cree(s)`
                     : "Importez vos sites ou saisissez au fil de l'eau"}
@@ -274,7 +274,7 @@ export function Onboarding() {
                     <button
                       onClick={handleComplete}
                       disabled={completing}
-                      className="text-xs text-gray-400 hover:text-gray-600"
+                      className="text-xs text-ink/40 hover:text-ink"
                     >
                       Passer cette etape
                     </button>
@@ -292,7 +292,7 @@ export function Onboarding() {
           <button
             onClick={handleComplete}
             disabled={completing}
-            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-1.5 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-2"
           >
             {completing && <Loader2 size={14} className="animate-spin" />}
             Commencer

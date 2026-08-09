@@ -232,10 +232,10 @@ function DimensioningPageContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary-dark">
-            Dimensionnement Marché
+          <h1 className="text-xl font-semibold text-ink">
+            Dimensionnement marché
           </h1>
-          <p className="text-text-secondary">
+          <p className="mt-0.5 text-sm text-text-secondary">
             Estimez les coûts P2/P3 et planifiez les renouvellements
           </p>
         </div>
@@ -255,12 +255,14 @@ function DimensioningPageContent() {
 
       {/* Saved project banner */}
       {savedProject && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
+        <div className="flex items-center justify-between border border-green-600/20 bg-green-50 p-4">
           <div className="flex items-center gap-3">
-            <FolderPlus className="text-green-600" size={20} />
+            <FolderPlus className="text-green-700" size={18} />
             <div>
-              <p className="font-medium text-green-800">Projet créé</p>
-              <p className="text-sm text-green-600">Référence: {savedProject.reference}</p>
+              <p className="text-sm font-medium text-green-800">Projet créé</p>
+              <p className="font-mono text-xs tabular-nums text-green-700">
+                Référence : {savedProject.reference}
+              </p>
             </div>
           </div>
           <Button
@@ -275,16 +277,16 @@ function DimensioningPageContent() {
 
       {/* Configuration */}
       <ChartCard title="Configuration du marché">
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Sélection contrat ou sites */}
           <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-primary-dark mb-2">
+            <label className="label-tech mb-1.5 block">
               Contrat existant
             </label>
             <select
               value={selectedContract}
               onChange={(e) => handleContractChange(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
             >
               <option value="">-- Ou sélectionner des sites --</option>
               {contracts.map((contract) => (
@@ -295,24 +297,24 @@ function DimensioningPageContent() {
             </select>
 
             {!selectedContract && (
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-primary-dark mb-2">
+              <div className="mt-3">
+                <label className="label-tech mb-1.5 block">
                   Sites ({selectedSites.length} sélectionnés)
                 </label>
-                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                <div className="max-h-40 divide-y divide-ink/[0.06] overflow-y-auto border border-ink/10">
                   {sites.map((site) => (
                     <label
                       key={site.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer"
+                      className="flex cursor-pointer items-center gap-2 px-3 py-1.5 hover:bg-ink/[0.02]"
                     >
                       <input
                         type="checkbox"
                         checked={selectedSites.includes(site.id)}
                         onChange={() => toggleSite(site.id)}
-                        className="rounded text-accent focus:ring-accent"
+                        className="accent-accent"
                       />
-                      <span className="text-sm">{site.name}</span>
-                      <span className="text-xs text-gray-400">({site.city})</span>
+                      <span className="text-sm text-ink">{site.name}</span>
+                      <span className="text-xs text-ink/40">({site.city})</span>
                     </label>
                   ))}
                 </div>
@@ -322,7 +324,7 @@ function DimensioningPageContent() {
 
           {/* Durée */}
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-2">
+            <label className="label-tech mb-1.5 block">
               Durée du marché
             </label>
             <select
@@ -343,7 +345,7 @@ function DimensioningPageContent() {
                 params.set("startYear", startYear.toString());
                 router.push(`/dimensioning?${params.toString()}`, { scroll: false });
               }}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
             >
               {[4, 5, 6, 7, 8, 9, 10, 12, 15].map((y) => (
                 <option key={y} value={y}>
@@ -355,7 +357,7 @@ function DimensioningPageContent() {
 
           {/* Année de début */}
           <div>
-            <label className="block text-sm font-medium text-primary-dark mb-2">
+            <label className="label-tech mb-1.5 block">
               Année de début
             </label>
             <select
@@ -376,7 +378,7 @@ function DimensioningPageContent() {
                 params.set("startYear", newStartYear.toString());
                 router.push(`/dimensioning?${params.toString()}`, { scroll: false });
               }}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
             >
               {[2024, 2025, 2026, 2027, 2028].map((y) => (
                 <option key={y} value={y}>
@@ -387,7 +389,7 @@ function DimensioningPageContent() {
           </div>
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-4 flex justify-end">
           <Button
             onClick={calculateDimensioning}
             disabled={calculating || (!selectedContract && selectedSites.length === 0)}
@@ -418,7 +420,6 @@ function DimensioningPageContent() {
               change={`${result.summary.siteCount} sites`}
               changeType="neutral"
               icon={Wrench}
-              iconColor="text-orange-600"
             />
             <StatsCard
               title="P2 Annuel"
@@ -426,13 +427,11 @@ function DimensioningPageContent() {
               change={`${result.summary.totalHoursP2}h/an`}
               changeType="neutral"
               icon={Clock}
-              iconColor="text-blue-600"
             />
             <StatsCard
               title="P3 GE Annuel"
               value={`${(result.summary.totalP3GEAnnual / 1000).toFixed(1)}k€`}
               icon={Wrench}
-              iconColor="text-accent"
             />
             <StatsCard
               title="P3 R Annuel"
@@ -440,7 +439,6 @@ function DimensioningPageContent() {
               change={`${result.summary.renewalsCount} renouvellements`}
               changeType={result.summary.renewalsCount > 0 ? "negative" : "positive"}
               icon={TrendingUp}
-              iconColor="text-purple-600"
             />
             <StatsCard
               title="Total Marché"
@@ -448,7 +446,6 @@ function DimensioningPageContent() {
               change={`sur ${duration} ans`}
               changeType="neutral"
               icon={Euro}
-              iconColor="text-green-600"
             />
           </div>
 
@@ -471,12 +468,12 @@ function DimensioningPageContent() {
 
       {/* Empty state */}
       {!result && !calculating && (
-        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-          <Target size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-semibold text-primary-dark mb-2">
+        <div className="panel px-6 py-12 text-center">
+          <Target size={32} className="mx-auto mb-3 text-ink/25" />
+          <h3 className="mb-1.5 text-sm font-semibold text-ink">
             Aucun dimensionnement calculé
           </h3>
-          <p className="text-text-secondary max-w-md mx-auto">
+          <p className="mx-auto max-w-md text-sm text-text-secondary">
             Sélectionnez un contrat existant ou des sites, puis cliquez sur
             &quot;Calculer le dimensionnement&quot; pour estimer les coûts P2/P3.
           </p>

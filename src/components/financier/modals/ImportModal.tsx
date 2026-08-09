@@ -64,18 +64,18 @@ export function ImportModal({
   handleImportSubmit,
 }: ImportModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-primary-dark">Importer une facture PDF</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+    <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white border border-ink/15 shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-ink/10">
+          <h2 className="text-base font-semibold text-ink">Importer une facture PDF</h2>
+          <button onClick={onClose} className="p-2 hover:bg-ink/5">
             <X size={20} />
           </button>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-4 space-y-4">
           <div
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${importing ? "border-gray-200 bg-gray-50" : "border-gray-300 hover:border-accent hover:bg-accent/5"}`}
+            className={`border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${importing ? "border-ink/10 bg-ink/[0.02]" : "border-ink/20 hover:border-accent hover:bg-accent/5"}`}
           >
             <input ref={fileInputRef} type="file" accept=".pdf" onChange={handleFileSelect} className="hidden" disabled={importing} />
             {importing ? (
@@ -86,43 +86,43 @@ export function ImportModal({
             ) : selectedFile ? (
               <>
                 <FileUp size={40} className="mx-auto text-accent mb-3" />
-                <p className="font-medium text-primary-dark">{selectedFile.name}</p>
+                <p className="font-medium text-ink">{selectedFile.name}</p>
               </>
             ) : (
               <>
-                <Upload size={40} className="mx-auto text-gray-400 mb-3" />
-                <p className="font-medium text-primary-dark">Cliquez pour sélectionner un PDF</p>
+                <Upload size={40} className="mx-auto text-ink/40 mb-3" />
+                <p className="font-medium text-ink">Cliquez pour sélectionner un PDF</p>
               </>
             )}
           </div>
           {importError && (
-            <div className="bg-red-50 text-red-700 p-4 rounded-lg flex items-start gap-3">
+            <div className="bg-red-50 text-red-700 p-4 flex items-start gap-3">
               <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
               <p>{importError}</p>
             </div>
           )}
           {importPreview && (
             <div className="space-y-4">
-              <div className="bg-green-50 p-3 rounded-lg flex items-center gap-2">
+              <div className="bg-green-50 p-3 flex items-center gap-2">
                 <Check size={18} className="text-green-600" />
-                <span className="text-sm text-green-800">PDF analysé</span>
+                <span className="text-sm text-green-700">PDF analysé</span>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">N° Facture *</label>
+                <label className="label-tech mb-1.5 block">N° Facture *</label>
                 <input
                   type="text"
                   value={importFormData.reference}
                   onChange={(e) => setImportFormData({ ...importFormData, reference: e.target.value } as typeof importFormData)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Type</label>
+                  <label className="label-tech mb-1.5 block">Type</label>
                   <select
                     value={importFormData.type}
                     onChange={(e) => setImportFormData({ ...importFormData, type: e.target.value as "P1" | "P2" | "P3" })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                   >
                     <option value="P1">P1</option>
                     <option value="P2">P2</option>
@@ -130,45 +130,45 @@ export function ImportModal({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Montant HT</label>
+                  <label className="label-tech mb-1.5 block">Montant HT</label>
                   <input
                     type="number"
                     step="0.01"
                     value={importFormData.amount}
                     onChange={(e) => setImportFormData({ ...importFormData, amount: e.target.value } as typeof importFormData)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Date émission</label>
+                  <label className="label-tech mb-1.5 block">Date émission</label>
                   <input
                     type="date"
                     value={importFormData.issueDate}
                     onChange={(e) => setImportFormData({ ...importFormData, issueDate: e.target.value } as typeof importFormData)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-primary-dark mb-1">Date échéance</label>
+                  <label className="label-tech mb-1.5 block">Date échéance</label>
                   <input
                     type="date"
                     value={importFormData.dueDate}
                     onChange={(e) => setImportFormData({ ...importFormData, dueDate: e.target.value } as typeof importFormData)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                    className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-primary-dark mb-1">
+                <label className="label-tech mb-1.5 block">
                   Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
                   {matchedSiteId && <span className="text-green-600 text-xs ml-1">(détecté)</span>}
                 </label>
                 <select
                   value={importFormData.siteId}
                   onChange={(e) => setImportFormData({ ...importFormData, siteId: e.target.value } as typeof importFormData)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                   disabled={loadingContractSites}
                 >
                   <option value="">{loadingContractSites ? "Chargement..." : "Tous les sites"}</option>

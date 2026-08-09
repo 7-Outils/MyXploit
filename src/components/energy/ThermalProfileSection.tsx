@@ -155,25 +155,25 @@ const DIAGNOSTIC_CONFIG: Record<
   PERFORMANT: {
     color: "text-green-700",
     bg: "bg-green-50",
-    border: "border-green-200",
+    border: "border-green-600/20",
     icon: CheckCircle2,
   },
   CONFORME: {
-    color: "text-blue-700",
-    bg: "bg-blue-50",
-    border: "border-blue-200",
+    color: "text-ink",
+    bg: "bg-white",
+    border: "border-ink/15",
     icon: CheckCircle2,
   },
   ATTENTION: {
-    color: "text-yellow-700",
-    bg: "bg-yellow-50",
-    border: "border-yellow-200",
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    border: "border-amber-600/20",
     icon: AlertTriangle,
   },
   CRITIQUE: {
     color: "text-red-700",
     bg: "bg-red-50",
-    border: "border-red-200",
+    border: "border-red-600/20",
     icon: AlertTriangle,
   },
 };
@@ -412,76 +412,73 @@ export default function ThermalProfileSection({ siteId }: Props) {
           {!showForm ? (
             <div>
               {hasCharacteristics ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Construction</p>
-                    <p className="font-semibold">
+                <div className="grid grid-cols-2 gap-px border border-ink/10 bg-ink/10 md:grid-cols-4">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Construction</p>
+                    <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-ink">
                       {site.constructionYear || "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Isolation</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Isolation</p>
+                    <p className="mt-0.5 text-sm font-semibold text-ink">
                       {site.insulationLevel
                         ? INSULATION_LABELS[site.insulationLevel]
                         : "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Vitrage</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Vitrage</p>
+                    <p className="mt-0.5 text-sm font-semibold text-ink">
                       {site.glazingType
                         ? GLAZING_LABELS[site.glazingType]
                         : "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Ventilation</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Ventilation</p>
+                    <p className="mt-0.5 text-sm font-semibold text-ink">
                       {site.ventilationType
                         ? VENTILATION_LABELS[site.ventilationType]
                         : "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Surface chauffée</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Surface chauffée</p>
+                    <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-ink">
                       {site.surfaceChauffee
                         ? `${site.surfaceChauffee.toLocaleString("fr-FR")} m²`
                         : "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Volume chauffé</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Volume chauffé</p>
+                    <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-ink">
                       {site.volumeChauffee
                         ? `${site.volumeChauffee.toLocaleString("fr-FR")} m³`
                         : "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Hauteur</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Hauteur</p>
+                    <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-ink">
                       {site.buildingHeight ? `${site.buildingHeight} m` : "-"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Niveaux</p>
-                    <p className="font-semibold">
+                  <div className="bg-white p-3">
+                    <p className="label-tech">Niveaux</p>
+                    <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-ink">
                       {site.numberOfFloors || "-"}
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-6 text-gray-500">
-                  <Building2
-                    size={40}
-                    className="mx-auto text-gray-300 mb-3"
-                  />
-                  <p>
+                <div className="border border-dashed border-ink/15 py-6 text-center">
+                  <Building2 size={40} className="mx-auto mb-3 text-ink/20" />
+                  <p className="text-sm font-medium text-ink">
                     Aucune caractéristique bâtiment renseignée.
                   </p>
-                  <p className="text-sm">
+                  <p className="mt-1 text-xs text-ink/50">
                     Renseignez les données pour obtenir un profil thermique.
                   </p>
                 </div>
@@ -504,7 +501,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Année de construction
                   </label>
                   <input
@@ -514,11 +511,11 @@ export default function ThermalProfileSection({ siteId }: Props) {
                       setForm({ ...form, constructionYear: e.target.value })
                     }
                     placeholder="Ex: 1985"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Isolation
                   </label>
                   <select
@@ -526,7 +523,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                     onChange={(e) =>
                       setForm({ ...form, insulationLevel: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="">-- Auto (année) --</option>
                     {Object.entries(INSULATION_LABELS).map(([key, label]) => (
@@ -537,7 +534,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Vitrage
                   </label>
                   <select
@@ -545,7 +542,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                     onChange={(e) =>
                       setForm({ ...form, glazingType: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="">-- Non renseigné --</option>
                     {Object.entries(GLAZING_LABELS).map(([key, label]) => (
@@ -556,7 +553,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Ventilation
                   </label>
                   <select
@@ -564,7 +561,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                     onChange={(e) =>
                       setForm({ ...form, ventilationType: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="">-- Non renseigné --</option>
                     {Object.entries(VENTILATION_LABELS).map(([key, label]) => (
@@ -578,7 +575,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Hauteur sous plafond (m)
                   </label>
                   <input
@@ -589,11 +586,11 @@ export default function ThermalProfileSection({ siteId }: Props) {
                       setForm({ ...form, buildingHeight: e.target.value })
                     }
                     placeholder="Ex: 3.5"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Nombre de niveaux
                   </label>
                   <input
@@ -603,11 +600,11 @@ export default function ThermalProfileSection({ siteId }: Props) {
                       setForm({ ...form, numberOfFloors: e.target.value })
                     }
                     placeholder="Ex: 2"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Volume chauffé (m³)
                   </label>
                   <input
@@ -621,7 +618,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                         ? `Auto: ${(site.surfaceChauffee * parseFloat(form.buildingHeight || "0")).toLocaleString("fr-FR")} m³`
                         : "Ex: 5000"
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
@@ -658,34 +655,34 @@ export default function ThermalProfileSection({ siteId }: Props) {
             <div className="space-y-4">
               {/* G Estimé */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="label-tech">
                     G estimé ({gEstimation.insulationUsed})
                   </span>
-                  <span className="text-sm font-bold text-blue-600">
+                  <span className="font-mono text-sm font-semibold tabular-nums text-accent">
                     {gEstimation.gTypical} W/m³.°C
                   </span>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-4 relative">
+                <div className="relative h-3 w-full border border-ink/10 bg-ink/[0.03]">
                   <div
-                    className="bg-blue-500 h-4 rounded-full transition-all duration-500"
+                    className="h-full bg-accent transition-all duration-500"
                     style={{ width: `${gEstPercent}%` }}
                   />
                   {/* Plage min-max */}
                   <div
-                    className="absolute top-0 h-4 border-l-2 border-blue-300"
+                    className="absolute top-0 h-full border-l border-accent/40"
                     style={{
                       left: `${Math.min((gEstimation.gMin / gMax) * 100, 100)}%`,
                     }}
                   />
                   <div
-                    className="absolute top-0 h-4 border-l-2 border-blue-300"
+                    className="absolute top-0 h-full border-l border-accent/40"
                     style={{
                       left: `${Math.min((gEstimation.gMax / gMax) * 100, 100)}%`,
                     }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="mt-1 font-mono text-[11px] tabular-nums text-ink/50">
                   Plage : {gEstimation.gMin} — {gEstimation.gMax} W/m³.°C
                 </p>
               </div>
@@ -693,36 +690,36 @@ export default function ThermalProfileSection({ siteId }: Props) {
               {/* G Réel */}
               {hasRealG ? (
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-gray-700">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="label-tech">
                       G réel (saison {bestGReal.season})
                     </span>
-                    <span className="text-sm font-bold text-emerald-600">
+                    <span className="font-mono text-sm font-semibold tabular-nums text-ink">
                       {bestGReal.value} W/m³.°C
                     </span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-4">
+                  <div className="h-3 w-full border border-ink/10 bg-ink/[0.03]">
                     <div
-                      className="bg-emerald-500 h-4 rounded-full transition-all duration-500"
+                      className="h-full bg-ink transition-all duration-500"
                       style={{ width: `${gRealPercent}%` }}
                     />
                   </div>
                   {bestGReal.reliability !== "HIGH" && (
-                    <p className="text-xs text-yellow-600 mt-1">
+                    <p className="mt-1 text-xs text-amber-700">
                       Fiabilité {bestGReal.reliability === "MEDIUM" ? "moyenne" : "faible"}
                       {bestGReal.reliabilityReason && ` — ${bestGReal.reliabilityReason}`}
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="text-sm text-gray-500 italic">
+                <div className="text-sm text-ink/50">
                   G réel non disponible — nécessite au moins 1 saison de
                   consommation + DJU
                 </div>
               )}
 
               {/* Légende échelle */}
-              <div className="flex justify-between text-xs text-gray-400 px-1">
+              <div className="flex justify-between px-1 font-mono text-[11px] tabular-nums text-ink/40">
                 <span>0</span>
                 <span>0.5</span>
                 <span>1.0</span>
@@ -734,20 +731,15 @@ export default function ThermalProfileSection({ siteId }: Props) {
             {/* Historique G réel par saison */}
             {gReelBySeason.length > 1 && (
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">
-                  Évolution par saison
-                </p>
-                <div className="flex gap-4">
+                <p className="label-tech mb-2">Évolution par saison</p>
+                <div className="flex gap-px border border-ink/10 bg-ink/10">
                   {gReelBySeason.map((g) => (
-                    <div
-                      key={g.season}
-                      className="flex-1 text-center bg-gray-50 rounded-lg p-3"
-                    >
-                      <p className="text-xs text-gray-500">{g.season}</p>
-                      <p className="text-lg font-bold text-gray-900">
+                    <div key={g.season} className="flex-1 bg-white p-3 text-center">
+                      <p className="label-tech">{g.season}</p>
+                      <p className="mt-0.5 font-mono text-lg font-semibold tabular-nums text-ink">
                         {g.value}
                       </p>
-                      <p className="text-xs text-gray-500">W/m³.°C</p>
+                      <p className="font-mono text-[11px] text-ink/50">W/m³.°C</p>
                     </div>
                   ))}
                 </div>
@@ -756,41 +748,39 @@ export default function ThermalProfileSection({ siteId }: Props) {
 
             {/* Estimations */}
             {estimations && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <p className="text-xs font-medium text-blue-700 mb-2 uppercase">
+              <div className="grid grid-cols-1 gap-4 border-t border-ink/10 pt-4 md:grid-cols-2">
+                <div className="border border-ink/10 bg-white p-4">
+                  <p className="label-tech mb-2 text-accent/70">
                     Depuis G estimé
                   </p>
                   <div className="space-y-1">
-                    <p className="text-sm">
-                      <span className="text-gray-600">Puissance :</span>{" "}
-                      <strong>
+                    <p className="text-sm text-ink">
+                      <span className="text-ink/50">Puissance :</span>{" "}
+                      <strong className="font-mono tabular-nums">
                         {estimations.fromEstimated.heatingPowerKw} kW
                       </strong>
                     </p>
-                    <p className="text-sm">
-                      <span className="text-gray-600">Conso théorique :</span>{" "}
-                      <strong>
+                    <p className="text-sm text-ink">
+                      <span className="text-ink/50">Conso théorique :</span>{" "}
+                      <strong className="font-mono tabular-nums">
                         {estimations.fromEstimated.theoreticalConsumptionMwh} MWh/an
                       </strong>
                     </p>
                   </div>
                 </div>
                 {estimations.fromReal && (
-                  <div className="bg-emerald-50 rounded-lg p-4">
-                    <p className="text-xs font-medium text-emerald-700 mb-2 uppercase">
-                      Depuis G réel
-                    </p>
+                  <div className="border border-ink/10 bg-white p-4">
+                    <p className="label-tech mb-2">Depuis G réel</p>
                     <div className="space-y-1">
-                      <p className="text-sm">
-                        <span className="text-gray-600">Puissance :</span>{" "}
-                        <strong>
+                      <p className="text-sm text-ink">
+                        <span className="text-ink/50">Puissance :</span>{" "}
+                        <strong className="font-mono tabular-nums">
                           {estimations.fromReal.heatingPowerKw} kW
                         </strong>
                       </p>
-                      <p className="text-sm">
-                        <span className="text-gray-600">Conso théorique :</span>{" "}
-                        <strong>
+                      <p className="text-sm text-ink">
+                        <span className="text-ink/50">Conso théorique :</span>{" "}
+                        <strong className="font-mono tabular-nums">
                           {estimations.fromReal.theoreticalConsumptionMwh} MWh/an
                         </strong>
                       </p>
@@ -806,22 +796,20 @@ export default function ThermalProfileSection({ siteId }: Props) {
       {/* Diagnostic */}
       {diagnostic && hasRealG && (
         <div
-          className={`rounded-xl border p-6 ${DIAGNOSTIC_CONFIG[diagnostic.level].bg} ${DIAGNOSTIC_CONFIG[diagnostic.level].border}`}
+          className={`border p-4 ${DIAGNOSTIC_CONFIG[diagnostic.level].bg} ${DIAGNOSTIC_CONFIG[diagnostic.level].border}`}
         >
           <div className="flex items-start gap-4">
-            <div
-              className={`p-2 rounded-lg ${DIAGNOSTIC_CONFIG[diagnostic.level].color}`}
-            >
+            <div className={DIAGNOSTIC_CONFIG[diagnostic.level].color}>
               {diagnostic.level === "PERFORMANT" || diagnostic.level === "CONFORME" ? (
-                <CheckCircle2 size={24} />
+                <CheckCircle2 size={22} />
               ) : (
-                <AlertTriangle size={24} />
+                <AlertTriangle size={22} />
               )}
             </div>
             <div className="flex-1">
-              <div className="flex items-center gap-3 mb-2">
+              <div className="mb-2 flex items-center gap-3">
                 <h3
-                  className={`font-semibold text-lg ${DIAGNOSTIC_CONFIG[diagnostic.level].color}`}
+                  className={`text-base font-semibold ${DIAGNOSTIC_CONFIG[diagnostic.level].color}`}
                 >
                   {diagnostic.level === "PERFORMANT" && "Bâtiment performant"}
                   {diagnostic.level === "CONFORME" && "Bâtiment conforme"}
@@ -829,23 +817,20 @@ export default function ThermalProfileSection({ siteId }: Props) {
                   {diagnostic.level === "CRITIQUE" && "Critique — Anomalie thermique"}
                 </h3>
                 <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${DIAGNOSTIC_CONFIG[diagnostic.level].color}`}
+                  className={`border border-ink/15 px-2 py-0.5 font-mono text-xs font-bold tabular-nums ${DIAGNOSTIC_CONFIG[diagnostic.level].color}`}
                 >
                   {diagnostic.ecartPercent > 0 ? "+" : ""}
                   {diagnostic.ecartPercent}%
                 </span>
               </div>
-              <p className="text-sm text-gray-700 mb-3">{diagnostic.message}</p>
-              <p className="text-sm text-gray-600">{diagnostic.recommendation}</p>
+              <p className="mb-3 text-sm text-ink">{diagnostic.message}</p>
+              <p className="text-sm text-ink/60">{diagnostic.recommendation}</p>
 
               {diagnostic.auditRecommended && (
-                <div className="mt-4 flex items-center gap-3">
-                  <ClipboardCheck
-                    size={18}
-                    className="text-yellow-700"
-                  />
-                  <span className="text-sm font-medium text-yellow-800">
-                    Mission d'audit énergétique recommandée
+                <div className="mt-4 flex items-center gap-3 border-t border-ink/10 pt-3">
+                  <ClipboardCheck size={18} className="text-amber-700" />
+                  <span className="text-sm font-medium text-amber-700">
+                    Mission d&apos;audit énergétique recommandée
                   </span>
                 </div>
               )}
@@ -870,36 +855,34 @@ export default function ThermalProfileSection({ siteId }: Props) {
               {zones.map((zone) => (
                 <div
                   key={zone.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  className="border border-ink/10 bg-white p-4 transition-colors hover:border-ink/25"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-semibold text-gray-900">
-                          {zone.name}
-                        </h4>
+                      <div className="mb-2 flex items-center gap-3">
+                        <h4 className="font-semibold text-ink">{zone.name}</h4>
                         {zone.surface && (
-                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                          <span className="border border-ink/15 px-2 py-0.5 font-mono text-[11px] tabular-nums text-ink/60">
                             {zone.surface} m²
                           </span>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                         <div>
-                          <span className="text-gray-500">T° consigne :</span>{" "}
-                          <strong className="text-orange-600">
+                          <span className="text-ink/50">T° consigne :</span>{" "}
+                          <strong className="font-mono tabular-nums text-ink">
                             {zone.tempConsigne}°C
                           </strong>
                         </div>
                         <div>
-                          <span className="text-gray-500">T° réduit :</span>{" "}
-                          <strong className="text-blue-600">
+                          <span className="text-ink/50">T° réduit :</span>{" "}
+                          <strong className="font-mono tabular-nums text-accent">
                             {zone.tempReduit}°C
                           </strong>
                         </div>
                         <div className="md:col-span-2">
-                          <span className="text-gray-500">Occupation :</span>{" "}
-                          <strong>
+                          <span className="text-ink/50">Occupation :</span>{" "}
+                          <strong className="text-ink">
                             {formatScheduleSummary(zone.weeklySchedule)}
                           </strong>
                         </div>
@@ -922,18 +905,16 @@ export default function ThermalProfileSection({ siteId }: Props) {
                                     : "Fermé"
                                 }
                               >
-                                <div className="text-[10px] text-gray-400 mb-0.5">
+                                <div className="mb-0.5 font-mono text-[10px] uppercase tracking-widest text-ink/40">
                                   {day.label}
                                 </div>
                                 <div
-                                  className={`h-2 rounded-full ${
-                                    isActive
-                                      ? "bg-orange-400"
-                                      : "bg-gray-200"
+                                  className={`h-2 ${
+                                    isActive ? "bg-ink" : "bg-ink/10"
                                   }`}
                                 />
                                 {isActive && (
-                                  <div className="text-[9px] text-gray-400 mt-0.5">
+                                  <div className="mt-0.5 font-mono text-[9px] tabular-nums text-ink/40">
                                     {slots[0].start}-{slots[0].end}
                                   </div>
                                 )}
@@ -947,14 +928,14 @@ export default function ThermalProfileSection({ siteId }: Props) {
                       <div className="flex gap-1 ml-3">
                         <button
                           onClick={() => openEditZone(zone)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-1.5 text-ink/40 transition-colors hover:text-accent"
                           title="Modifier"
                         >
                           <Pencil size={14} />
                         </button>
                         <button
                           onClick={() => handleDeleteZone(zone.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-1.5 text-ink/40 transition-colors hover:text-red-600"
                           title="Supprimer"
                         >
                           <Trash2 size={14} />
@@ -966,26 +947,29 @@ export default function ThermalProfileSection({ siteId }: Props) {
               ))}
             </div>
           ) : (
-            <div className="text-center py-6 text-gray-500">
-              <Clock size={36} className="mx-auto text-gray-300 mb-3" />
-              <p>Aucune zone d'occupation définie.</p>
-              <p className="text-sm">
+            <div className="border border-dashed border-ink/15 py-6 text-center">
+              <Clock size={36} className="mx-auto mb-3 text-ink/20" />
+              <p className="text-sm font-medium text-ink">
+                Aucune zone d&apos;occupation définie.
+              </p>
+              <p className="mt-1 text-xs text-ink/50">
                 Ajoutez des zones pour définir les températures de consigne et
-                les horaires d'occupation.
+                les horaires d&apos;occupation.
               </p>
             </div>
           )}
 
           {/* Formulaire ajout/édition zone */}
           {showZoneForm ? (
-            <div className="border border-blue-200 bg-blue-50/50 rounded-lg p-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-gray-900">
+            <div className="space-y-4 border border-ink/15 bg-white p-4">
+              <div className="flex items-center justify-between border-b border-ink/10 pb-2">
+                <h4 className="label-tech text-ink">
                   {editingZone ? "Modifier la zone" : "Nouvelle zone"}
                 </h4>
                 <button
                   onClick={resetZoneForm}
-                  className="p-1 text-gray-400 hover:text-gray-600"
+                  className="p-1 text-ink/40 transition-colors hover:text-accent"
+                  title="Fermer"
                 >
                   <X size={18} />
                 </button>
@@ -994,7 +978,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
               {/* Nom + Surface */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Nom de la zone
                   </label>
                   <input
@@ -1004,11 +988,11 @@ export default function ThermalProfileSection({ siteId }: Props) {
                       setZoneForm({ ...zoneForm, name: e.target.value })
                     }
                     placeholder="Ex: Salles de classe, Bureaux, Gymnase..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     Surface (m²)
                   </label>
                   <input
@@ -1018,7 +1002,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                       setZoneForm({ ...zoneForm, surface: e.target.value })
                     }
                     placeholder="Optionnel"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
@@ -1026,7 +1010,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
               {/* Températures */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     T° consigne occupation (°C)
                   </label>
                   <input
@@ -1039,14 +1023,14 @@ export default function ThermalProfileSection({ siteId }: Props) {
                         tempConsigne: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs text-ink/50">
                     Température maintenue pendant l'occupation
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-1 block">
                     T° réduit hors occupation (°C)
                   </label>
                   <input
@@ -1059,9 +1043,9 @@ export default function ThermalProfileSection({ siteId }: Props) {
                         tempReduit: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="mt-1 text-xs text-ink/50">
                     Température de nuit / week-end / vacances
                   </p>
                 </div>
@@ -1069,7 +1053,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
 
               {/* Planning hebdomadaire */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="label-tech mb-2 block">
                   Planning hebdomadaire
                 </label>
                 <div className="space-y-2">
@@ -1080,18 +1064,18 @@ export default function ThermalProfileSection({ siteId }: Props) {
                         key={day.key}
                         className="flex items-start gap-3"
                       >
-                        <span className="w-10 text-sm font-medium text-gray-600 pt-2">
+                        <span className="w-10 pt-2 font-mono text-xs uppercase tracking-widest text-ink/50">
                           {day.label}
                         </span>
                         <div className="flex-1 space-y-1">
                           {slots.length === 0 ? (
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-400 italic py-2">
+                              <span className="py-2 text-xs italic text-ink/40">
                                 Fermé
                               </span>
                               <button
                                 onClick={() => addScheduleSlot(day.key)}
-                                className="text-xs text-blue-600 hover:text-blue-800"
+                                className="text-xs text-accent hover:underline"
                               >
                                 + Ajouter
                               </button>
@@ -1113,9 +1097,9 @@ export default function ThermalProfileSection({ siteId }: Props) {
                                       e.target.value
                                     )
                                   }
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                                  className="border border-ink/20 bg-white px-2 py-1 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none"
                                 />
-                                <span className="text-gray-400">—</span>
+                                <span className="text-ink/40">—</span>
                                 <input
                                   type="time"
                                   value={slot.end}
@@ -1127,13 +1111,13 @@ export default function ThermalProfileSection({ siteId }: Props) {
                                       e.target.value
                                     )
                                   }
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+                                  className="border border-ink/20 bg-white px-2 py-1 font-mono text-sm tabular-nums text-ink focus:border-accent focus:outline-none"
                                 />
                                 <button
                                   onClick={() =>
                                     removeScheduleSlot(day.key, idx)
                                   }
-                                  className="p-1 text-gray-400 hover:text-red-500"
+                                  className="p-1 text-ink/40 transition-colors hover:text-red-600"
                                   title="Supprimer ce créneau"
                                 >
                                   <X size={14} />
@@ -1143,7 +1127,7 @@ export default function ThermalProfileSection({ siteId }: Props) {
                                     onClick={() =>
                                       addScheduleSlot(day.key)
                                     }
-                                    className="text-xs text-blue-600 hover:text-blue-800"
+                                    className="text-xs text-accent hover:underline"
                                   >
                                     +
                                   </button>

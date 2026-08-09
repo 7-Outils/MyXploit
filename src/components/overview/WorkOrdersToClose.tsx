@@ -51,9 +51,9 @@ function daysSince(iso: string | null): number | null {
 function tone(oldestDays: number | null) {
   const urgent = oldestDays !== null && oldestDays > 60;
   const warning = oldestDays !== null && oldestDays > 30;
-  if (urgent) return { border: "border-rose-200/70", emphasis: "text-rose-700" };
-  if (warning) return { border: "border-amber-200/60", emphasis: "text-amber-700" };
-  return { border: "border-gray-200/80", emphasis: "text-primary-dark" };
+  if (urgent) return { rule: "border-l-2 border-l-red-600", emphasis: "text-red-700" };
+  if (warning) return { rule: "border-l-2 border-l-amber-600", emphasis: "text-amber-700" };
+  return { rule: "border-l-2 border-l-ink", emphasis: "text-ink" };
 }
 
 export default function WorkOrdersToClose({ contractId }: Props) {
@@ -101,26 +101,22 @@ export default function WorkOrdersToClose({ contractId }: Props) {
   return (
     <Link
       href={`/exploitation?tab=suivi-p3&contractId=${contractId}`}
-      className={`group bg-white rounded-xl border ${t.border} hover:border-accent/50 px-5 py-4 flex items-center gap-4 transition-colors`}
+      className={`group panel ${t.rule} hover:border-accent/40 px-4 py-3 flex items-center gap-3 transition-colors`}
     >
-      <div className="w-10 h-10 rounded-md bg-accent/10 text-accent flex items-center justify-center shrink-0">
-        <Wrench size={16} />
-      </div>
+      <Wrench size={16} className="text-ink/40 shrink-0 group-hover:text-accent transition-colors" />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className={`text-[10px] uppercase tracking-[0.18em] font-semibold ${t.emphasis}`}>
-            Suivi travaux
-          </span>
+          <span className="label-tech">Suivi travaux</span>
           <span className={`text-sm font-semibold tabular-nums ${t.emphasis}`}>
             {headlineText({ count, finishedCount, inProgressCount })}
           </span>
         </div>
-        <p className="text-[12px] text-text-secondary mt-1 leading-snug">
+        <p className="text-[12px] text-ink/50 mt-1 leading-snug">
           {oldest && oldestDays !== null && oldest.quote.site && (
             <>
-              Plus ancien : <strong className="text-primary-dark">{oldest.quote.title || oldest.quote.reference}</strong>{" "}
-              ({oldest.quote.site.name}) <span className="tabular-nums">il y a {oldestDays} j</span>.
+              Plus ancien : <strong className="text-ink">{oldest.quote.title || oldest.quote.reference}</strong>{" "}
+              ({oldest.quote.site.name}) <span className="font-mono tabular-nums">il y a {oldestDays} j</span>.
             </>
           )}
           {" "}
@@ -128,7 +124,7 @@ export default function WorkOrdersToClose({ contractId }: Props) {
             .sort(([a], [b]) => (a === "ATTENTE_LEVEE" ? -1 : b === "ATTENTE_LEVEE" ? 1 : 0))
             .map(([status, items], i, arr) => (
               <span key={status}>
-                <span className="tabular-nums font-semibold text-primary-dark">{items.length}</span>{" "}
+                <span className="font-mono tabular-nums font-semibold text-ink">{items.length}</span>{" "}
                 {STATUS_REASON[status] ?? status.toLowerCase()}
                 {i < arr.length - 1 ? " · " : ""}
               </span>
@@ -136,7 +132,7 @@ export default function WorkOrdersToClose({ contractId }: Props) {
           {totalAmount > 0 && (
             <>
               {" · "}
-              <span className="tabular-nums font-semibold text-primary-dark">
+              <span className="font-mono tabular-nums font-semibold text-ink">
                 {Math.round(totalAmount).toLocaleString("fr-FR")} €
               </span> engagés
             </>
@@ -144,7 +140,7 @@ export default function WorkOrdersToClose({ contractId }: Props) {
         </p>
       </div>
 
-      <ArrowRight size={16} className="text-gray-300 group-hover:text-accent transition-colors shrink-0" />
+      <ArrowRight size={14} className="text-ink/30 group-hover:text-accent transition-colors shrink-0" />
     </Link>
   );
 }

@@ -127,7 +127,7 @@ export function EnergyTab({ siteId }: { siteId: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
         <Loader2 size={32} className="animate-spin text-accent mb-3" />
-        <p className="text-sm text-text-secondary">
+        <p className="text-sm text-ink/60">
           Chargement des consommations...
         </p>
       </div>
@@ -137,11 +137,11 @@ export function EnergyTab({ siteId }: { siteId: string }) {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <BarChart3 size={40} className="text-red-300 mb-3" />
-        <h3 className="text-lg font-medium text-gray-700 mb-1">
+        <BarChart3 size={36} className="text-red-600/40 mb-3" />
+        <h3 className="text-base font-semibold text-ink mb-1">
           Impossible de charger les consommations
         </h3>
-        <p className="text-sm text-text-secondary">{error}</p>
+        <p className="text-sm text-ink/60">{error}</p>
       </div>
     );
   }
@@ -149,11 +149,11 @@ export function EnergyTab({ siteId }: { siteId: string }) {
   if (consumptions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <BarChart3 size={40} className="text-gray-300 mb-3" />
-        <h3 className="text-lg font-medium text-gray-700 mb-1">
+        <BarChart3 size={36} className="text-ink/20 mb-3" />
+        <h3 className="text-base font-semibold text-ink mb-1">
           Aucun relevé exploitant pour ce site
         </h3>
-        <p className="text-sm text-gray-500 mb-4 text-center max-w-md">
+        <p className="text-sm text-ink/50 mb-4 text-center max-w-md">
           Cet onglet affiche les consommations transmises par votre exploitant
           (import Excel mensuel ou saisie manuelle). Pour la donnée brute du
           distributeur (GRDF, Enedis), rendez-vous dans l&apos;onglet
@@ -174,30 +174,25 @@ export function EnergyTab({ siteId }: { siteId: string }) {
     : "#6b7280";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+      <div className="panel flex flex-wrap items-end gap-4 p-4">
         {availableEnergies.length > 1 && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-secondary">
+            <label className="label-tech">
               Énergie
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               {availableEnergies.map((energy) => (
                 <button
                   key={energy}
                   onClick={() => setSelectedEnergy(energy)}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                    "border px-3 py-1.5 text-sm font-medium transition-colors",
                     selectedEnergy === energy
-                      ? "text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                      ? "border-accent bg-accent/5 text-accent"
+                      : "border-ink/20 bg-white text-ink/60 hover:border-accent/40 hover:text-accent"
                   )}
-                  style={
-                    selectedEnergy === energy
-                      ? { backgroundColor: ENERGY_COLORS[energy] || "#6b7280" }
-                      : undefined
-                  }
                 >
                   {ENERGY_LABELS[energy] || energy}
                 </button>
@@ -207,29 +202,29 @@ export function EnergyTab({ siteId }: { siteId: string }) {
         )}
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-text-secondary">Du</label>
+          <label className="label-tech">Du</label>
           <input
             type="date"
             value={dateFrom}
             max={dateTo}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white"
+            className="border border-ink/20 bg-white px-3 py-1.5 text-sm tabular-nums focus:border-accent focus:outline-none"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-text-secondary">Au</label>
+          <label className="label-tech">Au</label>
           <input
             type="date"
             value={dateTo}
             min={dateFrom}
             max={todayIso()}
             onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm bg-white"
+            className="border border-ink/20 bg-white px-3 py-1.5 text-sm tabular-nums focus:border-accent focus:outline-none"
           />
         </div>
 
-        <div className="flex gap-2 ml-auto">
+        <div className="flex gap-1 ml-auto">
           {[
             { label: "30 j", days: 30 },
             { label: "90 j", days: 90 },
@@ -242,7 +237,7 @@ export function EnergyTab({ siteId }: { siteId: string }) {
                 setDateFrom(daysAgoIso(preset.days));
                 setDateTo(todayIso());
               }}
-              className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:bg-gray-100"
+              className="label-tech border border-ink/20 bg-white px-3 py-1.5 hover:border-accent hover:text-accent transition-colors"
             >
               {preset.label}
             </button>
@@ -251,58 +246,58 @@ export function EnergyTab({ siteId }: { siteId: string }) {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">
+      <div className="panel grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-ink/10">
+        <div className="p-4">
+          <p className="label-tech">
             Conso totale
           </p>
-          <p className="text-2xl font-semibold text-primary-dark mt-1">
+          <p className="mt-1 font-mono tabular-nums text-2xl font-semibold text-ink">
             {totals.total >= 5000
               ? `${(totals.total / 1000).toLocaleString("fr-FR", {
                   maximumFractionDigits: 1,
                 })} MWh`
               : `${Math.round(totals.total).toLocaleString("fr-FR")} kWh`}
           </p>
-          <p className="text-xs text-text-secondary mt-1">
+          <p className="text-xs text-ink/50 mt-1">
             sur la période sélectionnée
           </p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">
+        <div className="p-4">
+          <p className="label-tech">
             Coût estimé
           </p>
-          <p className="text-2xl font-semibold text-primary-dark mt-1">
+          <p className="mt-1 font-mono tabular-nums text-2xl font-semibold text-ink">
             {totals.cost > 0
               ? `${Math.round(totals.cost).toLocaleString("fr-FR")} €`
               : "—"}
           </p>
-          <p className="text-xs text-text-secondary mt-1">
+          <p className="text-xs text-ink/50 mt-1">
             {totals.cost > 0 ? "sur la période" : "non renseigné"}
           </p>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">
+        <div className="p-4">
+          <p className="label-tech">
             Évolution N-1
           </p>
           <p
             className={cn(
-              "text-2xl font-semibold mt-1",
+              "mt-1 font-mono tabular-nums text-2xl font-semibold",
               yoyDelta === null
-                ? "text-gray-400"
+                ? "text-ink/40"
                 : yoyDelta > 0
                 ? "text-red-600"
                 : yoyDelta < 0
-                ? "text-green-600"
-                : "text-primary-dark"
+                ? "text-green-700"
+                : "text-ink"
             )}
           >
             {yoyDelta === null
               ? "—"
               : `${yoyDelta > 0 ? "+" : ""}${yoyDelta} %`}
           </p>
-          <p className="text-xs text-text-secondary mt-1">
+          <p className="text-xs text-ink/50 mt-1">
             {yoyDelta === null
               ? "pas de données N-1"
               : "vs même période l'an dernier"}

@@ -38,7 +38,7 @@ const tools: Tool[] = [
     description: "Estimation des consommations énergétiques prévisionnelles",
     icon: Calculator,
     href: "#",
-    color: "text-blue-600",
+    color: "text-ink/40",
     available: false,
   },
   {
@@ -47,7 +47,7 @@ const tools: Tool[] = [
     description: "Analyse comparative des offres exploitants",
     icon: Settings,
     href: "#",
-    color: "text-purple-600",
+    color: "text-ink/40",
     available: false,
   },
 ];
@@ -57,37 +57,40 @@ export default function OutilsPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-primary-dark">Boîte à outils</h1>
-        <p className="text-text-secondary">Outils de calcul et d&apos;analyse pour l&apos;AMO</p>
+        <h1 className="text-xl font-semibold text-ink">Boîte à outils</h1>
+        <p className="mt-0.5 text-sm text-text-secondary">
+          Outils de calcul et d&apos;analyse pour l&apos;AMO
+        </p>
       </div>
 
       {/* Tools grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tools.map((tool) => (
           <div key={tool.id}>
             {tool.available ? (
-              <Link href={tool.href}>
-                <div className="bg-white rounded-xl border border-gray-100 p-6 hover:border-accent hover:shadow-md transition-all group h-full">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className={`w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center group-hover:bg-accent/20 transition-colors`}>
-                      <tool.icon size={24} className={tool.color} />
-                    </div>
-                    <ChevronRight size={20} className="text-gray-300 group-hover:text-accent transition-colors" />
+              <Link href={tool.href} className="block h-full">
+                <div className="panel group h-full p-4 transition-colors hover:border-accent/40">
+                  <div className="mb-3 flex items-start justify-between">
+                    <tool.icon size={20} className={tool.color} />
+                    <ChevronRight
+                      size={16}
+                      className="text-ink/25 transition-colors group-hover:text-accent"
+                    />
                   </div>
-                  <h3 className="font-semibold text-primary-dark mb-2">{tool.name}</h3>
-                  <p className="text-sm text-text-secondary">{tool.description}</p>
+                  <h3 className="mb-1 text-sm font-semibold text-ink">{tool.name}</h3>
+                  <p className="text-xs text-text-secondary">{tool.description}</p>
                 </div>
               </Link>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-100 p-6 opacity-50 h-full">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-                    <tool.icon size={24} className="text-gray-400" />
-                  </div>
-                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">Bientôt</span>
+              <div className="panel h-full p-4">
+                <div className="mb-3 flex items-start justify-between">
+                  <tool.icon size={20} className="text-ink/25" />
+                  <span className="label-tech border border-ink/10 px-1.5 py-0.5 text-ink/40">
+                    Bientôt
+                  </span>
                 </div>
-                <h3 className="font-semibold text-gray-400 mb-2">{tool.name}</h3>
-                <p className="text-sm text-gray-400">{tool.description}</p>
+                <h3 className="mb-1 text-sm font-semibold text-ink/40">{tool.name}</h3>
+                <p className="text-xs text-ink/40">{tool.description}</p>
               </div>
             )}
           </div>
@@ -95,18 +98,18 @@ export default function OutilsPage() {
       </div>
 
       {/* Quick access to dimensioning presets */}
-      <ChartCard title="Accès rapides - Dimensionnement">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <ChartCard title="Accès rapides — Dimensionnement">
+        <div className="grid gap-px bg-ink/10 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { name: "Puissance chaufferie", preset: "power", color: "bg-orange-50 text-orange-700 border-orange-200" },
-            { name: "Calcul P2", preset: "p2", color: "bg-blue-50 text-blue-700 border-blue-200" },
-            { name: "Calcul P3", preset: "p3", color: "bg-green-50 text-green-700 border-green-200" },
-            { name: "Pool Analysis", preset: "pool", color: "bg-purple-50 text-purple-700 border-purple-200" },
+            { name: "Puissance chaufferie", preset: "power" },
+            { name: "Calcul P2", preset: "p2" },
+            { name: "Calcul P3", preset: "p3" },
+            { name: "Pool Analysis", preset: "pool" },
           ].map((item) => (
             <Link
               key={item.preset}
               href={`/dimensioning?preset=${item.preset}`}
-              className={`p-4 rounded-xl border ${item.color} hover:shadow-md transition-all text-center font-medium`}
+              className="bg-white px-4 py-3 text-sm font-medium text-ink transition-colors hover:bg-ink/[0.02] hover:text-accent"
             >
               {item.name}
             </Link>

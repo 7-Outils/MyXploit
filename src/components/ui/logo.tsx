@@ -17,7 +17,7 @@ export function Logo({ className, size = "md", showText = true, variant = "defau
     xl: "text-3xl",
   };
 
-  const textColor = variant === "white" ? "text-white" : "text-gray-900";
+  const textColor = variant === "white" ? "text-white" : "text-ink";
   const accentColor = "text-accent";
 
   if (!showText) {

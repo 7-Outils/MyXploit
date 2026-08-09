@@ -26,16 +26,17 @@ export function ErrorScreen({
 }: ErrorScreenProps) {
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center">
-        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-red-50">
-          <AlertTriangle size={22} className="text-red-600" />
+      <div className="w-full max-w-md border border-ink/10 bg-white p-8 text-center">
+        <div className="mb-4 flex items-center justify-center gap-2">
+          <AlertTriangle size={16} className="text-red-600" />
+          <span className="label-tech text-red-600/70">Erreur</span>
         </div>
 
-        <h1 className="text-lg font-semibold text-primary-dark">{title}</h1>
+        <h1 className="text-lg font-semibold text-ink">{title}</h1>
         <p className="mt-2 text-sm leading-relaxed text-text-secondary">{message}</p>
 
         {digest && (
-          <p className="mt-5 font-mono text-xs text-gray-400">
+          <p className="mt-5 font-mono text-xs text-ink/40">
             Code d&apos;erreur : {digest}
           </p>
         )}
@@ -44,7 +45,7 @@ export function ErrorScreen({
           {onRetry && (
             <button
               onClick={onRetry}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent/90"
+              className="inline-flex h-10 items-center gap-2 bg-ink px-4 text-sm font-medium text-paper transition-colors hover:bg-accent"
             >
               <RotateCw size={15} />
               Réessayer
@@ -53,7 +54,7 @@ export function ErrorScreen({
           {showHome && (
             <a
               href="/overview"
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 px-4 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-50"
+              className="inline-flex h-10 items-center gap-2 border border-ink/20 px-4 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent"
             >
               <Home size={15} />
               Accueil

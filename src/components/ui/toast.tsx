@@ -50,10 +50,11 @@ const ICONS: Record<ToastType, typeof CheckCircle2> = {
   info: Info,
 };
 
+// Couleurs sémantiques uniquement (statut), sur fond papier à hairline.
 const STYLES: Record<ToastType, string> = {
-  success: "border-green-200 bg-green-50 text-green-800",
-  error: "border-red-200 bg-red-50 text-red-800",
-  info: "border-blue-200 bg-blue-50 text-blue-800",
+  success: "border-green-600/30 bg-white text-green-700",
+  error: "border-red-600/30 bg-white text-red-700",
+  info: "border-ink/15 bg-white text-ink",
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -97,7 +98,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div
               key={t.id}
               role="status"
-              className={`pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg animate-slide-up ${STYLES[t.type]}`}
+              className={`pointer-events-auto flex items-start gap-3 border px-4 py-3 shadow-large animate-slide-up ${STYLES[t.type]}`}
             >
               <Icon size={18} className="mt-0.5 flex-shrink-0" />
               <p className="flex-1 text-sm leading-snug">{t.message}</p>

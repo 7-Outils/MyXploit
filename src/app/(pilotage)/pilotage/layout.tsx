@@ -19,9 +19,9 @@ import {
 } from "lucide-react";
 
 const PROFILE_COLORS = {
-  CLIENT: { bg: "bg-blue-500/20", text: "text-blue-300", label: "Client" },
-  AMO: { bg: "bg-purple-500/20", text: "text-purple-300", label: "AMO" },
-  EXPLOITANT: { bg: "bg-orange-500/20", text: "text-orange-300", label: "Exploitant" },
+  CLIENT: { bg: "border border-ink/15", text: "text-ink/60", label: "Client" },
+  AMO: { bg: "border border-ink/15", text: "text-ink/60", label: "AMO" },
+  EXPLOITANT: { bg: "border border-ink/15", text: "text-ink/60", label: "Exploitant" },
 };
 
 type TabDef = {
@@ -53,25 +53,23 @@ export default function PilotageLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-screen">
-      {/* Premium dark header */}
-      <div className="bg-gradient-to-r from-[#12161F] via-[#182030] to-[#12161F] border-b border-white/5">
+      {/* En-tête clair, hairline */}
+      <div className="bg-white border-b border-ink/10">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-8">
           {/* Top row: branding + profile badge */}
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Link
                 href="/overview"
-                className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+                className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-widest text-ink/50 transition-colors hover:text-accent"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={14} />
                 <span className="hidden sm:inline">Retour</span>
               </Link>
-              <div className="w-px h-6 bg-white/10" />
+              <div className="w-px h-6 bg-ink/10" />
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-accent/20 flex items-center justify-center">
-                  <BarChart3 size={20} className="text-accent" />
-                </div>
-                <h1 className="text-white font-semibold text-lg tracking-tight">
+                <BarChart3 size={18} className="text-accent" />
+                <h1 className="text-lg font-semibold tracking-tight text-ink">
                   Pilotage Énergétique
                 </h1>
               </div>
@@ -79,7 +77,7 @@ export default function PilotageLayout({ children }: { children: React.ReactNode
 
             <div className="flex items-center gap-3">
               {profileConfig && (
-                <span className={cn("text-xs font-medium px-3 py-1.5 rounded-full", profileConfig.bg, profileConfig.text)}>
+                <span className={cn("font-mono text-[11px] uppercase tracking-widest px-2.5 py-1", profileConfig.bg, profileConfig.text)}>
                   {profileConfig.label}
                 </span>
               )}
@@ -99,13 +97,13 @@ export default function PilotageLayout({ children }: { children: React.ReactNode
                   key={tab.href}
                   href={tab.href}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 whitespace-nowrap",
+                    "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap",
                     isActive
-                      ? "border-accent text-white"
-                      : "border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600"
+                      ? "border-accent text-accent"
+                      : "border-transparent text-ink/50 hover:text-ink hover:border-ink/20"
                   )}
                 >
-                  <tab.icon size={16} className={isActive ? "text-accent" : ""} />
+                  <tab.icon size={16} className={isActive ? "text-accent" : "text-ink/40"} />
                   {tab.label}
                 </Link>
               );

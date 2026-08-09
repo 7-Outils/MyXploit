@@ -13,9 +13,9 @@ import {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value}</span>
+    <div className="flex items-baseline justify-between gap-4 border-b border-ink/10 py-2 last:border-b-0">
+      <span className="label-tech">{label}</span>
+      <span className="text-sm font-medium text-ink tabular-nums text-right">{value}</span>
     </div>
   );
 }
@@ -28,10 +28,10 @@ export function GeneralTab({
   onRefresh: () => void;
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {/* Informations générales */}
       <ChartCard title="Informations générales">
-        <div className="space-y-4">
+        <div className="-my-2">
           <InfoRow label="Nom" value={site.name} />
           <InfoRow
             label="Type"
@@ -53,7 +53,7 @@ export function GeneralTab({
 
       {/* Caractéristiques du bâtiment */}
       <ChartCard title="Caractéristiques du bâtiment">
-        <div className="space-y-4">
+        <div className="-my-2">
           {site.constructionYear && (
             <InfoRow
               label="Année de construction"
@@ -117,7 +117,7 @@ export function GeneralTab({
 
       {/* Références énergie */}
       <ChartCard title="Références énergie">
-        <div className="space-y-4">
+        <div className="-my-2">
           {site.pce && <InfoRow label="PCE (gaz)" value={site.pce} />}
           {site.pdl && <InfoRow label="PDL (élec)" value={site.pdl} />}
           {site.rae && <InfoRow label="RAE" value={site.rae} />}
@@ -138,44 +138,44 @@ export function GeneralTab({
 
       {/* Contrats liés */}
       <ChartCard title="Contrats associés">
-        <div className="space-y-3">
+        <div className="space-y-2">
           {site.contractSites.length === 0 ? (
-            <p className="text-sm text-gray-400">Aucun contrat lié</p>
+            <p className="text-sm text-ink/40">Aucun contrat lié</p>
           ) : (
             site.contractSites.map((cs) => (
               <Link
                 key={cs.id}
                 href={`/contracts/${cs.contract.id}`}
-                className="block p-3 rounded-lg border border-gray-100 hover:border-accent/30 hover:bg-accent/5 transition-colors"
+                className="block border border-ink/10 p-3 hover:border-accent/40 hover:bg-accent/5 transition-colors"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm font-medium text-ink">
                       {cs.contract.reference}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <p className="text-xs text-ink/50 mt-0.5">
                       {cs.contract.title} - {cs.contract.provider}
                     </p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-shrink-0">
                     {cs.hasP1 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
+                      <span className="border border-ink/20 px-1.5 py-0.5 font-mono text-[11px] font-medium text-ink/70">
                         P1
                       </span>
                     )}
                     {cs.hasP2 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-600 font-medium">
+                      <span className="border border-ink/20 px-1.5 py-0.5 font-mono text-[11px] font-medium text-ink/70">
                         P2
                       </span>
                     )}
                     {cs.hasP3 && (
-                      <span className="text-xs px-1.5 py-0.5 rounded bg-orange-50 text-orange-600 font-medium">
+                      <span className="border border-ink/20 px-1.5 py-0.5 font-mono text-[11px] font-medium text-ink/70">
                         P3
                       </span>
                     )}
                   </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="label-tech mt-1.5">
                   Type : {cs.contractType}
                 </p>
               </Link>

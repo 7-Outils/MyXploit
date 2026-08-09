@@ -59,10 +59,12 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen">
-      <div className="bg-orange-50 border-b border-orange-200 px-4 py-2">
-        <div className="flex items-center gap-2 text-sm text-orange-800">
-          <Shield size={16} />
-          <span className="font-medium">Panneau d&apos;administration</span>
+      <div className="border-b border-amber-600/30 bg-amber-50 px-4 py-2">
+        <div className="flex items-center gap-2 text-amber-800">
+          <Shield size={14} className="text-amber-600" />
+          <span className="font-mono text-[11px] uppercase tracking-widest text-amber-700">
+            Panneau d&apos;administration
+          </span>
         </div>
       </div>
       {children}

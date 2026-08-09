@@ -11,8 +11,8 @@ const SiteMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[350px] bg-gray-50 rounded-xl flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      <div className="h-[350px] border border-ink/10 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-ink/30" />
       </div>
     ),
   }
@@ -32,25 +32,25 @@ export function PatrimoineSection({
   if (allSites.length === 0) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-primary-dark flex items-center gap-2">
-          <MapPin size={20} className="text-accent" />
-          Patrimoine ({allSites.length} sites)
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-ink/10 pb-2">
+        <h2 className="text-sm font-semibold text-ink flex items-center gap-2">
+          <MapPin size={14} className="text-ink/40" />
+          Patrimoine <span className="font-mono tabular-nums text-ink/50">({allSites.length} sites)</span>
         </h2>
-        <span className="text-sm text-text-secondary">
+        <span className="label-tech">
           {sitesWithCoords.length} géolocalisés
         </span>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-4">
         {/* Map */}
         <ChartCard title="Carte des sites" className="lg:col-span-2">
           {sitesWithCoords.length === 0 ? (
-            <div className="h-[350px] bg-gray-50 rounded-xl flex flex-col items-center justify-center">
-              <MapPin size={32} className="text-gray-300 mb-2" />
-              <p className="text-sm text-text-secondary">Aucun site géolocalisé</p>
-              <p className="text-xs text-gray-400">Les adresses doivent être géocodées</p>
+            <div className="h-[350px] border border-ink/10 flex flex-col items-center justify-center">
+              <MapPin size={24} className="text-ink/25 mb-2" />
+              <p className="text-sm text-ink/50">Aucun site géolocalisé</p>
+              <p className="text-xs text-ink/40">Les adresses doivent être géocodées</p>
             </div>
           ) : (
             <SiteMap
@@ -72,7 +72,7 @@ export function PatrimoineSection({
         </ChartCard>
 
         {/* Analytics */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <ChartCard title="Par type de bâtiment">
             <DonutChart data={siteChartData.byType} size={140} strokeWidth={20} centerValue={allSites.length} centerLabel="sites" />
           </ChartCard>

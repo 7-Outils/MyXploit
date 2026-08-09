@@ -104,12 +104,12 @@ export function Topbar() {
   ];
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 gap-2">
+    <header className="h-16 bg-white border-b border-ink/10 flex items-center justify-between px-4 md:px-6 gap-2">
       {/* Mobile burger */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+        className="md:hidden p-2 -ml-2 text-ink/60 hover:text-accent hover:bg-ink/[0.03]"
         aria-label="Ouvrir le menu"
       >
         <Menu size={22} />
@@ -126,40 +126,39 @@ export function Topbar() {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications((v) => !v)}
-            className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="relative h-9 w-9 flex items-center justify-center text-ink/50 hover:text-accent hover:bg-ink/[0.03] transition-colors"
+            title="Notifications"
           >
-            <Bell size={20} />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            <Bell size={18} />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-600 rounded-full" />
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 top-12 w-80 bg-white rounded-xl shadow-large border border-gray-100 py-2 z-50">
-              <div className="px-4 py-2 border-b border-gray-100">
-                <h3 className="font-semibold text-primary-dark">
-                  Notifications
-                </h3>
+            <div className="absolute right-0 top-12 w-80 bg-white shadow-large border border-ink/15 z-50">
+              <div className="border-b border-ink/10 px-4 py-2.5">
+                <h3 className="label-tech">Notifications</h3>
               </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className={`px-4 py-3 hover:bg-gray-50 cursor-pointer border-l-2 ${
+                    className={`px-4 py-2.5 hover:bg-ink/[0.02] cursor-pointer border-l-2 ${
                       notif.unread
                         ? "border-accent bg-accent/5"
                         : "border-transparent"
                     }`}
                   >
-                    <p className="text-sm font-medium text-primary-dark">
+                    <p className="text-sm font-medium text-ink">
                       {notif.title}
                     </p>
                     <p className="text-sm text-text-secondary">
                       {notif.message}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">{notif.time}</p>
+                    <p className="font-mono text-[11px] text-ink/40 mt-1">{notif.time}</p>
                   </div>
                 ))}
               </div>
-              <div className="px-4 py-2 border-t border-gray-100">
+              <div className="px-4 py-2 border-t border-ink/10">
                 <button className="text-sm text-accent hover:underline">
                   Voir toutes les notifications
                 </button>
@@ -172,18 +171,19 @@ export function Topbar() {
         <div className="relative" ref={userRef}>
           <button
             onClick={() => setShowUserMenu((v) => !v)}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 p-1.5 hover:bg-ink/[0.03] transition-colors"
           >
-            <div className="w-9 h-9 bg-accent rounded-full flex items-center justify-center text-white text-sm font-medium">
+            {/* Avatar : seul cas où rounded-full reste (cf. thème) */}
+            <div className="w-8 h-8 bg-ink rounded-full flex items-center justify-center text-paper text-xs font-medium">
               {getInitials()}
             </div>
-            <ChevronDown size={16} className="text-gray-500" />
+            <ChevronDown size={14} className="text-ink/40" />
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-12 w-64 bg-white rounded-xl shadow-large border border-gray-100 py-2 z-50">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <p className="font-medium text-primary-dark">
+            <div className="absolute right-0 top-12 w-64 bg-white shadow-large border border-ink/15 py-1 z-50">
+              <div className="px-4 py-3 border-b border-ink/10">
+                <p className="font-medium text-ink">
                   {currentUser?.firstName} {currentUser?.lastName}
                 </p>
                 <p className="text-sm text-text-secondary truncate">
@@ -194,9 +194,9 @@ export function Topbar() {
                 <Link
                   href="/settings"
                   onClick={() => setShowUserMenu(false)}
-                  className="w-full px-4 py-2 text-left text-sm text-text-primary hover:bg-gray-50 flex items-center gap-2"
+                  className="w-full px-4 py-2 text-left text-sm text-ink hover:bg-ink/[0.02] flex items-center gap-2"
                 >
-                  <Settings size={16} className="text-text-secondary" />
+                  <Settings size={16} className="text-ink/40" />
                   Paramètres
                 </Link>
                 <button

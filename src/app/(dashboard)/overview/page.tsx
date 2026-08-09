@@ -21,8 +21,8 @@ export default function OverviewPage() {
 
   if (!selectedContract) {
     return (
-      <div className="flex items-center justify-center py-20 text-text-secondary">
-        <p>Sélectionnez un contrat pour voir les KPI.</p>
+      <div className="flex items-center justify-center py-20 text-ink/50">
+        <p className="text-sm">Sélectionnez un contrat pour voir les KPI.</p>
       </div>
     );
   }

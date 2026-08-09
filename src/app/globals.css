@@ -35,20 +35,25 @@
 }
 
 @layer components {
-  .gradient-text {
-    @apply bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent;
+  /*
+   * Thème « bureau d'études » — primitives partagées.
+   * Référence visuelle : src/components/landing/*.
+   * Règles : coins carrés, hairlines à la place des ombres, labels mono.
+   */
+
+  /* Panneau/card : hairline + fond papier, jamais d'ombre (statique). */
+  .panel {
+    @apply border border-ink/10 bg-white;
   }
 
-  .gradient-bg {
-    @apply bg-gradient-to-br from-accent to-accent-light;
+  /* Cartouche d'en-tête de panneau : trait bas hairline, padding compact. */
+  .panel-header {
+    @apply flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5;
   }
 
-  .glass-card {
-    @apply bg-white/80 backdrop-blur-lg border border-white/20 shadow-soft;
-  }
-
-  .hover-lift {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-medium;
+  /* Label technique : titres de section, en-têtes de colonne, légendes. */
+  .label-tech {
+    @apply font-mono text-[11px] uppercase tracking-widest text-ink/50;
   }
 }
 

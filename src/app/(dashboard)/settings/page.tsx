@@ -113,72 +113,64 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-primary-dark">Paramètres</h1>
-        <p className="text-text-secondary">
+      <div className="border-b border-ink/10 pb-4">
+        <h1 className="text-xl font-semibold text-ink">Paramètres</h1>
+        <p className="mt-1 text-sm text-ink/50">
           Gérez votre compte et vos préférences
         </p>
       </div>
 
       {/* Quick Links */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl p-5 border border-gray-100 hover:shadow-soft hover:border-accent/20 transition-all">
-          <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center mb-3">
-            <User size={20} className="text-accent" />
-          </div>
-          <h3 className="font-medium text-primary-dark">Mon profil</h3>
-          <p className="text-sm text-text-secondary mt-1">Modifiez vos informations ci-dessous</p>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="panel p-4">
+          <User size={18} className="mb-3 text-accent" />
+          <h3 className="label-tech">Mon profil</h3>
+          <p className="mt-1 text-sm text-ink/50">Modifiez vos informations ci-dessous</p>
         </div>
 
         {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") && (
           <Link
             href="/admin/users"
-            className="bg-white rounded-xl p-5 border border-gray-100 hover:shadow-soft hover:border-accent/20 transition-all block"
+            className="panel block p-4 transition-colors hover:border-accent/40"
           >
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
-              <Building size={20} className="text-purple-600" />
-            </div>
-            <h3 className="font-medium text-primary-dark">Utilisateurs</h3>
-            <p className="text-sm text-text-secondary mt-1">Gérez les membres de votre équipe</p>
+            <Building size={18} className="mb-3 text-accent" />
+            <h3 className="label-tech">Utilisateurs</h3>
+            <p className="mt-1 text-sm text-ink/50">Gérez les membres de votre équipe</p>
           </Link>
         )}
 
-        <div className="bg-white rounded-xl p-5 border border-gray-100 opacity-50">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
-            <Bell size={20} className="text-blue-600" />
-          </div>
-          <h3 className="font-medium text-primary-dark">Notifications</h3>
-          <p className="text-sm text-text-secondary mt-1">Bientôt disponible</p>
+        <div className="panel p-4 opacity-50">
+          <Bell size={18} className="mb-3 text-ink/40" />
+          <h3 className="label-tech">Notifications</h3>
+          <p className="mt-1 text-sm text-ink/50">Bientôt disponible</p>
         </div>
 
-        <div className="bg-white rounded-xl p-5 border border-gray-100 opacity-50">
-          <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center mb-3">
-            <Shield size={20} className="text-amber-600" />
-          </div>
-          <h3 className="font-medium text-primary-dark">Sécurité</h3>
-          <p className="text-sm text-text-secondary mt-1">Bientôt disponible</p>
+        <div className="panel p-4 opacity-50">
+          <Shield size={18} className="mb-3 text-ink/40" />
+          <h3 className="label-tech">Sécurité</h3>
+          <p className="mt-1 text-sm text-ink/50">Bientôt disponible</p>
         </div>
       </div>
 
       {/* Profile Section */}
       <ChartCard title="Informations du compte">
         {error && (
-          <div className="mb-4 flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+          <div className="mb-4 flex items-center gap-2 border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
             <AlertCircle size={16} />
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+          <div className="mb-4 flex items-center gap-2 border border-green-600/20 bg-green-50 p-3 text-sm text-green-700">
             <Check size={16} />
             Modifications enregistrées
           </div>
         )}
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="label-tech mb-1 block">
               Prénom
             </label>
             <input
@@ -186,11 +178,11 @@ export default function SettingsPage() {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Votre prénom"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="label-tech mb-1 block">
               Nom
             </label>
             <input
@@ -198,44 +190,44 @@ export default function SettingsPage() {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Votre nom"
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent/30"
+              className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="label-tech mb-1 block">
               Email
             </label>
             <input
               type="email"
               value={user?.email || ""}
               disabled
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+              className="w-full cursor-not-allowed border border-ink/10 bg-white px-3 py-2 text-sm text-ink/40"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="label-tech mb-1 block">
               Rôle
             </label>
             <input
               type="text"
               value={ROLE_LABELS[user?.role as keyof typeof ROLE_LABELS] || user?.role || ""}
               disabled
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+              className="w-full cursor-not-allowed border border-ink/10 bg-white px-3 py-2 text-sm text-ink/40"
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-text-secondary mb-2">
+            <label className="label-tech mb-1 block">
               Organisation
             </label>
             <input
               type="text"
               value={user?.organization?.name || "Aucune organisation"}
               disabled
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+              className="w-full cursor-not-allowed border border-ink/10 bg-white px-3 py-2 text-sm text-ink/40"
             />
           </div>
         </div>
-        <div className="flex justify-end mt-6">
+        <div className="mt-4 flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 size={16} className="animate-spin mr-2" />}
             {saving ? "Enregistrement..." : "Enregistrer les modifications"}
@@ -248,12 +240,12 @@ export default function SettingsPage() {
         <ChartCard
           title={
             <span className="flex items-center gap-2">
-              <FolderKanban size={18} className="text-accent" />
+              <FolderKanban size={14} className="text-ink/40" />
               Types de missions
             </span>
           }
         >
-          <p className="text-sm text-gray-500 mb-4">
+          <p className="mb-4 text-sm text-ink/50">
             Configurez les types de missions que votre bureau d&apos;etudes realise.
           </p>
 
@@ -284,7 +276,7 @@ export default function SettingsPage() {
                 }
               }}
               placeholder="Nouveau type de mission..."
-              className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/20"
+              className="flex-1 border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
             />
             <button
               onClick={async () => {
@@ -307,7 +299,7 @@ export default function SettingsPage() {
                 }
               }}
               disabled={addingType || !newTypeName.trim()}
-              className="flex items-center gap-1 px-4 py-2 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 disabled:opacity-50"
+              className="flex items-center gap-1 bg-ink px-4 py-2 text-sm text-paper transition-colors hover:bg-accent disabled:opacity-50"
             >
               {addingType ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               Ajouter
@@ -316,11 +308,11 @@ export default function SettingsPage() {
 
           {/* List */}
           {missionTypes.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-4">Aucun type de mission configure</p>
+            <p className="py-4 text-center text-sm text-ink/40">Aucun type de mission configure</p>
           ) : (
-            <div className="divide-y border border-gray-200 rounded-lg">
+            <div className="divide-y divide-ink/10 border border-ink/10">
               {missionTypes.map((mt) => (
-                <div key={mt.id} className="flex items-center gap-3 p-3">
+                <div key={mt.id} className="flex items-center gap-3 px-4 py-2.5">
                   {editingTypeId === mt.id ? (
                     <>
                       <input
@@ -339,7 +331,7 @@ export default function SettingsPage() {
                           }
                           if (e.key === "Escape") setEditingTypeId(null);
                         }}
-                        className="flex-1 px-3 py-1 border border-gray-200 rounded text-sm"
+                        className="flex-1 border border-ink/20 bg-white px-3 py-1.5 text-sm focus:border-accent focus:outline-none"
                         autoFocus
                       />
                       <button
@@ -354,21 +346,23 @@ export default function SettingsPage() {
                             fetchMissionTypes();
                           }
                         }}
-                        className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-green-50 hover:text-green-700"
+                        title="Valider"
                       >
                         <Check size={14} />
                       </button>
                       <button
                         onClick={() => setEditingTypeId(null)}
-                        className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                        className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-ink"
+                        title="Annuler"
                       >
                         <X size={14} />
                       </button>
                     </>
                   ) : (
                     <>
-                      <span className="flex-1 text-sm text-gray-900">{mt.name}</span>
-                      <span className="text-xs text-gray-400">
+                      <span className="flex-1 text-sm text-ink">{mt.name}</span>
+                      <span className="font-mono text-xs tabular-nums text-ink/40">
                         {mt._count.missions} mission{mt._count.missions !== 1 ? "s" : ""}
                       </span>
                       <button
@@ -376,7 +370,7 @@ export default function SettingsPage() {
                           setEditingTypeId(mt.id);
                           setEditingTypeName(mt.name);
                         }}
-                        className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                        className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                         title="Renommer"
                       >
                         <Pencil size={14} />
@@ -395,7 +389,7 @@ export default function SettingsPage() {
                           }
                           fetchMissionTypes();
                         }}
-                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                        className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
                         title={mt._count.missions > 0 ? "Desactiver" : "Supprimer"}
                       >
                         <Trash2 size={14} />

@@ -78,7 +78,7 @@ export function ActivityLogTab({ siteId }: { siteId: string }) {
         <div className="flex justify-end">
           <button
             onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-ink text-paper hover:bg-accent transition-colors text-sm font-medium"
           >
             <Plus size={16} />
             Nouvelle entrée
@@ -92,11 +92,11 @@ export function ActivityLogTab({ siteId }: { siteId: string }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="label-tech block mb-1">Type</label>
                 <select
                   value={formData.activityType}
                   onChange={(e) => setFormData({ ...formData, activityType: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 >
                   {Object.entries(ACTIVITY_TYPE_LABELS).map(([key, label]) => (
                     <option key={key} value={key}>{label}</option>
@@ -104,33 +104,33 @@ export function ActivityLogTab({ siteId }: { siteId: string }) {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <label className="label-tech block mb-1">Date</label>
                 <input
                   type="date"
                   value={formData.activityDate}
                   onChange={(e) => setFormData({ ...formData, activityDate: e.target.value })}
-                  className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+              <label className="label-tech block mb-1">Titre</label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="Ex: Panne chaudière bâtiment A"
-                className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description (optionnel)</label>
+              <label className="label-tech block mb-1">Description (optionnel)</label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={3}
-                className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 placeholder="Détails supplémentaires..."
               />
             </div>
@@ -138,14 +138,14 @@ export function ActivityLogTab({ siteId }: { siteId: string }) {
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm"
+                className="px-4 py-2 text-sm font-medium border border-ink/20 text-ink hover:border-accent hover:text-accent transition-colors"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={saving || !formData.title.trim()}
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 text-sm flex items-center gap-2"
+                className="px-4 py-2 text-sm font-medium bg-ink text-paper hover:bg-accent disabled:opacity-50 flex items-center gap-2 transition-colors"
               >
                 {saving && <Loader2 size={14} className="animate-spin" />}
                 Enregistrer
@@ -159,27 +159,27 @@ export function ActivityLogTab({ siteId }: { siteId: string }) {
       {logs.length === 0 ? (
         <ChartCard title="">
           <div className="text-center py-8">
-            <ClipboardList size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500">Aucune activité enregistrée pour ce site</p>
+            <ClipboardList size={36} className="mx-auto text-ink/20 mb-4" />
+            <p className="text-sm text-ink/50">Aucune activité enregistrée pour ce site</p>
           </div>
         </ChartCard>
       ) : (
         <ChartCard title={`Journal d'activité (${logs.length})`}>
-          <div className="space-y-3">
+          <div className="-my-2 divide-y divide-ink/10">
             {logs.map((log) => (
-              <div key={log.id} className="flex gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex-shrink-0 mt-1">
-                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${ACTIVITY_TYPE_COLORS[log.activityType] || "bg-gray-100 text-gray-700"}`}>
+              <div key={log.id} className="flex gap-3 py-2.5 hover:bg-ink/[0.02] transition-colors">
+                <div className="flex-shrink-0 mt-0.5">
+                  <span className={`inline-flex px-2 py-0.5 text-[11px] font-medium ${ACTIVITY_TYPE_COLORS[log.activityType] || "border border-ink/20 text-ink/60"}`}>
                     {ACTIVITY_TYPE_LABELS[log.activityType] || log.activityType}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 text-sm">{log.title}</p>
+                  <p className="font-medium text-ink text-sm">{log.title}</p>
                   {log.description && (
-                    <p className="text-sm text-gray-600 mt-0.5">{log.description}</p>
+                    <p className="text-sm text-ink/60 mt-0.5">{log.description}</p>
                   )}
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(log.activityDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                  <p className="label-tech mt-1">
+                    <span className="tabular-nums">{new Date(log.activityDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span>
                     {" - "}
                     {log.user.firstName || ""} {log.user.lastName || ""}
                   </p>

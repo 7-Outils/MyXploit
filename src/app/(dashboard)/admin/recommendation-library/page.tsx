@@ -26,10 +26,10 @@ interface Recommendation {
 }
 
 const PRIORITY_LABELS: Record<number, { label: string; color: string }> = {
-  1: { label: "Urgent", color: "bg-red-100 text-red-700" },
-  2: { label: "Court terme", color: "bg-orange-100 text-orange-700" },
-  3: { label: "Moyen terme", color: "bg-yellow-100 text-yellow-700" },
-  4: { label: "Long terme", color: "bg-green-100 text-green-700" },
+  1: { label: "Urgent", color: "border border-red-600/20 bg-red-50 text-red-700" },
+  2: { label: "Court terme", color: "border border-amber-600/20 bg-amber-50 text-amber-700" },
+  3: { label: "Moyen terme", color: "border border-ink/15 bg-white text-ink/60" },
+  4: { label: "Long terme", color: "border border-ink/10 bg-white text-ink/40" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -206,15 +206,15 @@ export default function RecommendationLibraryPage() {
         <div>
           <Link
             href="/admin"
-            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-accent mb-2"
+            className="inline-flex items-center gap-2 text-sm text-text-secondary hover:text-accent mb-2"
           >
             <ArrowLeft size={16} />
             Administration
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-semibold text-ink">
             Bibliothèque de préconisations
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="mt-1 text-sm text-text-secondary">
             {recommendations.length} préconisations configurées
           </p>
         </div>
@@ -228,24 +228,24 @@ export default function RecommendationLibraryPage() {
       <div className="relative">
         <Search
           size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40"
         />
         <input
           type="text"
           placeholder="Rechercher une préconisation..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+          className="w-full border border-ink/20 bg-white py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink/30 focus:border-accent focus:outline-none"
         />
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-8 text-center">
-          <Euro size={48} className="mx-auto text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-700">
+        <div className="border border-ink/10 bg-white p-8 text-center">
+          <Euro size={48} className="mx-auto text-ink/20 mb-4" />
+          <h3 className="text-sm font-medium text-ink">
             {search ? "Aucun résultat" : "Aucune préconisation configurée"}
           </h3>
-          <p className="text-gray-500 mt-2">
+          <p className="mt-1 text-sm text-text-secondary">
             {search
               ? "Essayez une autre recherche"
               : "Créez vos premières préconisations avec leurs tarifs."}
@@ -261,36 +261,36 @@ export default function RecommendationLibraryPage() {
         <div className="space-y-6">
           {Object.entries(groupedByCategory).map(([category, recs]) => (
             <div key={category}>
-              <h2 className="text-lg font-semibold text-gray-800 mb-3">
+              <h2 className="label-tech mb-3">
                 {CATEGORY_LABELS[category] || category}
               </h2>
               <div className="grid gap-3">
                 {recs.map((rec) => (
                   <div
                     key={rec.id}
-                    className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md transition-shadow"
+                    className="border border-ink/10 bg-white p-4 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-gray-900">
+                          <h3 className="text-sm font-medium text-ink">
                             {rec.title}
                           </h3>
                           <span
-                            className={`px-2 py-0.5 text-xs rounded-full ${
-                              PRIORITY_LABELS[rec.priority]?.color || "bg-gray-100"
+                            className={`px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide ${
+                              PRIORITY_LABELS[rec.priority]?.color || "border border-ink/15 text-ink/50"
                             }`}
                           >
                             {PRIORITY_LABELS[rec.priority]?.label || `P${rec.priority}`}
                           </span>
                         </div>
                         {rec.description && (
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-sm text-text-secondary mt-1">
                             {rec.description}
                           </p>
                         )}
                         {rec.price && (
-                          <p className="text-lg font-bold text-accent mt-2">
+                          <p className="mt-2 font-mono text-sm font-medium tabular-nums text-accent">
                             {rec.price.toLocaleString("fr-FR")} € {rec.priceUnit}
                           </p>
                         )}
@@ -298,14 +298,14 @@ export default function RecommendationLibraryPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => openEditModal(rec)}
-                          className="p-2 text-gray-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                          className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
                         >
                           <Pencil size={18} />
                         </button>
                         <button
                           onClick={() => handleDelete(rec.id, rec.title)}
                           disabled={deleting === rec.id}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                          className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                         >
                           {deleting === rec.id ? (
                             <Loader2 size={18} className="animate-spin" />
@@ -325,15 +325,15 @@ export default function RecommendationLibraryPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">
+        <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between gap-3 border-b border-ink/10 px-4 py-2.5">
+              <h2 className="label-tech">
                 {editingId ? "Modifier la préconisation" : "Nouvelle préconisation"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-1 hover:bg-ink/[0.02]"
               >
                 <X size={20} />
               </button>
@@ -341,7 +341,7 @@ export default function RecommendationLibraryPage() {
 
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Titre *
                 </label>
                 <input
@@ -350,12 +350,12 @@ export default function RecommendationLibraryPage() {
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
                   placeholder="ex: Mise en place schéma de principe"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="label-tech mb-2 block">
                   Description
                 </label>
                 <textarea
@@ -363,13 +363,13 @@ export default function RecommendationLibraryPage() {
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
                   placeholder="Description détaillée de la préconisation"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Prix
                   </label>
                   <input
@@ -379,17 +379,17 @@ export default function RecommendationLibraryPage() {
                     value={form.price}
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     placeholder="750"
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Unité
                   </label>
                   <select
                     value={form.priceUnit}
                     onChange={(e) => setForm({ ...form, priceUnit: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="HT">HT</option>
                     <option value="TTC">TTC</option>
@@ -399,13 +399,13 @@ export default function RecommendationLibraryPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Catégorie
                   </label>
                   <select
                     value={form.category}
                     onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   >
                     <option value="">Sélectionner...</option>
                     {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
@@ -416,7 +416,7 @@ export default function RecommendationLibraryPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="label-tech mb-2 block">
                     Priorité
                   </label>
                   <select
@@ -424,7 +424,7 @@ export default function RecommendationLibraryPage() {
                     onChange={(e) =>
                       setForm({ ...form, priority: parseInt(e.target.value) })
                     }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none"
                   >
                     {Object.entries(PRIORITY_LABELS).map(([key, { label }]) => (
                       <option key={key} value={key}>
@@ -435,7 +435,7 @@ export default function RecommendationLibraryPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div className="flex justify-end gap-3 pt-4 border-t border-ink/10">
                 <Button
                   type="button"
                   variant="outline"

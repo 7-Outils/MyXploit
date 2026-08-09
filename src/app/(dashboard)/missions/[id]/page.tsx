@@ -65,18 +65,18 @@ interface MissionDetail {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PROSPECT: { label: "Pipeline", color: "bg-purple-100 text-purple-700" },
-  ACTIVE: { label: "Active", color: "bg-green-100 text-green-700" },
-  EN_PAUSE: { label: "En pause", color: "bg-yellow-100 text-yellow-700" },
-  TERMINEE: { label: "Terminee", color: "bg-gray-100 text-gray-700" },
-  ANNULEE: { label: "Annulee", color: "bg-red-100 text-red-700" },
+  PROSPECT: { label: "Pipeline", color: "bg-white text-ink/60 border border-ink/20" },
+  ACTIVE: { label: "Active", color: "bg-green-50 text-green-700 border border-green-600/20" },
+  EN_PAUSE: { label: "En pause", color: "bg-amber-50 text-amber-700 border border-amber-600/20" },
+  TERMINEE: { label: "Terminee", color: "bg-white text-ink/50 border border-ink/15" },
+  ANNULEE: { label: "Annulee", color: "bg-red-50 text-red-700 border border-red-600/20" },
 };
 
 const DELIVERABLE_STATUS: Record<string, { label: string; icon: React.ComponentType<{ size?: number | string; className?: string }>; color: string }> = {
-  A_FAIRE: { label: "A faire", icon: Clock, color: "text-gray-500 bg-gray-100" },
-  EN_COURS: { label: "En cours", icon: Pencil, color: "text-blue-600 bg-blue-100" },
-  PRODUIT: { label: "Produit", icon: CheckCircle, color: "text-green-600 bg-green-100" },
-  TRANSMIS: { label: "Transmis", icon: Send, color: "text-purple-600 bg-purple-100" },
+  A_FAIRE: { label: "A faire", icon: Clock, color: "text-ink/60 bg-white border border-ink/20" },
+  EN_COURS: { label: "En cours", icon: Pencil, color: "text-accent bg-accent/5 border border-accent/30" },
+  PRODUIT: { label: "Produit", icon: CheckCircle, color: "text-green-700 bg-green-50 border border-green-600/20" },
+  TRANSMIS: { label: "Transmis", icon: Send, color: "text-ink bg-ink/5 border border-ink/20" },
 };
 
 const BILLING_LABELS: Record<string, string> = {
@@ -184,7 +184,7 @@ export default function MissionDetailPage() {
   if (!mission) {
     return (
       <div className="text-center py-16">
-        <p className="text-gray-500">Mission introuvable</p>
+        <p className="text-ink/50">Mission introuvable</p>
         <Link href="/missions" className="text-accent hover:underline mt-2 inline-block">
           Retour aux missions
         </Link>
@@ -202,37 +202,37 @@ export default function MissionDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between border-b border-ink/10 pb-4">
         <div>
           <Link
             href="/missions"
-            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-3"
+            className="mb-3 inline-flex items-center gap-1 text-sm text-ink/50 hover:text-accent"
           >
             <ArrowLeft size={16} />
             Missions
           </Link>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-gray-900">{mission.title}</h1>
-            <span className={`text-xs px-2 py-1 rounded font-medium ${statusCfg.color}`}>
+          <div className="mb-1 flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-ink">{mission.title}</h1>
+            <span className={`px-2 py-0.5 text-xs font-medium ${statusCfg.color}`}>
               {statusCfg.label}
             </span>
           </div>
-          <p className="text-gray-500">
-            {mission.reference} • {mission.missionType.name} • {mission.client.name}
+          <p className="text-sm text-ink/50">
+            <span className="font-mono tabular-nums">{mission.reference}</span> • {mission.missionType.name} • {mission.client.name}
           </p>
         </div>
         <button
           onClick={handleDelete}
           disabled={deleting}
-          className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+          className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
           title="Supprimer"
         >
-          <Trash2 size={18} />
+          <Trash2 size={16} />
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+      <div className="flex w-fit items-center border border-ink/10 divide-x divide-ink/10">
         {[
           { key: "livrables" as const, label: `Livrables (${mission.deliverables.length})` },
           { key: "infos" as const, label: "Informations" },
@@ -241,10 +241,10 @@ export default function MissionDetailPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.key
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-accent/5 text-accent"
+                : "text-ink/60 hover:bg-ink/[0.02] hover:text-ink"
             }`}
           >
             {tab.label}
@@ -257,17 +257,17 @@ export default function MissionDetailPage() {
         <div className="space-y-4">
           {/* Overdue alert */}
           {overdueDeliverables.length > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle size={16} className="text-red-500 flex-shrink-0" />
+            <div className="flex items-center gap-2 border border-red-600/20 bg-red-50 p-3">
+              <AlertTriangle size={16} className="flex-shrink-0 text-red-600" />
               <span className="text-sm text-red-700">
-                {overdueDeliverables.length} livrable(s) en retard
+                <span className="font-mono tabular-nums">{overdueDeliverables.length}</span> livrable(s) en retard
               </span>
             </div>
           )}
 
           {/* Add button */}
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-gray-500 uppercase">Livrables</h3>
+            <h3 className="label-tech">Livrables</h3>
             <button
               onClick={() => setShowAddDeliverable(true)}
               className="flex items-center gap-1 text-sm text-accent hover:underline"
@@ -279,13 +279,13 @@ export default function MissionDetailPage() {
 
           {/* Add form inline */}
           {showAddDeliverable && (
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+            <div className="panel space-y-3 p-4">
               <input
                 type="text"
                 value={deliverableForm.title}
                 onChange={(e) => setDeliverableForm({ ...deliverableForm, title: e.target.value })}
                 placeholder="Titre du livrable (ex: Rapport annuel)"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 autoFocus
               />
               <div className="grid grid-cols-2 gap-3">
@@ -294,27 +294,27 @@ export default function MissionDetailPage() {
                   value={deliverableForm.description}
                   onChange={(e) => setDeliverableForm({ ...deliverableForm, description: e.target.value })}
                   placeholder="Description (optionnel)"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                 />
                 <input
                   type="date"
                   value={deliverableForm.dueDate}
                   onChange={(e) => setDeliverableForm({ ...deliverableForm, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm tabular-nums focus:border-accent focus:outline-none"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleAddDeliverable}
                   disabled={addingDeliverable || !deliverableForm.title.trim()}
-                  className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1"
+                  className="flex items-center gap-1 bg-ink px-3 py-1.5 text-sm text-paper transition-colors hover:bg-accent disabled:opacity-50"
                 >
                   {addingDeliverable && <Loader2 size={12} className="animate-spin" />}
                   Ajouter
                 </button>
                 <button
                   onClick={() => setShowAddDeliverable(false)}
-                  className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                  className="border border-ink/20 px-3 py-1.5 text-sm text-ink transition-colors hover:border-accent hover:text-accent"
                 >
                   Annuler
                 </button>
@@ -324,9 +324,9 @@ export default function MissionDetailPage() {
 
           {/* Deliverables list */}
           {mission.deliverables.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-              <FileText size={32} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-500 text-sm">Aucun livrable defini</p>
+            <div className="panel py-12 text-center">
+              <FileText size={28} className="mx-auto mb-3 text-ink/20" />
+              <p className="text-sm text-ink/50">Aucun livrable defini</p>
               <button
                 onClick={() => setShowAddDeliverable(true)}
                 className="inline-flex items-center gap-1 text-sm text-accent hover:underline mt-2"
@@ -336,29 +336,27 @@ export default function MissionDetailPage() {
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 divide-y">
+            <div className="panel divide-y divide-ink/10">
               {mission.deliverables.map((d) => {
                 const dStatus = DELIVERABLE_STATUS[d.status] || DELIVERABLE_STATUS.A_FAIRE;
                 const isOverdue = d.dueDate && new Date(d.dueDate) < now && d.status !== "TRANSMIS" && d.status !== "PRODUIT";
                 const IconComponent = dStatus.icon;
 
                 return (
-                  <div key={d.id} className={`p-4 flex items-center gap-4 ${isOverdue ? "bg-red-50/50" : ""}`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${dStatus.color}`}>
-                      <IconComponent size={16} />
-                    </div>
+                  <div key={d.id} className={`flex items-center gap-4 px-4 py-2.5 ${isOverdue ? "bg-red-50/50" : ""}`}>
+                    <IconComponent size={16} className="flex-shrink-0 text-ink/40" />
 
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{d.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-ink">{d.title}</p>
+                      <div className="mt-0.5 flex items-center gap-2">
                         {d.dueDate && (
-                          <span className={`text-xs ${isOverdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                          <span className={`text-xs tabular-nums ${isOverdue ? "font-medium text-red-600" : "text-ink/50"}`}>
                             Echeance : {new Date(d.dueDate).toLocaleDateString("fr-FR")}
                             {isOverdue && " (en retard)"}
                           </span>
                         )}
                         {d.description && (
-                          <span className="text-xs text-gray-400">• {d.description}</span>
+                          <span className="text-xs text-ink/40">• {d.description}</span>
                         )}
                       </div>
                     </div>
@@ -367,7 +365,7 @@ export default function MissionDetailPage() {
                     <select
                       value={d.status}
                       onChange={(e) => handleDeliverableStatusChange(d.id, e.target.value)}
-                      className={`text-xs px-2 py-1 rounded border-0 font-medium cursor-pointer ${dStatus.color}`}
+                      className={`cursor-pointer px-2 py-1 text-xs font-medium focus:outline-none ${dStatus.color}`}
                     >
                       <option value="A_FAIRE">A faire</option>
                       <option value="EN_COURS">En cours</option>
@@ -378,7 +376,8 @@ export default function MissionDetailPage() {
                     {/* Delete */}
                     <button
                       onClick={() => handleDeleteDeliverable(d.id)}
-                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                      className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600"
+                      title="Supprimer"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -392,30 +391,30 @@ export default function MissionDetailPage() {
 
       {/* Tab: Informations */}
       {activeTab === "infos" && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="grid md:grid-cols-2 gap-6">
+        <div className="panel p-4">
+          <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Client</label>
-                <p className="text-sm text-gray-900 mt-1">
+                <label className="label-tech">Client</label>
+                <p className="mt-1 text-sm text-ink">
                   <Link href={`/clients/${mission.client.id}`} className="text-accent hover:underline">
                     {mission.client.name}
                   </Link>
-                  {mission.client.city && <span className="text-gray-500"> • {mission.client.city}</span>}
+                  {mission.client.city && <span className="text-ink/50"> • {mission.client.city}</span>}
                 </p>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Type de mission</label>
-                <p className="text-sm text-gray-900 mt-1">{mission.missionType.name}</p>
+                <label className="label-tech">Type de mission</label>
+                <p className="mt-1 text-sm text-ink">{mission.missionType.name}</p>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Description</label>
-                <p className="text-sm text-gray-900 mt-1">{mission.description || "-"}</p>
+                <label className="label-tech">Description</label>
+                <p className="mt-1 text-sm text-ink">{mission.description || "-"}</p>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Statut</label>
+                <label className="label-tech">Statut</label>
                 <p className="mt-1">
-                  <span className={`text-xs px-2 py-1 rounded font-medium ${statusCfg.color}`}>
+                  <span className={`px-2 py-0.5 text-xs font-medium ${statusCfg.color}`}>
                     {statusCfg.label}
                   </span>
                 </p>
@@ -425,42 +424,42 @@ export default function MissionDetailPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Date debut</label>
-                  <p className="text-sm text-gray-900 mt-1">
+                  <label className="label-tech">Date debut</label>
+                  <p className="mt-1 font-mono text-sm tabular-nums text-ink">
                     {mission.startDate ? new Date(mission.startDate).toLocaleDateString("fr-FR") : "-"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Date fin</label>
-                  <p className="text-sm text-gray-900 mt-1">
+                  <label className="label-tech">Date fin</label>
+                  <p className="mt-1 font-mono text-sm tabular-nums text-ink">
                     {mission.endDate ? new Date(mission.endDate).toLocaleDateString("fr-FR") : "-"}
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Montant HT</label>
-                  <p className="text-sm text-gray-900 mt-1">
+                  <label className="label-tech">Montant HT</label>
+                  <p className="mt-1 font-mono text-sm tabular-nums text-ink">
                     {mission.amountHT ? `${mission.amountHT.toLocaleString("fr-FR")} €` : "-"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 uppercase">Facturation</label>
-                  <p className="text-sm text-gray-900 mt-1">
+                  <label className="label-tech">Facturation</label>
+                  <p className="mt-1 text-sm text-ink">
                     {mission.billingModality ? BILLING_LABELS[mission.billingModality] || mission.billingModality : "-"}
                   </p>
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">Ingenieur(s) affecte(s)</label>
+                <label className="label-tech">Ingenieur(s) affecte(s)</label>
                 {mission.engineers.length === 0 ? (
-                  <p className="text-sm text-gray-400 mt-1">Aucun ingenieur affecte</p>
+                  <p className="text-sm text-ink/40 mt-1">Aucun ingenieur affecte</p>
                 ) : (
                   <div className="mt-1 space-y-1">
                     {mission.engineers.map((e) => (
-                      <p key={e.id} className="text-sm text-gray-900">
+                      <p key={e.id} className="text-sm text-ink">
                         {e.user.firstName || ""} {e.user.lastName || ""}{" "}
-                        <span className="text-gray-500">({e.user.email})</span>
+                        <span className="text-ink/50">({e.user.email})</span>
                       </p>
                     ))}
                   </div>
@@ -476,26 +475,26 @@ export default function MissionDetailPage() {
         <div className="space-y-6">
           {/* Sites */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase mb-3 flex items-center gap-2">
+            <h3 className="label-tech mb-3 flex items-center gap-2">
               <MapPin size={14} />
               Sites rattaches ({mission.sites.length})
             </h3>
             {mission.sites.length === 0 ? (
-              <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
-                <p className="text-sm text-gray-400">Aucun site rattache</p>
+              <div className="panel py-8 text-center">
+                <p className="text-sm text-ink/40">Aucun site rattache</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 divide-y">
+              <div className="panel divide-y divide-ink/10">
                 {mission.sites.map((ms) => (
                   <Link
                     key={ms.id}
                     href={`/buildings/${ms.site.id}`}
-                    className="flex items-center gap-3 p-3 hover:bg-gray-50"
+                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-ink/[0.02]"
                   >
-                    <MapPin size={16} className="text-gray-400 flex-shrink-0" />
+                    <MapPin size={16} className="text-ink/40 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{ms.site.name}</p>
-                      <p className="text-xs text-gray-500">{ms.site.city} • {ms.site.type}</p>
+                      <p className="text-sm font-medium text-ink">{ms.site.name}</p>
+                      <p className="text-xs text-ink/50">{ms.site.city} • {ms.site.type}</p>
                     </div>
                   </Link>
                 ))}
@@ -505,25 +504,25 @@ export default function MissionDetailPage() {
 
           {/* Contrats */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 uppercase mb-3 flex items-center gap-2">
+            <h3 className="label-tech mb-3 flex items-center gap-2">
               <Building2 size={14} />
               Contrats d&apos;exploitation ({mission.contracts.length})
             </h3>
             {mission.contracts.length === 0 ? (
-              <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
-                <p className="text-sm text-gray-400">Aucun contrat rattache</p>
+              <div className="panel py-8 text-center">
+                <p className="text-sm text-ink/40">Aucun contrat rattache</p>
               </div>
             ) : (
-              <div className="bg-white rounded-xl border border-gray-200 divide-y">
+              <div className="panel divide-y divide-ink/10">
                 {mission.contracts.map((mc) => (
-                  <div key={mc.id} className="flex items-center gap-3 p-3">
-                    <FileText size={16} className="text-gray-400 flex-shrink-0" />
+                  <div key={mc.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <FileText size={16} className="text-ink/40 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{mc.contract.title}</p>
-                      <p className="text-xs text-gray-500">{mc.contract.reference} • {mc.contract.provider}</p>
+                      <p className="text-sm font-medium text-ink">{mc.contract.title}</p>
+                      <p className="text-xs text-ink/50">{mc.contract.reference} • {mc.contract.provider}</p>
                     </div>
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded ${
-                      mc.contract.status === "ACTIF" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                    <span className={`ml-auto px-2 py-0.5 text-xs font-medium ${
+                      mc.contract.status === "ACTIF" ? "border border-green-600/20 bg-green-50 text-green-700" : "border border-ink/15 bg-white text-ink/50"
                     }`}>
                       {mc.contract.status}
                     </span>
