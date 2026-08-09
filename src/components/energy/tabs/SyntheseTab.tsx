@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   BarChart3,
@@ -23,14 +24,13 @@ import type { AnalyticsData, Alert } from "@/components/energy/types";
 export function SyntheseContent({
   analytics,
   activeAlerts,
-  setShowIdexImportModal,
   setShowCreateModal,
 }: {
   analytics: AnalyticsData | null;
   activeAlerts: Alert[];
-  setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
 }) {
+  const router = useRouter();
   // Filtre par status cliqué sur une KPI (Économie / Dépassement)
   const [statusFilter, setStatusFilter] = useState<"ECONOMIE" | "DEPASSEMENT" | null>(null);
   const toggleStatus = (s: "ECONOMIE" | "DEPASSEMENT") =>
@@ -43,7 +43,7 @@ export function SyntheseContent({
           <BarChart3 className="w-12 h-12 text-gray-300 mb-3" />
           <p className="text-text-secondary mb-4">Aucune donnée de consommation</p>
           <div className="flex gap-2 flex-wrap justify-center">
-            <Button variant="outline" onClick={() => setShowIdexImportModal(true)}>
+            <Button variant="outline" onClick={() => router.push("/energy/import")}>
               <Flame size={18} className="mr-2" />
               Import Exploitant
             </Button>

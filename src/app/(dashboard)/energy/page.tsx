@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
@@ -13,10 +13,10 @@ import {
   Flame,
   Building2,
   Download,
+  Gauge,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
-import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
 // RelevesTab embarque echarts (core + charts + renderer). L'onglet n'étant
 // monté qu'à la demande, on le sort du bundle initial.
@@ -24,6 +24,7 @@ const RelevesContent = dynamic(
   () => import("@/components/energy/tabs/RelevesTab").then((m) => m.RelevesContent),
   { ssr: false }
 );
+import { CoefficientsContent } from "@/components/energy/tabs/CoefficientsTab";
 import { sortTabsAlpha } from "@/lib/utils";
 
 // Types and constants live in their own files now — see
@@ -36,6 +37,7 @@ import type {
 } from "@/components/energy/types";
 
 const ENERGY_TABS = sortTabsAlpha([
+  { id: "coefficients" as Tab, label: "Coefficients", icon: Gauge },
   { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
   { id: "sites" as Tab, label: "Relevés", icon: Building2 },
   { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
@@ -64,48 +66,9 @@ function EnergyPageContent() {
   // PDF export state
   const [exportingPdf, setExportingPdf] = useState(false);
 
-  // Modals
+  // Modals — l'import exploitant a sa propre page (/energy/import, moteur universel)
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showIdexImportModal, setShowIdexImportModal] = useState(false);
   const [readingsVersion, setReadingsVersion] = useState(0);
-
-  const [importingIdex, setImportingIdex] = useState(false);
-  const [idexImportResult, setIdexImportResult] = useState<{
-    mode: "preview" | "import";
-    imported?: number;
-    updated?: number;
-    skipped: number;
-    errors: { row: number; site: string; error: string }[];
-    totalErrors?: number;
-    siteMatches: Record<string, {
-      matched: boolean;
-      siteId?: string;
-      siteName?: string;
-      confidence?: number;
-      suggestions?: Array<{ id: string; name: string; score: number }>;
-      rowCount?: number;
-    }>;
-    unmatchedSites?: Array<{
-      excelName: string;
-      rowCount: number;
-      suggestions: Array<{ id: string; name: string; score: number }>;
-    }>;
-    availableSites?: Array<{ id: string; name: string }>;
-    // Preview data: meters grouped by site
-    preview?: Array<{
-      siteId: string;
-      siteName: string;
-      meters: Array<{
-        meterName: string;
-        energyType: string;
-        usage: string;
-        periods: Array<{ period: string; quantity: number; unit: string }>;
-        totalQuantity: number;
-      }>;
-    }>;
-  } | null>(null);
-  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
-  const [pendingImportType, setPendingImportType] = useState<"ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET">("RELEVE_MENSUEL");
 
   // Tab change handler — update state + URL without triggering a navigation
   const handleTabChange = (tab: Tab) => {
@@ -184,96 +147,6 @@ function EnergyPageContent() {
   const analytics = analyticsData ?? null;
   const loading = sitesLoading || analyticsLoadingSWR;
 
-  // First step: preview the import
-  const handleIdexImport = async (file: File, importType: "ALLUMAGE" | "RELEVE_MENSUEL" | "ARRET") => {
-    if (!selectedContract) return;
-
-    setImportingIdex(true);
-    setIdexImportResult(null);
-    setPendingImportFile(file);
-    setPendingImportType(importType); // Save for confirm step
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("contractId", selectedContract.id);
-      formData.append("importType", importType); // Pass import type
-      formData.append("preview", "true"); // Preview mode
-
-      const response = await fetch("/api/consumptions/import-idex", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-      console.log("Preview result:", result);
-
-      if (response.ok) {
-        setIdexImportResult(result);
-      } else {
-        alert(result.error || "Erreur lors de l'analyse du fichier");
-      }
-    } catch (error) {
-      console.error("Error previewing IDEX:", error);
-      alert("Erreur lors de l'analyse du fichier");
-    } finally {
-      setImportingIdex(false);
-    }
-  };
-
-  // Second step: confirm and execute the import
-  const handleConfirmIdexImport = async (userMappings: Record<string, string> = {}) => {
-    if (!selectedContract || !pendingImportFile) return;
-
-    setImportingIdex(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", pendingImportFile);
-      formData.append("contractId", selectedContract.id);
-      formData.append("importType", pendingImportType); // Pass import type
-      // Correspondances manuelles (mapping + sites créés) -> import sans re-lancer l'aperçu
-      const cleanMappings = Object.fromEntries(
-        Object.entries(userMappings).filter(([, siteId]) => siteId)
-      );
-      if (Object.keys(cleanMappings).length > 0) {
-        formData.append("userMappings", JSON.stringify(cleanMappings));
-      }
-      // No preview flag = actual import
-
-      const response = await fetch("/api/consumptions/import-idex", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-      console.log("Import result:", result);
-
-      if (response.ok) {
-        setIdexImportResult(result);
-        if (result.imported > 0 || result.updated > 0) {
-          // setReadingsVersion change la SWR key → re-fetch auto
-          setReadingsVersion((v) => v + 1);
-        }
-      } else {
-        alert(result.error || "Erreur lors de l'import");
-      }
-    } catch (error) {
-      console.error("Error importing IDEX:", error);
-      alert("Erreur lors de l'import");
-    } finally {
-      setImportingIdex(false);
-      setPendingImportFile(null);
-    }
-  };
-
-  const closeIdexImportModal = () => {
-    setShowIdexImportModal(false);
-    setIdexImportResult(null);
-    setPendingImportFile(null);
-  };
-
-
 
   const activeAlerts = alerts.filter((a) => !a.isRead);
 
@@ -318,7 +191,7 @@ function EnergyPageContent() {
           ))}
         </nav>
         <div className="flex items-center gap-2 pb-2 px-0">
-          {activeTab !== "telereleve" && activeTab !== "sites" && (
+          {activeTab !== "telereleve" && activeTab !== "sites" && activeTab !== "coefficients" && (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -378,7 +251,6 @@ function EnergyPageContent() {
             <SyntheseContent
               analytics={analytics}
               activeAlerts={activeAlerts}
-              setShowIdexImportModal={setShowIdexImportModal}
               setShowCreateModal={setShowCreateModal}
             />
           ) : loading ? (
@@ -393,7 +265,6 @@ function EnergyPageContent() {
         {mountedTabs.has("sites") && (
           <RelevesContent
             contractId={selectedContract?.id || null}
-            setShowIdexImportModal={setShowIdexImportModal}
             setShowCreateModal={setShowCreateModal}
             refreshKey={readingsVersion}
           />
@@ -403,6 +274,12 @@ function EnergyPageContent() {
       <div style={{ display: activeTab === "telereleve" ? "block" : "none" }}>
         {mountedTabs.has("telereleve") && (
           <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
+        )}
+      </div>
+
+      <div style={{ display: activeTab === "coefficients" ? "block" : "none" }}>
+        {mountedTabs.has("coefficients") && (
+          <CoefficientsContent contractId={selectedContract?.id || null} />
         )}
       </div>
 
@@ -418,19 +295,6 @@ function EnergyPageContent() {
           }}
         />
       )}
-
-
-      {showIdexImportModal && (
-        <IdexImportModal
-          importing={importingIdex}
-          importResult={idexImportResult}
-          contractId={selectedContract.id}
-          onImport={handleIdexImport}
-          onConfirmImport={handleConfirmIdexImport}
-          onClose={closeIdexImportModal}
-        />
-      )}
-
     </div>
   );
 }

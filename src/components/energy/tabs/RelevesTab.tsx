@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 import { Building2, ChevronDown, ChevronUp, Check, Loader2, Pencil, Plus, Trash2, Upload, X } from "lucide-react";
@@ -369,15 +370,14 @@ function RatioChauffageDjuChart({ monthlyRatio }: { monthlyRatio: Map<string, nu
 
 export function RelevesContent({
   contractId,
-  setShowIdexImportModal,
   setShowCreateModal,
   refreshKey = 0,
 }: {
   contractId: string | null;
-  setShowIdexImportModal: (v: boolean) => void;
   setShowCreateModal: (v: boolean) => void;
   refreshKey?: number;
 }) {
+  const router = useRouter();
   const [readings, setReadings] = useState<MeterReadingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -852,7 +852,7 @@ export function RelevesContent({
         <div className="flex-1" />
 
         <button
-          onClick={() => setShowIdexImportModal(true)}
+          onClick={() => router.push("/energy/import")}
           title="Import Exploitant"
           className="h-9 w-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
         >

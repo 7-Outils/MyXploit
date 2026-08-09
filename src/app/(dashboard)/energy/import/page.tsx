@@ -1,17 +1,19 @@
 "use client";
 
 /**
- * PAGE DE TEST — Import exploitant universel (v2)
- * ------------------------------------------------
- * Isolée de la vraie page Relevé. 100% côté navigateur, AUCUNE écriture en base.
- * Objectif : valider qu'un mapping universel (colonne → notion) + le moteur de
- * calcul existant marchent sur n'importe quelle trame (Idex, Veolia, ...).
+ * Import exploitant universel
+ * ---------------------------
+ * Point d'entrée officiel de l'import des relevés exploitant, quelle que soit
+ * la trame (Veolia, Idex, Dalkia, ...) : mapping colonne → notion, pas de code
+ * par exploitant. Les gabarits de mapping sont partagés par l'organisation
+ * (ImportTemplate) — une trame mappée une fois l'est pour tout le monde.
  *
  * Flux : upload → détection ligne d'en-têtes → mapping colonnes (avec suggestions)
- *        → aperçu des lignes normalisées → aperçu des consommations mensuelles.
+ *        → aperçu des lignes normalisées → aperçu des consommations mensuelles
+ *        → import en base (/api/consumptions/import-universal).
  *
- * Le calcul réutilise EXACTEMENT prorateAcrossMonths() du moteur de prod, donc
- * l'aperçu est fidèle au kWh près.
+ * L'aperçu réutilise EXACTEMENT prorateAcrossMonths() du moteur de prod, donc
+ * il est fidèle au kWh près.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -533,9 +535,9 @@ export default function ImportTestPage() {
       <div className="flex items-center gap-3">
         <FileSpreadsheet className="w-6 h-6 text-emerald-600" />
         <div>
-          <h1 className="text-xl font-semibold">Import exploitant — Banc de test</h1>
+          <h1 className="text-xl font-semibold">Import exploitant</h1>
           <p className="text-sm text-gray-500">
-            Page isolée · 100% navigateur · <span className="font-medium text-amber-600">aucune écriture en base</span>
+            Toutes trames · mapping mémorisé pour l&apos;organisation · aperçu avant import
           </p>
         </div>
       </div>
