@@ -2,7 +2,6 @@
 
 import { useRef, useState } from "react";
 import useSWR from "swr";
-import * as XLSX from "xlsx";
 import { Loader2, Sparkles, Plus, Trash2, FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -111,6 +110,9 @@ export default function ContractRenewalPlanTab({
     setAnalyzing(true);
     setProposals([]);
     try {
+      // xlsx est lourd et n'est utile qu'au moment où l'utilisateur dépose un
+      // fichier : on le charge ici plutôt qu'au montage de l'onglet.
+      const XLSX = await import("xlsx");
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer);
       // Toutes les feuilles, en lignes de chaînes (trames non standardisées)

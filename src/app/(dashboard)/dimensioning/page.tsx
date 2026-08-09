@@ -17,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import { StatsCard } from "@/components/dashboard/stats-card";
-import { generateDimensioningPDF } from "@/lib/pdf/dimensioning-report";
 import { Contract, Site, DimensioningResult } from "@/components/dimensioning/types";
 import { BudgetSection } from "@/components/dimensioning/sections/BudgetSection";
 import { WorksSection } from "@/components/dimensioning/sections/WorksSection";
@@ -174,11 +173,13 @@ function DimensioningPageContent() {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!result) return;
     const contractTitle = selectedContract
       ? contracts.find((c) => c.id === selectedContract)?.title
       : undefined;
+    // jspdf ne sert qu'ici : chargé au clic, pas au montage de la page.
+    const { generateDimensioningPDF } = await import("@/lib/pdf/dimensioning-report");
     generateDimensioningPDF(result, contractTitle);
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
@@ -12,12 +13,19 @@ import {
   Flame,
   Building2,
   Download,
+  Gauge,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
 import { IdexImportModal } from "@/components/energy/modals/IdexImportModal";
 import { SyntheseContent } from "@/components/energy/tabs/SyntheseTab";
-import { RelevesContent } from "@/components/energy/tabs/RelevesTab";
+// RelevesTab embarque echarts (core + charts + renderer). L'onglet n'étant
+// monté qu'à la demande, on le sort du bundle initial.
+const RelevesContent = dynamic(
+  () => import("@/components/energy/tabs/RelevesTab").then((m) => m.RelevesContent),
+  { ssr: false }
+);
+import { CoefficientsContent } from "@/components/energy/tabs/CoefficientsTab";
 import { sortTabsAlpha } from "@/lib/utils";
 
 // Types and constants live in their own files now — see
@@ -30,6 +38,7 @@ import type {
 } from "@/components/energy/types";
 
 const ENERGY_TABS = sortTabsAlpha([
+  { id: "coefficients" as Tab, label: "Coefficients", icon: Gauge },
   { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
   { id: "sites" as Tab, label: "Relevés", icon: Building2 },
   { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
@@ -312,7 +321,7 @@ function EnergyPageContent() {
           ))}
         </nav>
         <div className="flex items-center gap-2 pb-2 px-0">
-          {activeTab !== "telereleve" && activeTab !== "sites" && (
+          {activeTab !== "telereleve" && activeTab !== "sites" && activeTab !== "coefficients" && (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -397,6 +406,12 @@ function EnergyPageContent() {
       <div style={{ display: activeTab === "telereleve" ? "block" : "none" }}>
         {mountedTabs.has("telereleve") && (
           <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
+        )}
+      </div>
+
+      <div style={{ display: activeTab === "coefficients" ? "block" : "none" }}>
+        {mountedTabs.has("coefficients") && (
+          <CoefficientsContent contractId={selectedContract?.id || null} />
         )}
       </div>
 
