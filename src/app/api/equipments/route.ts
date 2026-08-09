@@ -524,7 +524,7 @@ export async function GET(request: NextRequest) {
     } else if (contractId) {
       // Get all sites for this contract
       const contractSites = await prisma.contractSite.findMany({
-        where: { contractId },
+        where: { contractId, contract: { organizationId: effectiveOrgId } },
         select: { siteId: true },
       });
       where.siteId = { in: contractSites.map((cs) => cs.siteId) };
@@ -543,9 +543,21 @@ export async function GET(request: NextRequest) {
         audits: {
           orderBy: { auditDate: "desc" },
           take: 1, // Only latest audit
-        },
-        _count: {
-          select: { audits: true },
+          // Seuls ces champs sont lus (matrice, tableau, export PDF). Les 5 blocs
+          // de notes par critère et le tableau `photos` pesaient sur chaque ligne
+          // sans jamais être affichés — sur un contrat de plusieurs milliers
+          // d'équipements, c'est l'essentiel du poids de la réponse.
+          select: {
+            id: true,
+            auditDate: true,
+            auditor: true,
+            visualState: true,
+            performance: true,
+            security: true,
+            accessibility: true,
+            compliance: true,
+            generalNotes: true,
+          },
         },
       },
       orderBy: [{ domain: "asc" }, { type: "asc" }, { createdAt: "desc" }],
