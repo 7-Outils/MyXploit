@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyXploit — Équipements · Synthèse (mockup)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    color-scheme: light;
+    /* Chrome & ink — thème MyXploit (tailwind.config + globals.css) */
+    --page:        #F8FAFB;
+    --surface:     #FFFFFF;
+    --ink:         #0F1E33;
+    --ink-2:       #4A5568;
+    --muted:       #718096;
+    --grid:        rgba(15,30,51,0.10);
+    --baseline:    rgba(15,30,51,0.25);
+    --ring:        rgba(15,30,51,0.15);
+    /* Brand (UI chrome uniquement, jamais la donnée) */
+    --brand:       #0F1E33;
+    --accent:      #2563EB;
+    --accent-2:    #60A5FA;
+    --accent-soft: rgba(37,99,235,0.08);
+    /* Séries (validées CVD sur surface blanche : ΔE 29,9) */
+    --s1: #2563EB;   /* bleu accent — prévu au plan */
+    --s2: #eb6834;   /* orange — non prévu */
+    /* Statuts (fixes) */
+    --good:     #0ca30c;
+    --warning:  #fab219;
+    --serious:  #ec835a;
+    --critical: #d03b3b;
+    /* Séquentiel bleu (pyramide d'âge) */
+    --sq250:#86b6ef; --sq350:#5598e7; --sq450:#2a78d6; --sq550:#1c5cab; --sq650:#104281; --sq700:#0d366b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page); color: var(--ink);
+    font-size: 13.5px; line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono-label {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(15,30,51,.55); font-weight: 600;
+  }
+  /* ─── Top bar (contexte app) ─── */
+  .topbar {
+    background: var(--brand); color: #fff;
+    display: flex; align-items: center; gap: 28px;
+    padding: 0 24px; height: 52px;
+  }
+  .logo { font-weight: 700; font-size: 15px; letter-spacing: .2px; }
+  .logo span { color: var(--accent-2); }
+  .topnav { display: flex; gap: 4px; height: 100%; }
+  .topnav a {
+    color: rgba(255,255,255,.65); text-decoration: none; font-size: 13px;
+    display: flex; align-items: center; padding: 0 14px; border-bottom: 2px solid transparent;
+  }
+  .topnav a.on { color: #fff; border-bottom-color: var(--accent-2); }
+  .topbar .who { margin-left: auto; display:flex; align-items:center; gap:10px; font-size:12.5px; color: rgba(255,255,255,.75); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; color:#fff; }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 24px 48px; }
+
+  /* ─── En-tête de rubrique ─── */
+  .crumb { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .crumb b { color: var(--ink-2); font-weight: 500; }
+  .pagehead { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .pagehead h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 500; letter-spacing: -.2px; }
+  .pagehead .sub { color: var(--ink-2); font-size: 13px; margin-top: 3px; }
+  .actions { margin-left: auto; display: flex; gap: 8px; }
+  .btn {
+    border: 1px solid var(--ring); background: var(--surface); color: var(--ink);
+    border-radius: 0; padding: 8px 15px; font-size: 12.5px; font-weight: 500; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+    transition: background-color .2s, color .2s;
+  }
+  .btn:hover { border-color: var(--ink); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn.primary:hover { background: var(--accent); border-color: var(--accent); }
+  .btn svg { width: 14px; height: 14px; }
+
+  /* ─── Onglets ─── */
+  .tabs { display: flex; gap: 2px; margin: 18px 0 0; border-bottom: 1px solid var(--grid); }
+  .tab {
+    padding: 9px 14px; font-size: 13px; color: var(--ink-2); cursor: pointer;
+    border-bottom: 2px solid transparent; display: flex; gap: 7px; align-items: center;
+  }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab .n {
+    font-size: 11px; background: var(--accent-soft); color: var(--accent);
+    border-radius: 20px; padding: 1px 7px; font-weight: 600;
+  }
+  .tab:not(.on) .n { background: #efeeea; color: var(--muted); }
+
+  /* ─── Filtres ─── */
+  .filters { display: flex; gap: 8px; margin: 16px 0 18px; flex-wrap: wrap; }
+  .filter {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 0;
+    padding: 6px 11px; font-size: 12.5px; color: var(--ink-2); display: flex; gap: 7px; align-items: center; cursor: pointer;
+  }
+  .filter b { color: var(--ink); font-weight: 600; }
+  .filter::after { content: "▾"; font-size: 9px; color: var(--muted); }
+  .search {
+    margin-left: auto; background: var(--surface); border: 1px solid var(--ring); border-radius: 0;
+    padding: 6px 12px; font-size: 12.5px; color: var(--muted); min-width: 220px; font-family: inherit;
+  }
+
+  /* ─── Cartes & grilles ─── */
+  .card {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 0;
+    padding: 16px 18px;
+  }
+  .card h3 {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .14em;
+    color: rgba(15,30,51,.55); font-weight: 600;
+  }
+  .card .hint { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .cardhead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .cardhead .link { margin-left: auto; font-size: 12px; color: var(--accent); font-weight: 500; cursor: pointer; white-space: nowrap; }
+
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi .lbl {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em;
+    color: rgba(15,30,51,.55); font-weight: 600;
+  }
+  .kpi .val { font-size: 26px; font-weight: 650; letter-spacing: -.4px; margin-top: 5px; }
+  .kpi .val small { font-size: 13px; font-weight: 500; color: var(--ink-2); letter-spacing: 0; }
+  .kpi .sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+  .kpi .sub .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .kpi.alert .val { color: var(--critical); }
+  .kpi.warn .val { color: #b07800; }
+
+  /* bandeau de chiffres — lecture en entonnoir */
+  .statstrip { display: flex; align-items: center; gap: 18px; margin: 4px 0 16px; }
+  .statstrip .st .v { font-size: 24px; font-weight: 650; letter-spacing: -.3px; line-height: 1.1; }
+  .statstrip .st .v small { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  .statstrip .st .l { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
+  .statstrip .st.alert .v { color: var(--critical); }
+  .statstrip .arr { color: var(--baseline); font-size: 15px; }
+
+  /* mini barre empilée dans la tuile "état du parc" */
+  .minibar { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; margin-top: 10px; }
+  .minibar i { display: block; height: 100%; }
+
+  .grid2 { display: grid; grid-template-columns: 5fr 7fr; gap: 12px; margin-top: 16px; }
+  /* état du parc (2e enfant du DOM) affiché en premier, en haut à gauche */
+  .grid2 > :nth-child(1) { order: 2; } /* échéances → droite */
+  .grid2 > :nth-child(2) { order: 1; } /* état du parc → gauche, premier */
+  .grid2 > :nth-child(3) { order: 3; }
+  .grid2 > :nth-child(4) { order: 4; }
+  .grid3 { display: grid; grid-template-columns: 8fr 4fr; gap: 12px; margin-top: 12px; }
+  @media (max-width: 980px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  /* ─── Légendes ─── */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+  .legend .it { display: flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+  /* ─── Mur de renouvellement (colonnes empilées) ─── */
+  .colchart { position: relative; height: 210px; margin-top: 8px; }
+  .gridlines { position: absolute; inset: 0 0 22px 34px; }
+  .gridlines i { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid); }
+  .gridlines i b { position: absolute; left: -34px; top: -7px; font-size: 10.5px; color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .cols { position: absolute; inset: 0 0 22px 34px; display: flex; align-items: flex-end; justify-content: space-around; border-bottom: 1px solid var(--baseline); }
+  .colgrp { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; position: relative; width: 40px; }
+  .colgrp .total { font-size: 11px; color: var(--ink-2); font-weight: 600; margin-bottom: 4px; }
+  .col { width: 22px; display: flex; flex-direction: column-reverse; gap: 2px; }
+  .col i { display: block; width: 100%; cursor: default; }
+  .col i.p3 { background: var(--s1); }
+  .col i.hp3 { background: var(--s2); border-radius: 4px 4px 0 0; }
+  .col i.p3:only-child, .col i.p3.top { border-radius: 4px 4px 0 0; }
+  .xlab { position: absolute; bottom: 0; left: 34px; right: 0; display: flex; justify-content: space-around; }
+  .xlab span { font-size: 11px; color: var(--muted); width: 40px; text-align: center; }
+  .peak-note { position: absolute; font-size: 11px; color: var(--ink-2); }
+  .peak-note b { font-weight: 600; }
+
+  /* ─── État par domaine (barres 100 % empilées) ─── */
+  .dom { display: grid; grid-template-columns: 148px 1fr 34px; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .dom .name { font-size: 12.5px; color: var(--ink); }
+  .dom .name small { display: block; color: var(--muted); font-size: 11px; }
+  .dom .bar { display: flex; gap: 2px; height: 14px; }
+  .dom .bar i { display: block; height: 100%; cursor: default; }
+  .dom .bar i:first-child { border-radius: 4px 0 0 4px; }
+  .dom .bar i:last-child { border-radius: 0 4px 4px 0; }
+  .dom .n { font-size: 11.5px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+  .dom.total { margin-bottom: 4px; }
+  .domdetail { margin-top: 12px; border-top: 1px solid var(--grid); }
+  .domdetail summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 0; font-size: 12px; font-weight: 500; color: var(--accent);
+  }
+  .domdetail summary::-webkit-details-marker { display: none; }
+  .domdetail summary::before { content: "▸"; font-size: 10px; transition: transform .15s; }
+  .domdetail[open] summary::before { transform: rotate(90deg); }
+  .domdetail[open] summary { color: var(--ink-2); }
+  .domdetail .dom:first-of-type { margin-top: 2px; }
+  .covfoot {
+    margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--grid);
+    display: flex; align-items: baseline; gap: 12px;
+    font-size: 11.5px; color: var(--muted); line-height: 1.4;
+  }
+  .covfoot b { color: var(--ink-2); font-weight: 600; }
+  .covfoot .go { margin-left: auto; color: var(--accent); font-weight: 500; cursor: pointer; white-space: nowrap; }
+  .dom.total .name b { font-weight: 600; font-size: 12.5px; }
+  .dom.total .n { font-weight: 600; color: var(--ink); }
+
+  /* ─── Actions prioritaires ─── */
+  table.prio { width: 100%; border-collapse: collapse; }
+  table.prio th {
+    text-align: left; font-size: 10px; font-weight: 600; color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-transform: uppercase; letter-spacing: .1em; padding: 0 8px 8px 0; border-bottom: 1px solid var(--grid);
+  }
+  table.prio td { padding: 10px 8px 10px 0; border-bottom: 1px solid var(--grid); vertical-align: top; font-size: 12.5px; }
+  table.prio tr:last-child td { border-bottom: none; }
+  table.prio .eq b { display: block; font-weight: 600; }
+  table.prio .eq small { color: var(--muted); font-size: 11.5px; }
+  table.prio .cost { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
+    border-radius: 20px; padding: 2px 9px; white-space: nowrap;
+  }
+  .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .b-crit { color: #a32e2e; background: rgba(208,59,59,.10); }
+  .b-ser  { color: #a34d24; background: rgba(236,131,90,.14); }
+  .b-warn { color: #8a6200; background: rgba(250,178,25,.16); }
+  .b-good { color: #06700d; background: rgba(12,163,12,.10); }
+
+  /* ─── Pyramide d'âge ─── */
+  .agechart { display: flex; align-items: flex-end; gap: 14px; height: 150px; border-bottom: 1px solid var(--baseline); padding: 0 6px; }
+  .agecol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .agecol .v { font-size: 11px; color: var(--ink-2); font-weight: 600; margin-bottom: 4px; }
+  .agecol i { width: 22px; border-radius: 4px 4px 0 0; display: block; cursor: default; }
+  .agelabs { display: flex; gap: 14px; padding: 6px 6px 0; }
+  .agelabs span { flex: 1; text-align: center; font-size: 10.5px; color: var(--muted); }
+  .agenote { margin-top: 12px; font-size: 11.5px; color: var(--ink-2); background: #fdf3f3; border: 1px solid rgba(208,59,59,.18); border-radius: 8px; padding: 7px 10px; display: flex; gap: 7px; align-items: flex-start; }
+  .agenote b { color: #a32e2e; }
+
+  /* ─── Conformité ─── */
+  .meter { margin: 4px 0 14px; }
+  .meter .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+  .meter .row b { color: var(--ink); font-size: 13px; }
+  .meter .track { height: 8px; border-radius: 4px; background: rgba(12,163,12,.15); overflow: hidden; }
+  .meter .fill { height: 100%; width: 91%; background: var(--good); border-radius: 4px; }
+  .ctrl { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--grid); align-items: flex-start; }
+  .ctrl:last-child { border-bottom: none; }
+  .ctrl .ic { flex: none; margin-top: 1px; font-size: 13px; }
+  .dotic { width: 8px; height: 8px; border-radius: 50%; flex: none; margin-top: 6px; }
+  .ctrl .t b { display: block; font-size: 12.5px; font-weight: 600; }
+  .ctrl .t small { color: var(--muted); font-size: 11.5px; }
+  .ctrl .when { margin-left: auto; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .w-crit { color: #a32e2e; } .w-ser { color: #a34d24; } .w-warn { color: #8a6200; } .w-ok { color: #06700d; }
+
+  /* ─── Bandeau couverture d'audit ─── */
+  .strip {
+    margin-top: 12px; display: flex; gap: 28px; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 0; padding: 13px 18px;
+  }
+  .strip .s { display: flex; align-items: baseline; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+  .strip .s b { font-size: 17px; font-weight: 650; color: var(--ink); }
+  .strip .go { margin-left: auto; font-size: 12px; color: var(--accent); font-weight: 500; cursor: pointer; }
+
+  /* ─── Tooltip ─── */
+  #tip {
+    position: fixed; pointer-events: none; z-index: 50; display: none;
+    background: var(--brand); color: #fff; font-size: 11.5px; line-height: 1.4;
+    border-radius: 7px; padding: 6px 10px; max-width: 240px; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  }
+  .mocktag {
+    position: fixed; bottom: 14px; right: 16px; font-size: 10.5px; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 20px; padding: 3px 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Barre app -->
+<div class="topbar">
+  <div class="logo">My<span>Xploit</span></div>
+  <nav class="topnav">
+    <a>Vue d'ensemble</a><a>Énergie</a><a class="on">Exploitation</a><a>Financier</a><a>Contrats</a><a>Rapports</a>
+  </nav>
+  <div class="who"><span>Ville de Lyon — CVC 2024-2032</span><div class="avatar">HS</div></div>
+</div>
+
+<div class="wrap">
+
+  <!-- En-tête -->
+  <div class="crumb">Exploitation &nbsp;/&nbsp; <b>Équipements</b></div>
+  <div class="pagehead">
+    <div>
+      <h1>Équipements</h1>
+      <div class="sub">342 équipements suivis sur 38 sites · dernière mise à jour de l'inventaire&nbsp;: 12 juil. 2026</div>
+    </div>
+    <div class="actions">
+      <button class="btn">Exporter</button>
+      <button class="btn">Importer</button>
+      <button class="btn primary">Nouvel équipement</button>
+    </div>
+  </div>
+
+  <!-- Onglets -->
+  <div class="tabs">
+    <div class="tab on">Synthèse</div>
+    <div class="tab">Inventaire <span class="n">342</span></div>
+    <div class="tab">État &amp; audits <span class="n">14 critiques</span></div>
+    <div class="tab">Renouvellement <span class="n">27 &lt; 3 ans</span></div>
+    <div class="tab">Conformité <span class="n">6 en retard</span></div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="filters">
+    <div class="filter">Site&nbsp;: <b>Tous</b></div>
+    <div class="filter">Domaine&nbsp;: <b>Tous</b></div>
+    <input class="search" value="" placeholder="Rechercher un équipement, une marque, un site…">
+  </div>
+
+  <!-- Rangée principale : état du parc en premier, échéances, puis KPI -->
+  <div class="grid2">
+
+    <div class="card">
+      <div class="cardhead">
+        <div>
+          <h3>Renouvellement du parc</h3>
+          <div class="hint">Programmation pluriannuelle — plan de renouvellement contractuel (P3) et dépassements hors plan, k€ HT par année</div>
+        </div>
+        <div class="link">Détail par équipement →</div>
+      </div>
+
+      <div class="statstrip">
+        <div class="st">
+          <div class="v">65</div>
+          <div class="l">au-delà de leur durée<br>de vie théorique</div>
+        </div>
+        <div class="arr">→</div>
+        <div class="st alert">
+          <div class="v">11 <small>· ≈ 214 k€</small></div>
+          <div class="l">dont non couverts par le plan<br>de renouvellement P3</div>
+        </div>
+      </div>
+
+      <details class="domdetail">
+        <summary>Programmation par année — pic 2032 (fin de contrat)&nbsp;: 340 k€, dont 210 hors plan</summary>
+
+      <div class="legend" style="margin:8px 0 6px">
+        <div class="it"><span class="sw" style="background:var(--s1)"></span>Prévu au plan de renouvellement (P3)</div>
+        <div class="it"><span class="sw" style="background:var(--s2)"></span>En dépassement, absent du plan — à négocier ou provisionner</div>
+      </div>
+      <div class="colchart">
+        <div class="gridlines">
+          <i style="bottom:0%"><b>0</b></i>
+          <i style="bottom:33.3%"><b>120</b></i>
+          <i style="bottom:66.6%"><b>240</b></i>
+          <i style="bottom:100%"><b>360</b></i>
+        </div>
+        <div class="cols">
+          <!-- échelle : 360 k€ = 100 % de 188px -->
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:45px" data-tip="<b>2026</b><br>Prévu au plan : 86 k€"></i>
+            <i class="hp3" style="height:18px" data-tip="<b>2026</b><br>Hors plan : 34 k€"></i>
+          </div></div>
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:77px" data-tip="<b>2027</b><br>Prévu au plan : 148 k€"></i>
+            <i class="hp3" style="height:32px" data-tip="<b>2027</b><br>Hors plan : 62 k€"></i>
+          </div></div>
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:58px" data-tip="<b>2028</b><br>Prévu au plan : 112 k€"></i>
+            <i class="hp3" style="height:25px" data-tip="<b>2028</b><br>Hors plan : 48 k€"></i>
+          </div></div>
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:39px" data-tip="<b>2029</b><br>Prévu au plan : 74 k€"></i>
+            <i class="hp3" style="height:81px" data-tip="<b>2029</b><br>Hors plan : 156 k€ — remplacement chaudière Piscine des Gratte-Ciel"></i>
+          </div></div>
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:48px" data-tip="<b>2030</b><br>Prévu au plan : 92 k€"></i>
+            <i class="hp3" style="height:21px" data-tip="<b>2030</b><br>Hors plan : 40 k€"></i>
+          </div></div>
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:30px" data-tip="<b>2031</b><br>Prévu au plan : 58 k€"></i>
+            <i class="hp3" style="height:13px" data-tip="<b>2031</b><br>Hors plan : 24 k€"></i>
+          </div></div>
+          <div class="colgrp">
+            <div class="total">340</div>
+            <div class="col">
+            <i class="p3"  style="height:68px" data-tip="<b>2032</b><br>Prévu au plan : 130 k€"></i>
+            <i class="hp3" style="height:110px" data-tip="<b>2032</b><br>Hors plan : 210 k€ — CTA Lycée Louis-le-Grand + fin de contrat"></i>
+          </div></div>
+          <div class="colgrp"><div class="col">
+            <i class="p3"  style="height:23px" data-tip="<b>2033</b><br>Prévu au plan : 44 k€"></i>
+            <i class="hp3" style="height:9px" data-tip="<b>2033</b><br>Hors plan : 18 k€"></i>
+          </div></div>
+        </div>
+        <div class="xlab">
+          <span>2026</span><span>2027</span><span>2028</span><span>2029</span><span>2030</span><span>2031</span><span>2032</span><span>2033</span>
+        </div>
+      </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <div>
+          <h3>État du parc</h3>
+          <div class="hint">Dernière notation d'audit par équipement — ensemble, puis par domaine</div>
+        </div>
+        <div class="link">Voir les audits →</div>
+      </div>
+
+      <div class="dom total">
+        <div class="name"><b>Ensemble du parc</b><small>342 équipements</small></div>
+        <div class="bar" style="height:18px">
+          <i style="width:61%;background:var(--good)" data-tip="Ensemble — <b>Bon</b> : 208 équip. (61 %)"></i>
+          <i style="width:24%;background:var(--warning)" data-tip="Ensemble — <b>Moyen</b> : 82 équip. (24 %)"></i>
+          <i style="width:11%;background:var(--serious)" data-tip="Ensemble — <b>Dégradé</b> : 38 équip. (11 %)"></i>
+          <i style="width:4%;background:var(--critical)" data-tip="Ensemble — <b>Critique</b> : 14 équip. (4 %)"></i>
+        </div>
+        <div class="n">342</div>
+      </div>
+
+      <div class="legend" style="margin:4px 0 2px">
+        <div class="it"><span class="sw" style="background:var(--good)"></span>Bon · 208</div>
+        <div class="it"><span class="sw" style="background:var(--warning)"></span>Moyen · 82</div>
+        <div class="it"><span class="sw" style="background:var(--serious)"></span>Dégradé · 38</div>
+        <div class="it"><span class="sw" style="background:var(--critical)"></span>Critique · 14</div>
+      </div>
+
+      <details class="domdetail">
+        <summary>Détail par domaine</summary>
+
+      <div class="dom">
+        <div class="name">Production chaleur<small>chaudières, PAC, sous-stations</small></div>
+        <div class="bar">
+          <i style="width:52%;background:var(--good)" data-tip="Production chaleur — <b>Bon</b> : 33 équip. (52 %)"></i>
+          <i style="width:27%;background:var(--warning)" data-tip="Production chaleur — <b>Moyen</b> : 17 équip. (27 %)"></i>
+          <i style="width:14%;background:var(--serious)" data-tip="Production chaleur — <b>Dégradé</b> : 9 équip. (14 %)"></i>
+          <i style="width:7%;background:var(--critical)" data-tip="Production chaleur — <b>Critique</b> : 5 équip. (7 %)"></i>
+        </div>
+        <div class="n">64</div>
+      </div>
+      <div class="dom">
+        <div class="name">ECS<small>ballons, échangeurs, bouclage</small></div>
+        <div class="bar">
+          <i style="width:58%;background:var(--good)" data-tip="ECS — <b>Bon</b> : 34 équip. (58 %)"></i>
+          <i style="width:24%;background:var(--warning)" data-tip="ECS — <b>Moyen</b> : 14 équip. (24 %)"></i>
+          <i style="width:12%;background:var(--serious)" data-tip="ECS — <b>Dégradé</b> : 7 équip. (12 %)"></i>
+          <i style="width:6%;background:var(--critical)" data-tip="ECS — <b>Critique</b> : 3 équip. (6 %)"></i>
+        </div>
+        <div class="n">58</div>
+      </div>
+      <div class="dom">
+        <div class="name">Ventilation / CTA<small>CTA, extracteurs, VMC</small></div>
+        <div class="bar">
+          <i style="width:55%;background:var(--good)" data-tip="Ventilation — <b>Bon</b> : 39 équip. (55 %)"></i>
+          <i style="width:28%;background:var(--warning)" data-tip="Ventilation — <b>Moyen</b> : 20 équip. (28 %)"></i>
+          <i style="width:13%;background:var(--serious)" data-tip="Ventilation — <b>Dégradé</b> : 9 équip. (13 %)"></i>
+          <i style="width:4%;background:var(--critical)" data-tip="Ventilation — <b>Critique</b> : 3 équip. (4 %)"></i>
+        </div>
+        <div class="n">71</div>
+      </div>
+      <div class="dom">
+        <div class="name">Réseaux &amp; distribution<small>pompes, vannes, calorifuge</small></div>
+        <div class="bar">
+          <i style="width:66%;background:var(--good)" data-tip="Réseaux — <b>Bon</b> : 45 équip. (66 %)"></i>
+          <i style="width:24%;background:var(--warning)" data-tip="Réseaux — <b>Moyen</b> : 16 équip. (24 %)"></i>
+          <i style="width:8%;background:var(--serious)" data-tip="Réseaux — <b>Dégradé</b> : 5 équip. (8 %)"></i>
+          <i style="width:2%;background:var(--critical)" data-tip="Réseaux — <b>Critique</b> : 2 équip. (2 %)"></i>
+        </div>
+        <div class="n">68</div>
+      </div>
+      <div class="dom">
+        <div class="name">Régulation / GTC<small>régulateurs, sondes, automates</small></div>
+        <div class="bar">
+          <i style="width:76%;background:var(--good)" data-tip="Régulation — <b>Bon</b> : 37 équip. (76 %)"></i>
+          <i style="width:16%;background:var(--warning)" data-tip="Régulation — <b>Moyen</b> : 8 équip. (16 %)"></i>
+          <i style="width:6%;background:var(--serious)" data-tip="Régulation — <b>Dégradé</b> : 3 équip. (6 %)"></i>
+          <i style="width:2%;background:var(--critical)" data-tip="Régulation — <b>Critique</b> : 1 équip. (2 %)"></i>
+        </div>
+        <div class="n">49</div>
+      </div>
+      <div class="dom">
+        <div class="name">Froid / climatisation<small>groupes froid, splits</small></div>
+        <div class="bar">
+          <i style="width:68%;background:var(--good)" data-tip="Froid — <b>Bon</b> : 22 équip. (68 %)"></i>
+          <i style="width:22%;background:var(--warning)" data-tip="Froid — <b>Moyen</b> : 7 équip. (22 %)"></i>
+          <i style="width:8%;background:var(--serious)" data-tip="Froid — <b>Dégradé</b> : 2 équip. (8 %)"></i>
+          <i style="width:2%;background:var(--critical)" data-tip="Froid — <b>Critique</b> : 1 équip. (2 %)"></i>
+        </div>
+        <div class="n">32</div>
+      </div>
+
+      </details>
+
+      <div class="covfoot">
+        <span><b>44 équipements à visiter</b> pour boucler la campagne annuelle (obligation CCTP), dont 14 jamais audités — dernière campagne&nbsp;: mai 2026</span>
+        <span class="go">Planifier →</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rangée 3 : actions prioritaires + pyramide d'âge + conformité -->
+  <div class="grid3">
+
+    <div class="card">
+      <div class="cardhead">
+        <div>
+          <h3>Actions prioritaires</h3>
+          <div class="hint">Équipements critiques ou dégradés nécessitant une décision</div>
+        </div>
+        <div class="link">Tout voir (52) →</div>
+      </div>
+      <table class="prio">
+        <thead><tr><th>Équipement</th><th>Constat</th><th>Action proposée</th><th style="text-align:right">Coût est.</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="eq"><b>Chaudière gaz De Dietrich C330</b><small>Piscine des Gratte-Ciel · 1998 · 28 ans</small></td>
+            <td><span class="badge b-crit">Critique</span><br><small style="color:var(--muted)">Corrosion foyer, rendement 82 %</small></td>
+            <td>Remplacement à programmer été 2027 — hors P3</td>
+            <td class="cost">145 k€</td>
+          </tr>
+          <tr>
+            <td class="eq"><b>CTA double flux Aldes</b><small>Lycée Louis-le-Grand · 2007 · 19 ans</small></td>
+            <td><span class="badge b-crit">Critique</span><br><small style="color:var(--muted)">Échangeur encrassé, débits −30 %</small></td>
+            <td>Devis P3 à exiger de l'exploitant</td>
+            <td class="cost">38 k€</td>
+          </tr>
+          <tr>
+            <td class="eq"><b>Ballon ECS 2 000 L</b><small>Gymnase Jean Macé · 2012 · 14 ans</small></td>
+            <td><span class="badge b-ser">Dégradé</span><br><small style="color:var(--muted)">Stockage 55 °C — risque légionelle</small></td>
+            <td>Action corrective exploitant sous 15 j</td>
+            <td class="cost">6 k€</td>
+          </tr>
+          <tr>
+            <td class="eq"><b>Adoucisseur ECS</b><small>Mairie Part-Dieu · 2015 · 11 ans</small></td>
+            <td><span class="badge b-ser">Dégradé</span><br><small style="color:var(--muted)">TH sortie hors plage contractuelle</small></td>
+            <td>Contrôle traitement d'eau à la prochaine visite</td>
+            <td class="cost">—</td>
+          </tr>
+          <tr>
+            <td class="eq"><b>Circulateurs réseau chauffage</b><small>Piscine des Gratte-Ciel · 2009 · 17 ans</small></td>
+            <td><span class="badge b-warn">Moyen</span><br><small style="color:var(--muted)">Cavitation constatée en visite</small></td>
+            <td>Surveiller — inscrire au programme P3 2027</td>
+            <td class="cost">9 k€</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <div>
+          <h3>Conformité réglementaire</h3>
+          <div class="hint">Contrôles dus par l'exploitant</div>
+        </div>
+      </div>
+      <div class="meter">
+        <div class="row"><span>Contrôles à jour</span><b>91 %</b></div>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+
+      <div class="ctrl">
+        <span class="dotic" style="background:var(--critical)"></span>
+        <div class="t"><b>Analyse légionelle ECS</b><small>annuelle · 3 sites — Gymnase J. Macé, Piscine, Crèche Pasteur</small></div>
+        <div class="when w-crit">+42 j</div>
+      </div>
+      <div class="ctrl">
+        <span class="dotic" style="background:var(--serious)"></span>
+        <div class="t"><b>Contrôle disconnecteurs</b><small>annuel · 1 site — Mairie Part-Dieu</small></div>
+        <div class="when w-ser">+12 j</div>
+      </div>
+      <div class="ctrl">
+        <span class="dotic" style="background:var(--warning)"></span>
+        <div class="t"><b>Ramonage conduits fumée</b><small>2 sites — avant saison de chauffe</small></div>
+        <div class="when w-warn">sous 30 j</div>
+      </div>
+      <div class="ctrl">
+        <span class="dotic" style="background:var(--good)"></span>
+        <div class="t"><b>Étanchéité gaz · extincteurs · élec.</b><small>12 contrôles planifiés</small></div>
+        <div class="when w-ok">sous 60 j</div>
+      </div>
+      <div style="margin-top:12px"><span class="link" style="font-size:12px;color:var(--accent);font-weight:500;cursor:pointer">Relancer l'exploitant (courrier type) →</span></div>
+    </div>
+  </div>
+
+
+</div>
+
+<div id="tip"></div>
+<div class="mocktag">Mockup — données fictives</div>
+
+<script>
+  // Tooltip générique : tout élément portant data-tip
+  const tip = document.getElementById('tip');
+  document.addEventListener('mouseover', e => {
+    const t = e.target.closest('[data-tip]');
+    if (!t) { tip.style.display = 'none'; return; }
+    tip.innerHTML = t.dataset.tip;
+    tip.style.display = 'block';
+  });
+  document.addEventListener('mousemove', e => {
+    if (tip.style.display === 'block') {
+      const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 10);
+      tip.style.left = x + 'px';
+      tip.style.top = (e.clientY + 16) + 'px';
+    }
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('[data-tip]')) tip.style.display = 'none';
+  });
+</script>
+</body>
+</html>

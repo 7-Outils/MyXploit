@@ -78,6 +78,8 @@ export async function GET(
         hasP1: cs.hasP1,
         hasP2: cs.hasP2,
         hasP3: cs.hasP3,
+        coefficientPCS: cs.coefficientPCS,
+        coefficientQ: cs.coefficientQ,
         contract: {
           id: contract.id,
           reference: contract.reference,

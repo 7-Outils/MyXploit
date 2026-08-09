@@ -159,4 +159,4 @@ export interface Consumption {
   site: { id: string; name: string };
 }
 
-export type EnergyTab = "synthese" | "sites" | "telereleve";
+export type EnergyTab = "synthese" | "sites" | "telereleve" | "coefficients";
