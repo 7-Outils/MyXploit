@@ -7,6 +7,7 @@ import {
   type ExtractedItem,
   type CandidateRef,
 } from "@/lib/gemini-price-analysis";
+import { isGeminiEnabled } from "@/lib/gemini-pdf-parser";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 export interface AnalysisLine {
@@ -102,6 +103,13 @@ export async function POST(
       );
     }
 
+    if (!isGeminiEnabled()) {
+      return NextResponse.json(
+        { error: "Analyse IA non configurée : la variable GEMINI_API_KEY est absente des variables d'environnement (Vercel)" },
+        { status: 503 }
+      );
+    }
+
     const limit = await rateLimit(`quotes-analyze:${user.id}`, "import");
     if (!limit.success) {
       return rateLimitExceeded(limit.remaining);
@@ -140,7 +148,13 @@ export async function POST(
         );
       }
       const extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()));
-      if (!extracted || extracted.length === 0) {
+      if (extracted === null) {
+        return NextResponse.json(
+          { error: "L'extraction IA du PDF a échoué (erreur Gemini) : réessayez" },
+          { status: 502 }
+        );
+      }
+      if (extracted.length === 0) {
         return NextResponse.json(
           { error: "Aucune ligne chiffrée détectée dans le PDF" },
           { status: 422 }

@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest) {
     const user = await requireAuth();
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
 
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    if (user.role === "READER") {
       return NextResponse.json(
         { error: "Vous n'avez pas les droits pour modifier l'organisation" },
         { status: 403 }

@@ -467,11 +467,11 @@ export default function SettingsPage() {
         </ChartCard>
       )}
 
-      {/* Bibliothèque de prix - ADMIN only */}
-      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && <PriceLibrarySection />}
+      {/* Bibliothèque de prix - tous sauf lecture seule */}
+      {user?.role !== "READER" && <PriceLibrarySection />}
 
-      {/* Tampon entreprise - ADMIN only */}
-      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+      {/* Tampon entreprise - tous sauf lecture seule */}
+      {user?.role !== "READER" && (
         <ChartCard
           title={
             <span className="flex items-center gap-2">

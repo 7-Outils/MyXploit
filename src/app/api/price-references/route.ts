@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
+// Le référentiel est modifiable par tous sauf lecture seule
 function requireAdmin(role: string) {
-  return role === "ADMIN" || role === "SUPER_ADMIN";
+  return role !== "READER";
 }
 
 // GET /api/price-references - Résumé du référentiel de prix de l'organisation
