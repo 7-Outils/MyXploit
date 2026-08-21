@@ -17,17 +17,14 @@ export interface AnalysisLine {
   unit: string | null;
   unitPrice: number | null;
   totalHT: number | null;
-  // Référence trouvée dans la bibliothèque (source fiable)
-  ref: {
-    code: string;
-    designation: string;
-    unit: string | null;
-    priceHT: number | null;
-    source: string;
-  } | null;
-  // Estimation IA quand rien ne matche dans la bibliothèque
+  // Composition de référence : les ouvrages du référentiel dont la somme
+  // représente la prestation de la ligne (principal + dépose + raccordement...)
+  refs: { code: string; designation: string; unit: string | null; priceHT: number | null }[];
+  refTotalHT: number | null; // total HT de référence de la ligne (qté comprise)
+  refSource: string | null;
+  // Estimation IA du total HT de la ligne, quand rien ne matche
   aiEstimateHT: number | null;
-  deviationPct: number | null;
+  deviationPct: number | null; // total devis vs total référence
   comment: string | null;
 }
 
@@ -35,6 +32,9 @@ export interface PriceAnalysis {
   lines: AnalysisLine[];
   summary: {
     totalDevis: number;
+    totalRef: number;
+    verdict: "TRES_BIEN_PLACE" | "CORRECT" | "ELEVE" | "TRES_ELEVE" | "INDETERMINE";
+    commentary: string;
     matched: number;
     estimated: number;
     unanalyzed: number;
@@ -119,7 +119,10 @@ export async function POST(
 
     const quote = await prisma.quote.findFirst({
       where: { id, organizationId: effectiveOrgId },
-      include: { items: { orderBy: { lineNumber: "asc" } } },
+      include: {
+        items: { orderBy: { lineNumber: "asc" } },
+        site: { select: { name: true, city: true } },
+      },
     });
     if (!quote) {
       return NextResponse.json({ error: "Devis introuvable" }, { status: 404 });
@@ -239,10 +242,19 @@ export async function POST(
       select: { source: true },
     });
 
-    // 3. Matching + estimations par Gemini
-    let matches;
+    // 3. Composition, estimations et verdict par l'IA
+    let matchResult;
     try {
-      matches = await matchQuoteLines(items, candidates, aiCfg);
+      matchResult = await matchQuoteLines(items, candidates, aiCfg, {
+        reference: quote.reference,
+        title: quote.title,
+        siteName: quote.site ? `${quote.site.name}${quote.site.city ? ` (${quote.site.city})` : ""}` : null,
+        quoteType: quote.quoteType,
+        amountHT: quote.amountHT,
+        amountTVA: quote.amountTVA,
+        amountTTC: quote.amountTTC,
+        issueDate: quote.issueDate ? quote.issueDate.toISOString().slice(0, 10) : null,
+      });
     } catch (geminiError) {
       return NextResponse.json(
         {
@@ -251,12 +263,13 @@ export async function POST(
         { status: 502 }
       );
     }
-    if (!matches) {
+    if (!matchResult) {
       return NextResponse.json(
         { error: "L'analyse IA a échoué, réessayez" },
         { status: 502 }
       );
     }
+    const matches = matchResult.lines;
 
     // 4. Assemblage du résultat
     const codeIndex = new Map<string, CandidateRef>();
@@ -264,12 +277,16 @@ export async function POST(
 
     const lines: AnalysisLine[] = items.map((item, i) => {
       const match = matches.find((m) => m.index === i);
-      const ref = match?.matchedCode ? codeIndex.get(match.matchedCode) ?? null : null;
-      const refPrice = ref?.sellPriceHT ?? null;
-      const comparePrice = refPrice ?? match?.aiEstimateHT ?? null;
+      const refs = (match?.refCodes ?? [])
+        .map((code) => codeIndex.get(code))
+        .filter((r): r is CandidateRef => !!r)
+        .map((r) => ({ code: r.code, designation: r.designation, unit: r.unit, priceHT: r.sellPriceHT }));
+      const refTotalHT = refs.length > 0 ? match?.refTotalHT ?? null : null;
+      const aiEstimateHT = refs.length === 0 ? match?.aiEstimateHT ?? null : null;
+      const compareTotal = refTotalHT ?? aiEstimateHT;
       const deviationPct =
-        item.unitPrice != null && comparePrice != null && comparePrice > 0
-          ? ((item.unitPrice - comparePrice) / comparePrice) * 100
+        item.totalHT != null && compareTotal != null && compareTotal > 0
+          ? ((item.totalHT - compareTotal) / compareTotal) * 100
           : null;
       return {
         description: item.description,
@@ -277,16 +294,10 @@ export async function POST(
         unit: item.unit,
         unitPrice: item.unitPrice,
         totalHT: item.totalHT,
-        ref: ref
-          ? {
-              code: ref.code,
-              designation: ref.designation,
-              unit: ref.unit,
-              priceHT: ref.sellPriceHT,
-              source: refSourceRow?.source ?? "Référentiel",
-            }
-          : null,
-        aiEstimateHT: ref ? null : match?.aiEstimateHT ?? null,
+        refs,
+        refTotalHT,
+        refSource: refs.length > 0 ? refSourceRow?.source ?? "Référentiel" : null,
+        aiEstimateHT,
         deviationPct,
         comment: match?.comment ?? null,
       };
@@ -296,9 +307,15 @@ export async function POST(
       lines,
       summary: {
         totalDevis: lines.reduce((sum, l) => sum + (l.totalHT ?? 0), 0),
-        matched: lines.filter((l) => l.ref).length,
-        estimated: lines.filter((l) => !l.ref && l.aiEstimateHT != null).length,
-        unanalyzed: lines.filter((l) => !l.ref && l.aiEstimateHT == null).length,
+        totalRef: lines.reduce(
+          (sum, l) => sum + (l.refTotalHT ?? l.aiEstimateHT ?? l.totalHT ?? 0),
+          0
+        ),
+        verdict: matchResult.verdict,
+        commentary: matchResult.commentary,
+        matched: lines.filter((l) => l.refs.length > 0).length,
+        estimated: lines.filter((l) => l.refs.length === 0 && l.aiEstimateHT != null).length,
+        unanalyzed: lines.filter((l) => l.refs.length === 0 && l.aiEstimateHT == null).length,
         refSource: refSourceRow?.source ?? null,
       },
     };

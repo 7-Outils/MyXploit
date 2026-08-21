@@ -19,9 +19,31 @@ export interface CandidateRef {
 
 export interface LineMatch {
   index: number;
-  matchedCode: string | null;
+  // Composition : codes du référentiel dont la somme représente la
+  // prestation de la ligne (principal + dépose + raccordement...)
+  refCodes: string[];
+  // Total HT de référence pour la LIGNE ENTIÈRE (quantité comprise)
+  refTotalHT: number | null;
+  // Estimation IA du total HT de la ligne, seulement si refCodes est vide
   aiEstimateHT: number | null;
   comment: string | null;
+}
+
+export interface QuoteContext {
+  reference: string;
+  title: string;
+  siteName: string | null;
+  quoteType: string | null;
+  amountHT: number;
+  amountTVA: number | null;
+  amountTTC: number;
+  issueDate: string | null;
+}
+
+export interface MatchResult {
+  lines: LineMatch[];
+  verdict: "TRES_BIEN_PLACE" | "CORRECT" | "ELEVE" | "TRES_ELEVE" | "INDETERMINE";
+  commentary: string;
 }
 
 // Extrait les lignes de prestation d'un devis PDF (désignation, quantité,
@@ -77,7 +99,9 @@ export async function generateSearchQueries(
     .join("\n");
 
   const parsed = (await aiJson(ai, {
-    prompt: `Tu prépares des recherches dans un bordereau de prix du bâtiment (Batiprix). Pour chaque ligne de devis ci-dessous, donne 2 à 3 expressions de recherche courtes (1 à 4 mots chacune) désignant l'OUVRAGE PRINCIPAL de la ligne — l'équipement ou la prestation qu'on achète — en ignorant les accessoires de pose (coudes, raccords, manchons, visserie).
+    prompt: `Tu prépares des recherches dans un bordereau de prix du bâtiment (Batiprix). Pour chaque ligne de devis ci-dessous, donne 2 à 5 expressions de recherche courtes (1 à 4 mots chacune) couvrant la PRESTATION COMPLÈTE de la ligne :
+- l'ouvrage principal (l'équipement ou la prestation qu'on achète), en ignorant les accessoires de pose (coudes, raccords, manchons, visserie) ;
+- les opérations associées quand la ligne est un remplacement/fourni-posé : dépose de l'ancien équipement, raccordement électrique ou hydraulique.
 
 Règles :
 - Français correct AVEC accents (les désignations du bordereau sont accentuées).
@@ -108,7 +132,7 @@ ${lines}`,
   const result: string[][] = items.map(() => []);
   for (const q of parsed.queries) {
     if (q.index >= 0 && q.index < items.length && Array.isArray(q.terms)) {
-      result[q.index] = q.terms.filter((t) => typeof t === "string" && t.trim()).slice(0, 3);
+      result[q.index] = q.terms.filter((t) => typeof t === "string" && t.trim()).slice(0, 5);
     }
   }
   return result;
@@ -119,25 +143,38 @@ ${lines}`,
 export async function matchQuoteLines(
   items: ExtractedItem[],
   candidates: CandidateRef[][],
-  ai: AiConfig
-): Promise<LineMatch[] | null> {
+  ai: AiConfig,
+  context: QuoteContext
+): Promise<MatchResult | null> {
   const lines = items.map((item, i) => {
     const cands = candidates[i]
       .map((c) => `    - code "${c.code}" : ${c.designation} (${c.unit ?? "?"}) — ${c.sellPriceHT != null ? `${c.sellPriceHT.toFixed(2)} € HT` : "prix inconnu"}`)
       .join("\n");
-    return `Ligne ${i} : "${item.description}" — qté ${item.quantity ?? "?"} ${item.unit ?? ""}, PU ${item.unitPrice != null ? `${item.unitPrice.toFixed(2)} € HT` : "?"}
+    return `Ligne ${i} : "${item.description}" — qté ${item.quantity ?? "?"} ${item.unit ?? ""}, PU ${item.unitPrice != null ? `${item.unitPrice.toFixed(2)} € HT` : "?"}, total ${item.totalHT != null ? `${item.totalHT.toFixed(2)} € HT` : "?"}
   Candidats du référentiel :
 ${cands || "    (aucun)"}`;
   });
 
   try {
     const parsed = (await aiJson(ai, {
-      prompt: `Tu es économiste de la construction dans un bureau d'études CVC. Pour chaque ligne de devis ci-dessous, choisis parmi les candidats l'ouvrage du référentiel Batiprix qui correspond VRAIMENT à la même prestation (même nature de travaux, même type d'équipement, gamme/dimension comparable).
+      prompt: `Tu es économiste de la construction dans un bureau d'études CVC. Tu analyses un devis d'exploitant pour le compte d'une collectivité.
 
-Règles :
-- matchedCode : le code du candidat retenu, ou null si aucun candidat ne correspond réellement. Ne force jamais un rapprochement approximatif : un circulateur n'est pas une pompe de relevage, un DN40 n'est pas un DN100.
-- aiEstimateHT : UNIQUEMENT si matchedCode est null, ton estimation du prix unitaire HT fourni-posé raisonnable en France en 2026 pour cette prestation (nombre), sinon null.
-- comment : une phrase courte en français — pourquoi ce candidat, ou sur quoi se fonde ton estimation, ou ce qui rend la ligne inanalysable (ex: forfait global sans détail).
+Devis : ${context.reference} — ${context.title}
+Site : ${context.siteName ?? "non précisé"} (bâtiment public / ERP a priori)
+Type : ${context.quoteType ?? "?"} · Émis le : ${context.issueDate ?? "?"}
+Montants : ${context.amountHT.toFixed(2)} € HT${context.amountTVA != null ? ` + TVA ${context.amountTVA.toFixed(2)} €` : ""} = ${context.amountTTC.toFixed(2)} € TTC
+
+Pour chaque ligne, COMPOSE la prestation à partir des candidats du référentiel Batiprix : choisis les codes (0 à 4) dont la somme représente réellement ce que couvre la ligne. Exemple : une ligne "remplacement chauffe-eau 300 L fourni-posé" = chauffe-eau 300 L + dépose de l'ancien + raccordement. Ne force jamais un rapprochement approximatif : un circulateur n'est pas une pompe de relevage, un DN40 n'est pas un DN100.
+
+Règles par ligne :
+- refCodes : les codes retenus (tableau vide si aucun candidat ne convient).
+- refTotalHT : le total HT de référence pour la LIGNE ENTIÈRE (quantité de la ligne comprise), calculé à partir des prix des candidats retenus ; null si refCodes est vide.
+- aiEstimateHT : UNIQUEMENT si refCodes est vide, ton estimation du total HT de la ligne (prix marché France 2026) ; sinon null.
+- comment : une phrase courte — la composition retenue, ou le fondement de l'estimation, ou ce qui rend la ligne inanalysable.
+
+Puis un jugement global :
+- verdict : TRES_BIEN_PLACE (nettement sous la référence), CORRECT (±15 %), ELEVE (+15 à +40 %), TRES_ELEVE (>+40 %), INDETERMINE.
+- commentary : 3 à 6 phrases en français, comme une note de bureau d'études : positionnement global du devis vs la référence, taux horaire main-d'œuvre implicite s'il se déduit, cohérence de la TVA (20 % attendu en ERP/bâtiment public ; 10 % réservé au logement), anomalies éventuelles (date, régularisation de travaux déjà faits), et recommandation claire (valider tel quel / négocier tel poste).
 
 ${lines.join("\n\n")}`,
       geminiSchema: {
@@ -149,18 +186,24 @@ ${lines.join("\n\n")}`,
               type: Type.OBJECT,
               properties: {
                 index: { type: Type.NUMBER },
-                matchedCode: { type: Type.STRING, nullable: true },
+                refCodes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                refTotalHT: { type: Type.NUMBER, nullable: true },
                 aiEstimateHT: { type: Type.NUMBER, nullable: true },
                 comment: { type: Type.STRING, nullable: true },
               },
-              required: ["index"],
+              required: ["index", "refCodes"],
             },
           },
+          verdict: {
+            type: Type.STRING,
+            enum: ["TRES_BIEN_PLACE", "CORRECT", "ELEVE", "TRES_ELEVE", "INDETERMINE"],
+          },
+          commentary: { type: Type.STRING },
         },
-        required: ["matches"],
+        required: ["matches", "verdict", "commentary"],
       },
-    })) as { matches: LineMatch[] };
-    return parsed.matches;
+    })) as { matches: LineMatch[]; verdict: MatchResult["verdict"]; commentary: string };
+    return { lines: parsed.matches, verdict: parsed.verdict, commentary: parsed.commentary };
   } catch (error) {
     console.error("AI line matching failed:", error);
     throw error instanceof Error ? error : new Error(String(error));
