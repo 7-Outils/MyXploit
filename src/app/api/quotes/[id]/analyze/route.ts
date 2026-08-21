@@ -7,7 +7,7 @@ import {
   type ExtractedItem,
   type CandidateRef,
 } from "@/lib/gemini-price-analysis";
-import { isGeminiEnabled } from "@/lib/gemini-pdf-parser";
+import { getGeminiApiKey } from "@/lib/gemini-key";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 export interface AnalysisLine {
@@ -103,9 +103,10 @@ export async function POST(
       );
     }
 
-    if (!isGeminiEnabled()) {
+    const geminiKey = await getGeminiApiKey(effectiveOrgId);
+    if (!geminiKey) {
       return NextResponse.json(
-        { error: "Analyse IA non configurée : la variable GEMINI_API_KEY est absente des variables d'environnement (Vercel)" },
+        { error: "Aucune clé API Gemini : ajoutez celle de votre organisation dans Paramètres → Clé API Gemini" },
         { status: 503 }
       );
     }
@@ -149,7 +150,7 @@ export async function POST(
       }
       let extracted;
       try {
-        extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()));
+        extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()), geminiKey);
       } catch (geminiError) {
         return NextResponse.json(
           {
@@ -206,7 +207,7 @@ export async function POST(
     // 3. Matching + estimations par Gemini
     let matches;
     try {
-      matches = await matchQuoteLines(items, candidates);
+      matches = await matchQuoteLines(items, candidates, geminiKey);
     } catch (geminiError) {
       return NextResponse.json(
         {

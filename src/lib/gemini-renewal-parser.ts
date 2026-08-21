@@ -7,12 +7,7 @@ import { GoogleGenAI, Type } from "@google/genai";
  * qui en extrait les postes normalisés.
  */
 
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
-export function isGeminiEnabled(): boolean {
-  return ai !== null;
-}
+// La clé API vient de l'organisation (via getGeminiApiKey)
 
 export interface ParsedRenewalItem {
   label: string;
@@ -57,9 +52,10 @@ const responseSchema = {
 };
 
 export async function parseRenewalPlan(
-  rows: string[][]
+  rows: string[][],
+  apiKey: string
 ): Promise<ParsedRenewalItem[] | null> {
-  if (!ai) return null;
+  const ai = new GoogleGenAI({ apiKey });
 
   // Sérialisation TSV : compacte et fidèle à la structure du tableau
   const tsv = rows

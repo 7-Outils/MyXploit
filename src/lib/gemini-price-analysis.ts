@@ -1,8 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
+// La clé API vient de l'organisation (via getGeminiApiKey)
 const MODEL = "gemini-3-flash-preview";
 
 export interface ExtractedItem {
@@ -30,8 +28,8 @@ export interface LineMatch {
 
 // Extrait les lignes de prestation d'un devis PDF (désignation, quantité,
 // unité, prix unitaire, total HT)
-export async function extractQuoteItems(pdfBuffer: Buffer): Promise<ExtractedItem[] | null> {
-  if (!ai) return null;
+export async function extractQuoteItems(pdfBuffer: Buffer, apiKey: string): Promise<ExtractedItem[] | null> {
+  const ai = new GoogleGenAI({ apiKey });
 
   try {
     const response = await ai.models.generateContent({
@@ -92,9 +90,10 @@ Si une valeur est absente sur la ligne, mets null. Les nombres sont en notation 
 // parmi les candidats présélectionnés, ou estime le prix si rien ne convient
 export async function matchQuoteLines(
   items: ExtractedItem[],
-  candidates: CandidateRef[][]
+  candidates: CandidateRef[][],
+  apiKey: string
 ): Promise<LineMatch[] | null> {
-  if (!ai) return null;
+  const ai = new GoogleGenAI({ apiKey });
 
   const lines = items.map((item, i) => {
     const cands = candidates[i]

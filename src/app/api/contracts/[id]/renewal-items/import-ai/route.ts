@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { parseRenewalPlan, isGeminiEnabled } from "@/lib/gemini-renewal-parser";
+import { parseRenewalPlan } from "@/lib/gemini-renewal-parser";
+import { getGeminiApiKey } from "@/lib/gemini-key";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
@@ -41,9 +42,10 @@ export async function POST(
     );
     if (!limit.success) return rateLimitExceeded(limit.remaining);
 
-    if (!isGeminiEnabled()) {
+    const geminiKey = await getGeminiApiKey(effectiveOrgId);
+    if (!geminiKey) {
       return NextResponse.json(
-        { error: "Import IA non configuré (GEMINI_API_KEY manquante)" },
+        { error: "Aucune clé API Gemini : ajoutez celle de votre organisation dans Paramètres → Clé API Gemini" },
         { status: 503 }
       );
     }
@@ -68,7 +70,7 @@ export async function POST(
       );
     }
 
-    const items = await parseRenewalPlan(parsed.data.rows);
+    const items = await parseRenewalPlan(parsed.data.rows, geminiKey);
     if (items === null) {
       return NextResponse.json(
         { error: "L'analyse IA a échoué — réessayez ou saisissez manuellement" },

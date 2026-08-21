@@ -1,12 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { ParsedQuote } from "./pdf-parser";
 
-const apiKey = process.env.GEMINI_API_KEY;
-const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-
-export function isGeminiEnabled(): boolean {
-  return ai !== null;
-}
+// La clé API vient de l'organisation (via getGeminiApiKey), plus de
+// singleton d'environnement : chaque appel construit son client.
 
 const PROMPT = `Tu analyses un document PDF français : un devis ou une facture provenant d'un exploitant de chauffage (Dalkia, ENGIE, IDEX, Équans, etc.) ou d'un artisan local.
 
@@ -43,8 +39,8 @@ const responseSchema = {
   },
 };
 
-export async function parseWithGemini(pdfBuffer: Buffer): Promise<ParsedQuote | null> {
-  if (!ai) return null;
+export async function parseWithGemini(pdfBuffer: Buffer, apiKey: string): Promise<ParsedQuote | null> {
+  const ai = new GoogleGenAI({ apiKey });
 
   try {
     const base64 = pdfBuffer.toString("base64");

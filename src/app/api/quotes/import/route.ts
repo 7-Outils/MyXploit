@@ -6,7 +6,8 @@ import {
   findSiteMatch,
   ParsedQuote,
 } from "@/lib/pdf-parser";
-import { parseWithGemini, isGeminiEnabled } from "@/lib/gemini-pdf-parser";
+import { parseWithGemini } from "@/lib/gemini-pdf-parser";
+import { getGeminiApiKey } from "@/lib/gemini-key";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
@@ -124,9 +125,10 @@ export async function POST(request: NextRequest) {
     let parsed: ParsedQuote;
     let source: "gemini" | "regex" = "regex";
 
+    const geminiKey = await getGeminiApiKey(effectiveOrgId);
     try {
-      if (isGeminiEnabled()) {
-        const geminiResult = await parseWithGemini(buffer);
+      if (geminiKey) {
+        const geminiResult = await parseWithGemini(buffer, geminiKey);
         if (geminiResult) {
           parsed = geminiResult;
           source = "gemini";

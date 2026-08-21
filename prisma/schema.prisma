@@ -20,6 +20,7 @@ model Organization {
   slug      String   @unique
   logo      String?
   stampUrl  String? // Tampon entreprise (image R2), apposé sur les devis acceptés
+  geminiApiKey String? // Clé API Gemini de l'orga, chiffrée (AES-256-GCM)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
