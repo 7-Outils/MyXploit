@@ -27,6 +27,7 @@ interface MissionType {
 }
 
 import { ROLE_LABELS } from "@/lib/permissions";
+import PriceLibrarySection from "@/components/settings/PriceLibrarySection";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<UserData | null>(null);
@@ -465,6 +466,9 @@ export default function SettingsPage() {
           )}
         </ChartCard>
       )}
+
+      {/* Bibliothèque de prix - ADMIN only */}
+      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && <PriceLibrarySection />}
 
       {/* Tampon entreprise - ADMIN only */}
       {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
