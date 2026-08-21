@@ -62,12 +62,17 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-// "3319,31" -> 3319.31 ; vide -> null
-function frNumber(value: string | undefined): number | null {
-  if (!value) return null;
+// "3319,31" -> 3319.31 ; vide -> null. Les cellules Excel arrivent déjà en nombre.
+function frNumber(value: string | number | undefined): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number") return Number.isNaN(value) ? null : value;
   const n = parseFloat(value.replace(/\s/g, "").replace(",", "."));
   return Number.isNaN(n) ? null : n;
 }
+
+type Cell = string | number | undefined;
+
+const cellStr = (c: Cell) => (c === undefined || c === null ? "" : String(c));
 
 // Trouve l'index d'une colonne par fragments de son intitulé
 function col(headers: string[], ...needles: string[]): number {
@@ -108,11 +113,37 @@ export default function PriceLibrarySection() {
     setError(null);
     setProgress("Lecture du fichier...");
     try {
-      const text = await file.text();
-      const rows = parseCsv(text);
+      let rows: Cell[][];
+      if (/\.xlsx?$/i.test(file.name)) {
+        // Excel via la lib xlsx du projet. On cherche la feuille de données :
+        // la première dont l'entête contient Code et Désignation (les exports
+        // Batiprix ont une feuille Sommaire en tête).
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(await file.arrayBuffer());
+        rows = [];
+        for (const name of wb.SheetNames) {
+          const sheetRows = XLSX.utils.sheet_to_json<Cell[]>(wb.Sheets[name], {
+            header: 1,
+            raw: true,
+            defval: "",
+          });
+          const h = (sheetRows[0] ?? []).map(cellStr);
+          if (col(h, "code") >= 0 && col(h, "désignation") >= 0 && sheetRows.length > 1) {
+            rows = sheetRows;
+            break;
+          }
+        }
+        if (rows.length === 0) {
+          throw new Error(
+            "Aucune feuille avec colonnes « Code » et « Désignation » trouvée dans ce classeur"
+          );
+        }
+      } else {
+        rows = parseCsv(await file.text());
+      }
       if (rows.length < 2) throw new Error("Fichier vide ou illisible");
 
-      const headers = rows[0];
+      const headers = rows[0].map(cellStr);
       const iCode = col(headers, "code");
       const iDesignation = col(headers, "désignation");
       if (iCode < 0 || iDesignation < 0) {
@@ -133,17 +164,17 @@ export default function PriceLibrarySection() {
       const parsed: ParsedRow[] = rows
         .slice(1)
         .map((r) => ({
-          code: (r[iCode] || "").trim(),
-          lot: iLot >= 0 ? r[iLot]?.trim() || null : null,
-          corpsEtat: iCorps >= 0 ? r[iCorps]?.trim() || null : null,
-          designation: (r[iDesignation] || "").trim(),
-          unit: iUnit >= 0 ? r[iUnit]?.trim() || null : null,
+          code: cellStr(r[iCode]).trim(),
+          lot: iLot >= 0 ? cellStr(r[iLot]).trim() || null : null,
+          corpsEtat: iCorps >= 0 ? cellStr(r[iCorps]).trim() || null : null,
+          designation: cellStr(r[iDesignation]).trim(),
+          unit: iUnit >= 0 ? cellStr(r[iUnit]).trim() || null : null,
           laborHours: iHours >= 0 ? frNumber(r[iHours]) : null,
           laborCost: iLabor >= 0 ? frNumber(r[iLabor]) : null,
           suppliesCost: iSupplies >= 0 ? frNumber(r[iSupplies]) : null,
           sellPriceHT: iSell >= 0 ? frNumber(r[iSell]) : null,
           installOnly: iInstall >= 0 ? frNumber(r[iInstall]) : null,
-          description: iDesc >= 0 ? r[iDesc]?.trim() || null : null,
+          description: iDesc >= 0 ? cellStr(r[iDesc]).trim() || null : null,
         }))
         .filter((r) => r.code && r.designation);
 
@@ -199,7 +230,7 @@ export default function PriceLibrarySection() {
     >
       <p className="mb-4 text-sm text-ink/50">
         Référentiel d&apos;ouvrages (Batiprix...) utilisé pour l&apos;analyse des prix des devis.
-        Import CSV séparé par « ; » avec colonnes Code, Désignation, Unité, Prix vente HT.
+        Import CSV (séparateur « ; ») ou Excel, avec colonnes Code, Désignation, Unité, Prix vente HT.
       </p>
 
       {error && (
@@ -227,7 +258,7 @@ export default function PriceLibrarySection() {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
+          <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={busy}
