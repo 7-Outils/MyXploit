@@ -144,6 +144,7 @@ export async function POST(request: NextRequest) {
         status: body.status || "BROUILLON",
         issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
         description: body.description || null,
+        documentUrl: body.documentUrl || null,
         siteId: body.siteId || null,
         contractId: body.contractId || null,
         organizationId: effectiveOrgId,
