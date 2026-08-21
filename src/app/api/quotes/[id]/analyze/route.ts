@@ -4,6 +4,7 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import {
   extractQuoteItems,
   matchQuoteLines,
+  generateSearchQueries,
   type ExtractedItem,
   type CandidateRef,
 } from "@/lib/gemini-price-analysis";
@@ -182,20 +183,54 @@ export async function POST(
       ]);
     }
 
-    // 2. Présélection de candidats dans le référentiel, par mots-clés
+    // 2. Présélection de candidats dans le référentiel. L'IA génère d'abord
+    // des expressions de recherche ciblant l'ouvrage principal de chaque
+    // ligne (sinon une ligne "chauffe-eau + raccords" ne remonte que des
+    // coudes) ; les mots-clés bruts restent en secours.
+    let searchQueries: string[][] = items.map(() => []);
+    try {
+      searchQueries = await generateSearchQueries(items, aiCfg);
+    } catch (error) {
+      console.error("AI search query generation failed, keyword fallback:", error);
+    }
+
+    const refSelect = { code: true, designation: true, unit: true, sellPriceHT: true };
     const candidates: CandidateRef[][] = await Promise.all(
-      items.map(async (item) => {
-        const kws = keywords(item.description);
-        if (kws.length === 0) return [];
-        const refs = await prisma.priceReference.findMany({
-          where: {
-            organizationId: effectiveOrgId,
-            OR: kws.map((k) => ({ designation: { contains: k, mode: "insensitive" as const } })),
-          },
-          select: { code: true, designation: true, unit: true, sellPriceHT: true },
-          take: 12,
-        });
-        return refs;
+      items.map(async (item, i) => {
+        const found = new Map<string, CandidateRef>();
+
+        // Recherches IA : tous les mots de l'expression doivent matcher (AND)
+        for (const expr of searchQueries[i]) {
+          const words = expr.split(/\s+/).filter((w) => w.length >= 2).slice(0, 5);
+          if (words.length === 0) continue;
+          const refs = await prisma.priceReference.findMany({
+            where: {
+              organizationId: effectiveOrgId,
+              AND: words.map((w) => ({ designation: { contains: w, mode: "insensitive" as const } })),
+            },
+            select: refSelect,
+            take: 8,
+          });
+          for (const r of refs) found.set(r.code, r);
+        }
+
+        // Secours mots-clés (OR) si la recherche IA a trop peu ramené
+        if (found.size < 4) {
+          const kws = keywords(item.description);
+          if (kws.length > 0) {
+            const refs = await prisma.priceReference.findMany({
+              where: {
+                organizationId: effectiveOrgId,
+                OR: kws.map((k) => ({ designation: { contains: k, mode: "insensitive" as const } })),
+              },
+              select: refSelect,
+              take: 12 - found.size,
+            });
+            for (const r of refs) if (!found.has(r.code)) found.set(r.code, r);
+          }
+        }
+
+        return [...found.values()].slice(0, 15);
       })
     );
 

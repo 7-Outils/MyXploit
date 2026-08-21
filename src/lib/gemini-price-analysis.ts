@@ -64,6 +64,56 @@ Si une valeur est absente sur la ligne, mets null. Les nombres sont en notation 
   }
 }
 
+// Pour chaque ligne du devis, l'IA propose des expressions de recherche
+// courtes désignant l'ouvrage principal (en français correct, accents
+// compris, car les désignations Batiprix sont accentuées). C'est ce qui
+// évite qu'une ligne "chauffe-eau + accessoires" ne remonte que des coudes.
+export async function generateSearchQueries(
+  items: ExtractedItem[],
+  ai: AiConfig
+): Promise<string[][]> {
+  const lines = items
+    .map((item, i) => `Ligne ${i} : "${item.description}" (${item.quantity ?? "?"} ${item.unit ?? ""})`)
+    .join("\n");
+
+  const parsed = (await aiJson(ai, {
+    prompt: `Tu prépares des recherches dans un bordereau de prix du bâtiment (Batiprix). Pour chaque ligne de devis ci-dessous, donne 2 à 3 expressions de recherche courtes (1 à 4 mots chacune) désignant l'OUVRAGE PRINCIPAL de la ligne — l'équipement ou la prestation qu'on achète — en ignorant les accessoires de pose (coudes, raccords, manchons, visserie).
+
+Règles :
+- Français correct AVEC accents (les désignations du bordereau sont accentuées).
+- Inclure les synonymes usuels (ex: "chauffe-eau" ET "ballon") et la dimension/capacité si présente (ex: "300").
+- Pour la main-d'œuvre : "taux horaire", "main-d'œuvre".
+- terms : la liste des expressions pour la ligne.
+
+${lines}`,
+    geminiSchema: {
+      type: Type.OBJECT,
+      properties: {
+        queries: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              index: { type: Type.NUMBER },
+              terms: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ["index", "terms"],
+          },
+        },
+      },
+      required: ["queries"],
+    },
+  })) as { queries: { index: number; terms: string[] }[] };
+
+  const result: string[][] = items.map(() => []);
+  for (const q of parsed.queries) {
+    if (q.index >= 0 && q.index < items.length && Array.isArray(q.terms)) {
+      result[q.index] = q.terms.filter((t) => typeof t === "string" && t.trim()).slice(0, 3);
+    }
+  }
+  return result;
+}
+
 // Pour chaque ligne du devis, choisit le meilleur ouvrage du référentiel
 // parmi les candidats présélectionnés, ou estime le prix si rien ne convient
 export async function matchQuoteLines(
