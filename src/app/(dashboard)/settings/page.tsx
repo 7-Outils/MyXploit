@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { User, Building, Bell, Shield, Loader2, Check, AlertCircle, FolderKanban, Plus, Pencil, Trash2, X } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { User, Building, Bell, Shield, Loader2, Check, AlertCircle, FolderKanban, Plus, Pencil, Trash2, X, Stamp, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import Link from "next/link";
@@ -40,6 +40,12 @@ export default function SettingsPage() {
 
   // Mission types state
   const [missionTypes, setMissionTypes] = useState<MissionType[]>([]);
+
+  // Tampon entreprise (apposé sur les devis acceptés envoyés par email)
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
+  const [stampBusy, setStampBusy] = useState(false);
+  const [stampError, setStampError] = useState("");
+  const stampInputRef = useRef<HTMLInputElement>(null);
   const [newTypeName, setNewTypeName] = useState("");
   const [addingType, setAddingType] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
@@ -72,7 +78,64 @@ export default function SettingsPage() {
     };
     fetchUser();
     fetchMissionTypes();
+    fetch("/api/organization")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((org) => { if (org) setStampUrl(org.stampUrl || null); })
+      .catch(() => {});
   }, [fetchMissionTypes]);
+
+  const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setStampBusy(true);
+    setStampError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("folder", "stamps");
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: fd });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) {
+        setStampError(uploadData.error || "Erreur lors de l'upload");
+        return;
+      }
+      const patchRes = await fetch("/api/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stampUrl: uploadData.url }),
+      });
+      if (patchRes.ok) {
+        const org = await patchRes.json();
+        setStampUrl(org.stampUrl);
+      } else {
+        const data = await patchRes.json();
+        setStampError(data.error || "Erreur lors de l'enregistrement");
+      }
+    } catch {
+      setStampError("Erreur de connexion au serveur");
+    } finally {
+      setStampBusy(false);
+    }
+  };
+
+  const handleStampDelete = async () => {
+    if (!confirm("Supprimer le tampon entreprise ?")) return;
+    setStampBusy(true);
+    setStampError("");
+    try {
+      const res = await fetch("/api/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stampUrl: null }),
+      });
+      if (res.ok) setStampUrl(null);
+    } catch {
+      setStampError("Erreur de connexion au serveur");
+    } finally {
+      setStampBusy(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -400,6 +463,61 @@ export default function SettingsPage() {
               ))}
             </div>
           )}
+        </ChartCard>
+      )}
+
+      {/* Tampon entreprise - ADMIN only */}
+      {(user?.role === "ADMIN" || user?.role === "SUPER_ADMIN") && (
+        <ChartCard
+          title={
+            <span className="flex items-center gap-2">
+              <Stamp size={14} className="text-ink/40" />
+              Tampon entreprise
+            </span>
+          }
+        >
+          <p className="mb-4 text-sm text-ink/50">
+            Image (PNG ou JPEG) apposée sur les devis acceptés envoyés par email à l&apos;exploitant.
+          </p>
+
+          {stampError && (
+            <div className="mb-4 flex items-center gap-2 border border-red-600/20 bg-red-50 p-3 text-sm text-red-700">
+              <AlertCircle size={16} />
+              {stampError}
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            {stampUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={stampUrl} alt="Tampon entreprise" className="h-24 max-w-48 border border-ink/10 bg-white object-contain p-2" />
+            ) : (
+              <div className="flex h-24 w-48 items-center justify-center border border-dashed border-ink/20 text-xs text-ink/40">
+                Aucun tampon
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <input ref={stampInputRef} type="file" accept="image/png,image/jpeg" onChange={handleStampUpload} className="hidden" />
+              <button
+                onClick={() => stampInputRef.current?.click()}
+                disabled={stampBusy}
+                title={stampUrl ? "Remplacer le tampon" : "Ajouter un tampon"}
+                className="flex h-9 w-9 items-center justify-center border border-ink/10 text-ink/60 transition-colors hover:bg-ink/[0.02] disabled:opacity-50"
+              >
+                {stampBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+              </button>
+              {stampUrl && (
+                <button
+                  onClick={handleStampDelete}
+                  disabled={stampBusy}
+                  title="Supprimer le tampon"
+                  className="flex h-9 w-9 items-center justify-center border border-ink/10 text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+          </div>
         </ChartCard>
       )}
     </div>

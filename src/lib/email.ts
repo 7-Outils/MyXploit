@@ -12,16 +12,20 @@ const transporter = nodemailer.createTransport({
 
 interface SendEmailOptions {
   to: string;
+  cc?: string[];
   subject: string;
   html: string;
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }
 
-export async function sendEmail({ to, subject, html }: SendEmailOptions) {
+export async function sendEmail({ to, cc, subject, html, attachments }: SendEmailOptions) {
   const mailOptions = {
     from: process.env.SMTP_FROM || "MyXploit <noreply@myxploit.fr>",
     to,
+    ...(cc && cc.length > 0 ? { cc } : {}),
     subject,
     html,
+    ...(attachments && attachments.length > 0 ? { attachments } : {}),
   };
 
   return transporter.sendMail(mailOptions);

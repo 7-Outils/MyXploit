@@ -89,6 +89,7 @@ export interface Contract {
   reference: string;
   title: string;
   provider: string;
+  providerEmail: string | null;
   description: string | null;
   startDate: string;
   endDate: string;

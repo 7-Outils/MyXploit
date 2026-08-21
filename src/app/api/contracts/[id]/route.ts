@@ -129,6 +129,7 @@ export async function PUT(
     if (body.reference) updateData.reference = body.reference;
     if (body.title) updateData.title = body.title;
     if (body.provider) updateData.provider = body.provider;
+    if (body.providerEmail !== undefined) updateData.providerEmail = body.providerEmail || null;
     if (body.startDate) updateData.startDate = new Date(body.startDate);
     if (body.endDate) updateData.endDate = new Date(body.endDate);
     if (body.status) updateData.status = body.status;

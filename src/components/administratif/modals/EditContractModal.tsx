@@ -19,6 +19,7 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
     reference: contractDetail.reference,
     title: contractDetail.title,
     provider: contractDetail.provider,
+    providerEmail: contractDetail.providerEmail || "",
     description: contractDetail.description || "",
     startDate: formatToFrench(contractDetail.startDate),
     endDate: formatToFrench(contractDetail.endDate),
@@ -39,6 +40,7 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           reference: formData.reference,
           title: formData.title,
           provider: formData.provider,
+          providerEmail: formData.providerEmail.trim() || null,
           description: formData.description || null,
           startDate: parseFrenchDate(formData.startDate),
           endDate: parseFrenchDate(formData.endDate),
@@ -78,6 +80,11 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           <div>
             <label className="label-tech mb-1 block">Titulaire (exploitant) *</label>
             <input type="text" required value={formData.provider} onChange={(e) => setFormData({ ...formData, provider: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+          </div>
+          <div>
+            <label className="label-tech mb-1 block">Email exploitant</label>
+            <input type="email" value={formData.providerEmail} onChange={(e) => setFormData({ ...formData, providerEmail: e.target.value })} placeholder="contact@exploitant.fr" className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+            <p className="mt-1 text-xs text-ink/40">Destinataire des devis acceptés envoyés par email</p>
           </div>
           <div>
             <label className="label-tech mb-1 block">Description</label>

@@ -19,6 +19,7 @@ model Organization {
   name      String
   slug      String   @unique
   logo      String?
+  stampUrl  String? // Tampon entreprise (image R2), apposé sur les devis acceptés
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1218,6 +1219,7 @@ model Contract {
   reference        String
   title            String
   provider         String // Exploitant (ENGIE, Dalkia, etc.)
+  providerEmail    String? // Email de contact de l'exploitant (envoi des devis acceptés)
   startDate        DateTime
   endDate          DateTime
   status           ContractStatus   @default(ACTIF)
