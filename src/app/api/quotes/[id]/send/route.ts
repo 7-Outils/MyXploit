@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
-import { stampQuotePdf } from "@/lib/pdf-stamp";
+import { stampQuotePdf, stampQuotePdfWithText } from "@/lib/pdf-stamp";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -124,31 +124,31 @@ export async function POST(
     }
     let pdfBuffer: Buffer = Buffer.from(await pdfResponse.arrayBuffer());
 
-    // Tamponner si demandé et si l'organisation a un tampon
+    const senderName =
+      [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
+
+    // Tamponner si demandé : image du tampon si l'organisation en a une,
+    // sinon tampon textuel "VALIDÉ / par <nom> / le <date>".
     if (withStamp) {
       const organization = await prisma.organization.findUnique({
         where: { id: effectiveOrgId },
         select: { stampUrl: true },
       });
-      if (!organization?.stampUrl) {
-        return NextResponse.json(
-          { error: "Aucun tampon configuré pour votre organisation (Paramètres)" },
-          { status: 400 }
-        );
+      const acceptedAt = quote.acceptedAt ?? new Date();
+      if (organization?.stampUrl) {
+        const stampResponse = await fetch(organization.stampUrl);
+        if (!stampResponse.ok) {
+          return NextResponse.json(
+            { error: "Impossible de récupérer l'image du tampon" },
+            { status: 502 }
+          );
+        }
+        const stampBuffer = Buffer.from(await stampResponse.arrayBuffer());
+        pdfBuffer = await stampQuotePdf(pdfBuffer, stampBuffer, acceptedAt);
+      } else {
+        pdfBuffer = await stampQuotePdfWithText(pdfBuffer, senderName, acceptedAt);
       }
-      const stampResponse = await fetch(organization.stampUrl);
-      if (!stampResponse.ok) {
-        return NextResponse.json(
-          { error: "Impossible de récupérer l'image du tampon" },
-          { status: 502 }
-        );
-      }
-      const stampBuffer = Buffer.from(await stampResponse.arrayBuffer());
-      pdfBuffer = await stampQuotePdf(pdfBuffer, stampBuffer, quote.acceptedAt ?? new Date());
     }
-
-    const senderName =
-      [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
     const amountFmt = (n: number) =>
       n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 

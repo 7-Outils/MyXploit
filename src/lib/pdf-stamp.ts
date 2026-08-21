@@ -56,3 +56,92 @@ export async function stampQuotePdf(
 
   return Buffer.from(await pdf.save());
 }
+
+/**
+ * Variante sans image : appose un tampon textuel encadré
+ * "VALIDÉ / par <nom> / le <date>" en bas à droite de la dernière page.
+ * Utilisée quand l'organisation n'a pas de tampon configuré.
+ */
+export async function stampQuotePdfWithText(
+  pdfBuffer: Buffer,
+  validatorName: string,
+  acceptedAt: Date
+): Promise<Buffer> {
+  const pdf = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true });
+  const page = pdf.getPage(pdf.getPageCount() - 1);
+  const { width: pageWidth } = page.getSize();
+
+  const fontBold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+
+  const dateStr = acceptedAt.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Paris",
+  });
+
+  // Encre bleu foncé, façon tampon administratif
+  const inkColor = rgb(0.13, 0.22, 0.5);
+
+  const title = "VALIDÉ";
+  const line1 = `par ${validatorName}`;
+  const line2 = `le ${dateStr}`;
+
+  const titleSize = 14;
+  const lineSize = 9;
+  const padding = 10;
+  const contentWidth = Math.max(
+    fontBold.widthOfTextAtSize(title, titleSize),
+    font.widthOfTextAtSize(line1, lineSize),
+    font.widthOfTextAtSize(line2, lineSize)
+  );
+  const boxWidth = contentWidth + padding * 2;
+  const boxHeight = titleSize + lineSize * 2 + 8 + padding * 2;
+
+  const margin = 36;
+  const x = pageWidth - boxWidth - margin;
+  const y = margin;
+
+  page.drawRectangle({
+    x,
+    y,
+    width: boxWidth,
+    height: boxHeight,
+    borderColor: inkColor,
+    borderWidth: 1.5,
+    opacity: 0,
+    borderOpacity: 0.85,
+  });
+
+  const centerX = x + boxWidth / 2;
+  let cursorY = y + boxHeight - padding - titleSize;
+  page.drawText(title, {
+    x: centerX - fontBold.widthOfTextAtSize(title, titleSize) / 2,
+    y: cursorY,
+    size: titleSize,
+    font: fontBold,
+    color: inkColor,
+    opacity: 0.85,
+  });
+  cursorY -= lineSize + 5;
+  page.drawText(line1, {
+    x: centerX - font.widthOfTextAtSize(line1, lineSize) / 2,
+    y: cursorY,
+    size: lineSize,
+    font,
+    color: inkColor,
+    opacity: 0.85,
+  });
+  cursorY -= lineSize + 3;
+  page.drawText(line2, {
+    x: centerX - font.widthOfTextAtSize(line2, lineSize) / 2,
+    y: cursorY,
+    size: lineSize,
+    font,
+    color: inkColor,
+    opacity: 0.85,
+  });
+
+  return Buffer.from(await pdf.save());
+}
