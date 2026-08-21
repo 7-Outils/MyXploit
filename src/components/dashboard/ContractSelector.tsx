@@ -1,21 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
+  ChevronRight,
   Check,
   Plus,
-  FileSpreadsheet,
   Building2,
-  FileText,
   ArrowRight,
+  Search,
 } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
 import { cn } from "@/lib/utils";
-import CreateContractModal from "@/components/administratif/modals/CreateContractModal";
-import AEImportModal from "@/components/administratif/modals/AEImportModal";
 
 interface ClientGroup {
   id: string;
@@ -35,10 +33,11 @@ export function ContractSelector() {
   const { contracts, selectedContract, isLoading, selectContract } =
     useContract();
   const [open, setOpen] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showAEModal, setShowAEModal] = useState(false);
+  const [query, setQuery] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -58,224 +57,266 @@ export function ContractSelector() {
       .catch(() => setClients([]));
   }, []);
 
+  // À l'ouverture : recherche vide, focus dessus, client courant déplié
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setExpandedId(selectedContract?.client?.id ?? null);
+      // Le focus doit attendre le rendu du panneau
+      setTimeout(() => searchRef.current?.focus(), 0);
+    }
+  }, [open, selectedContract]);
+
+  // Un groupe par client (même à 0 contrat), + "Sans client" pour les orphelins
+  const groups = useMemo(() => {
+    const list: ClientGroup[] = [];
+    const idx = new Map<string, ClientGroup>();
+
+    for (const cl of clients) {
+      const g: ClientGroup = { id: cl.id, name: cl.name, city: cl.city, contracts: [] };
+      idx.set(cl.id, g);
+      list.push(g);
+    }
+    for (const c of contracts) {
+      const key = c.client?.id || "__none__";
+      let g = idx.get(key);
+      if (!g) {
+        g = {
+          id: key,
+          name: c.client?.name || "Sans client",
+          city: c.client?.city,
+          contracts: [],
+        };
+        idx.set(key, g);
+        list.push(g);
+      }
+      g.contracts.push(c);
+    }
+    list.sort((a, b) => {
+      if (a.id === "__none__") return 1;
+      if (b.id === "__none__") return -1;
+      return a.name.localeCompare(b.name, "fr");
+    });
+    return list;
+  }, [clients, contracts]);
+
+  // Filtre de recherche : nom du client, ou référence/titre/exploitant d'un contrat
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return groups;
+    return groups.filter(
+      (g) =>
+        g.name.toLowerCase().includes(q) ||
+        g.contracts.some((c) =>
+          [c.reference, c.title, c.provider]
+            .filter(Boolean)
+            .some((s) => s!.toLowerCase().includes(q))
+        )
+    );
+  }, [groups, query]);
+
   if (isLoading) {
     return <div className="h-9 w-64 bg-ink/5 animate-pulse" />;
   }
 
-  // Un groupe par client (même à 0 contrat), + un groupe "Sans client" pour les orphelins.
-  const groups: ClientGroup[] = [];
-  const idx = new Map<string, ClientGroup>();
-
-  // Amorce : tous les clients existants, y compris ceux sans contrat
-  for (const cl of clients) {
-    const g: ClientGroup = { id: cl.id, name: cl.name, city: cl.city, contracts: [] };
-    idx.set(cl.id, g);
-    groups.push(g);
-  }
-
-  // Range les contrats dans leur client (ou "Sans client")
-  for (const c of contracts) {
-    const key = c.client?.id || "__none__";
-    let g = idx.get(key);
-    if (!g) {
-      g = {
-        id: key,
-        name: c.client?.name || "Sans client",
-        city: c.client?.city,
-        contracts: [],
-      };
-      idx.set(key, g);
-      groups.push(g);
-    }
-    g.contracts.push(c);
-  }
-  // Tri alpha, mais "Sans client" toujours en dernier (bac à orphelins)
-  groups.sort((a, b) => {
-    if (a.id === "__none__") return 1;
-    if (b.id === "__none__") return -1;
-    return a.name.localeCompare(b.name, "fr");
-  });
-
   const currentClient = selectedContract?.client ?? null;
 
+  const pickContract = (contract: ClientGroup["contracts"][number]) => {
+    selectContract(contract);
+    setOpen(false);
+  };
+
+  const handleClientClick = (g: ClientGroup) => {
+    if (g.contracts.length === 1) {
+      // Un seul contrat : le choisir directement, pas d'étape inutile
+      pickContract(g.contracts[0]);
+    } else if (g.contracts.length > 1) {
+      setExpandedId(expandedId === g.id ? null : g.id);
+    } else if (g.id !== "__none__") {
+      // Aucun contrat : la fiche client est l'endroit où en créer un
+      setOpen(false);
+      router.push(`/clients/${g.id}`);
+    }
+  };
+
   return (
-    <>
-      <div ref={ref} className="relative">
-        <button
-          onClick={() => setOpen(!open)}
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border max-w-[420px]",
+          open
+            ? "border-accent bg-accent/5 text-accent"
+            : "border-ink/20 text-ink hover:border-accent hover:text-accent"
+        )}
+      >
+        <Building2 size={15} className="text-ink/40 flex-shrink-0" />
+        <span className="font-medium truncate">
+          {currentClient?.name || "Sélectionner un client"}
+        </span>
+        <ChevronDown
+          size={14}
           className={cn(
-            "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border max-w-[420px]",
-            open
-              ? "border-accent bg-accent/5 text-accent"
-              : "border-ink/20 text-ink hover:border-accent hover:text-accent"
+            "text-ink/40 transition-transform ml-auto flex-shrink-0",
+            open && "rotate-180"
           )}
-        >
-          <Building2 size={15} className="text-ink/40 flex-shrink-0" />
-          <span className="font-medium truncate">
-            {currentClient?.name || "Sélectionner un client"}
-          </span>
-          <ChevronDown
-            size={14}
-            className={cn(
-              "text-ink/40 transition-transform ml-auto flex-shrink-0",
-              open && "rotate-180"
-            )}
-          />
-        </button>
+        />
+      </button>
 
-        {open && (
-          <div className="absolute left-0 top-full mt-1 w-[420px] bg-white shadow-large border border-ink/15 py-1 z-50">
-            {/* Lien fiche patrimoine pour le client courant */}
-            {currentClient && (
-              <Link
-                href={`/clients/${currentClient.id}`}
-                onClick={() => setOpen(false)}
-                className="mx-2 mt-1 mb-1 flex items-center justify-between gap-2 border-l-2 border-accent bg-accent/5 px-3 py-2 hover:bg-accent/10 text-accent text-sm font-medium transition-colors"
-              >
-                <span className="flex items-center gap-2 truncate">
-                  <Building2 size={14} className="flex-shrink-0" />
-                  Patrimoine de {currentClient.name}
-                </span>
-                <ArrowRight size={14} className="flex-shrink-0" />
-              </Link>
-            )}
+      {open && (
+        <div className="absolute left-0 top-full mt-1 w-[380px] bg-white shadow-large border border-ink/15 z-50">
+          {/* Recherche */}
+          <div className="flex items-center gap-2 border-b border-ink/10 px-3 py-2">
+            <Search size={14} className="text-ink/30 flex-shrink-0" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher un client, un contrat..."
+              className="w-full bg-transparent text-sm text-ink placeholder:text-ink/30 focus:outline-none"
+            />
+          </div>
 
-            {groups.length > 0 && (
-              <>
-                <div className="px-3 py-2 border-b border-ink/10">
-                  <p className="label-tech">Clients &amp; contrats actifs</p>
-                </div>
-                <div className="max-h-80 overflow-y-auto py-1">
-                  {groups.map((g) => (
-                    <div key={g.id} className="mb-2 last:mb-0">
-                      {/* En-tête client : le parent domine */}
-                      {g.id !== "__none__" ? (
-                        <Link
-                          href={`/clients/${g.id}`}
-                          onClick={() => setOpen(false)}
-                          className="group/h mx-2 px-2 py-1.5 flex items-center gap-2 hover:bg-ink/[0.02] transition-colors"
-                        >
-                          <span className="text-sm font-semibold text-ink truncate">
-                            {g.name}
-                          </span>
-                          <ArrowRight
-                            size={13}
-                            className="text-ink/20 opacity-0 group-hover/h:opacity-100 group-hover/h:text-accent transition-all flex-shrink-0"
-                          />
-                        </Link>
-                      ) : (
-                        <div className="mx-2 px-2 py-1.5">
-                          <span className="text-sm font-semibold text-ink/40 truncate">
-                            {g.name}
-                          </span>
-                        </div>
-                      )}
+          {/* Lien fiche patrimoine pour le client courant */}
+          {currentClient && !query && (
+            <Link
+              href={`/clients/${currentClient.id}`}
+              onClick={() => setOpen(false)}
+              className="mx-2 mt-2 flex items-center justify-between gap-2 border-l-2 border-accent bg-accent/5 px-3 py-2 hover:bg-accent/10 text-accent text-sm font-medium transition-colors"
+            >
+              <span className="flex items-center gap-2 truncate">
+                <Building2 size={14} className="flex-shrink-0" />
+                Patrimoine de {currentClient.name}
+              </span>
+              <ArrowRight size={14} className="flex-shrink-0" />
+            </Link>
+          )}
 
-                      {/* Contrats : enfants subordonnés, rail d'indentation */}
-                      <div className="ml-[18px] pl-3 border-l border-ink/10">
-                        {g.contracts.length === 0 && (
-                          <p className="px-2 py-1.5 text-[11px] text-ink/30">
-                            Aucun contrat
-                          </p>
-                        )}
-                        {g.contracts.map((contract) => {
-                          const isSelected = selectedContract?.id === contract.id;
-                          // Évite le doublon nom de contrat == nom de client
-                          const showRef =
-                            contract.reference &&
-                            contract.reference.trim().toLowerCase() !==
-                              g.name.trim().toLowerCase();
-                          return (
-                            <button
-                              key={contract.id}
-                              onClick={() => {
-                                selectContract(contract);
-                                setOpen(false);
-                              }}
-                              className={cn(
-                                "w-full px-2 py-1.5 text-left hover:bg-ink/[0.02] flex items-center gap-2 transition-colors",
-                                isSelected && "bg-accent/5 text-accent"
-                              )}
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[13px] text-ink/70 truncate">
-                                  {showRef && (
-                                    <span className="font-mono text-ink font-medium">
-                                      {contract.reference} ·{" "}
-                                    </span>
-                                  )}
-                                  {contract.title} — {contract.provider}
-                                </p>
-                              </div>
-                              {contract._count && (
-                                <span className="font-mono text-[10px] tabular-nums text-ink/40 flex-shrink-0">
-                                  {contract._count.contractSites} site
-                                  {contract._count.contractSites > 1 ? "s" : ""}
-                                </span>
-                              )}
-                              {isSelected && (
-                                <Check
-                                  size={13}
-                                  className="text-accent flex-shrink-0"
-                                />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {groups.length === 0 && (
+          {/* Clients */}
+          <div className="max-h-80 overflow-y-auto py-1.5">
+            {filteredGroups.length === 0 && (
               <div className="px-3 py-6 text-center text-sm text-ink/40">
-                Aucun client. Commence par en créer un.
+                {groups.length === 0
+                  ? "Aucun client. Commence par en créer un."
+                  : "Aucun résultat"}
               </div>
             )}
+            {filteredGroups.map((g) => {
+              const isCurrent = currentClient?.id === g.id ||
+                (g.id === "__none__" && selectedContract && !selectedContract.client);
+              const multi = g.contracts.length > 1;
+              const expanded = multi && (expandedId === g.id || !!query.trim());
+              return (
+                <div key={g.id}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleClientClick(g)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleClientClick(g); }}
+                    className={cn(
+                      "group/r mx-1.5 flex cursor-pointer items-center gap-2 px-2 py-2 transition-colors hover:bg-ink/[0.03]",
+                      isCurrent && !multi && "bg-accent/5"
+                    )}
+                  >
+                    {multi ? (
+                      <ChevronRight
+                        size={13}
+                        className={cn(
+                          "flex-shrink-0 text-ink/30 transition-transform",
+                          expanded && "rotate-90"
+                        )}
+                      />
+                    ) : (
+                      <span className="w-[13px] flex-shrink-0" />
+                    )}
+                    <span
+                      className={cn(
+                        "flex-1 truncate text-sm font-medium",
+                        g.id === "__none__" ? "text-ink/40" : "text-ink",
+                        isCurrent && !multi && "text-accent"
+                      )}
+                    >
+                      {g.name}
+                    </span>
+                    {multi && (
+                      <span className="font-mono text-[10px] tabular-nums text-ink/40 flex-shrink-0">
+                        {g.contracts.length} contrats
+                      </span>
+                    )}
+                    {g.contracts.length === 0 && (
+                      <span className="text-[10px] text-ink/30 flex-shrink-0">
+                        aucun contrat
+                      </span>
+                    )}
+                    {isCurrent && !multi && (
+                      <Check size={13} className="text-accent flex-shrink-0" />
+                    )}
+                    {g.id !== "__none__" && (
+                      <Link
+                        href={`/clients/${g.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpen(false);
+                        }}
+                        title="Fiche client"
+                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-ink/0 transition-colors group-hover/r:text-ink/30 hover:!text-accent"
+                      >
+                        <ArrowRight size={13} />
+                      </Link>
+                    )}
+                  </div>
 
-            {/* Actions de création — discrètes, en pied de menu */}
-            <div className="border-t border-ink/10 p-1.5 flex items-center gap-1">
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/clients");
-                }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
-              >
-                <Plus size={14} />
-                Client
-              </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setShowCreateModal(true);
-                }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-ink/70 hover:bg-ink/[0.02] hover:text-accent transition-colors"
-              >
-                <FileText size={14} className="text-ink/40" />
-                Contrat
-              </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setShowAEModal(true);
-                }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] text-ink/70 hover:bg-ink/[0.02] hover:text-accent transition-colors"
-              >
-                <FileSpreadsheet size={14} className="text-ink/40" />
-                Depuis AE
-              </button>
-            </div>
+                  {/* Contrats du client, seulement si plusieurs */}
+                  {expanded && (
+                    <div className="ml-[26px] mr-2 mb-1 border-l border-ink/10 pl-2">
+                      {g.contracts.map((contract) => {
+                        const isSelected = selectedContract?.id === contract.id;
+                        return (
+                          <button
+                            key={contract.id}
+                            onClick={() => pickContract(contract)}
+                            className={cn(
+                              "flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-ink/[0.02]",
+                              isSelected && "bg-accent/5 text-accent"
+                            )}
+                          >
+                            <span className="min-w-0 flex-1 truncate text-[13px] text-ink/70">
+                              {contract.reference && (
+                                <span className="font-mono font-medium text-ink">
+                                  {contract.reference} ·{" "}
+                                </span>
+                              )}
+                              {contract.provider}
+                            </span>
+                            {isSelected && (
+                              <Check size={13} className="flex-shrink-0 text-accent" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
 
-      {showCreateModal && (
-        <CreateContractModal onClose={() => setShowCreateModal(false)} />
+          {/* Création : la fiche client reste le hub pour les contrats */}
+          <div className="border-t border-ink/10 p-1.5">
+            <button
+              onClick={() => {
+                setOpen(false);
+                router.push("/clients");
+              }}
+              className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
+            >
+              <Plus size={14} />
+              Nouveau client
+            </button>
+          </div>
+        </div>
       )}
-      {showAEModal && <AEImportModal onClose={() => setShowAEModal(false)} />}
-    </>
+    </div>
   );
 }
