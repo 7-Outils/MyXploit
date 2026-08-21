@@ -307,7 +307,7 @@ export function ContractSelector() {
             <button
               onClick={() => {
                 setOpen(false);
-                router.push("/clients");
+                router.push("/clients?new=1");
               }}
               className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
             >

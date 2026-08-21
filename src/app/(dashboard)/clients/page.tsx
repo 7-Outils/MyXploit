@@ -2,16 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Building2,
-  Plus,
-  Loader2,
-  Search,
-  X,
-  MapPin,
-  FileText,
-  Phone,
-} from "lucide-react";
+import { Building2, Plus, Loader2, Search, X } from "lucide-react";
 
 interface Client {
   id: string;
@@ -27,6 +18,17 @@ interface Client {
   };
 }
 
+const emptyForm = {
+  name: "",
+  siret: "",
+  contactName: "",
+  contactEmail: "",
+  contactPhone: "",
+  address: "",
+  city: "",
+  postalCode: "",
+};
+
 export default function ClientsPage() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
@@ -35,16 +37,7 @@ export default function ClientsPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    siret: "",
-    contactName: "",
-    contactEmail: "",
-    contactPhone: "",
-    address: "",
-    city: "",
-    postalCode: "",
-  });
+  const [formData, setFormData] = useState(emptyForm);
 
   const fetchClients = async () => {
     try {
@@ -59,6 +52,11 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchClients();
+    // ?new=1 : arrivée depuis "+ Nouveau client" du sélecteur, on ouvre
+    // directement le formulaire de création.
+    if (new URLSearchParams(window.location.search).get("new") === "1") {
+      setShowModal(true);
+    }
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -75,19 +73,20 @@ export default function ClientsPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Erreur");
 
-      await fetchClients();
-      setShowModal(false);
-      setFormData({ name: "", siret: "", contactName: "", contactEmail: "", contactPhone: "", address: "", city: "", postalCode: "" });
+      // Nouveau client créé : sa fiche est le hub pour y rattacher des contrats.
+      router.push(`/clients/${data.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inconnue");
-    } finally {
       setSaving(false);
     }
   };
 
-  const filtered = clients.filter((c) =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.city || "").toLowerCase().includes(search.toLowerCase())
+  const q = search.trim().toLowerCase();
+  const filtered = clients.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      (c.city || "").toLowerCase().includes(q) ||
+      (c.contactName || "").toLowerCase().includes(q)
   );
 
   if (loading) {
@@ -99,130 +98,128 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-ink/10 pb-4">
+      <div className="flex items-end justify-between border-b border-ink/10 pb-3">
         <div>
           <p className="label-tech">Portefeuille</p>
-          <h1 className="text-xl font-semibold text-ink mt-1">Clients</h1>
-          <p className="text-sm text-ink/50 mt-0.5">
-            <span className="font-mono tabular-nums">{clients.length}</span> client{clients.length > 1 ? "s" : ""} dans votre portefeuille
-          </p>
+          <h1 className="mt-1 text-xl font-semibold text-ink">Clients</h1>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          title="Nouveau client"
-          className="h-10 w-10 flex items-center justify-center bg-ink text-paper hover:bg-accent transition-colors"
-        >
-          <Plus size={18} />
-        </button>
+        <div className="flex items-center gap-2 pb-0.5">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-ink/30" />
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 w-56 border border-ink/20 bg-white pl-8 pr-3 text-sm focus:border-accent focus:outline-none"
+            />
+          </div>
+          <button
+            onClick={() => setShowModal(true)}
+            title="Nouveau client"
+            className="flex h-9 w-9 items-center justify-center bg-ink text-paper transition-colors hover:bg-accent"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
-        <input
-          type="text"
-          placeholder="Rechercher un client..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full border border-ink/20 bg-white pl-9 pr-3 py-2 text-sm focus:border-accent focus:outline-none"
-        />
-      </div>
-
-      {/* Clients Grid */}
+      {/* Table */}
       {filtered.length === 0 ? (
-        <div className="panel p-10 text-center">
-          <Building2 size={40} className="mx-auto text-ink/20 mb-4" />
-          <h3 className="text-base font-semibold text-ink mb-1">
-            {search ? "Aucun client trouve" : "Aucun client"}
-          </h3>
-          <p className="text-sm text-ink/50 mb-4">
-            {search ? "Essayez un autre terme de recherche" : "Ajoutez votre premier client pour commencer"}
+        <div className="panel p-12 text-center">
+          <Building2 size={40} className="mx-auto mb-4 text-ink/20" />
+          <p className="text-sm text-ink/60">
+            {search ? "Aucun client ne correspond à la recherche" : "Aucun client. Ajoutez le premier avec le bouton +"}
           </p>
-          {!search && (
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-ink text-paper hover:bg-accent transition-colors"
-            >
-              <Plus size={16} />
-              Ajouter un client
-            </button>
-          )}
         </div>
       ) : (
         <div className="panel overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-ink/10 text-left">
-                <th className="label-tech px-4 py-2.5">Client</th>
-                <th className="label-tech px-4 py-2.5">Ville</th>
-                <th className="label-tech px-4 py-2.5">Contact</th>
-                <th className="label-tech px-4 py-2.5 text-right">Contrats</th>
-                <th className="label-tech px-4 py-2.5 text-right">Sites</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ink/10">
-              {filtered.map((client) => (
-                <tr
-                  key={client.id}
-                  onClick={() => router.push(`/clients/${client.id}`)}
-                  className="hover:bg-ink/[0.02] cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <Building2 size={16} className="text-ink/40 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="font-medium text-ink truncate">{client.name}</p>
-                        {client.siret && <p className="label-tech mt-0.5">SIRET <span className="tabular-nums">{client.siret}</span></p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-sm text-ink/60">
-                    {client.city ? (
-                      <span className="flex items-center gap-1"><MapPin size={13} className="text-ink/40" /> {client.city}</span>
-                    ) : <span className="text-ink/25">—</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-sm text-ink/60">
-                    {client.contactName ? (
-                      <span className="flex items-center gap-1"><Phone size={13} className="text-ink/40" /> {client.contactName}</span>
-                    ) : <span className="text-ink/25">—</span>}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span className={`inline-flex items-center gap-1.5 text-sm font-mono tabular-nums ${client._count.contracts > 0 ? "text-ink font-medium" : "text-ink/25"}`}>
-                      <FileText size={13} className="text-ink/40" /> {client._count.contracts}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <span className={`inline-flex items-center gap-1.5 text-sm font-mono tabular-nums ${client._count.sites > 0 ? "text-ink font-medium" : "text-ink/25"}`}>
-                      <MapPin size={13} className="text-ink/40" /> {client._count.sites}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-ink/10 text-left">
+                  <th className="label-tech px-4 py-2.5">Client</th>
+                  <th className="label-tech px-4 py-2.5">Ville</th>
+                  <th className="label-tech px-4 py-2.5">Contact</th>
+                  <th className="label-tech px-4 py-2.5">SIRET</th>
+                  <th className="label-tech px-4 py-2.5 text-right">Contrats</th>
+                  <th className="label-tech px-4 py-2.5 text-right">Sites</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-ink/10">
+                {filtered.map((client) => (
+                  <tr
+                    key={client.id}
+                    onClick={() => router.push(`/clients/${client.id}`)}
+                    className="cursor-pointer transition-colors hover:bg-ink/[0.02]"
+                  >
+                    <td className="px-4 py-2 text-sm font-medium text-ink">{client.name}</td>
+                    <td className="px-4 py-2 text-sm text-ink/60">
+                      {client.city || <span className="text-ink/25">—</span>}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-ink/60">
+                      {client.contactName ? (
+                        <>
+                          {client.contactName}
+                          {client.contactPhone && (
+                            <span className="ml-2 font-mono text-xs tabular-nums text-ink/40">
+                              {client.contactPhone}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-ink/25">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 font-mono text-xs tabular-nums text-ink/50">
+                      {client.siret || <span className="text-ink/25">—</span>}
+                    </td>
+                    <td className={`px-4 py-2 text-right font-mono text-sm tabular-nums ${client._count.contracts > 0 ? "text-ink" : "text-ink/25"}`}>
+                      {client._count.contracts}
+                    </td>
+                    <td className={`px-4 py-2 text-right font-mono text-sm tabular-nums ${client._count.sites > 0 ? "text-ink" : "text-ink/25"}`}>
+                      {client._count.sites}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="border-t border-ink/10 px-4 py-2">
+            <p className="label-tech">
+              <span className="tabular-nums">{filtered.length}</span>
+              {search ? ` / ${clients.length}` : ""} client{clients.length > 1 ? "s" : ""}
+            </p>
+          </div>
         </div>
       )}
 
       {/* Modal creation */}
       {showModal && (
-        <div className="fixed inset-0 bg-ink/40 flex items-center justify-center z-50">
-          <div className="bg-white border border-ink/10 shadow-large w-full max-w-lg mx-4 overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
+          <div className="w-full max-w-lg overflow-hidden border border-ink/10 bg-white shadow-large">
             <div className="panel-header">
               <h2 className="label-tech">Nouveau client</h2>
-              <button onClick={() => setShowModal(false)} className="h-8 w-8 flex items-center justify-center text-ink/50 hover:text-accent transition-colors">
+              <button
+                onClick={() => setShowModal(false)}
+                className="flex h-8 w-8 items-center justify-center text-ink/50 transition-colors hover:text-accent"
+              >
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleCreate} className="p-4 space-y-4">
-              {error && <div className="border border-red-600/20 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+            <form onSubmit={handleCreate} className="space-y-3 p-4">
+              {error && (
+                <div className="border border-red-600/20 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
+              )}
 
               <div>
-                <label className="label-tech block mb-1">Nom du client *</label>
+                <label className="label-tech mb-1 block">Nom du client *</label>
                 <input
                   type="text"
                   required
+                  autoFocus
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
@@ -230,18 +227,29 @@ export default function ClientsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="label-tech mb-1 block">Adresse</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                  placeholder="1 place de la Mairie"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="label-tech block mb-1">SIRET</label>
+                  <label className="label-tech mb-1 block">Code postal</label>
                   <input
                     type="text"
-                    value={formData.siret}
-                    onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
-                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm font-mono tabular-nums focus:border-accent focus:outline-none"
+                    value={formData.postalCode}
+                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                    className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
                   />
                 </div>
-                <div>
-                  <label className="label-tech block mb-1">Ville</label>
+                <div className="col-span-2">
+                  <label className="label-tech mb-1 block">Ville</label>
                   <input
                     type="text"
                     value={formData.city}
@@ -252,43 +260,62 @@ export default function ClientsPage() {
               </div>
 
               <div>
-                <label className="label-tech block mb-1">Nom du contact</label>
+                <label className="label-tech mb-1 block">SIRET</label>
                 <input
                   type="text"
-                  value={formData.contactName}
-                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                  value={formData.siret}
+                  onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
+                  className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label-tech block mb-1">Email contact</label>
+                  <label className="label-tech mb-1 block">Nom du contact</label>
                   <input
-                    type="email"
-                    value={formData.contactEmail}
-                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                    type="text"
+                    value={formData.contactName}
+                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
                     className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="label-tech block mb-1">Telephone</label>
+                  <label className="label-tech mb-1 block">Téléphone</label>
                   <input
                     type="tel"
                     value={formData.contactPhone}
                     onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm font-mono tabular-nums focus:border-accent focus:outline-none"
+                    className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 text-sm font-medium border border-ink/20 text-ink hover:border-accent hover:text-accent transition-colors">
+              <div>
+                <label className="label-tech mb-1 block">Email contact</label>
+                <input
+                  type="email"
+                  value={formData.contactEmail}
+                  onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
+                  placeholder="Mis en copie des devis acceptés"
+                />
+              </div>
+
+              <div className="-mx-4 mt-4 flex items-center justify-end gap-2 border-t border-ink/10 px-4 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="border border-ink/20 px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:text-accent"
+                >
                   Annuler
                 </button>
-                <button type="submit" disabled={saving} className="flex-1 px-4 py-2 text-sm font-medium bg-ink text-paper hover:bg-accent disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
+                <button
+                  type="submit"
+                  disabled={saving || !formData.name.trim()}
+                  className="flex items-center justify-center gap-2 bg-ink px-4 py-2 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-50"
+                >
                   {saving && <Loader2 size={16} className="animate-spin" />}
-                  Creer
+                  Créer le client
                 </button>
               </div>
             </form>
