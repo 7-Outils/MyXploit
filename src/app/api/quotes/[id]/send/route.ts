@@ -14,6 +14,7 @@ async function loadQuote(id: string, organizationId: string) {
       site: { select: { name: true, city: true } },
       contract: {
         select: {
+          id: true,
           reference: true,
           provider: true,
           providerEmail: true,
@@ -45,11 +46,43 @@ export async function GET(
       select: { stampUrl: true },
     });
 
+    // Candidats à l'envoi : carnet de contacts du contrat, complété par les
+    // champs historiques (email exploitant du contrat, email de la fiche
+    // client), dédoublonnés par adresse.
+    const contacts = quote.contract?.id
+      ? await prisma.contractContact.findMany({
+          where: { contractId: quote.contract.id },
+          orderBy: [{ side: "asc" }, { name: "asc" }],
+        })
+      : [];
+
+    const recipients: { name: string; email: string; role: string | null; side: string }[] =
+      contacts.map((c) => ({ name: c.name, email: c.email, role: c.role, side: c.side }));
+    const seen = new Set(recipients.map((r) => r.email.toLowerCase()));
+
+    const legacyProvider = quote.contract?.providerEmail;
+    if (legacyProvider && !seen.has(legacyProvider.toLowerCase())) {
+      seen.add(legacyProvider.toLowerCase());
+      recipients.push({
+        name: quote.contract?.provider || "Exploitant",
+        email: legacyProvider,
+        role: "Contrat",
+        side: "EXPLOITANT",
+      });
+    }
+    const legacyClient = quote.contract?.client?.contactEmail;
+    if (legacyClient && !seen.has(legacyClient.toLowerCase())) {
+      seen.add(legacyClient.toLowerCase());
+      recipients.push({
+        name: quote.contract?.client?.name || "Client",
+        email: legacyClient,
+        role: "Fiche client",
+        side: "CLIENT",
+      });
+    }
+
     return NextResponse.json({
-      to: quote.contract?.providerEmail || "",
-      cc: quote.contract?.client?.contactEmail || "",
-      providerName: quote.contract?.provider || quote.provider,
-      clientName: quote.contract?.client?.name || null,
+      recipients,
       hasPdf: !!quote.documentUrl,
       hasStamp: !!organization?.stampUrl,
     });
@@ -86,19 +119,24 @@ export async function POST(
     }
 
     const body = await request.json();
-    const to = typeof body.to === "string" ? body.to.trim() : "";
-    const cc = typeof body.cc === "string" ? body.cc.trim() : "";
+    const toList: string[] = Array.isArray(body.to)
+      ? body.to.map((e: unknown) => String(e).trim()).filter(Boolean)
+      : [];
+    const ccList: string[] = Array.isArray(body.cc)
+      ? body.cc.map((e: unknown) => String(e).trim()).filter(Boolean)
+      : [];
     const withStamp = body.stamp === true;
 
-    if (!EMAIL_RE.test(to)) {
+    if (toList.length === 0) {
       return NextResponse.json(
-        { error: "Adresse email de l'exploitant invalide" },
+        { error: "Au moins un destinataire est requis" },
         { status: 400 }
       );
     }
-    if (cc && !EMAIL_RE.test(cc)) {
+    const invalid = [...toList, ...ccList].find((e) => !EMAIL_RE.test(e));
+    if (invalid) {
       return NextResponse.json(
-        { error: "Adresse email en copie invalide" },
+        { error: `Adresse email invalide : ${invalid}` },
         { status: 400 }
       );
     }
@@ -170,8 +208,11 @@ export async function POST(
     `;
 
     await sendEmail({
-      to,
-      cc: cc ? [cc] : undefined,
+      to: toList,
+      cc: ccList.length > 0 ? ccList : undefined,
+      // Les réponses (et les challenges type Mailinblack transférés) doivent
+      // arriver chez l'utilisateur, pas dans la boîte noreply.
+      replyTo: user.email,
       subject: `Devis accepté — ${quote.reference}${quote.site ? ` — ${quote.site.name}` : ""}`,
       html,
       attachments: [

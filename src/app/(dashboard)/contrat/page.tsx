@@ -11,6 +11,7 @@ import {
 import { sortTabsAlpha } from "@/lib/utils";
 
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
+import ContractContactsTab from "@/components/administratif/ContractContactsTab";
 import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab";
 import ContractRevisionTab from "@/components/administratif/ContractRevisionTab";
 import ContractMontantsTab from "@/components/administratif/ContractMontantsTab";
@@ -20,11 +21,12 @@ import type { Contract } from "@/components/administratif/types";
 import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
 import type { Site } from "@/components/energy/types";
 
-type ContratTab = "sites" | "cibles" | "avenants" | "revision" | "montants" | "renouvellement";
+type ContratTab = "sites" | "cibles" | "contacts" | "avenants" | "revision" | "montants" | "renouvellement";
 
 const CONTRAT_TABS = sortTabsAlpha([
   { id: "sites" as ContratTab, label: "Sites" },
   { id: "cibles" as ContratTab, label: "Cibles" },
+  { id: "contacts" as ContratTab, label: "Contacts" },
   { id: "avenants" as ContratTab, label: "Avenants" },
   { id: "revision" as ContratTab, label: "Révision" },
   { id: "montants" as ContratTab, label: "Montants" },
@@ -134,6 +136,11 @@ function AdministratifContent() {
               sites={energySites}
               onNbUpdate={fetchDetail}
             />
+          )}
+
+          {/* Contacts Tab */}
+          {activeTab === "contacts" && selectedContract && (
+            <ContractContactsTab contractId={selectedContract.id} />
           )}
 
           {/* Renouvellement Tab */}

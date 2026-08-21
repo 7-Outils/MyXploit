@@ -1255,10 +1255,36 @@ model Contract {
   meetings         Meeting[]
   userAssignments  UserContractAssignment[] // Assignations ingénieurs
   missionContracts MissionContract[] // Missions rattachées
+  contacts         ContractContact[] // Carnet de contacts (envoi des devis)
 
   @@index([organizationId])
   @@index([clientId])
   @@map("contracts")
+}
+
+// Côté d'un contact de contrat : exploitant (destinataire des devis) ou
+// client/collectivité (mis en copie)
+enum ContactSide {
+  EXPLOITANT
+  CLIENT
+}
+
+// Carnet de contacts d'un contrat : qui fait quoi, et qui reçoit les
+// devis acceptés envoyés par email
+model ContractContact {
+  id         String      @id @default(cuid())
+  name       String
+  email      String
+  role       String? // Fonction : "Responsable exploitation", "DGS"...
+  side       ContactSide
+  contractId String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("contract_contacts")
 }
 
 // Table pivot pour la relation Contract-Site avec type et prestations par site
