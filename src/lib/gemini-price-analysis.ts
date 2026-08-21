@@ -1,7 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
-// La clé API vient de l'organisation (via getGeminiApiKey)
-const MODEL = "gemini-3-flash-preview";
+import { Type } from "@google/genai";
+import { aiJson, type AiConfig } from "@/lib/ai-client";
 
 export interface ExtractedItem {
   lineNumber: number;
@@ -28,59 +26,39 @@ export interface LineMatch {
 
 // Extrait les lignes de prestation d'un devis PDF (désignation, quantité,
 // unité, prix unitaire, total HT)
-export async function extractQuoteItems(pdfBuffer: Buffer, apiKey: string): Promise<ExtractedItem[] | null> {
-  const ai = new GoogleGenAI({ apiKey });
-
+export async function extractQuoteItems(pdfBuffer: Buffer, ai: AiConfig): Promise<ExtractedItem[] | null> {
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: "application/pdf", data: pdfBuffer.toString("base64") } },
-            {
-              text: `Tu analyses un devis français de travaux/maintenance de chauffage. Extrais chaque ligne de prestation chiffrée du tableau du devis.
+    const parsed = (await aiJson(ai, {
+      pdf: pdfBuffer,
+      prompt: `Tu analyses un devis français de travaux/maintenance de chauffage. Extrais chaque ligne de prestation chiffrée du tableau du devis.
 
 Pour chaque ligne : description complète, quantité (nombre), unité (U, ENS, H, ML, M2, F...), prix unitaire HT, total HT de la ligne.
 Ignore les lignes de sous-total, TVA, total général, remises globales et texte d'introduction.
 Si une valeur est absente sur la ligne, mets null. Les nombres sont en notation décimale à point (1234.56).`,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
+      geminiSchema: {
+        type: Type.OBJECT,
+        properties: {
+          items: {
+            type: Type.ARRAY,
             items: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  description: { type: Type.STRING },
-                  quantity: { type: Type.NUMBER, nullable: true },
-                  unit: { type: Type.STRING, nullable: true },
-                  unitPrice: { type: Type.NUMBER, nullable: true },
-                  totalHT: { type: Type.NUMBER, nullable: true },
-                },
-                required: ["description"],
+              type: Type.OBJECT,
+              properties: {
+                description: { type: Type.STRING },
+                quantity: { type: Type.NUMBER, nullable: true },
+                unit: { type: Type.STRING, nullable: true },
+                unitPrice: { type: Type.NUMBER, nullable: true },
+                totalHT: { type: Type.NUMBER, nullable: true },
               },
+              required: ["description"],
             },
           },
-          required: ["items"],
         },
-        temperature: 0,
+        required: ["items"],
       },
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("Réponse Gemini vide");
-    const parsed = JSON.parse(text) as { items: Omit<ExtractedItem, "lineNumber">[] };
+    })) as { items: Omit<ExtractedItem, "lineNumber">[] };
     return parsed.items.map((item, i) => ({ ...item, lineNumber: i + 1 }));
   } catch (error) {
-    console.error("Gemini item extraction failed:", error);
+    console.error("AI item extraction failed:", error);
     // On propage la cause réelle : le front l'affiche, sinon on debugge à l'aveugle
     throw error instanceof Error ? error : new Error(String(error));
   }
@@ -91,10 +69,8 @@ Si une valeur est absente sur la ligne, mets null. Les nombres sont en notation 
 export async function matchQuoteLines(
   items: ExtractedItem[],
   candidates: CandidateRef[][],
-  apiKey: string
+  ai: AiConfig
 ): Promise<LineMatch[] | null> {
-  const ai = new GoogleGenAI({ apiKey });
-
   const lines = items.map((item, i) => {
     const cands = candidates[i]
       .map((c) => `    - code "${c.code}" : ${c.designation} (${c.unit ?? "?"}) — ${c.sellPriceHT != null ? `${c.sellPriceHT.toFixed(2)} € HT` : "prix inconnu"}`)
@@ -105,14 +81,8 @@ ${cands || "    (aucun)"}`;
   });
 
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `Tu es économiste de la construction dans un bureau d'études CVC. Pour chaque ligne de devis ci-dessous, choisis parmi les candidats l'ouvrage du référentiel Batiprix qui correspond VRAIMENT à la même prestation (même nature de travaux, même type d'équipement, gamme/dimension comparable).
+    const parsed = (await aiJson(ai, {
+      prompt: `Tu es économiste de la construction dans un bureau d'études CVC. Pour chaque ligne de devis ci-dessous, choisis parmi les candidats l'ouvrage du référentiel Batiprix qui correspond VRAIMENT à la même prestation (même nature de travaux, même type d'équipement, gamme/dimension comparable).
 
 Règles :
 - matchedCode : le code du candidat retenu, ou null si aucun candidat ne correspond réellement. Ne force jamais un rapprochement approximatif : un circulateur n'est pas une pompe de relevage, un DN40 n'est pas un DN100.
@@ -120,40 +90,29 @@ Règles :
 - comment : une phrase courte en français — pourquoi ce candidat, ou sur quoi se fonde ton estimation, ou ce qui rend la ligne inanalysable (ex: forfait global sans détail).
 
 ${lines.join("\n\n")}`,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            matches: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  index: { type: Type.NUMBER },
-                  matchedCode: { type: Type.STRING, nullable: true },
-                  aiEstimateHT: { type: Type.NUMBER, nullable: true },
-                  comment: { type: Type.STRING, nullable: true },
-                },
-                required: ["index"],
+      geminiSchema: {
+        type: Type.OBJECT,
+        properties: {
+          matches: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                index: { type: Type.NUMBER },
+                matchedCode: { type: Type.STRING, nullable: true },
+                aiEstimateHT: { type: Type.NUMBER, nullable: true },
+                comment: { type: Type.STRING, nullable: true },
               },
+              required: ["index"],
             },
           },
-          required: ["matches"],
         },
-        temperature: 0,
+        required: ["matches"],
       },
-    });
-
-    const text = response.text;
-    if (!text) throw new Error("Réponse Gemini vide");
-    return (JSON.parse(text) as { matches: LineMatch[] }).matches;
+    })) as { matches: LineMatch[] };
+    return parsed.matches;
   } catch (error) {
-    console.error("Gemini line matching failed:", error);
+    console.error("AI line matching failed:", error);
     throw error instanceof Error ? error : new Error(String(error));
   }
 }

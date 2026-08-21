@@ -11,7 +11,7 @@ export async function GET() {
 
     const organization = await prisma.organization.findUnique({
       where: { id: effectiveOrgId },
-      select: { id: true, name: true, stampUrl: true, geminiApiKey: true },
+      select: { id: true, name: true, stampUrl: true, aiProvider: true, aiApiKey: true },
     });
 
     if (!organization) {
@@ -19,13 +19,13 @@ export async function GET() {
     }
 
     // La clé ne sort jamais : on n'expose que son statut et ses 4 derniers caractères
-    let geminiKeyLast4: string | null = null;
-    if (organization.geminiApiKey) {
+    let aiKeyLast4: string | null = null;
+    if (organization.aiApiKey) {
       try {
-        const key = decryptSecret(organization.geminiApiKey);
-        geminiKeyLast4 = key ? key.slice(-4) : null;
+        const key = decryptSecret(organization.aiApiKey);
+        aiKeyLast4 = key ? key.slice(-4) : null;
       } catch {
-        geminiKeyLast4 = null;
+        aiKeyLast4 = null;
       }
     }
 
@@ -33,10 +33,11 @@ export async function GET() {
       id: organization.id,
       name: organization.name,
       stampUrl: organization.stampUrl,
-      geminiKeySet: !!organization.geminiApiKey,
-      geminiKeyLast4,
-      // Une clé plateforme sert encore de secours si l'orga n'en a pas
-      geminiFallback: !organization.geminiApiKey && !!process.env.GEMINI_API_KEY,
+      aiProvider: organization.aiProvider ?? "GEMINI",
+      aiKeySet: !!organization.aiApiKey,
+      aiKeyLast4,
+      // Une clé Gemini plateforme sert encore de secours si l'orga n'en a pas
+      aiFallback: !organization.aiApiKey && !!process.env.GEMINI_API_KEY,
     });
   } catch (error) {
     console.error("Error fetching organization:", error);
@@ -61,31 +62,38 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const data: { stampUrl?: string | null; geminiApiKey?: string | null } = {};
+    const data: { stampUrl?: string | null; aiProvider?: string; aiApiKey?: string | null } = {};
     if (body.stampUrl !== undefined) data.stampUrl = body.stampUrl || null;
-    if (body.geminiApiKey !== undefined) {
-      const key = typeof body.geminiApiKey === "string" ? body.geminiApiKey.trim() : "";
+    if (body.aiProvider !== undefined) {
+      if (!["GEMINI", "OPENAI", "ANTHROPIC"].includes(body.aiProvider)) {
+        return NextResponse.json({ error: "Fournisseur IA inconnu" }, { status: 400 });
+      }
+      data.aiProvider = body.aiProvider;
+    }
+    if (body.aiApiKey !== undefined) {
+      const key = typeof body.aiApiKey === "string" ? body.aiApiKey.trim() : "";
       if (key) {
         if (key.length < 20) {
           return NextResponse.json({ error: "Clé API invalide (trop courte)" }, { status: 400 });
         }
-        data.geminiApiKey = encryptSecret(key);
+        data.aiApiKey = encryptSecret(key);
       } else {
-        data.geminiApiKey = null;
+        data.aiApiKey = null;
       }
     }
 
     const organization = await prisma.organization.update({
       where: { id: effectiveOrgId },
       data,
-      select: { id: true, name: true, stampUrl: true, geminiApiKey: true },
+      select: { id: true, name: true, stampUrl: true, aiProvider: true, aiApiKey: true },
     });
 
     return NextResponse.json({
       id: organization.id,
       name: organization.name,
       stampUrl: organization.stampUrl,
-      geminiKeySet: !!organization.geminiApiKey,
+      aiProvider: organization.aiProvider ?? "GEMINI",
+      aiKeySet: !!organization.aiApiKey,
     });
   } catch (error) {
     console.error("Error updating organization:", error);

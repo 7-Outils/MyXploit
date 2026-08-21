@@ -28,7 +28,7 @@ interface MissionType {
 
 import { ROLE_LABELS } from "@/lib/permissions";
 import PriceLibrarySection from "@/components/settings/PriceLibrarySection";
-import GeminiKeySection from "@/components/settings/GeminiKeySection";
+import AiKeySection from "@/components/settings/AiKeySection";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<UserData | null>(null);
@@ -468,8 +468,8 @@ export default function SettingsPage() {
         </ChartCard>
       )}
 
-      {/* Clé API Gemini - tous sauf lecture seule */}
-      {user?.role !== "READER" && <GeminiKeySection />}
+      {/* Fournisseur IA - tous sauf lecture seule */}
+      {user?.role !== "READER" && <AiKeySection />}
 
       {/* Bibliothèque de prix - tous sauf lecture seule */}
       {user?.role !== "READER" && <PriceLibrarySection />}

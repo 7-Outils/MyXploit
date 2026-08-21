@@ -7,7 +7,7 @@ import {
   type ExtractedItem,
   type CandidateRef,
 } from "@/lib/gemini-price-analysis";
-import { getGeminiApiKey } from "@/lib/gemini-key";
+import { getOrgAi } from "@/lib/ai-key";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 export interface AnalysisLine {
@@ -103,10 +103,10 @@ export async function POST(
       );
     }
 
-    const geminiKey = await getGeminiApiKey(effectiveOrgId);
-    if (!geminiKey) {
+    const aiCfg = await getOrgAi(effectiveOrgId);
+    if (!aiCfg) {
       return NextResponse.json(
-        { error: "Aucune clé API Gemini : ajoutez celle de votre organisation dans Paramètres → Clé API Gemini" },
+        { error: "Aucune clé API IA : ajoutez celle de votre organisation dans Paramètres → Fournisseur IA" },
         { status: 503 }
       );
     }
@@ -150,7 +150,7 @@ export async function POST(
       }
       let extracted;
       try {
-        extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()), geminiKey);
+        extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()), aiCfg);
       } catch (geminiError) {
         return NextResponse.json(
           {
@@ -207,7 +207,7 @@ export async function POST(
     // 3. Matching + estimations par Gemini
     let matches;
     try {
-      matches = await matchQuoteLines(items, candidates, geminiKey);
+      matches = await matchQuoteLines(items, candidates, aiCfg);
     } catch (geminiError) {
       return NextResponse.json(
         {

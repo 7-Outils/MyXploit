@@ -1,8 +1,6 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import type { ParsedQuote } from "./pdf-parser";
-
-// La clé API vient de l'organisation (via getGeminiApiKey), plus de
-// singleton d'environnement : chaque appel construit son client.
+import { aiJson, type AiConfig } from "@/lib/ai-client";
 
 const PROMPT = `Tu analyses un document PDF français : un devis ou une facture provenant d'un exploitant de chauffage (Dalkia, ENGIE, IDEX, Équans, etc.) ou d'un artisan local.
 
@@ -39,34 +37,13 @@ const responseSchema = {
   },
 };
 
-export async function parseWithGemini(pdfBuffer: Buffer, apiKey: string): Promise<ParsedQuote | null> {
-  const ai = new GoogleGenAI({ apiKey });
-
+export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<ParsedQuote | null> {
   try {
-    const base64 = pdfBuffer.toString("base64");
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: "application/pdf", data: base64 } },
-            { text: PROMPT },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema,
-        temperature: 0,
-      },
-    });
-
-    const text = response.text;
-    if (!text) return null;
-
-    const parsed = JSON.parse(text) as {
+    const parsed = (await aiJson(ai, {
+      pdf: pdfBuffer,
+      prompt: PROMPT,
+      geminiSchema: responseSchema,
+    })) as {
       reference: string | null;
       siteName: string | null;
       siteCity: string | null;

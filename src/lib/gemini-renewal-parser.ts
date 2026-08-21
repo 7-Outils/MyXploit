@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
+import { aiJson, type AiConfig } from "@/lib/ai-client";
 
 /**
  * Import assisté par IA des plans de renouvellement P3.
@@ -53,31 +54,18 @@ const responseSchema = {
 
 export async function parseRenewalPlan(
   rows: string[][],
-  apiKey: string
+  ai: AiConfig
 ): Promise<ParsedRenewalItem[] | null> {
-  const ai = new GoogleGenAI({ apiKey });
-
   // Sérialisation TSV : compacte et fidèle à la structure du tableau
   const tsv = rows
     .map((r) => r.map((c) => (c ?? "").toString().trim()).join("\t"))
     .join("\n");
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `${PROMPT}\n\nTableau :\n${tsv}` }],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema,
-      },
-    });
-
-    const parsed = JSON.parse(response.text || "{}");
+    const parsed = (await aiJson(ai, {
+      prompt: `${PROMPT}\n\nTableau :\n${tsv}`,
+      geminiSchema: responseSchema,
+    })) as { items?: ParsedRenewalItem[] };
     if (!Array.isArray(parsed.items)) return null;
 
     return parsed.items
