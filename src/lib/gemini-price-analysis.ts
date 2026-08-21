@@ -13,6 +13,7 @@ export interface ExtractedItem {
 export interface CandidateRef {
   code: string;
   designation: string;
+  corpsEtat: string | null;
   unit: string | null;
   sellPriceHT: number | null;
 }
@@ -148,7 +149,7 @@ export async function matchQuoteLines(
 ): Promise<MatchResult | null> {
   const lines = items.map((item, i) => {
     const cands = candidates[i]
-      .map((c) => `    - code "${c.code}" : ${c.designation} (${c.unit ?? "?"}) — ${c.sellPriceHT != null ? `${c.sellPriceHT.toFixed(2)} € HT` : "prix inconnu"}`)
+      .map((c) => `    - code "${c.code}" [${c.corpsEtat ?? "corps d'état inconnu"}] : ${c.designation} (${c.unit ?? "?"}) — ${c.sellPriceHT != null ? `${c.sellPriceHT.toFixed(2)} € HT` : "prix inconnu"}`)
       .join("\n");
     return `Ligne ${i} : "${item.description}" — qté ${item.quantity ?? "?"} ${item.unit ?? ""}, PU ${item.unitPrice != null ? `${item.unitPrice.toFixed(2)} € HT` : "?"}, total ${item.totalHT != null ? `${item.totalHT.toFixed(2)} € HT` : "?"}
   Candidats du référentiel :

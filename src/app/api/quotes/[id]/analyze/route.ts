@@ -197,23 +197,36 @@ export async function POST(
       console.error("AI search query generation failed, keyword fallback:", error);
     }
 
-    const refSelect = { code: true, designation: true, unit: true, sellPriceHT: true };
+    const refSelect = { code: true, designation: true, corpsEtat: true, unit: true, sellPriceHT: true };
+    const searchAnd = (words: string[], take: number) =>
+      prisma.priceReference.findMany({
+        where: {
+          organizationId: effectiveOrgId,
+          AND: words.map((w) => ({ designation: { contains: w, mode: "insensitive" as const } })),
+        },
+        select: refSelect,
+        take,
+      });
+
     const candidates: CandidateRef[][] = await Promise.all(
       items.map(async (item, i) => {
         const found = new Map<string, CandidateRef>();
 
-        // Recherches IA : tous les mots de l'expression doivent matcher (AND)
+        // Recherches IA : tous les mots de l'expression doivent matcher (AND),
+        // avec assouplissement progressif — "chauffe-eau électrique 300" ne
+        // matche pas "Chauffe-eau 300 L blindé", mais "chauffe-eau 300" oui.
         for (const expr of searchQueries[i]) {
           const words = expr.split(/\s+/).filter((w) => w.length >= 2).slice(0, 5);
           if (words.length === 0) continue;
-          const refs = await prisma.priceReference.findMany({
-            where: {
-              organizationId: effectiveOrgId,
-              AND: words.map((w) => ({ designation: { contains: w, mode: "insensitive" as const } })),
-            },
-            select: refSelect,
-            take: 8,
-          });
+          let refs = await searchAnd(words, 8);
+          if (refs.length === 0 && words.length > 2) {
+            // On garde le premier mot (le sujet) et les nombres (dimensions)
+            const core = [words[0], ...words.slice(1).filter((w) => /\d/.test(w))].slice(0, 3);
+            refs = await searchAnd(core, 8);
+          }
+          if (refs.length === 0 && words.length > 1) {
+            refs = await searchAnd([words[0]], 5);
+          }
           for (const r of refs) found.set(r.code, r);
         }
 
@@ -233,7 +246,7 @@ export async function POST(
           }
         }
 
-        return [...found.values()].slice(0, 15);
+        return [...found.values()].slice(0, 20);
       })
     );
 
