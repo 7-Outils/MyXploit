@@ -147,14 +147,18 @@ export async function POST(
           { status: 502 }
         );
       }
-      const extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()));
-      if (extracted === null) {
+      let extracted;
+      try {
+        extracted = await extractQuoteItems(Buffer.from(await pdfResponse.arrayBuffer()));
+      } catch (geminiError) {
         return NextResponse.json(
-          { error: "L'extraction IA du PDF a échoué (erreur Gemini) : réessayez" },
+          {
+            error: `L'extraction IA du PDF a échoué : ${geminiError instanceof Error ? geminiError.message : String(geminiError)}`,
+          },
           { status: 502 }
         );
       }
-      if (extracted.length === 0) {
+      if (extracted === null || extracted.length === 0) {
         return NextResponse.json(
           { error: "Aucune ligne chiffrée détectée dans le PDF" },
           { status: 422 }
@@ -200,7 +204,17 @@ export async function POST(
     });
 
     // 3. Matching + estimations par Gemini
-    const matches = await matchQuoteLines(items, candidates);
+    let matches;
+    try {
+      matches = await matchQuoteLines(items, candidates);
+    } catch (geminiError) {
+      return NextResponse.json(
+        {
+          error: `L'analyse IA a échoué : ${geminiError instanceof Error ? geminiError.message : String(geminiError)}`,
+        },
+        { status: 502 }
+      );
+    }
     if (!matches) {
       return NextResponse.json(
         { error: "L'analyse IA a échoué, réessayez" },

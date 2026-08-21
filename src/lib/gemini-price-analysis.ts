@@ -78,12 +78,13 @@ Si une valeur est absente sur la ligne, mets null. Les nombres sont en notation 
     });
 
     const text = response.text;
-    if (!text) return null;
+    if (!text) throw new Error("Réponse Gemini vide");
     const parsed = JSON.parse(text) as { items: Omit<ExtractedItem, "lineNumber">[] };
     return parsed.items.map((item, i) => ({ ...item, lineNumber: i + 1 }));
   } catch (error) {
     console.error("Gemini item extraction failed:", error);
-    return null;
+    // On propage la cause réelle : le front l'affiche, sinon on debugge à l'aveugle
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 
@@ -150,10 +151,10 @@ ${lines.join("\n\n")}`,
     });
 
     const text = response.text;
-    if (!text) return null;
+    if (!text) throw new Error("Réponse Gemini vide");
     return (JSON.parse(text) as { matches: LineMatch[] }).matches;
   } catch (error) {
     console.error("Gemini line matching failed:", error);
-    return null;
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
