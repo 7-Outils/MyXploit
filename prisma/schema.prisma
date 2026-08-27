@@ -755,6 +755,7 @@ model Equipment {
   presentOnSite       Boolean         @default(true) // Présent physiquement sur site
   // Durée de vie théorique
   theoreticalLifespan Int? // Durée de vie en années (ex: 20 pour chaudière)
+  characteristics     Json? // Caractéristiques par type (vocabulaire MyXploit App)
   status              EquipmentStatus @default(OPERATIONNEL)
   siteId              String
   organizationId      String

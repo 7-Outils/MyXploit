@@ -5,6 +5,12 @@ import { EquipmentType } from "@/generated/prisma/enums";
 const MAX_STRING_LENGTH = 500;
 const MAX_TEXT_LENGTH = 5000;
 
+// Caractéristiques d'équipement : objet plat, valeurs texte ou booléen.
+export const equipmentCharacteristicsSchema = z
+  .record(z.string().max(100), z.union([z.string().max(MAX_STRING_LENGTH), z.boolean()]))
+  .nullable()
+  .optional();
+
 // Equipment validation
 export const equipmentCreateSchema = z.object({
   siteId: z.string().uuid("ID de site invalide"),
@@ -25,6 +31,9 @@ export const equipmentCreateSchema = z.object({
   status: z.enum(["OPERATIONNEL", "MAINTENANCE", "PANNE", "HORS_SERVICE"]).optional(),
   installDate: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
   warrantyEnd: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
+  // Caractéristiques propres au type : dictionnaire libre (le vocabulaire vit
+  // dans le formulaire), stocké tel quel. null efface la valeur existante.
+  characteristics: equipmentCharacteristicsSchema,
 });
 
 export const equipmentUpdateSchema = equipmentCreateSchema.partial().omit({ siteId: true });

@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { TYPE_TO_DOMAIN } from "@/lib/equipment-domain";
 import { EquipmentType } from "@/generated/prisma/enums";
+import { Prisma } from "@/generated/prisma/client";
+import { equipmentCharacteristicsSchema } from "@/lib/validations";
 
 // GET /api/equipments/[id] - Get a single equipment with details
 export async function GET(
@@ -204,6 +206,18 @@ export async function PATCH(
     if (body.theoreticalLifespan !== undefined) updateData.theoreticalLifespan = body.theoreticalLifespan ? parseInt(body.theoreticalLifespan) : null;
     if (body.installDate !== undefined) updateData.installDate = body.installDate ? new Date(body.installDate) : null;
     if (body.warrantyEnd !== undefined) updateData.warrantyEnd = body.warrantyEnd ? new Date(body.warrantyEnd) : null;
+    if (body.characteristics !== undefined) {
+      // Dictionnaire plat de valeurs texte/booléen : on refuse le reste en 400
+      // plutôt que de laisser passer une structure ingérable côté fiche.
+      const parsed = equipmentCharacteristicsSchema.safeParse(body.characteristics);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: "Caractéristiques invalides" },
+          { status: 400 }
+        );
+      }
+      updateData.characteristics = parsed.data ?? Prisma.DbNull;
+    }
 
     const equipment = await prisma.equipment.update({
       where: { id },

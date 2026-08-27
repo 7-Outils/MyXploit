@@ -4,6 +4,7 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
 import { equipmentCreateSchema, validateInput } from "@/lib/validations";
 import { TYPE_TO_DOMAIN } from "@/lib/equipment-domain";
+import { Prisma } from "@/generated/prisma/client";
 
 // Labels for equipment types (used for auto-generating name)
 const TYPE_LABELS: Record<string, string> = {
@@ -485,6 +486,9 @@ export async function POST(request: NextRequest) {
         status: body.status || "OPERATIONNEL",
         installDate: body.installDate ? new Date(body.installDate) : null,
         warrantyEnd: body.warrantyEnd ? new Date(body.warrantyEnd) : null,
+        // Caractéristiques propres au type : stockées telles quelles (validées
+        // par equipmentCreateSchema). Absentes = colonne NULL.
+        characteristics: validation.data.characteristics ?? Prisma.DbNull,
         siteId: body.siteId,
         organizationId: effectiveOrgId,
       },
