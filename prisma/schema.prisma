@@ -33,7 +33,6 @@ model Organization {
   contracts               Contract[]
   invoices                Invoice[]
   quotes                  Quote[]
-  priceReferences         PriceReference[]
   renewalItems            ContractRenewalItem[]
   meetings                Meeting[]
   alerts                  Alert[]
@@ -1265,31 +1264,6 @@ model Contract {
   @@map("contracts")
 }
 
-// Bibliothèque de prix de référence (Batiprix ou autre bordereau), importée
-// par l'organisation pour analyser les prix des devis
-model PriceReference {
-  id             String  @id @default(cuid())
-  code           String // Code Batiprix "01 02 01 00 00 003"
-  lot            String?
-  corpsEtat      String?
-  designation    String
-  unit           String?
-  laborHours     Float? // Temps MO (h)
-  laborCost      Float? // M.-o. + charges
-  suppliesCost   Float? // Fournitures
-  sellPriceHT    Float? // Prix vente HT fourni-posé — la référence de comparaison
-  installOnly    Float? // Mise en œuvre seule
-  description    String?
-  source         String // "Batiprix juillet 2026"
-  organizationId String
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, code])
-  @@index([organizationId])
-  @@map("price_references")
-}
-
 // Côté d'un contact de contrat : exploitant (destinataire des devis) ou
 // client/collectivité (mis en copie)
 enum ContactSide {
@@ -1880,8 +1854,6 @@ model Quote {
 
   description    String?
   documentUrl    String? // URL du PDF original
-  priceAnalysis  Json? // Analyse des prix (lignes vs référentiel Batiprix / estimation IA)
-  analyzedAt     DateTime? // Date de la dernière analyse de prix
   siteId         String? // Site concerné
   contractId     String? // Contrat lié
   organizationId String
