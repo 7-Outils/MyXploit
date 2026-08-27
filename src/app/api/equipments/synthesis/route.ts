@@ -225,6 +225,65 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ── 1 bis. Sites en alerte ──────────────────────────────────
+    // Agrégation par site sur les équipements déjà chargés (donc soumis
+    // aux filtres siteId/domain de la requête), en itérant sur TOUS les
+    // sites du contrat : un site sans équipement compte en non audité.
+    const perSite = new Map<
+      string,
+      { critique: number; degrade: number; nonEvalue: number; total: number }
+    >();
+    for (const cs of contractSites) {
+      perSite.set(cs.siteId, {
+        critique: 0,
+        degrade: 0,
+        nonEvalue: 0,
+        total: 0,
+      });
+    }
+    for (const eq of equipments) {
+      const bucket = perSite.get(eq.siteId);
+      if (!bucket) continue;
+      bucket.total++;
+      const audit = eq.audits[0];
+      const state = audit ? worstState(audit) : null;
+      if (state === "critique") bucket.critique++;
+      else if (state === "degrade") bucket.degrade++;
+      else if (!state) bucket.nonEvalue++;
+    }
+
+    let sitesNonAudited = 0;
+    let sitesOk = 0;
+    const siteAlertList: Array<{
+      id: string;
+      name: string;
+      critique: number;
+      degrade: number;
+      nonEvalue: number;
+      total: number;
+    }> = [];
+    for (const [id, bucket] of perSite) {
+      const evaluated = bucket.total - bucket.nonEvalue;
+      if (evaluated === 0) {
+        sitesNonAudited++;
+      } else if (bucket.critique + bucket.degrade === 0) {
+        sitesOk++;
+      }
+      if (bucket.critique + bucket.degrade > 0) {
+        siteAlertList.push({
+          id,
+          name: siteNames.get(id) || "",
+          ...bucket,
+        });
+      }
+    }
+    siteAlertList.sort(
+      (a, b) =>
+        b.critique - a.critique ||
+        b.degrade - a.degrade ||
+        a.name.localeCompare(b.name, "fr")
+    );
+
     // ── 2. Renouvellement vs plan P3 ────────────────────────────
     let overdueCount = 0;
     let overdueUncovered = 0;
@@ -335,6 +394,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       sites: contractSites.map((cs) => cs.site),
       parc: { ...parc, byDomain },
+      siteAlerts: {
+        nonAudited: sitesNonAudited,
+        ok: sitesOk,
+        list: siteAlertList,
+      },
       coverage: {
         toVisit,
         neverAudited,
