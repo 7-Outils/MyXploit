@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { TYPE_TO_DOMAIN } from "@/lib/equipment-domain";
+import { EquipmentType } from "@/generated/prisma/enums";
 
 // GET /api/equipments/[id] - Get a single equipment with details
 export async function GET(
@@ -162,7 +164,34 @@ export async function PATCH(
     if (body.year !== undefined) updateData.year = body.year ? parseInt(body.year) : null;
     if (body.status !== undefined) updateData.status = body.status;
     if (body.domain !== undefined) updateData.domain = body.domain;
-    if (body.type !== undefined) updateData.type = body.type;
+    if (body.type !== undefined) {
+      // Le type est un enum Prisma : une valeur inconnue ferait échouer l'update
+      // en 500, on la refuse en 400 comme la validation du POST.
+      if (!Object.prototype.hasOwnProperty.call(EquipmentType, body.type)) {
+        return NextResponse.json(
+          { error: "Type d'équipement invalide" },
+          { status: 400 }
+        );
+      }
+      updateData.type = body.type;
+      // Le domaine découle du type : on le recalcule si l'appelant ne l'impose pas,
+      // sinon la fiche resterait classée dans l'ancien domaine (filtres, synthèse).
+      if (body.domain === undefined) {
+        updateData.domain = TYPE_TO_DOMAIN[body.type] || "AUTRE";
+      }
+    }
+    if (body.siteId !== undefined) {
+      // Déplacer un équipement vers un autre site : le site cible doit appartenir
+      // à la même organisation (même contrôle que POST /api/equipments).
+      const site = await prisma.site.findFirst({
+        where: { id: body.siteId, organizationId: effectiveOrgId },
+        select: { id: true },
+      });
+      if (!site) {
+        return NextResponse.json({ error: "Site non trouvé" }, { status: 404 });
+      }
+      updateData.siteId = body.siteId;
+    }
     if (body.serialNumber !== undefined) updateData.serialNumber = body.serialNumber || null;
     if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl || null;
     if (body.power !== undefined) updateData.power = body.power ? parseFloat(body.power) : null;

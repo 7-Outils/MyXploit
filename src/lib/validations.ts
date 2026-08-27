@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EquipmentType } from "@/generated/prisma/enums";
 
 // Common validation patterns
 const MAX_STRING_LENGTH = 500;
@@ -7,7 +8,7 @@ const MAX_TEXT_LENGTH = 5000;
 // Equipment validation
 export const equipmentCreateSchema = z.object({
   siteId: z.string().uuid("ID de site invalide"),
-  type: z.string().min(1).max(100),
+  type: z.enum(EquipmentType, "Type d'équipement invalide"),
   name: z.string().max(MAX_STRING_LENGTH).optional(),
   brand: z.string().max(MAX_STRING_LENGTH).optional(),
   model: z.string().max(MAX_STRING_LENGTH).optional(),
@@ -17,6 +18,9 @@ export const equipmentCreateSchema = z.object({
   quantity: z.coerce.number().int().min(1).max(10000).optional(),
   location: z.string().max(MAX_STRING_LENGTH).optional(),
   level: z.string().max(100).optional(),
+  serviceArea: z.string().max(MAX_STRING_LENGTH).optional(),
+  inContractList: z.boolean().optional(),
+  presentOnSite: z.boolean().optional(),
   theoreticalLifespan: z.coerce.number().int().min(1).max(100).optional(),
   status: z.enum(["OPERATIONNEL", "MAINTENANCE", "PANNE", "HORS_SERVICE"]).optional(),
   installDate: z.string().datetime().optional().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()),
