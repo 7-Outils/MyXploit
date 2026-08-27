@@ -186,9 +186,12 @@ export async function DELETE(
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
-    if (user.role !== "ADMIN") {
+    // Suppression en cascade (équipements, consommations, audits) : ouverte
+    // aux éditeurs — le garde-fou est la confirmation par saisie du nom exact
+    // côté interface. Seule la lecture seule est bloquée.
+    if (user.role === "READER") {
       return NextResponse.json(
-        { error: "Seuls les administrateurs peuvent supprimer un site" },
+        { error: "Vous n'avez pas les droits pour supprimer un site" },
         { status: 403 }
       );
     }
