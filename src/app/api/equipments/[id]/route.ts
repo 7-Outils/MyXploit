@@ -206,9 +206,11 @@ export async function DELETE(
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
-    if (user.role !== "ADMIN") {
+    // Supprimer un équipement saisi par erreur est un geste d'édition normal :
+    // même règle que la création/modification (seul READER est bloqué).
+    if (user.role === "READER") {
       return NextResponse.json(
-        { error: "Seuls les administrateurs peuvent supprimer un équipement" },
+        { error: "Vous n'avez pas les droits pour supprimer un équipement" },
         { status: 403 }
       );
     }

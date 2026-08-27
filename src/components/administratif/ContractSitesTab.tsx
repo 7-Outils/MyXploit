@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Pencil,
+  Trash2,
   Settings,
   Upload,
   FileSpreadsheet,
@@ -282,6 +283,26 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
     }
   };
 
+  const handleDeleteSite = async (site: Site) => {
+    const typed = prompt(
+      `Suppression DÉFINITIVE du site « ${site.name} » et de toutes ses données (équipements, consommations, audits), pour tous les contrats où il apparaît.\n\nTapez le nom exact du site pour confirmer :`
+    );
+    if (typed !== site.name) return;
+
+    try {
+      const response = await fetch(`/api/sites/${site.id}`, { method: "DELETE" });
+      if (response.ok) {
+        onContractUpdate();
+      } else {
+        const error = await response.json().catch(() => ({}));
+        alert(error.error || "Erreur lors de la suppression du site");
+      }
+    } catch (error) {
+      console.error("Error deleting site:", error);
+      alert("Erreur lors de la suppression du site");
+    }
+  };
+
   const openEditContractSiteModal = (contractSite: ContractSite) => {
     setEditingContractSiteId(contractSite.site.id);
     setEditContractSiteFormData({
@@ -529,6 +550,9 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                     <button onClick={() => openEditSiteModal(site)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Modifier">
                       <Pencil size={14} />
                     </button>
+                    <button onClick={() => handleDeleteSite(site)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600" title="Supprimer le site">
+                      <Trash2 size={14} />
+                    </button>
                     <Link href={`/buildings/${site.id}`}>
                       <ArrowRight size={14} className="text-ink/25 group-hover:text-accent transition-colors" />
                     </Link>
@@ -578,6 +602,9 @@ export default function ContractSitesTab({ contractId, contract, onContractUpdat
                         </button>
                         <button onClick={() => openEditSiteModal(site)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent" title="Modifier">
                           <Pencil size={14} />
+                        </button>
+                        <button onClick={() => handleDeleteSite(site)} className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-red-50 hover:text-red-600" title="Supprimer le site">
+                          <Trash2 size={14} />
                         </button>
                         <Link href={`/buildings/${site.id}`}>
                           <ArrowRight size={14} className="text-ink/25" />

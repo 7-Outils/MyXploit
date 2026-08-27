@@ -9,8 +9,6 @@ import {
   Settings,
   Euro,
   Loader2,
-  Trash2,
-  AlertTriangle,
   Users,
   UserCheck,
   Building2,
@@ -24,35 +22,6 @@ interface Stats {
 export default function AdminPage() {
   const [stats, setStats] = useState<Stats>({ recommendations: 0, checkpoints: 0 });
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDeleteAllEquipments = async () => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer TOUS les équipements ? Cette action est irréversible.")) {
-      return;
-    }
-    if (!confirm("DERNIÈRE CONFIRMATION : Tous les équipements et leurs données seront supprimés définitivement.")) {
-      return;
-    }
-
-    setDeleting(true);
-    try {
-      const response = await fetch("/api/admin/delete-all-equipments", {
-        method: "DELETE",
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert(`${data.deleted} équipement(s) supprimé(s)`);
-        window.location.reload();
-      } else {
-        alert(data.error || "Erreur lors de la suppression");
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Erreur lors de la suppression");
-    } finally {
-      setDeleting(false);
-    }
-  };
 
   useEffect(() => {
     async function fetchStats() {
@@ -218,34 +187,6 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Danger Zone */}
-      <div className="border border-red-600/20 bg-white">
-        <div className="flex items-center gap-2 border-b border-red-600/20 px-4 py-2.5">
-          <AlertTriangle size={14} className="text-red-600" />
-          <h2 className="font-mono text-[11px] uppercase tracking-widest text-red-700">
-            Zone dangereuse
-          </h2>
-        </div>
-        <div className="p-4">
-          <p className="text-sm text-text-secondary mb-4">
-            Ces actions sont irréversibles. Utilisez-les avec précaution.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handleDeleteAllEquipments}
-              disabled={deleting}
-              className="flex items-center gap-2 border border-red-600/30 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:border-red-600 hover:bg-red-50 disabled:opacity-50"
-            >
-              {deleting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Trash2 size={16} />
-              )}
-              Supprimer tous les équipements
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
