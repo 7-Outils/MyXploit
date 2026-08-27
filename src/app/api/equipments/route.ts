@@ -458,8 +458,9 @@ export async function POST(request: NextRequest) {
     const type = body.type || "AUTRE";
     const domain = body.domain || TYPE_TO_DOMAIN[type] || "AUTRE";
 
-    // Auto-generate name from type if not provided
-    const name = body.name || TYPE_LABELS[type] || type;
+    // Pas de repère inventé : un repère terrain vide reste vide,
+    // l'affichage se rabat sur le libellé du type.
+    const name = body.name || null;
 
     // Get default lifespan based on type if not provided
     const theoreticalLifespan = body.theoreticalLifespan
