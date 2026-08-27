@@ -703,6 +703,26 @@ enum EquipmentType {
   BACHE_TAMPON // Bâche tampon / bac tampon
   NAGE_CONTRE_COURANT // Système nage contre-courant
   ROBOT_NETTOYAGE // Robot de nettoyage automatique
+  // === RÉFÉRENTIEL MYXPLOIT APP (listes de la fiche équipement) ===
+  // Les variantes (condensation, air/eau, thermodynamique, double flux) sont des
+  // caractéristiques, pas des types : un seul type par matériel.
+  STATION_SOLAIRE // Station solaire thermique
+  POMPE_CHARGE // Pompe de charge
+  VANNE_2V_MOTORISEE // Vanne 2 voies motorisée
+  POT_A_BOUES // Pot à boues
+  GROUPE_MAINTIEN_PRESSION // Groupe maintien pression
+  SOUPAPE_SECURITE // Soupape de sécurité
+  COMPTEUR_EAU_APPOINT // Compteur d'eau d'appoint
+  POMPE // Pompe
+  POMPE_DOUBLE // Pompe double
+  VANNE_3V // Vanne 3 voies
+  VANNE_EQUILIBRAGE // Vanne d'équilibrage
+  BOUTEILLE_DECOUPLAGE // Bouteille de découplage
+  VENTILO_CONVECTEUR // Ventilo-convecteur
+  AEROTHERME // Aérotherme
+  RIDEAU_AIR_CHAUD // Rideau d'air chaud
+  SONDE // Sonde
+  VARIATEUR // Variateur de vitesse
   // === AUTRE ===
   AUTRE
 }
