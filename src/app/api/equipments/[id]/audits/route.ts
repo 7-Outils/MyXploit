@@ -99,6 +99,7 @@ export async function POST(
         equipmentId,
         auditDate: body.auditDate ? new Date(body.auditDate) : new Date(),
         auditor: body.auditor || null,
+        auditedById: user.id,
         // Ratings
         visualState: body.visualState || "NON_EVALUE",
         performance: body.performance || "NON_EVALUE",

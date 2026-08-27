@@ -74,11 +74,13 @@ export const quoteCreateSchema = z.object({
 export const auditCreateSchema = z.object({
   auditDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   auditor: z.string().max(MAX_STRING_LENGTH).optional(),
-  visualState: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]),
-  performance: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]),
-  security: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]),
-  accessibility: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]),
-  compliance: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]),
+  // Les axes de l'évaluation rapide ne sont plus tous envoyés par le front
+  // (performance / compliance ont disparu du formulaire) : tout est optionnel.
+  visualState: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]).optional(),
+  performance: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]).optional(),
+  security: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]).optional(),
+  accessibility: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]).optional(),
+  compliance: z.enum(["NON_EVALUE", "CRITIQUE", "MAUVAIS", "MOYEN", "BON", "EXCELLENT"]).optional(),
   generalNotes: z.string().max(MAX_TEXT_LENGTH).optional(),
   status: z.enum(["OPERATIONNEL", "MAINTENANCE", "PANNE", "HORS_SERVICE"]).optional(),
 });

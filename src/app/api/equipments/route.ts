@@ -557,6 +557,9 @@ export async function GET(request: NextRequest) {
             accessibility: true,
             compliance: true,
             generalNotes: true,
+            auditedByUser: {
+              select: { firstName: true, lastName: true, email: true },
+            },
           },
         },
       },

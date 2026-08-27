@@ -276,6 +276,7 @@ model User {
   contractAssignments UserContractAssignment[]
   missionAssignments  UserMissionAssignment[]
   siteActivityLogs    SiteActivityLog[]
+  equipmentAudits     EquipmentAudit[]         @relation("EquipmentAuditAuthor")
 
   @@map("users")
 }
@@ -779,7 +780,8 @@ model EquipmentAudit {
   id                 String      @id @default(cuid())
   equipmentId        String
   auditDate          DateTime // Date de l'audit
-  auditor            String? // Nom de l'auditeur
+  auditor            String? // Nom de l'auditeur (legacy, saisie libre)
+  auditedById        String? // Utilisateur ayant réalisé l'évaluation
   // Critères d'évaluation (notes)
   visualState        AuditRating @default(NON_EVALUE) // État visuel
   performance        AuditRating @default(NON_EVALUE) // Performance
@@ -799,8 +801,10 @@ model EquipmentAudit {
   updatedAt          DateTime    @updatedAt
 
   // Relations
-  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  equipment     Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  auditedByUser User?     @relation("EquipmentAuditAuthor", fields: [auditedById], references: [id], onDelete: SetNull)
 
+  @@index([auditedById])
   @@map("equipment_audits")
 }
 
