@@ -899,6 +899,7 @@ model EquipmentAudit {
   auditedByUser User?     @relation("EquipmentAuditAuthor", fields: [auditedById], references: [id], onDelete: SetNull)
 
   @@index([auditedById])
+  @@index([equipmentId, auditDate])
   @@map("equipment_audits")
 }
 
