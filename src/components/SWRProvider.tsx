@@ -1,13 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
 import { SWRConfig } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 
 const CACHE_KEY = "swr-cache";
 
+// Au-delà de ~200 Ko, une entrée coûte plus cher à sérialiser (thread principal)
+// et à stocker (quota localStorage) qu'à refetcher. On la saute en silence.
+const MAX_ENTRY_CHARS = 200_000;
+
 // Référence au cache en cours, pour pouvoir le vider à la déconnexion.
 let activeCache: Map<string, unknown> | null = null;
 let persistEnabled = true;
+// Écriture du cache courant, posée par le provider et consommée par les
+// écouteurs de SWRProvider (montage/démontage propres).
+let persistActiveCache: (() => void) | null = null;
 
 /**
  * Vide le cache SWR, en mémoire et dans localStorage.
@@ -44,21 +52,48 @@ function localStorageProvider() {
   const persist = () => {
     if (!persistEnabled) return;
     try {
-      const entries = Array.from(map.entries()).filter(([k]) => typeof k === "string" && k.startsWith("/api/"));
+      const entries: [string, unknown][] = [];
+      for (const [k, v] of map.entries()) {
+        if (typeof k !== "string" || !k.startsWith("/api/")) continue;
+        // Une réponse volumineuse (parc complet, analytics) coûte plus cher à
+        // sérialiser qu'à refetcher : on la laisse hors du localStorage.
+        let serialized: string;
+        try {
+          serialized = JSON.stringify(v);
+        } catch {
+          continue;
+        }
+        if (!serialized || serialized.length > MAX_ENTRY_CHARS) continue;
+        entries.push([k, v]);
+      }
       localStorage.setItem(CACHE_KEY, JSON.stringify(entries));
     } catch {
       // Quota, SSR, etc. — ignore
     }
   };
 
-  window.addEventListener("beforeunload", persist);
-  // Persist régulièrement pour que les reloads intempestifs n'effacent pas tout
-  setInterval(persist, 30_000);
+  persistActiveCache = persist;
 
   return map;
 }
 
 export function SWRProvider({ children }: { children: React.ReactNode }) {
+  // Plus de setInterval : rejouer un JSON.stringify de tout le cache toutes les
+  // 30 s bloquait le thread principal pour rien. On n'écrit qu'aux deux moments
+  // où la persistance sert vraiment — l'onglet passe en arrière-plan, ou il part.
+  useEffect(() => {
+    const persist = () => persistActiveCache?.();
+    const persistOnHide = () => {
+      if (document.visibilityState === "hidden") persist();
+    };
+    document.addEventListener("visibilitychange", persistOnHide);
+    window.addEventListener("beforeunload", persist);
+    return () => {
+      document.removeEventListener("visibilitychange", persistOnHide);
+      window.removeEventListener("beforeunload", persist);
+    };
+  }, []);
+
   return (
     <SWRConfig
       value={{

@@ -3,6 +3,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 
 // Max file size: 10MB
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -14,6 +15,14 @@ const ALLOWED_TYPES = [
   "image/webp",
   "image/gif",
 ];
+
+// Types redimensionnés à l'upload. Le GIF en est exclu : sharp ne garderait
+// pas l'animation dans une conversion simple, on préfère l'original.
+const RESIZABLE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+// Les vignettes du parc font 128 px et les visionneuses restent en pleine page :
+// au-delà de 1600 px de large, on ne stocke que du poids inutile.
+const MAX_WIDTH = 1600;
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,13 +71,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique filename
-    const extension = file.name.split(".").pop() || "jpg";
-    const filename = `${folder}/${user.organizationId}/${randomUUID()}.${extension}`;
-
     // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    let buffer = Buffer.from(arrayBuffer);
+    let extension = file.name.split(".").pop() || "jpg";
+    let contentType = file.type;
+
+    // Redimensionnement + WebP : une photo de chaufferie sort du téléphone à
+    // plusieurs Mo pour finir dans une vignette. On la ramène à une taille
+    // raisonnable avant de payer le stockage et la bande passante.
+    if (RESIZABLE_TYPES.includes(file.type)) {
+      try {
+        buffer = await sharp(buffer)
+          .rotate() // respecte l'orientation EXIF, perdue à la conversion
+          .resize({ width: MAX_WIDTH, withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+        extension = "webp";
+        contentType = "image/webp";
+      } catch (resizeError) {
+        // Un échec de redimensionnement ne doit jamais coûter la photo :
+        // on repart de l'original, tel qu'avant.
+        console.error("Image resize failed, uploading original:", resizeError);
+        buffer = Buffer.from(arrayBuffer);
+      }
+    }
+
+    // Generate unique filename
+    // Orga effective (et non celle du compte) : en session déléguée, le fichier
+    // doit se ranger dans le dossier de l'orga consultée.
+    const filename = `${folder}/${effectiveOrgId}/${randomUUID()}.${extension}`;
 
     // Upload to R2
     await r2Client.send(
@@ -78,7 +110,7 @@ export async function POST(request: NextRequest) {
         Body: buffer,
         // Clés uniques (uuid) : cache navigateur immuable, fini les rechargements
         CacheControl: "public, max-age=31536000, immutable",
-        ContentType: file.type,
+        ContentType: contentType,
       })
     );
 
