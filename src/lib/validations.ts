@@ -12,8 +12,11 @@ export const equipmentCharacteristicsSchema = z
   .optional();
 
 // Equipment validation
+// Identifiants Prisma : des cuid ("cmb1x…"), pas des UUID.
+const idSchema = z.string().regex(/^[a-zA-Z0-9_-]{10,40}$/, "Identifiant invalide");
+
 export const equipmentCreateSchema = z.object({
-  siteId: z.string().uuid("ID de site invalide"),
+  siteId: idSchema,
   type: z.enum(EquipmentType, "Type d'équipement invalide"),
   name: z.string().max(MAX_STRING_LENGTH).optional(),
   brand: z.string().max(MAX_STRING_LENGTH).optional(),
@@ -84,8 +87,8 @@ export const quoteCreateSchema = z.object({
   validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   description: z.string().max(MAX_TEXT_LENGTH).optional(),
   status: z.enum(["BROUILLON", "EN_ATTENTE", "ACCEPTE", "REFUSE", "COMMANDE", "FACTURE"]).optional(),
-  siteId: z.string().uuid().optional(),
-  contractId: z.string().uuid(),
+  siteId: idSchema.optional(),
+  contractId: idSchema,
 });
 
 // Audit validation (simple audit)
@@ -132,13 +135,13 @@ export const meetingCreateSchema = z.object({
   location: z.string().max(MAX_STRING_LENGTH).optional(),
   attendees: z.string().max(MAX_TEXT_LENGTH).optional(),
   notes: z.string().max(MAX_TEXT_LENGTH).optional(),
-  contractId: z.string().uuid(),
+  contractId: idSchema,
 });
 
 // Import validation (for bulk imports)
 export const importRowsSchema = z.object({
   rows: z.array(z.record(z.string(), z.unknown())).min(1).max(10000),
-  contractId: z.string().uuid().optional(),
+  contractId: idSchema.optional(),
   preview: z.boolean().optional(),
 });
 
