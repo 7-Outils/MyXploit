@@ -5,6 +5,7 @@ import { TYPE_TO_DOMAIN } from "@/lib/equipment-domain";
 import { EquipmentType } from "@/generated/prisma/enums";
 import { Prisma } from "@/generated/prisma/client";
 import { equipmentCharacteristicsSchema } from "@/lib/validations";
+import { resolveTopology } from "@/lib/equipment-topology";
 
 // GET /api/equipments/[id] - Get a single equipment with details
 export async function GET(
@@ -219,6 +220,27 @@ export async function PATCH(
       updateData.characteristics = parsed.data ?? Prisma.DbNull;
     }
 
+    // Topologie : les rattachements se valident contre le site et le type
+    // *après* modification (un déplacement de site ou un changement de type
+    // peut invalider un local, un circuit ou une source encore dans la charge).
+    const nextSiteId =
+      typeof updateData.siteId === "string" ? updateData.siteId : existingEquipment.siteId;
+    const nextType =
+      typeof updateData.type === "string" ? updateData.type : existingEquipment.type;
+    const topology = await resolveTopology(body, nextSiteId, nextType, id);
+    if (!topology.ok) {
+      return NextResponse.json({ error: topology.error }, { status: 400 });
+    }
+    Object.assign(updateData, topology.data);
+
+    // Changer de site sans redonner la topologie laisserait des rattachements
+    // pointant vers l'ancien site : on les coupe.
+    if (nextSiteId !== existingEquipment.siteId) {
+      for (const field of ["roomId", "circuitId", "parentEquipmentId"] as const) {
+        if (updateData[field] === undefined) updateData[field] = null;
+      }
+    }
+
     const equipment = await prisma.equipment.update({
       where: { id },
       data: updateData,
@@ -226,6 +248,8 @@ export async function PATCH(
         site: {
           select: { id: true, name: true },
         },
+        room: { select: { id: true, name: true } },
+        circuit: { select: { id: true, name: true } },
       },
     });
 

@@ -4,6 +4,7 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
 import { equipmentCreateSchema, validateInput } from "@/lib/validations";
 import { TYPE_TO_DOMAIN } from "@/lib/equipment-domain";
+import { resolveTopology } from "@/lib/equipment-topology";
 import { Prisma } from "@/generated/prisma/client";
 
 // Labels for equipment types (used for auto-generating name)
@@ -377,6 +378,10 @@ export async function GET(request: NextRequest) {
         site: {
           select: { id: true, name: true, city: true },
         },
+        // Topologie : le local et le circuit s'affichent sur la fiche et la
+        // liste, le parent sert à regrouper les organes sous leur source.
+        room: { select: { id: true, name: true } },
+        circuit: { select: { id: true, name: true } },
         audits: {
           orderBy: { auditDate: "desc" },
           take: 1, // Only latest audit
@@ -467,6 +472,13 @@ export async function POST(request: NextRequest) {
       ? parseInt(body.theoreticalLifespan)
       : DEFAULT_LIFESPAN[type] || 15;
 
+    // Topologie : local / circuit doivent appartenir au site visé, et seul un
+    // organe rattachable peut désigner une source.
+    const topology = await resolveTopology(body, body.siteId, type);
+    if (!topology.ok) {
+      return NextResponse.json({ error: topology.error }, { status: 400 });
+    }
+
     const equipment = await prisma.equipment.create({
       data: {
         name,
@@ -490,6 +502,7 @@ export async function POST(request: NextRequest) {
         // Caractéristiques propres au type : stockées telles quelles (validées
         // par equipmentCreateSchema). Absentes = colonne NULL.
         characteristics: validation.data.characteristics ?? Prisma.DbNull,
+        ...topology.data,
         siteId: body.siteId,
         organizationId: effectiveOrgId,
       },
@@ -497,6 +510,8 @@ export async function POST(request: NextRequest) {
         site: {
           select: { id: true, name: true },
         },
+        room: { select: { id: true, name: true } },
+        circuit: { select: { id: true, name: true } },
       },
     });
 

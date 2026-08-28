@@ -506,6 +506,8 @@ model Site {
   regulatoryControls RegulatoryControl[] // Contrôles réglementaires
   activityLogs       SiteActivityLog[] // Journal d'activité
   missionSites       MissionSite[] // Missions rattachées
+  technicalRooms     TechnicalRoom[] // Locaux techniques (topologie)
+  circuits           Circuit[] // Circuits hydrauliques (topologie)
 
   @@index([organizationId])
   @@index([clientId])
@@ -770,6 +772,11 @@ model Equipment {
   location            String? // Local/Pièce (ex: "Chaufferie", "Sous-sol technique")
   level               String? // Niveau/Étage (ex: "RDC", "Sous-sol", "Toiture")
   serviceArea         String? // Zone desservie (ex: "Bâtiment A", "Aile Nord")
+  // Topologie (modèle MyXploit App) : local technique, circuit desservi,
+  // rattachement à un équipement source (pompe de charge / vanne 2V motorisée)
+  roomId              String?
+  circuitId           String?
+  parentEquipmentId   String?
   // Liste contradictoire (équipement sur liste vs présent sur site)
   inContractList      Boolean         @default(true) // Figure sur la liste contractuelle
   presentOnSite       Boolean         @default(true) // Présent physiquement sur site
@@ -790,10 +797,76 @@ model Equipment {
   regulatoryControls   RegulatoryControl[] // Contrôles réglementaires liés
   renewalItems         ContractRenewalItem[] // Postes du plan de renouvellement P3
   auditRecommendations AuditRecommendation[] // Préconisations le concernant
+  room                 TechnicalRoom?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  circuit              Circuit?              @relation(fields: [circuitId], references: [id], onDelete: SetNull)
+  parentEquipment      Equipment?            @relation("EquipmentParent", fields: [parentEquipmentId], references: [id], onDelete: SetNull)
+  childEquipments      Equipment[]           @relation("EquipmentParent")
 
   @@index([organizationId])
   @@index([siteId])
+  @@index([roomId])
+  @@index([circuitId])
+  @@index([parentEquipmentId])
   @@map("equipments")
+}
+
+// ============================================
+// TOPOLOGIE (modèle MyXploit App)
+// ============================================
+
+enum RoomType {
+  CHAUFFERIE // Chaufferie
+  SOUS_STATION // Sous-station
+  LOCAL_TECHNIQUE // Local technique
+  TOITURE // Toiture / Terrasse
+  LOCAL_CVC // Local CVC
+  ZONE_DESSERVIE // Zone desservie
+}
+
+enum CircuitRegulationType {
+  REGULE // Régulé
+  CONSTANT // Constant
+}
+
+// Local technique d'un site (chaufferie, sous-station, toiture...)
+model TechnicalRoom {
+  id        String   @id @default(cuid())
+  name      String
+  type      RoomType @default(CHAUFFERIE)
+  location  String? // "Sous-sol -1", "Toiture" (texte libre)
+  siteId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  site           Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  equipments     Equipment[]
+  sourceCircuits Circuit[]   @relation("CircuitSourceRoom")
+
+  @@index([siteId])
+  @@map("technical_rooms")
+}
+
+// Circuit hydraulique d'un site (départ chauffage, ECS, boucle...)
+model Circuit {
+  id                   String                @id @default(cuid())
+  name                 String
+  regulationType       CircuitRegulationType @default(REGULE)
+  power                String? // "150 kW" — chaînes libres comme l'app
+  designFlowTemp       String? // régime départ "80°C"
+  designReturnTemp     String? // régime retour "60°C"
+  heatingCurveHighTemp String? // loi d'eau : départ à -20°C ext
+  heatingCurveLowTemp  String? // loi d'eau : départ à +20°C ext
+  siteId               String
+  sourceRoomId         String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  site       Site           @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  sourceRoom TechnicalRoom? @relation("CircuitSourceRoom", fields: [sourceRoomId], references: [id], onDelete: SetNull)
+  equipments Equipment[]
+
+  @@index([siteId])
+  @@map("circuits")
 }
 
 // Audit d'un équipement (relevé sur site)

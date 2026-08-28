@@ -34,6 +34,11 @@ export const equipmentCreateSchema = z.object({
   // Caractéristiques propres au type : dictionnaire libre (le vocabulaire vit
   // dans le formulaire), stocké tel quel. null efface la valeur existante.
   characteristics: equipmentCharacteristicsSchema,
+  // Topologie : les rattachements sont vérifiés côté route (même site, type de
+  // source), ici on ne contrôle que la forme.
+  roomId: z.string().max(MAX_STRING_LENGTH).nullish(),
+  circuitId: z.string().max(MAX_STRING_LENGTH).nullish(),
+  parentEquipmentId: z.string().max(MAX_STRING_LENGTH).nullish(),
 });
 
 export const equipmentUpdateSchema = equipmentCreateSchema.partial().omit({ siteId: true });
