@@ -18,14 +18,35 @@ const SidebarContext = createContext<SidebarContextType>({
   setMobileOpen: () => {},
 });
 
+const COLLAPSED_STORAGE_KEY = "sidebar-collapsed";
+
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Préférence mémorisée : la sidebar repliée le reste après rechargement
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      if (typeof window !== "undefined") {
+        return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+      }
+    } catch {
+      // localStorage indisponible : état par défaut
+    }
+    return false;
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
   return (
     <SidebarContext.Provider
       value={{
         collapsed,
-        toggle: () => setCollapsed((v) => !v),
+        toggle: () =>
+          setCollapsed((v) => {
+            const next = !v;
+            try {
+              window.localStorage.setItem(COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+            } catch {
+              // écriture impossible : préférence non persistée
+            }
+            return next;
+          }),
         mobileOpen,
         setMobileOpen,
       }}
