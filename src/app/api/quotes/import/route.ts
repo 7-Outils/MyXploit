@@ -59,6 +59,8 @@ async function archivePdfToR2(
         Bucket: R2_BUCKET_NAME,
         Key: key,
         Body: buffer,
+        // Clés uniques (uuid) : cache navigateur immuable, fini les rechargements
+        CacheControl: "public, max-age=31536000, immutable",
         ContentType: "application/pdf",
       })
     );

@@ -76,6 +76,8 @@ export async function POST(request: NextRequest) {
         Bucket: R2_BUCKET_NAME,
         Key: filename,
         Body: buffer,
+        // Clés uniques (uuid) : cache navigateur immuable, fini les rechargements
+        CacheControl: "public, max-age=31536000, immutable",
         ContentType: file.type,
       })
     );
