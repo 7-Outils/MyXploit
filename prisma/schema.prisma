@@ -798,6 +798,8 @@ model Equipment {
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   avenantItems         AvenantItem[] // Modifications d'avenant concernant cet équipement
   audits               EquipmentAudit[] // Historique des audits simples
+  photos               EquipmentPhoto[] // Photos de la fiche (équipement + plaque signalétique)
+  defects              EquipmentDefect[] // Défauts constatés et préconisations
   regulatoryControls   RegulatoryControl[] // Contrôles réglementaires liés
   renewalItems         ContractRenewalItem[] // Postes du plan de renouvellement P3
   auditRecommendations AuditRecommendation[] // Préconisations le concernant
@@ -906,6 +908,45 @@ model EquipmentAudit {
   @@index([auditedById])
   @@index([equipmentId, auditDate])
   @@map("equipment_audits")
+}
+
+// Photos d'une fiche équipement (modèle MyXploit App : plusieurs clichés de
+// l'équipement + la plaque signalétique). `Equipment.imageUrl` reste la
+// vignette de couverture, alimentée par la première photo EQUIPMENT.
+enum EquipmentPhotoKind {
+  EQUIPMENT // photo de l'équipement
+  PLAQUE // plaque signalétique
+}
+
+model EquipmentPhoto {
+  id          String             @id @default(cuid())
+  url         String
+  kind        EquipmentPhotoKind @default(EQUIPMENT)
+  equipmentId String
+  createdAt   DateTime           @default(now())
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@map("equipment_photos")
+}
+
+// Défauts constatés sur un équipement : le constat, sa préconisation et les
+// photos qui l'appuient (vocabulaire de la fiche de l'app).
+model EquipmentDefect {
+  id            String   @id @default(cuid())
+  description   String // le constat
+  preconisation String? // la préconisation
+  photos        String[] // URLs R2
+  sortOrder     Int      @default(0)
+  equipmentId   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentId])
+  @@map("equipment_defects")
 }
 
 // Audit technique d'un site (checklist de conformité par type d'équipement)

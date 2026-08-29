@@ -54,6 +54,13 @@ const EQUIPMENT_SELECT = {
   // le parent sert à regrouper les organes sous leur source.
   room: { select: { id: true, name: true } },
   circuit: { select: { id: true, name: true } },
+  // Photos de la fiche : la rangée de miniatures de la consultation.
+  photos: {
+    select: { id: true, url: true, kind: true },
+    orderBy: { createdAt: "asc" },
+  },
+  // Nombre de défauts constatés, affiché sans charger les constats.
+  _count: { select: { defects: true } },
   audits: {
     orderBy: [{ auditDate: "desc" }, { createdAt: "desc" }],
     take: 1, // Only latest audit
