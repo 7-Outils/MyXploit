@@ -4,7 +4,10 @@ import { useEffect } from "react";
 import { SWRConfig } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 
-const CACHE_KEY = "swr-cache";
+// v2 : le payload de /api/equipments/synthesis a changé de forme (29/08) —
+// bump de la clé pour jeter les caches périmés, sinon crash au premier rendu.
+const CACHE_KEY = "swr-cache-v2";
+const STALE_CACHE_KEYS = ["swr-cache"];
 
 // Au-delà de ~200 Ko, une entrée coûte plus cher à sérialiser (thread principal)
 // et à stocker (quota localStorage) qu'à refetcher. On la saute en silence.
@@ -40,6 +43,7 @@ function localStorageProvider() {
 
   let map: Map<string, unknown>;
   try {
+    for (const stale of STALE_CACHE_KEYS) localStorage.removeItem(stale);
     const raw = localStorage.getItem(CACHE_KEY);
     map = new Map(raw ? (JSON.parse(raw) as [string, unknown][]) : []);
   } catch {
