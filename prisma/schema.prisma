@@ -278,6 +278,7 @@ model User {
   siteActivityLogs    SiteActivityLog[]
   equipmentAudits     EquipmentAudit[]         @relation("EquipmentAuditAuthor")
   equipmentsUpdated   Equipment[]              @relation("EquipmentUpdatedBy")
+  siteVisitsCreated   SiteVisit[]              @relation("SiteVisitCreatedBy")
 
   @@map("users")
 }
@@ -509,6 +510,7 @@ model Site {
   missionSites       MissionSite[] // Missions rattachées
   technicalRooms     TechnicalRoom[] // Locaux techniques (topologie)
   circuits           Circuit[] // Circuits hydrauliques (topologie)
+  visitEntries       SiteVisitEntry[] // Passages du site lors des visites annuelles
 
   @@index([organizationId])
   @@index([clientId])
@@ -1403,6 +1405,7 @@ model Contract {
   userAssignments  UserContractAssignment[] // Assignations ingénieurs
   missionContracts MissionContract[] // Missions rattachées
   contacts         ContractContact[] // Carnet de contacts (envoi des devis)
+  siteVisits       SiteVisit[] // Visites annuelles contractuelles (AMO/exploitant/ville)
 
   @@index([organizationId])
   @@index([clientId])
@@ -2515,3 +2518,70 @@ model DailyDju {
   @@map("daily_dju")
 }
 
+
+// ---------------------------------------------------------------------------
+// Visites annuelles contractuelles (tripartites AMO / exploitant / ville)
+// ---------------------------------------------------------------------------
+
+/** Verdict d'un point de vérification lors d'une visite. */
+enum VisitCheckVerdict {
+  NON_VERIFIE
+  OK
+  PARTIEL
+  NON
+}
+
+/** Une tournée : une date, des participants, et les sites visités ce jour-là. */
+model SiteVisit {
+  id           String   @id @default(cuid())
+  date         DateTime
+  participants String? // exploitant + ville, texte libre
+  notes        String? // notes générales de la visite
+  contractId   String
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contract  Contract         @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation("SiteVisitCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  entries   SiteVisitEntry[]
+
+  @@index([contractId])
+  @@map("site_visits")
+}
+
+/** Le passage sur un site donné pendant une visite : les constats relevés. */
+model SiteVisitEntry {
+  id      String  @id @default(cuid())
+  visitId String
+  siteId  String
+  done    Boolean @default(false) // site visité
+
+  // Cahier de chaufferie
+  logbookPresent   VisitCheckVerdict @default(NON_VERIFIE)
+  logbookFrequency String? // fréquence de remplissage constatée
+  logbookNotes     String?
+
+  // Entretiens des équipements
+  maintenanceDone      VisitCheckVerdict @default(NON_VERIFIE)
+  maintenanceLastDate  String? // « quand » — libre
+  maintenanceFrequency String?
+  maintenanceNotes     String?
+
+  // Justificatifs
+  proofsPresent VisitCheckVerdict @default(NON_VERIFIE)
+  proofsNotes   String?
+
+  // Expertise
+  remarks String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  visit SiteVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  site  Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([visitId, siteId])
+  @@index([siteId])
+  @@map("site_visit_entries")
+}
