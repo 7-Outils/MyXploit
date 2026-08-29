@@ -91,7 +91,11 @@ export async function PATCH(request: NextRequest) {
         organizationId: effectiveOrgId,
         ...(siteId ? { siteId } : {}),
       },
-      data: field === "roomId" ? { roomId: value } : { circuitId: value },
+      // Signature : une affectation en masse reste une modification
+      data:
+        field === "roomId"
+          ? { roomId: value, updatedById: user.id }
+          : { circuitId: value, updatedById: user.id },
     });
 
     return NextResponse.json({ updated: count });

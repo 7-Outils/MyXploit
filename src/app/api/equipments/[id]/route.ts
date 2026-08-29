@@ -123,6 +123,9 @@ export async function PATCH(
       }
     }
 
+    // Signature : chaque modification retient son auteur
+    updateData.updatedById = user.id;
+
     const equipment = await prisma.equipment.update({
       where: { id },
       data: updateData,

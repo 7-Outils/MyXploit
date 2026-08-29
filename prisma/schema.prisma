@@ -277,6 +277,7 @@ model User {
   missionAssignments  UserMissionAssignment[]
   siteActivityLogs    SiteActivityLog[]
   equipmentAudits     EquipmentAudit[]         @relation("EquipmentAuditAuthor")
+  equipmentsUpdated   Equipment[]              @relation("EquipmentUpdatedBy")
 
   @@map("users")
 }
@@ -788,8 +789,11 @@ model Equipment {
   organizationId      String
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
+  // Signature de la dernière écriture : qui a saisi ou corrigé cette fiche
+  updatedById         String?
 
   // Relations
+  updatedByUser      User?               @relation("EquipmentUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   site               Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   avenantItems         AvenantItem[] // Modifications d'avenant concernant cet équipement
@@ -807,6 +811,7 @@ model Equipment {
   @@index([roomId])
   @@index([circuitId])
   @@index([parentEquipmentId])
+  @@index([updatedById])
   @@map("equipments")
 }
 

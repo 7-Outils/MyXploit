@@ -42,6 +42,11 @@ const EQUIPMENT_SELECT = {
   warrantyEnd: true,
   inContractList: true,
   presentOnSite: true,
+  // Signature de la dernière écriture, affichée en tête de la fiche
+  updatedAt: true,
+  updatedByUser: {
+    select: { firstName: true, lastName: true, email: true },
+  },
   site: {
     select: { id: true, name: true, city: true },
   },
@@ -304,6 +309,8 @@ export async function POST(request: NextRequest) {
         ...topology.data,
         siteId: body.siteId,
         organizationId: effectiveOrgId,
+        // Signature : l'auteur de la saisie
+        updatedById: user.id,
       },
       include: {
         site: {
