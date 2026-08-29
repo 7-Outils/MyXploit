@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
+
+// Efface aussi le fichier R2 (best-effort : les clés sont des uuid uniques,
+// une fois la ligne et la couverture re-pointée, plus rien ne référence l'url).
+async function deleteFromR2(url: string) {
+  try {
+    const prefix = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/` : `https://${R2_BUCKET_NAME}.r2.dev/`;
+    if (!url.startsWith(prefix)) return;
+    const key = url.slice(prefix.length);
+    if (!key) return;
+    await r2Client.send(new DeleteObjectCommand({ Bucket: R2_BUCKET_NAME, Key: key }));
+  } catch (error) {
+    console.error("R2 delete failed (fichier orphelin conservé):", error);
+  }
+}
 
 // DELETE /api/equipments/[id]/photos/[photoId]
 export async function DELETE(
@@ -38,6 +54,7 @@ export async function DELETE(
     }
 
     await prisma.equipmentPhoto.delete({ where: { id: photoId } });
+    await deleteFromR2(photo.url);
 
     // La couverture pointait sur la photo supprimée : on repasse sur la plus
     // ancienne photo d'équipement restante, sinon la carte n'a plus de vignette.
