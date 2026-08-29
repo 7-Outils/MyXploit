@@ -49,6 +49,7 @@ model Organization {
   tickets                 Ticket[]
   regulatoryControlTypes  RegulatoryControlType[]
   regulatoryControls      RegulatoryControl[]
+  equipmentControlRules   EquipmentControlRule[]
   // Permissions et modules
   modules                 OrganizationModule[]
   ghostSessions           GhostSession[]
@@ -278,6 +279,7 @@ model User {
   siteActivityLogs    SiteActivityLog[]
   equipmentAudits     EquipmentAudit[]         @relation("EquipmentAuditAuthor")
   equipmentsUpdated   Equipment[]              @relation("EquipmentUpdatedBy")
+  controlRecordsCreated EquipmentControlRecord[] @relation("ControlRecordCreatedBy")
 
   @@map("users")
 }
@@ -801,6 +803,7 @@ model Equipment {
   photos               EquipmentPhoto[] // Photos de la fiche (équipement + plaque signalétique)
   defects              EquipmentDefect[] // Défauts constatés et préconisations
   regulatoryControls   RegulatoryControl[] // Contrôles réglementaires liés
+  controlRecords       EquipmentControlRecord[] // Contrôles réglementaires réalisés (règles par type)
   renewalItems         ContractRenewalItem[] // Postes du plan de renouvellement P3
   auditRecommendations AuditRecommendation[] // Préconisations le concernant
   room                 TechnicalRoom?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
@@ -947,6 +950,46 @@ model EquipmentDefect {
 
   @@index([equipmentId])
   @@map("equipment_defects")
+}
+
+// ============================================
+// CONTRÔLES RÉGLEMENTAIRES DÉRIVÉS DES ÉQUIPEMENTS
+// Une règle = « ce type d'équipement doit être contrôlé tous les n mois ».
+// La conformité se déduit du dernier contrôle enregistré par équipement.
+// ============================================
+
+model EquipmentControlRule {
+  id              String   @id @default(cuid())
+  equipmentType   String // code EquipmentType
+  name            String // « Contrôle annuel disconnecteur »
+  frequencyMonths Int
+  organizationId  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  records      EquipmentControlRecord[]
+
+  @@index([organizationId])
+  @@map("equipment_control_rules")
+}
+
+model EquipmentControlRecord {
+  id          String   @id @default(cuid())
+  equipmentId String
+  ruleId      String
+  doneDate    DateTime
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  equipment Equipment            @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  rule      EquipmentControlRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  createdBy User?                @relation("ControlRecordCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([equipmentId])
+  @@index([ruleId])
+  @@map("equipment_control_records")
 }
 
 // Audit technique d'un site (checklist de conformité par type d'équipement)

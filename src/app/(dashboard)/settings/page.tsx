@@ -28,6 +28,7 @@ interface MissionType {
 
 import { ROLE_LABELS } from "@/lib/permissions";
 import AiKeySection from "@/components/settings/AiKeySection";
+import ControlRulesSection from "@/components/settings/ControlRulesSection";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<UserData | null>(null);
@@ -466,6 +467,9 @@ export default function SettingsPage() {
           )}
         </ChartCard>
       )}
+
+      {/* Contrôles réglementaires par type d'équipement - tous sauf lecture seule */}
+      {user?.role !== "READER" && <ControlRulesSection />}
 
       {/* Fournisseur IA - tous sauf lecture seule */}
       {user?.role !== "READER" && <AiKeySection />}
