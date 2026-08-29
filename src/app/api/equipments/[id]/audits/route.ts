@@ -36,7 +36,7 @@ export async function GET(
 
     const audits = await prisma.equipmentAudit.findMany({
       where: { equipmentId },
-      orderBy: { auditDate: "desc" },
+      orderBy: [{ auditDate: "desc" }, { createdAt: "desc" }],
     });
 
     return NextResponse.json(audits);

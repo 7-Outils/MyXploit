@@ -50,7 +50,7 @@ const EQUIPMENT_SELECT = {
   room: { select: { id: true, name: true } },
   circuit: { select: { id: true, name: true } },
   audits: {
-    orderBy: { auditDate: "desc" },
+    orderBy: [{ auditDate: "desc" }, { createdAt: "desc" }],
     take: 1, // Only latest audit
     // Seuls ces champs sont lus (matrice, tableau, export PDF). Les 5 blocs de
     // notes par critère et le tableau `photos` pesaient sur chaque ligne sans
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
           id: true,
           siteId: true,
           audits: {
-            orderBy: { auditDate: "desc" },
+            orderBy: [{ auditDate: "desc" }, { createdAt: "desc" }],
             take: 1,
             select: { visualState: true },
           },

@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
           theoreticalLifespan: true,
           siteId: true,
           audits: {
-            orderBy: { auditDate: "desc" },
+            orderBy: [{ auditDate: "desc" }, { createdAt: "desc" }],
             take: 1,
             select: {
               auditDate: true,
