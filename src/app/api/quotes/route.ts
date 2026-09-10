@@ -139,8 +139,6 @@ export async function POST(request: NextRequest) {
         client: body.client || null,
         quoteType: body.quoteType || null,
         amountHT: parseFloat(body.amountHT || body.amount || 0),
-        amountTVA: body.amountTVA ? parseFloat(body.amountTVA) : null,
-        amountTTC: parseFloat(body.amountTTC || body.amount || 0),
         status: body.status || "BROUILLON",
         issueDate: body.issueDate ? new Date(body.issueDate) : new Date(),
         description: body.description || null,

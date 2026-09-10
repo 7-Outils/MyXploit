@@ -2027,9 +2027,7 @@ model Quote {
   provider   String // Fournisseur (ex: T.É.P.I. EXPLOITATION)
   client     String? // Client facturé (ex: IDEX ENERGIES)
   quoteType  QuoteType? // Type: P3, P5, Astreinte
-  amountHT   Float       @default(0) // Montant HT
-  amountTVA  Float? // Montant TVA
-  amountTTC  Float       @default(0) // Montant TTC
+  amountHT   Float       @default(0) // Montant HT — tout le suivi est en HT
   status     QuoteStatus @default(BROUILLON)
   issueDate  DateTime    @default(now()) // Date d'émission
   validUntil DateTime? // Date de validité (optionnel)
@@ -2052,7 +2050,6 @@ model Quote {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   site           Site?        @relation(fields: [siteId], references: [id])
   contract       Contract?    @relation(fields: [contractId], references: [id])
-  items          QuoteItem[]
   workOrder      WorkOrder? // Suivi de l'exécution des travaux
   renewalItems   ContractRenewalItem[] // Postes de plan P3 réalisés par ce devis
   acceptedByUser User?        @relation("QuoteAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
@@ -2062,24 +2059,6 @@ model Quote {
   @@index([contractId])
   @@index([siteId])
   @@map("quotes")
-}
-
-model QuoteItem {
-  id          String @id @default(cuid())
-  quoteId     String
-  lineNumber  Int // Numéro de ligne
-  description String // Description du poste
-  quantity    Float // Quantité
-  unit        String // Unité (HEUR, FORF, KG, U, etc.)
-  unitPrice   Float // Prix unitaire HT
-  totalHT     Float // Montant HT de la ligne
-  tvaRate     Float? // Taux de TVA (ex: 20.00)
-
-  // Relations
-  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-
-  @@index([quoteId])
-  @@map("quote_items")
 }
 
 // ============================================

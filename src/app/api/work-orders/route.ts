@@ -50,7 +50,6 @@ export async function GET(request: NextRequest) {
             reference: true,
             title: true,
             amountHT: true,
-            amountTTC: true,
             site: {
               select: {
                 id: true,

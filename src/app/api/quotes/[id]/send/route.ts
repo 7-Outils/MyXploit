@@ -200,7 +200,6 @@ export async function POST(
           ${quote.site ? `<tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Site</td><td style="padding: 4px 0;">${quote.site.name}${quote.site.city ? ` (${quote.site.city})` : ""}</td></tr>` : ""}
           ${quote.contract ? `<tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Contrat</td><td style="padding: 4px 0;">${quote.contract.reference}</td></tr>` : ""}
           <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Montant HT</td><td style="padding: 4px 0;">${amountFmt(quote.amountHT)} €</td></tr>
-          <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Montant TTC</td><td style="padding: 4px 0;">${amountFmt(quote.amountTTC)} €</td></tr>
         </table>
         <p>Vous trouverez le devis${withStamp ? " tamponné" : ""} en pièce jointe.</p>
         <p style="color: #6b6b6b; font-size: 13px;">Email envoyé par ${senderName} via MyXploit.</p>

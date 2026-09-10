@@ -82,7 +82,6 @@ export const quoteCreateSchema = z.object({
   title: z.string().max(MAX_STRING_LENGTH).optional(),
   quoteType: z.enum(["P3", "TRAVAUX", "AMELIORATION", "AUTRE"]),
   amountHT: z.coerce.number().min(0).max(100000000),
-  amountTTC: z.coerce.number().min(0).max(100000000).optional(),
   issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   description: z.string().max(MAX_TEXT_LENGTH).optional(),

@@ -45,7 +45,6 @@ async function main() {
           provider: "Test Provider",
           quoteType: "P3",
           amountHT: 5000,
-          amountTTC: 6000,
           status: "BROUILLON",
           organizationId: org.id,
           contractId: contract.id,
