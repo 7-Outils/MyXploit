@@ -149,12 +149,16 @@ export function parseQuoteFromText(text: string): ParsedQuote {
       if (objet.toLowerCase().includes("génie climatique") && !objet.toLowerCase().includes("remplacement")) {
         continue;
       }
-      // Couper si trop long (garder la partie principale)
-      if (objet.length > 80) {
-        const shortened = objet.match(/^(.{20,80}?)(?:\s+(?:avec|et|pour|sur|dans|en)\s|,|\.|$)/);
+      // Couper seulement au-delà de la limite de stockage, et sur une
+      // ponctuation forte : couper au premier « et / dans / avec » amputait
+      // l'objet de sa moitié utile (« Remplacement des thermostats » au lieu
+      // de la description complète des travaux).
+      if (objet.length > 200) {
+        const shortened = objet.match(/^(.{20,200}?)(?:[,;.]|$)/);
         if (shortened) objet = shortened[1].trim();
+        else objet = objet.slice(0, 200).trim();
       }
-      if (objet.length > 5 && objet.length < 150) {
+      if (objet.length > 5 && objet.length <= 200) {
         result.objet = objet;
         break;
       }
