@@ -126,18 +126,23 @@ export async function POST(request: NextRequest) {
     // Parse PDF — Gemini d'abord (si configuré), fallback regex
     let parsed: ParsedQuote;
     let source: "gemini" | "regex" = "regex";
+    // Pourquoi la lecture IA n'a pas eu lieu : affiché dans le formulaire,
+    // sinon l'utilisateur ne distingue pas une IA absente d'une IA en panne.
+    let aiError: string | null = null;
 
     const aiCfg = await getOrgAi(effectiveOrgId);
     try {
       if (aiCfg) {
         const geminiResult = await parseWithGemini(buffer, aiCfg);
-        if (geminiResult) {
-          parsed = geminiResult;
+        if (geminiResult.parsed) {
+          parsed = geminiResult.parsed;
           source = "gemini";
         } else {
+          aiError = geminiResult.error;
           parsed = await parseQuotePDF(buffer);
         }
       } else {
+        aiError = "aucun fournisseur IA configuré dans Paramètres";
         parsed = await parseQuotePDF(buffer);
       }
     } catch (pdfError) {
@@ -168,13 +173,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Return parsed data for preview
-    const result: ImportResult & { source?: string } = {
+    const result: ImportResult & { source?: string; aiError?: string } = {
       success: true,
       parsed,
       siteMatched: !!matchedSite,
       matchedSite: matchedSite || undefined,
       documentUrl: documentUrl || undefined,
       source,
+      aiError: aiError || undefined,
     };
 
     return NextResponse.json(result);

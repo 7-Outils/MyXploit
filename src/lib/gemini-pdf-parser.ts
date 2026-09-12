@@ -37,7 +37,34 @@ const responseSchema = {
   },
 };
 
-export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<ParsedQuote | null> {
+/**
+ * Traduit l'erreur du fournisseur en une phrase actionnable, et surtout ne
+ * laisse jamais filtrer la clé API dans un message affiché à l'écran.
+ */
+function explainAiError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const safe = raw
+    .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[clé masquée]")
+    .replace(/sk-[0-9A-Za-z_-]{10,}/g, "[clé masquée]");
+
+  if (/429|quota|rate.?limit|RESOURCE_EXHAUSTED/i.test(safe))
+    return "quota du fournisseur IA dépassé";
+  if (/401|403|API key|PERMISSION_DENIED|UNAUTHENTICATED/i.test(safe))
+    return "clé API refusée par le fournisseur";
+  if (/404|NOT_FOUND|not found|is not supported/i.test(safe))
+    return "modèle IA indisponible chez le fournisseur";
+  if (/timeout|ETIMEDOUT|fetch failed|ENOTFOUND|network/i.test(safe))
+    return "fournisseur IA injoignable";
+  return safe.slice(0, 200);
+}
+
+export type GeminiParseResult = {
+  parsed: ParsedQuote | null;
+  /** Raison lisible de l'échec, à afficher ; null si la lecture a réussi. */
+  error: string | null;
+};
+
+export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<GeminiParseResult> {
   try {
     const parsed = (await aiJson(ai, {
       pdf: pdfBuffer,
@@ -60,17 +87,20 @@ export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<
       parsed.quoteType;
 
     return {
-      reference: parsed.reference,
-      siteName: parsed.siteName,
-      siteCity: parsed.siteCity,
-      objet: parsed.objet,
-      amountHT: parsed.amountHT,
-      issueDate: parsed.issueDate ?? null,
-      quoteType: mappedQuoteType,
-      rawText: "",
+      parsed: {
+        reference: parsed.reference,
+        siteName: parsed.siteName,
+        siteCity: parsed.siteCity,
+        objet: parsed.objet,
+        amountHT: parsed.amountHT,
+        issueDate: parsed.issueDate ?? null,
+        quoteType: mappedQuoteType,
+        rawText: "",
+      },
+      error: null,
     };
   } catch (error) {
     console.error("Gemini parsing failed:", error);
-    return null;
+    return { parsed: null, error: explainAiError(error) };
   }
 }
