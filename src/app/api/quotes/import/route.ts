@@ -4,6 +4,8 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { findSiteMatch, emptyParsedQuote, type ParsedQuote } from "@/lib/quote-import";
 import { parseWithGemini } from "@/lib/gemini-pdf-parser";
 import { getOrgAi } from "@/lib/ai-key";
+import { MODELS, estimateCostUsd } from "@/lib/ai-client";
+import { checkAiBudget, recordAiUsage } from "@/lib/ai-usage";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
@@ -20,6 +22,8 @@ export interface ImportResult {
   matchedSite?: { id: string; name: string };
   documentUrl?: string;
   error?: string;
+  /** Ligne de consommation IA de cet import, à renvoyer à la création du devis. */
+  aiUsageId?: string;
 }
 
 // Archive le PDF original dans R2, rangé par client puis par contrat, pour que
@@ -125,18 +129,57 @@ export async function POST(request: NextRequest) {
     let parsed: ParsedQuote = emptyParsedQuote();
     let source: "gemini" | "none" = "none";
     let aiError: string | null = null;
+    let aiUsageId: string | null = null;
+
+    // Client de rattachement : la consommation IA est suivie par collectivité,
+    // et le contrat doit appartenir à l'organisation.
+    let clientId: string | null = null;
+    if (contractId) {
+      const contract = await prisma.contract.findFirst({
+        where: { id: contractId, organizationId: effectiveOrgId },
+        select: { clientId: true },
+      });
+      clientId = contract?.clientId ?? null;
+    }
 
     const aiCfg = await getOrgAi(effectiveOrgId);
-    if (aiCfg) {
-      const geminiResult = await parseWithGemini(buffer, aiCfg);
-      if (geminiResult.parsed) {
-        parsed = geminiResult.parsed;
-        source = "gemini";
-      } else {
-        aiError = geminiResult.error;
-      }
-    } else {
+    if (!aiCfg) {
       aiError = "aucun fournisseur IA configuré dans Paramètres";
+    } else {
+      // Plafond vérifié AVANT l'appel : une fois émis, il est facturé.
+      const budget = await checkAiBudget(effectiveOrgId);
+      if (!budget.allowed) {
+        aiError = budget.message ?? "plafond IA mensuel atteint";
+      } else {
+        const geminiResult = await parseWithGemini(buffer, aiCfg);
+        if (geminiResult.parsed) {
+          parsed = geminiResult.parsed;
+          source = "gemini";
+        } else {
+          aiError = geminiResult.error;
+        }
+
+        const model = MODELS[aiCfg.provider];
+        aiUsageId = await recordAiUsage({
+          organizationId: effectiveOrgId,
+          clientId,
+          contractId: contractId || null,
+          userId: user.id,
+          feature: "QUOTE_IMPORT",
+          provider: aiCfg.provider,
+          model,
+          inputTokens: geminiResult.usage.inputTokens,
+          outputTokens: geminiResult.usage.outputTokens,
+          costUsd: estimateCostUsd(
+            model,
+            geminiResult.usage.inputTokens,
+            geminiResult.usage.outputTokens
+          ),
+          durationMs: geminiResult.durationMs,
+          ok: !!geminiResult.parsed,
+          error: geminiResult.error,
+        });
+      }
     }
 
     // Try to find matching site
@@ -167,6 +210,9 @@ export async function POST(request: NextRequest) {
       documentUrl: documentUrl || undefined,
       source,
       aiError: aiError || undefined,
+      // Renvoyé au front pour rattacher la ligne de consommation au devis
+      // une fois celui-ci créé.
+      aiUsageId: aiUsageId || undefined,
     };
 
     return NextResponse.json(result);

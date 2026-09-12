@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { getOrgAi } from "@/lib/ai-key";
-import { aiJson, MODELS, AI_PROVIDER_LABELS } from "@/lib/ai-client";
+import { aiJson, MODELS, AI_PROVIDER_LABELS, estimateCostUsd } from "@/lib/ai-client";
 import { explainAiError } from "@/lib/gemini-pdf-parser";
+import { recordAiUsage } from "@/lib/ai-usage";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 
 // POST /api/organization/ai-test — appel minimal réel au fournisseur IA avec
@@ -27,12 +28,37 @@ export async function POST() {
 
     const label = AI_PROVIDER_LABELS[cfg.provider];
     const model = MODELS[cfg.provider];
+    const startedAt = Date.now();
+    // Le test consomme des tokens comme n'importe quel appel : il est suivi
+    // au même titre, sans client ni contrat rattaché.
+    const track = (
+      ok: boolean,
+      usage: { inputTokens: number; outputTokens: number },
+      error?: string
+    ) =>
+      recordAiUsage({
+        organizationId: effectiveOrgId,
+        userId: user.id,
+        feature: "KEY_TEST",
+        provider: cfg.provider,
+        model,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        costUsd: estimateCostUsd(model, usage.inputTokens, usage.outputTokens),
+        durationMs: Date.now() - startedAt,
+        ok,
+        error: error ?? null,
+      });
+
     try {
-      const result = (await aiJson(cfg, {
+      const { data, usage } = await aiJson(cfg, {
         prompt: 'Réponds exactement {"ok": true}.',
         geminiSchema: { type: "OBJECT", properties: { ok: { type: "BOOLEAN" } } },
-      })) as { ok?: unknown };
-      if (result?.ok === true) {
+      });
+      const result = data as { ok?: unknown };
+      const valid = result?.ok === true;
+      await track(valid, usage, valid ? undefined : "réponse au format inattendu");
+      if (valid) {
         return NextResponse.json({
           ok: true,
           message: `Clé acceptée par ${label} — modèle ${model}.`,
@@ -43,9 +69,11 @@ export async function POST() {
         message: `${label} a répondu, mais pas au format attendu (modèle ${model}).`,
       });
     } catch (error) {
+      const explained = explainAiError(error);
+      await track(false, { inputTokens: 0, outputTokens: 0 }, explained);
       return NextResponse.json({
         ok: false,
-        message: `${label} refuse l'appel : ${explainAiError(error)} (modèle ${model}).`,
+        message: `${label} refuse l'appel : ${explained} (modèle ${model}).`,
       });
     }
   } catch (error) {

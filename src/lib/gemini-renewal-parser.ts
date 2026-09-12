@@ -62,10 +62,11 @@ export async function parseRenewalPlan(
     .join("\n");
 
   try {
-    const parsed = (await aiJson(ai, {
+    const { data } = await aiJson(ai, {
       prompt: `${PROMPT}\n\nTableau :\n${tsv}`,
       geminiSchema: responseSchema,
-    })) as { items?: ParsedRenewalItem[] };
+    });
+    const parsed = data as { items?: ParsedRenewalItem[] };
     if (!Array.isArray(parsed.items)) return null;
 
     return parsed.items

@@ -153,6 +153,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Rattache la ligne de consommation IA de l'import au devis créé.
+    // updateMany + organizationId : un id venu du client ne doit pas
+    // pouvoir toucher la ligne d'une autre organisation.
+    if (typeof body.aiUsageId === "string" && body.aiUsageId) {
+      await prisma.aiUsage.updateMany({
+        where: { id: body.aiUsageId, organizationId: effectiveOrgId },
+        data: { quoteId: quote.id },
+      });
+    }
+
     return NextResponse.json(quote, { status: 201 });
   } catch (error) {
     console.error("Error creating quote:", error);

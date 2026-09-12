@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Settings,
   Euro,
+  Gauge,
   Loader2,
   Users,
   UserCheck,
@@ -148,6 +149,15 @@ export default function AdminPage() {
       <div>
         <h2 className="label-tech mb-3">Actions rapides</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link
+            href="/admin/ai-usage"
+            className="group flex items-center gap-3 border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"
+          >
+            <Gauge size={18} className="flex-shrink-0 text-ink/40 group-hover:text-accent" />
+            <span className="text-sm font-medium text-ink group-hover:text-accent">
+              Consommation IA
+            </span>
+          </Link>
           <Link
             href="/admin/users"
             className="group flex items-center gap-3 border border-ink/10 bg-white p-4 transition-colors hover:border-accent/40"

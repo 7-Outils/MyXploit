@@ -22,6 +22,9 @@ model Organization {
   stampUrl  String? // Tampon entreprise (image R2), apposé sur les devis acceptés
   aiProvider String? // Fournisseur IA de l'orga : GEMINI | OPENAI | ANTHROPIC
   aiApiKey   String? // Clé API du fournisseur, chiffrée (crypto.ts)
+  // Plafond de consommation IA par mois calendaire, en dollars. Au-delà,
+  // les appels IA sont refusés avant d'être émis (checkAiBudget).
+  aiMonthlyBudgetUsd Float @default(5)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -58,9 +61,45 @@ model Organization {
   clients                 Client[]
   missionTypes            MissionType[]
   missions                Mission[]
+  aiUsages                AiUsage[]
   onboardingCompleted     Boolean                  @default(false)
 
   @@map("organizations")
+}
+
+// ============================================
+// CONSOMMATION IA
+// ============================================
+
+// Une ligne par appel IA émis (ou refusé par le fournisseur) : de quoi
+// refacturer la consommation au client et voir d'où part le budget.
+model AiUsage {
+  id             String   @id @default(cuid())
+  organizationId String
+  clientId       String? // Collectivité concernée, quand l'appel est rattachable
+  contractId     String?
+  quoteId        String? // Renseigné après création du devis issu de l'import
+  userId         String?
+  feature        String // QUOTE_IMPORT | KEY_TEST
+  provider       String // GEMINI | OPENAI | ANTHROPIC
+  model          String
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  costUsd        Float    @default(0)
+  durationMs     Int      @default(0)
+  ok             Boolean
+  error          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  contract     Contract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  quote        Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([clientId, createdAt(sort: Desc)])
+  @@map("ai_usage")
 }
 
 // ============================================
@@ -85,6 +124,7 @@ model Client {
   sites        Site[]
   contracts    Contract[]
   missions     Mission[]
+  aiUsages     AiUsage[]
 
   @@map("clients")
 }
@@ -280,6 +320,7 @@ model User {
   equipmentAudits     EquipmentAudit[]         @relation("EquipmentAuditAuthor")
   equipmentsUpdated   Equipment[]              @relation("EquipmentUpdatedBy")
   controlRecordsCreated EquipmentControlRecord[] @relation("ControlRecordCreatedBy")
+  aiUsages              AiUsage[]
 
   @@map("users")
 }
@@ -1446,6 +1487,7 @@ model Contract {
   userAssignments  UserContractAssignment[] // Assignations ingénieurs
   missionContracts MissionContract[] // Missions rattachées
   contacts         ContractContact[] // Carnet de contacts (envoi des devis)
+  aiUsages         AiUsage[]
 
   @@index([organizationId])
   @@index([clientId])
@@ -2054,6 +2096,7 @@ model Quote {
   renewalItems   ContractRenewalItem[] // Postes de plan P3 réalisés par ce devis
   acceptedByUser User?        @relation("QuoteAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
   refusedByUser  User?        @relation("QuoteRefusedBy", fields: [refusedBy], references: [id], onDelete: SetNull)
+  aiUsages       AiUsage[]
 
   @@index([organizationId, issueDate(sort: Desc)]) // liste principale
   @@index([contractId])

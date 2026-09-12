@@ -1,6 +1,6 @@
 import { Type } from "@google/genai";
 import type { ParsedQuote } from "./quote-import";
-import { aiJson, type AiConfig } from "@/lib/ai-client";
+import { aiJson, type AiConfig, type AiUsageTokens } from "@/lib/ai-client";
 
 // Exportés pour le banc d'essai scripts/benchmark-devis-extraction.ts, qui
 // doit interroger les fournisseurs avec exactement la consigne du site.
@@ -64,15 +64,21 @@ export type GeminiParseResult = {
   parsed: ParsedQuote | null;
   /** Raison lisible de l'échec, à afficher ; null si la lecture a réussi. */
   error: string | null;
+  /** Tokens facturés ; à 0 en cas d'échec, le fournisseur ne les renvoyant pas. */
+  usage: AiUsageTokens;
+  /** Durée de l'appel, succès comme échec, pour le suivi de consommation. */
+  durationMs: number;
 };
 
 export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<GeminiParseResult> {
+  const startedAt = Date.now();
   try {
-    const parsed = (await aiJson(ai, {
+    const result = await aiJson(ai, {
       pdf: pdfBuffer,
       prompt: PROMPT,
       geminiSchema: responseSchema,
-    })) as {
+    });
+    const parsed = result.data as {
       reference: string | null;
       siteName: string | null;
       siteCity: string | null;
@@ -99,9 +105,16 @@ export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<
         quoteType: mappedQuoteType,
       },
       error: null,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
     };
   } catch (error) {
     console.error("Gemini parsing failed:", error);
-    return { parsed: null, error: explainAiError(error) };
+    return {
+      parsed: null,
+      error: explainAiError(error),
+      usage: { inputTokens: 0, outputTokens: 0 },
+      durationMs: Date.now() - startedAt,
+    };
   }
 }

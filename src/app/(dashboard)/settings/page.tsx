@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { User, Building, Bell, Shield, Loader2, Check, AlertCircle, FolderKanban, Plus, Pencil, Trash2, X, Stamp, Upload } from "lucide-react";
+import { User, Building, Bell, Shield, Loader2, Check, AlertCircle, FolderKanban, Gauge, Plus, Pencil, Trash2, X, Stamp, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChartCard } from "@/components/dashboard/chart-card";
 import Link from "next/link";
@@ -192,6 +192,17 @@ export default function SettingsPage() {
           <h3 className="label-tech">Mon profil</h3>
           <p className="mt-1 text-sm text-ink/50">Modifiez vos informations ci-dessous</p>
         </div>
+
+        {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") && (
+          <Link
+            href="/admin/ai-usage"
+            className="panel block p-4 transition-colors hover:border-accent/40"
+          >
+            <Gauge size={18} className="mb-3 text-accent" />
+            <h3 className="label-tech">Consommation IA</h3>
+            <p className="mt-1 text-sm text-ink/50">Suivi des appels IA et plafond mensuel</p>
+          </Link>
+        )}
 
         {(user?.role === "SUPER_ADMIN" || user?.role === "ADMIN") && (
           <Link

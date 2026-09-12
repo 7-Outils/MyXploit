@@ -29,6 +29,44 @@ export const MODELS: Record<AiProvider, string> = {
   ANTHROPIC: "claude-haiku-4-5-20251001",
 };
 
+/**
+ * Barème public des modèles utilisés, en dollars par million de tokens.
+ * Daté : les tarifs changent, un coût calculé avec un barème périmé est un
+ * coût faux. `asOf` dit à quelle date le tarif a été relevé.
+ */
+export const MODEL_PRICES: Record<string, { inputPerM: number; outputPerM: number; asOf: string }> = {
+  // Tarif valable jusqu'au 31/12/2026 ; passe ensuite à 1.50 / 7.50.
+  "gemini-3.8-flash": { inputPerM: 0.75, outputPerM: 3.75, asOf: "2026-09-12" },
+  // à vérifier
+  "gpt-5-mini": { inputPerM: 0.25, outputPerM: 2.0, asOf: "2026-09-12" },
+  // à vérifier
+  "claude-haiku-4-5-20251001": { inputPerM: 1.0, outputPerM: 5.0, asOf: "2026-09-12" },
+};
+
+/** Coût estimé d'un appel, en dollars. 0 si le modèle n'est pas au barème. */
+export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  const price = MODEL_PRICES[model];
+  if (!price) return 0;
+  return (inputTokens * price.inputPerM + outputTokens * price.outputPerM) / 1_000_000;
+}
+
+/** Tokens facturés par un appel ; 0 quand le fournisseur ne les renvoie pas. */
+export interface AiUsageTokens {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface AiJsonResult {
+  data: unknown;
+  usage: AiUsageTokens;
+}
+
+// Les compteurs de tokens arrivent parfois absents ou non numériques selon
+// le fournisseur : on ne veut ni NaN ni undefined dans un coût.
+function toCount(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 interface AiJsonRequest {
   prompt: string;
   pdf?: Buffer;
@@ -46,7 +84,7 @@ function parseJson(text: string): unknown {
   return JSON.parse(cleaned);
 }
 
-async function geminiJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown> {
+async function geminiJson(cfg: AiConfig, req: AiJsonRequest): Promise<AiJsonResult> {
   const ai = new GoogleGenAI({ apiKey: cfg.apiKey });
   const parts: object[] = [];
   if (req.pdf) {
@@ -64,7 +102,13 @@ async function geminiJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown> {
     },
   });
   if (!response.text) throw new Error("Réponse Gemini vide");
-  return parseJson(response.text);
+  return {
+    data: parseJson(response.text),
+    usage: {
+      inputTokens: toCount(response.usageMetadata?.promptTokenCount),
+      outputTokens: toCount(response.usageMetadata?.candidatesTokenCount),
+    },
+  };
 }
 
 // Consigne JSON pour les fournisseurs sans schéma de réponse natif ici
@@ -75,7 +119,7 @@ Réponds UNIQUEMENT avec un objet JSON valide (aucun texte autour, pas de markdo
 ${JSON.stringify(req.geminiSchema)}`;
 }
 
-async function openaiJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown> {
+async function openaiJson(cfg: AiConfig, req: AiJsonRequest): Promise<AiJsonResult> {
   const content: object[] = [];
   if (req.pdf) {
     content.push({
@@ -104,15 +148,22 @@ async function openaiJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown> {
   }
   const data = (await res.json()) as {
     output?: { type: string; content?: { type: string; text?: string }[] }[];
+    usage?: { input_tokens?: number; output_tokens?: number };
   };
   const text = data.output
     ?.flatMap((o) => o.content ?? [])
     .find((c) => c.type === "output_text")?.text;
   if (!text) throw new Error("Réponse OpenAI vide");
-  return parseJson(text);
+  return {
+    data: parseJson(text),
+    usage: {
+      inputTokens: toCount(data.usage?.input_tokens),
+      outputTokens: toCount(data.usage?.output_tokens),
+    },
+  };
 }
 
-async function anthropicJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown> {
+async function anthropicJson(cfg: AiConfig, req: AiJsonRequest): Promise<AiJsonResult> {
   const content: object[] = [];
   if (req.pdf) {
     content.push({
@@ -139,13 +190,22 @@ async function anthropicJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown
     const body = await res.text();
     throw new Error(`Anthropic ${res.status} : ${body.slice(0, 300)}`);
   }
-  const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+  const data = (await res.json()) as {
+    content?: { type: string; text?: string }[];
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
   const text = data.content?.find((c) => c.type === "text")?.text;
   if (!text) throw new Error("Réponse Anthropic vide");
-  return parseJson(text);
+  return {
+    data: parseJson(text),
+    usage: {
+      inputTokens: toCount(data.usage?.input_tokens),
+      outputTokens: toCount(data.usage?.output_tokens),
+    },
+  };
 }
 
-export async function aiJson(cfg: AiConfig, req: AiJsonRequest): Promise<unknown> {
+export async function aiJson(cfg: AiConfig, req: AiJsonRequest): Promise<AiJsonResult> {
   switch (cfg.provider) {
     case "GEMINI":
       return geminiJson(cfg, req);

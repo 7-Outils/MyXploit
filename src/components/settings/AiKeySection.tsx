@@ -93,9 +93,9 @@ export default function AiKeySection() {
       }
     >
       <p className="mb-4 text-sm text-ink/50">
-        Fournisseur et clé API de votre organisation, utilisés pour l&apos;import IA des devis,
-        l&apos;analyse des prix et l&apos;import des plans de renouvellement. La facturation est
-        portée par votre compte chez le fournisseur choisi.
+        Par défaut, MyXploit utilise sa propre clé et suit la consommation par client.
+        Renseignez une clé uniquement si votre organisation souhaite porter elle-même sa
+        facturation IA.
       </p>
 
       {error && (
@@ -118,9 +118,7 @@ export default function AiKeySection() {
             {last4 && <span className="font-mono text-ink/60"> ····{last4}</span>}
           </span>
         ) : fallback ? (
-          <span className="text-ink/60">
-            Aucune clé propre — la clé Gemini partagée de la plateforme est utilisée en secours.
-          </span>
+          <span className="text-ink">Clé de la plateforme (par défaut)</span>
         ) : (
           <span className="text-amber-700">Aucune clé configurée : les fonctions IA sont désactivées.</span>
         )}
