@@ -374,29 +374,31 @@ export function FacturationTab({
                                 >
                                   {refusingInvoiceId === invoice.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
                                 </button>
+                                <button
+                                  onClick={() => handleEditInvoice(invoice)}
+                                  disabled={loadingInvoiceDetailId === invoice.id}
+                                  title="Modifier"
+                                  className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
+                                >
+                                  {loadingInvoiceDetailId === invoice.id ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                  ) : (
+                                    <Pencil size={16} />
+                                  )}
+                                </button>
+                                {canDeleteInvoice && (
+                                  <button
+                                    onClick={() => handleDeleteInvoice(invoice)}
+                                    title="Supprimer"
+                                    className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-red-700 hover:bg-red-50 transition-colors"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
                               </>
                             )}
-                            <button
-                              onClick={() => handleEditInvoice(invoice)}
-                              disabled={loadingInvoiceDetailId === invoice.id}
-                              title="Modifier"
-                              className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
-                            >
-                              {loadingInvoiceDetailId === invoice.id ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <Pencil size={16} />
-                              )}
-                            </button>
-                            {canDeleteInvoice && (
-                              <button
-                                onClick={() => handleDeleteInvoice(invoice)}
-                                title="Supprimer"
-                                className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-red-700 hover:bg-red-50 transition-colors"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
+                            {/* Validée ou refusée : figée. Il ne reste que la
+                                consultation du PDF, dans la colonne d'à côté. */}
                           </div>
                         </ReadOnlyGate>
                       </td>

@@ -98,6 +98,16 @@ export async function PUT(
       );
     }
 
+    // Une facture validée ou refusée est figée : elle alimente (ou pas) le
+    // solde P3 tel qu'elle a été décidée. La règle est ici, pas seulement dans
+    // l'affichage des boutons.
+    if (existingInvoice.status !== "EN_ATTENTE") {
+      return NextResponse.json(
+        { error: "Facture validée ou refusée : elle n'est plus modifiable" },
+        { status: 409 }
+      );
+    }
+
     // Le sous-type suit le type : repasser une facture P1 en P2 doit vider le
     // sous-type, sinon il reste affiché à côté d'un type qui ne le porte pas.
     const nextType = input.type ?? existingInvoice.type;
@@ -205,6 +215,13 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Facture non trouvée" },
         { status: 404 }
+      );
+    }
+
+    if (existingInvoice.status !== "EN_ATTENTE") {
+      return NextResponse.json(
+        { error: "Facture validée ou refusée : elle ne peut plus être supprimée" },
+        { status: 409 }
       );
     }
 
