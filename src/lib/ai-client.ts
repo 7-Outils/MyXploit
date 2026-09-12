@@ -68,6 +68,14 @@ export function isAiConfigured(): boolean {
   return !!process.env.GEMINI_API_KEY;
 }
 
+const TRANSIENT_RETRY_DELAYS_MS = [1500, 3000];
+
+/** Saturation, quota par minute, coupure réseau : l'appel suivant peut passer. */
+export function isTransientAiError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /503|UNAVAILABLE|high demand|overloaded|429|RESOURCE_EXHAUSTED|rate.?limit|timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(msg);
+}
+
 export async function aiJson(req: AiJsonRequest): Promise<AiJsonResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY absente");
@@ -79,15 +87,31 @@ export async function aiJson(req: AiJsonRequest): Promise<AiJsonResult> {
   }
   parts.push({ text: req.prompt });
 
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: [{ role: "user", parts }],
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: req.geminiSchema,
-      temperature: 0,
-    },
-  });
+  const call = () =>
+    ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [{ role: "user", parts }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: req.geminiSchema,
+        temperature: 0,
+      },
+    });
+
+  // Google renvoie des 503 « high demand » et des 429 passagers : on réessaie
+  // deux fois avec une courte attente avant de rendre la main à l'utilisateur.
+  // Une clé refusée ou un modèle inconnu ne sont pas réessayés — ça ne
+  // changerait rien et ça brûlerait des appels.
+  let response: Awaited<ReturnType<typeof call>>;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await call();
+      break;
+    } catch (error) {
+      if (attempt >= TRANSIENT_RETRY_DELAYS_MS.length || !isTransientAiError(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAYS_MS[attempt]));
+    }
+  }
   if (!response.text) throw new Error("Réponse Gemini vide");
   return {
     data: parseJson(response.text),
