@@ -37,7 +37,9 @@ export function SortableTh<K extends string>({
         type="button"
         onClick={() => onSort(col)}
         title={`Trier par ${label.toLowerCase()}`}
-        className={`inline-flex items-center gap-1 hover:text-ink ${active ? "text-ink" : ""}`}
+        // Un <button> remet text-transform à none : sans `uppercase`, les
+        // en-têtes triables perdent la casse des autres colonnes label-tech.
+        className={`inline-flex items-center gap-1 uppercase hover:text-ink ${active ? "text-ink" : ""}`}
       >
         {label}
         <span className={`font-mono text-[10px] ${active ? "" : "invisible"}`}>

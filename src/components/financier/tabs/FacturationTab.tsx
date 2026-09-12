@@ -260,7 +260,6 @@ export function FacturationTab({
                   <SortableTh label="Référence" col="reference" sort={sort} onSort={onSort} />
                   <SortableTh label="Type" col="type" sort={sort} onSort={onSort} />
                   <SortableTh label="Site" col="site" sort={sort} onSort={onSort} />
-                  <th className="label-tech px-4 py-2.5 text-left">Sites</th>
                   <SortableTh label="Montant HT" col="amount" sort={sort} onSort={onSort} className="text-right" />
                   <SortableTh label="État" col="status" sort={sort} onSort={onSort} />
                   <th className="label-tech px-4 py-2.5 text-center">PDF</th>
@@ -271,11 +270,6 @@ export function FacturationTab({
                 {invoices.map((invoice) => {
                   const status = statusConfig[invoice.status];
                   const type = typeConfig[invoice.type];
-                  // Répartition par site : la liste ne reçoit que les siteId,
-                  // assez pour dire combien de lignes et combien sans site.
-                  const lines = invoice.siteLines ?? [];
-                  const lineCount = lines.length;
-                  const unmatchedLines = lines.filter((l) => !l.siteId).length;
                   const period = formatPeriod(invoice.periodStart, invoice.periodEnd);
                   return (
                     <tr key={invoice.id} className="border-t border-ink/[0.06] hover:bg-ink/[0.02] transition-colors">
@@ -294,18 +288,6 @@ export function FacturationTab({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-ink/60">{invoice.site ? invoice.site.name : "—"}</td>
-                      <td className="px-4 py-3 text-sm text-ink/60">
-                        {lineCount === 0 ? (
-                          "—"
-                        ) : (
-                          <>
-                            <span className="font-mono tabular-nums">{lineCount}</span>
-                            {unmatchedLines > 0 && (
-                              <span className="text-[#8a6200]"> · {unmatchedLines} non rattachée{unmatchedLines > 1 ? "s" : ""}</span>
-                            )}
-                          </>
-                        )}
-                      </td>
                       <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">{invoice.amount.toLocaleString("fr-FR")} €</td>
                       <td className="px-4 py-3 text-sm">
                         {invoice.status === "VALIDEE" ? (
