@@ -49,6 +49,8 @@ export function explainAiError(error: unknown): string {
     .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[clé masquée]")
     .replace(/sk-[0-9A-Za-z_-]{10,}/g, "[clé masquée]");
 
+  if (/prepayment|credits are depleted|billing/i.test(safe))
+    return "crédits Google épuisés — recharger le projet sur ai.studio/projects";
   if (/503|UNAVAILABLE|high demand|overloaded/i.test(safe))
     return "Google Gemini saturé pour le moment, réessayez dans un instant";
   if (/429|quota|rate.?limit|RESOURCE_EXHAUSTED/i.test(safe))

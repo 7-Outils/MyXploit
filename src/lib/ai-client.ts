@@ -73,6 +73,8 @@ const TRANSIENT_RETRY_DELAYS_MS = [1500, 3000];
 /** Saturation, quota par minute, coupure réseau : l'appel suivant peut passer. */
 export function isTransientAiError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
+  // Un 429 « crédits prépayés épuisés » n'est pas passager : inutile d'insister.
+  if (/prepayment|credits are depleted/i.test(msg)) return false;
   return /503|UNAVAILABLE|high demand|overloaded|429|RESOURCE_EXHAUSTED|rate.?limit|timeout|ETIMEDOUT|ECONNRESET|fetch failed/i.test(msg);
 }
 
