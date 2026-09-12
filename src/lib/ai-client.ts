@@ -20,8 +20,11 @@ export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
   ANTHROPIC: "Anthropic Claude",
 };
 
+// Toujours une version STABLE : les « preview » sont retirées sans préavis et
+// chaque import de devis tombe alors en erreur. Le bouton ⚡ de Paramètres
+// vérifie que l'identifiant existe encore.
 export const MODELS: Record<AiProvider, string> = {
-  GEMINI: "gemini-3-flash-preview",
+  GEMINI: "gemini-3.7-flash",
   OPENAI: "gpt-5-mini",
   ANTHROPIC: "claude-haiku-4-5-20251001",
 };
