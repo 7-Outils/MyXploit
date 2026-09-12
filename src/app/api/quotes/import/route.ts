@@ -7,9 +7,7 @@ import { trimPdfForAi } from "@/lib/pdf-trim";
 import { GEMINI_MODEL, estimateCostUsd, isAiConfigured } from "@/lib/ai-client";
 import { checkAiBudget, recordAiUsage } from "@/lib/ai-usage";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
-import { randomUUID } from "crypto";
+import { archiveQuotePdfToR2 } from "@/lib/quote-pdf";
 
 // Le PDF part intégralement en tokens d'entrée chez Gemini : sans plafond,
 // un fichier volumineux ou une boucle de retry se paie directement.
@@ -24,54 +22,6 @@ export interface ImportResult {
   error?: string;
   /** Ligne de consommation IA de cet import, à renvoyer à la création du devis. */
   aiUsageId?: string;
-}
-
-// Archive le PDF original dans R2, rangé par client puis par contrat, pour que
-// le devis reste consultable après import. Échec non bloquant : l'analyse du
-// PDF a plus de valeur que son archivage.
-async function archivePdfToR2(
-  buffer: Buffer,
-  originalName: string,
-  contractId: string,
-  organizationId: string
-): Promise<string | null> {
-  if (!process.env.R2_ACCOUNT_ID) return null;
-  try {
-    // Le contrat doit appartenir à l'organisation : sans ce filtre, un
-    // contractId arbitraire rangerait le PDF chez un autre client.
-    const contract = await prisma.contract.findFirst({
-      where: { id: contractId, organizationId },
-      select: { clientId: true },
-    });
-    if (!contract) return null;
-
-    const safeName = originalName
-      .replace(/\.pdf$/i, "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "devis";
-    const key = `quotes/${contract.clientId ?? "sans-client"}/${contractId}/${randomUUID()}-${safeName}.pdf`;
-
-    await r2Client.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: key,
-        Body: buffer,
-        // Clés uniques (uuid) : cache navigateur immuable, fini les rechargements
-        CacheControl: "public, max-age=31536000, immutable",
-        ContentType: "application/pdf",
-      })
-    );
-
-    return R2_PUBLIC_URL
-      ? `${R2_PUBLIC_URL}/${key}`
-      : `https://${R2_BUCKET_NAME}.r2.dev/${key}`;
-  } catch (error) {
-    console.error("Error archiving quote PDF to R2:", error);
-    return null;
-  }
 }
 
 // POST /api/quotes/import - Import a quote from PDF
@@ -200,7 +150,7 @@ export async function POST(request: NextRequest) {
     // la page Financier), on ne stocke rien.
     let documentUrl: string | null = null;
     if (contractId) {
-      documentUrl = await archivePdfToR2(buffer, file.name, contractId, effectiveOrgId);
+      documentUrl = await archiveQuotePdfToR2(buffer, file.name, contractId, effectiveOrgId);
     }
 
     // Return parsed data for preview
