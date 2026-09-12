@@ -64,7 +64,6 @@ export async function GET(request: NextRequest) {
     const include = {
       site: { select: { id: true, name: true, city: true } },
       contract: { select: { id: true, reference: true, provider: true } },
-      items: true,
       acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
     };
