@@ -2,7 +2,9 @@ import { Type } from "@google/genai";
 import type { ParsedQuote } from "./quote-import";
 import { aiJson, type AiConfig } from "@/lib/ai-client";
 
-const PROMPT = `Tu analyses un document PDF français : un devis ou une facture provenant d'un exploitant de chauffage (Dalkia, ENGIE, IDEX, Équans, etc.) ou d'un artisan local.
+// Exportés pour le banc d'essai scripts/benchmark-devis-extraction.ts, qui
+// doit interroger les fournisseurs avec exactement la consigne du site.
+export const PROMPT = `Tu analyses un document PDF français : un devis ou une facture provenant d'un exploitant de chauffage (Dalkia, ENGIE, IDEX, Équans, etc.) ou d'un artisan local.
 
 Extrais les champs suivants. Si un champ n'est pas clairement présent, mets null.
 
@@ -20,7 +22,7 @@ Pour amountHT, retourne le montant hors taxes en nombre décimal (sans symbole n
 
 Pour issueDate, retourne la date d'émission du document au format ISO "YYYY-MM-DD" (ex: "2025-12-09"). C'est la date affichée en tête du document (souvent "Date : 9 décembre 2025" ou "Date d'émission : 09/12/2025"), pas la date d'échéance ni la date des travaux.`;
 
-const responseSchema = {
+export const responseSchema = {
   type: Type.OBJECT,
   properties: {
     reference: { type: Type.STRING, nullable: true },
