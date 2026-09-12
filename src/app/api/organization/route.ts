@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { encryptSecret, decryptSecret } from "@/lib/crypto";
+import { GEMINI_MODEL, isAiConfigured } from "@/lib/ai-client";
 
 // GET /api/organization - Infos de l'organisation courante (dont tampon)
 export async function GET() {
@@ -15,8 +15,6 @@ export async function GET() {
         id: true,
         name: true,
         stampUrl: true,
-        aiProvider: true,
-        aiApiKey: true,
         aiMonthlyBudgetUsd: true,
       },
     });
@@ -25,27 +23,13 @@ export async function GET() {
       return NextResponse.json({ error: "Organisation introuvable" }, { status: 404 });
     }
 
-    // La clé ne sort jamais : on n'expose que son statut et ses 4 derniers caractères
-    let aiKeyLast4: string | null = null;
-    if (organization.aiApiKey) {
-      try {
-        const key = decryptSecret(organization.aiApiKey);
-        aiKeyLast4 = key ? key.slice(-4) : null;
-      } catch {
-        aiKeyLast4 = null;
-      }
-    }
-
     return NextResponse.json({
       id: organization.id,
       name: organization.name,
       stampUrl: organization.stampUrl,
-      aiProvider: organization.aiProvider ?? "GEMINI",
-      aiKeySet: !!organization.aiApiKey,
-      aiKeyLast4,
-      // La clé Gemini de la plateforme est la norme : elle prend le relais
-      // tant que l'organisation n'a pas renseigné la sienne.
-      aiFallback: !organization.aiApiKey && !!process.env.GEMINI_API_KEY,
+      // Une seule clé IA, celle de la plateforme : rien à configurer côté orga.
+      aiConfigured: isAiConfigured(),
+      aiModel: GEMINI_MODEL,
       aiMonthlyBudgetUsd: organization.aiMonthlyBudgetUsd,
     });
   } catch (error) {
@@ -73,28 +57,9 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const data: {
       stampUrl?: string | null;
-      aiProvider?: string;
-      aiApiKey?: string | null;
       aiMonthlyBudgetUsd?: number;
     } = {};
     if (body.stampUrl !== undefined) data.stampUrl = body.stampUrl || null;
-    if (body.aiProvider !== undefined) {
-      if (!["GEMINI", "OPENAI", "ANTHROPIC"].includes(body.aiProvider)) {
-        return NextResponse.json({ error: "Fournisseur IA inconnu" }, { status: 400 });
-      }
-      data.aiProvider = body.aiProvider;
-    }
-    if (body.aiApiKey !== undefined) {
-      const key = typeof body.aiApiKey === "string" ? body.aiApiKey.trim() : "";
-      if (key) {
-        if (key.length < 20) {
-          return NextResponse.json({ error: "Clé API invalide (trop courte)" }, { status: 400 });
-        }
-        data.aiApiKey = encryptSecret(key);
-      } else {
-        data.aiApiKey = null;
-      }
-    }
     // Le plafond IA engage la facture de la plateforme : réservé aux admins.
     if (body.aiMonthlyBudgetUsd !== undefined) {
       if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
@@ -120,8 +85,6 @@ export async function PATCH(request: NextRequest) {
         id: true,
         name: true,
         stampUrl: true,
-        aiProvider: true,
-        aiApiKey: true,
         aiMonthlyBudgetUsd: true,
       },
     });
@@ -130,8 +93,8 @@ export async function PATCH(request: NextRequest) {
       id: organization.id,
       name: organization.name,
       stampUrl: organization.stampUrl,
-      aiProvider: organization.aiProvider ?? "GEMINI",
-      aiKeySet: !!organization.aiApiKey,
+      aiConfigured: isAiConfigured(),
+      aiModel: GEMINI_MODEL,
       aiMonthlyBudgetUsd: organization.aiMonthlyBudgetUsd,
     });
   } catch (error) {

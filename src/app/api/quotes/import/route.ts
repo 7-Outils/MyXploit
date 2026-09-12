@@ -3,8 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { findSiteMatch, emptyParsedQuote, type ParsedQuote } from "@/lib/quote-import";
 import { parseWithGemini } from "@/lib/gemini-pdf-parser";
-import { getOrgAi } from "@/lib/ai-key";
-import { MODELS, estimateCostUsd } from "@/lib/ai-client";
+import { GEMINI_MODEL, estimateCostUsd, isAiConfigured } from "@/lib/ai-client";
 import { checkAiBudget, recordAiUsage } from "@/lib/ai-usage";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -142,16 +141,15 @@ export async function POST(request: NextRequest) {
       clientId = contract?.clientId ?? null;
     }
 
-    const aiCfg = await getOrgAi(effectiveOrgId);
-    if (!aiCfg) {
-      aiError = "aucun fournisseur IA configuré dans Paramètres";
+    if (!isAiConfigured()) {
+      aiError = "clé IA de la plateforme absente (GEMINI_API_KEY)";
     } else {
       // Plafond vérifié AVANT l'appel : une fois émis, il est facturé.
       const budget = await checkAiBudget(effectiveOrgId);
       if (!budget.allowed) {
         aiError = budget.message ?? "plafond IA mensuel atteint";
       } else {
-        const geminiResult = await parseWithGemini(buffer, aiCfg);
+        const geminiResult = await parseWithGemini(buffer);
         if (geminiResult.parsed) {
           parsed = geminiResult.parsed;
           source = "gemini";
@@ -159,14 +157,14 @@ export async function POST(request: NextRequest) {
           aiError = geminiResult.error;
         }
 
-        const model = MODELS[aiCfg.provider];
+        const model = GEMINI_MODEL;
         aiUsageId = await recordAiUsage({
           organizationId: effectiveOrgId,
           clientId,
           contractId: contractId || null,
           userId: user.id,
           feature: "QUOTE_IMPORT",
-          provider: aiCfg.provider,
+          provider: "GEMINI",
           model,
           inputTokens: geminiResult.usage.inputTokens,
           outputTokens: geminiResult.usage.outputTokens,

@@ -12,7 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { GoogleGenAI } from "@google/genai";
 import { PROMPT, responseSchema } from "../src/lib/gemini-pdf-parser";
-import { MODELS } from "../src/lib/ai-client";
+import { GEMINI_MODEL } from "../src/lib/ai-client";
 
 const FIELDS = ["reference", "siteName", "siteCity", "objet", "amountHT", "issueDate", "quoteType"] as const;
 type Field = (typeof FIELDS)[number];
@@ -79,7 +79,7 @@ async function runGemini(pdf: Buffer, apiKey: string): Promise<Run> {
   try {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: MODELS.GEMINI,
+      model: GEMINI_MODEL,
       contents: [
         {
           role: "user",
@@ -168,7 +168,7 @@ async function main() {
     const block = [
       `## ${file}`,
       "",
-      `| Champ | Gemini ${MODELS.GEMINI} | Mistral OCR | |`,
+      `| Champ | Gemini ${GEMINI_MODEL} | Mistral OCR | |`,
       "|---|---|---|---|",
       ...rows,
       `| _durée_ | ${g.ms} ms | ${m.ms} ms | |`,

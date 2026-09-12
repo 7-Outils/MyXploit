@@ -3,7 +3,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { parseRenewalPlan } from "@/lib/gemini-renewal-parser";
-import { getOrgAi } from "@/lib/ai-key";
+import { isAiConfigured } from "@/lib/ai-client";
 import { rateLimit, getClientIdentifier, rateLimitExceeded } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
@@ -42,10 +42,9 @@ export async function POST(
     );
     if (!limit.success) return rateLimitExceeded(limit.remaining);
 
-    const aiCfg = await getOrgAi(effectiveOrgId);
-    if (!aiCfg) {
+    if (!isAiConfigured()) {
       return NextResponse.json(
-        { error: "Aucune clé API IA : ajoutez celle de votre organisation dans Paramètres → Fournisseur IA" },
+        { error: "Clé IA de la plateforme absente (GEMINI_API_KEY)" },
         { status: 503 }
       );
     }
@@ -70,7 +69,7 @@ export async function POST(
       );
     }
 
-    const items = await parseRenewalPlan(parsed.data.rows, aiCfg);
+    const items = await parseRenewalPlan(parsed.data.rows);
     if (items === null) {
       return NextResponse.json(
         { error: "L'analyse IA a échoué — réessayez ou saisissez manuellement" },

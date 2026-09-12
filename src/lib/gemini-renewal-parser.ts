@@ -1,5 +1,5 @@
 import { Type } from "@google/genai";
-import { aiJson, type AiConfig } from "@/lib/ai-client";
+import { aiJson } from "@/lib/ai-client";
 
 /**
  * Import assisté par IA des plans de renouvellement P3.
@@ -8,7 +8,7 @@ import { aiJson, type AiConfig } from "@/lib/ai-client";
  * qui en extrait les postes normalisés.
  */
 
-// La clé API vient de l'organisation (via getGeminiApiKey)
+// La clé API est celle de la plateforme (GEMINI_API_KEY), lue par aiJson().
 
 export interface ParsedRenewalItem {
   label: string;
@@ -53,8 +53,7 @@ const responseSchema = {
 };
 
 export async function parseRenewalPlan(
-  rows: string[][],
-  ai: AiConfig
+  rows: string[][]
 ): Promise<ParsedRenewalItem[] | null> {
   // Sérialisation TSV : compacte et fidèle à la structure du tableau
   const tsv = rows
@@ -62,7 +61,7 @@ export async function parseRenewalPlan(
     .join("\n");
 
   try {
-    const { data } = await aiJson(ai, {
+    const { data } = await aiJson({
       prompt: `${PROMPT}\n\nTableau :\n${tsv}`,
       geminiSchema: responseSchema,
     });

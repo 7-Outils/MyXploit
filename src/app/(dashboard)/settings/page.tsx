@@ -27,7 +27,7 @@ interface MissionType {
 }
 
 import { ROLE_LABELS } from "@/lib/permissions";
-import AiKeySection from "@/components/settings/AiKeySection";
+import AiSection from "@/components/settings/AiKeySection";
 import ControlRulesSection from "@/components/settings/ControlRulesSection";
 
 export default function SettingsPage() {
@@ -482,8 +482,10 @@ export default function SettingsPage() {
       {/* Contrôles réglementaires par type d'équipement - tous sauf lecture seule */}
       {user?.role !== "READER" && <ControlRulesSection />}
 
-      {/* Fournisseur IA - tous sauf lecture seule */}
-      {user?.role !== "READER" && <AiKeySection />}
+      {/* Intelligence artificielle - tous sauf lecture seule */}
+      {user?.role !== "READER" && (
+        <AiSection isAdmin={user?.role === "ADMIN" || user?.role === "SUPER_ADMIN"} />
+      )}
 
       {/* Tampon entreprise - tous sauf lecture seule */}
       {user?.role !== "READER" && (

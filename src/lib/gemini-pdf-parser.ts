@@ -1,6 +1,6 @@
 import { Type } from "@google/genai";
 import type { ParsedQuote } from "./quote-import";
-import { aiJson, type AiConfig, type AiUsageTokens } from "@/lib/ai-client";
+import { aiJson, type AiUsageTokens } from "@/lib/ai-client";
 
 // Exportés pour le banc d'essai scripts/benchmark-devis-extraction.ts, qui
 // doit interroger les fournisseurs avec exactement la consigne du site.
@@ -70,10 +70,10 @@ export type GeminiParseResult = {
   durationMs: number;
 };
 
-export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<GeminiParseResult> {
+export async function parseWithGemini(pdfBuffer: Buffer): Promise<GeminiParseResult> {
   const startedAt = Date.now();
   try {
-    const result = await aiJson(ai, {
+    const result = await aiJson({
       pdf: pdfBuffer,
       prompt: PROMPT,
       geminiSchema: responseSchema,

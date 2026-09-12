@@ -20,8 +20,6 @@ model Organization {
   slug      String   @unique
   logo      String?
   stampUrl  String? // Tampon entreprise (image R2), apposé sur les devis acceptés
-  aiProvider String? // Fournisseur IA de l'orga : GEMINI | OPENAI | ANTHROPIC
-  aiApiKey   String? // Clé API du fournisseur, chiffrée (crypto.ts)
   // Plafond de consommation IA par mois calendaire, en dollars. Au-delà,
   // les appels IA sont refusés avant d'être émis (checkAiBudget).
   aiMonthlyBudgetUsd Float @default(5)
