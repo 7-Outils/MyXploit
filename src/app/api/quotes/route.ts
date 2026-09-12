@@ -32,6 +32,26 @@ export async function GET(request: NextRequest) {
     const dateEnd = searchParams.get("dateEnd");
     const pageParam = searchParams.get("page");
 
+    // Tri piloté par l'en-tête du tableau. Liste blanche : une colonne
+    // inconnue retombe sur le tri par défaut, jamais sur une erreur.
+    const SORTABLE = {
+      issueDate: "issueDate",
+      reference: "reference",
+      quoteType: "quoteType",
+      site: "site",
+      title: "title",
+      amountHT: "amountHT",
+      status: "status",
+    } as const;
+    const sortParam = searchParams.get("sort") as keyof typeof SORTABLE | null;
+    const dir: "asc" | "desc" = searchParams.get("dir") === "asc" ? "asc" : "desc";
+    const orderBy =
+      sortParam && sortParam in SORTABLE
+        ? sortParam === "site"
+          ? [{ site: { name: dir } }, { createdAt: "desc" as const }]
+          : [{ [SORTABLE[sortParam]]: dir }, { createdAt: "desc" as const }]
+        : [{ issueDate: "desc" as const }, { createdAt: "desc" as const }];
+
     if (quoteType && !QUOTE_TYPES.includes(quoteType as (typeof QUOTE_TYPES)[number])) {
       return NextResponse.json(
         { error: `Type de devis inconnu. Valeurs acceptées : ${QUOTE_TYPES.join(", ")}` },
@@ -73,7 +93,7 @@ export async function GET(request: NextRequest) {
       const quotes = await prisma.quote.findMany({
         where,
         include,
-        orderBy: { createdAt: "desc" },
+        orderBy,
       });
       return NextResponse.json(quotes);
     }
@@ -88,7 +108,7 @@ export async function GET(request: NextRequest) {
       prisma.quote.findMany({
         where,
         include,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
