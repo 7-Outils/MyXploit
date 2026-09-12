@@ -11,7 +11,11 @@ import { GoogleGenAI } from "@google/genai";
 // Toujours une version STABLE : les « preview » sont retirées sans préavis et
 // chaque import de devis tombe alors en erreur. Le bouton ⚡ de Paramètres
 // vérifie que l'identifiant existe encore.
-export const GEMINI_MODEL = "gemini-3.8-flash";
+// Flash-Lite retenue après banc d'essai (12/09/2026, scripts/benchmark-*) :
+// mêmes 7 champs que la 3.8 Flash sur 5 devis réels, 2× plus rapide, 2,15×
+// moins cher. Repasser sur "gemini-3.8-flash" si un format de devis la met
+// en défaut.
+export const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 /**
  * Barème public du modèle utilisé, en dollars par million de tokens.
@@ -19,6 +23,7 @@ export const GEMINI_MODEL = "gemini-3.8-flash";
  * coût faux. `asOf` dit à quelle date le tarif a été relevé.
  */
 export const MODEL_PRICES: Record<string, { inputPerM: number; outputPerM: number; asOf: string }> = {
+  "gemini-3.5-flash-lite": { inputPerM: 0.3, outputPerM: 2.5, asOf: "2026-09-12" },
   // Tarif valable jusqu'au 31/12/2026 ; passe ensuite à 1.50 / 7.50.
   "gemini-3.8-flash": { inputPerM: 0.75, outputPerM: 3.75, asOf: "2026-09-12" },
 };

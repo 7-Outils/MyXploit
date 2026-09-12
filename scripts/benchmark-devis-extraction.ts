@@ -25,10 +25,10 @@ interface Run {
   cost: string;
 }
 
-// Tarifs au 12/09/2026 (USD) — Gemini 3.8 Flash 0,75 $/M entrée, 3,75 $/M
-// sortie ; Mistral OCR 4.1 annoté 5 $ les 1 000 pages.
-const GEMINI_IN = 0.75 / 1_000_000;
-const GEMINI_OUT = 3.75 / 1_000_000;
+// Tarifs au 12/09/2026 (USD) — Gemini 3.5 Flash-Lite 0,30 $/M entrée,
+// 2,50 $/M sortie ; Mistral OCR 4.1 annoté 5 $ les 1 000 pages.
+const GEMINI_IN = 0.3 / 1_000_000;
+const GEMINI_OUT = 2.5 / 1_000_000;
 const MISTRAL_PAGE = 5 / 1000;
 
 const MISTRAL_SCHEMA = {
