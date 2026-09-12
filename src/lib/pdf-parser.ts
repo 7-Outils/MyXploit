@@ -183,8 +183,11 @@ export function parseQuoteFromText(text: string): ParsedQuote {
       // L'extracteur de texte colle parfois l'en-tête du tableau de lignes à
       // la fin de l'objet (« … dans l'armoire Référence Désignation Unité Qt »).
       objet = objet.replace(TABLE_HEADER_TAIL, "").trim();
-      // Nettoyer - enlever les quantités/prix à la fin et caractères indésirables
-      objet = objet.replace(/\s+\d+[\s,\.]*\d*\s*(€|EUR|U\.|Ens|Forf|ML|M2|M3|H)?.*$/i, "").trim();
+      // Retirer un montant ou une quantité+unité de devis en fin d'objet — mais
+      // jamais un simple nombre : « Remplacement de 2 purgeurs » doit survivre.
+      objet = objet
+        .replace(/\s+(?:\d[\d\s ]*[,.]\d{2}\s*(?:€|EUR)?|\d+\s*(?:€|EUR|U\.?|Ens\.?|Forf\.?|ML|M2|M3|H)(?=\s|$)).*$/i, "")
+        .trim();
       objet = objet.replace(/\s{2,}/g, " ").trim(); // Espaces multiples
       // Ignorer si c'est clairement des CGV (contient "génie climatique" sans contexte travaux)
       if (objet.toLowerCase().includes("génie climatique") && !objet.toLowerCase().includes("remplacement")) {
