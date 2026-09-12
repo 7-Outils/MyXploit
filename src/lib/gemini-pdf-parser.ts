@@ -1,5 +1,5 @@
 import { Type } from "@google/genai";
-import type { ParsedQuote } from "./pdf-parser";
+import type { ParsedQuote } from "./quote-import";
 import { aiJson, type AiConfig } from "@/lib/ai-client";
 
 const PROMPT = `Tu analyses un document PDF français : un devis ou une facture provenant d'un exploitant de chauffage (Dalkia, ENGIE, IDEX, Équans, etc.) ou d'un artisan local.
@@ -95,7 +95,6 @@ export async function parseWithGemini(pdfBuffer: Buffer, ai: AiConfig): Promise<
         amountHT: parsed.amountHT,
         issueDate: parsed.issueDate ?? null,
         quoteType: mappedQuoteType,
-        rawText: "",
       },
       error: null,
     };

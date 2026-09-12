@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import {
-  parseQuotePDF,
-  findSiteMatch,
-  ParsedQuote,
-} from "@/lib/pdf-parser";
+import { findSiteMatch, emptyParsedQuote, type ParsedQuote } from "@/lib/quote-import";
 import { parseWithGemini } from "@/lib/gemini-pdf-parser";
 import { getOrgAi } from "@/lib/ai-key";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
@@ -123,34 +119,24 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Parse PDF — Gemini d'abord (si configuré), fallback regex
-    let parsed: ParsedQuote;
-    let source: "gemini" | "regex" = "regex";
-    // Pourquoi la lecture IA n'a pas eu lieu : affiché dans le formulaire,
-    // sinon l'utilisateur ne distingue pas une IA absente d'une IA en panne.
+    // Lecture IA seule, sans parser de secours : si elle n'a pas lieu, le
+    // formulaire s'ouvre vide avec la cause. Une valeur devinée qui a l'air
+    // vraie est pire qu'une case vide.
+    let parsed: ParsedQuote = emptyParsedQuote();
+    let source: "gemini" | "none" = "none";
     let aiError: string | null = null;
 
     const aiCfg = await getOrgAi(effectiveOrgId);
-    try {
-      if (aiCfg) {
-        const geminiResult = await parseWithGemini(buffer, aiCfg);
-        if (geminiResult.parsed) {
-          parsed = geminiResult.parsed;
-          source = "gemini";
-        } else {
-          aiError = geminiResult.error;
-          parsed = await parseQuotePDF(buffer);
-        }
+    if (aiCfg) {
+      const geminiResult = await parseWithGemini(buffer, aiCfg);
+      if (geminiResult.parsed) {
+        parsed = geminiResult.parsed;
+        source = "gemini";
       } else {
-        aiError = "aucun fournisseur IA configuré dans Paramètres";
-        parsed = await parseQuotePDF(buffer);
+        aiError = geminiResult.error;
       }
-    } catch (pdfError) {
-      console.error("PDF parsing error:", pdfError);
-      return NextResponse.json(
-        { error: "Erreur lors de l'analyse du PDF", details: pdfError instanceof Error ? pdfError.message : String(pdfError) },
-        { status: 400 }
-      );
+    } else {
+      aiError = "aucun fournisseur IA configuré dans Paramètres";
     }
 
     // Try to find matching site
