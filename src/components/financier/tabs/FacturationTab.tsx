@@ -13,6 +13,7 @@ import {
   FileText,
   Paperclip,
   AlertTriangle,
+  Wand2,
 } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 import { SortableTh, type SortState } from "@/components/ui/SortableTh";
@@ -107,6 +108,9 @@ interface FacturationTabProps {
   canDeleteInvoice: boolean;
   handleAttachPdf: (id: string) => void;
   attachingId: string | null;
+  /** Nature manquante : relue sur le PDF archivé (factures d'avant le champ). */
+  handleReadNature: (id: string) => void;
+  readingNatureId: string | null;
   /** Erreur d'une action sur une ligne (PDF joint, détail chargé). */
   attachError: string | null;
   /** Facture dont le détail est en cours de chargement avant édition. */
@@ -147,6 +151,8 @@ export function FacturationTab({
   canDeleteInvoice,
   handleAttachPdf,
   attachingId,
+  handleReadNature,
+  readingNatureId,
   attachError,
   loadingInvoiceDetailId,
   setShowImportModal,
@@ -170,9 +176,9 @@ export function FacturationTab({
   return (
     <>
       {/* Filters + Actions */}
-      {/* Même largeur bornée que le tableau, sinon la barre déborde à droite
-          d'un tableau qui s'arrête avant elle. */}
-      <div className="mx-auto flex max-w-6xl items-center gap-2 flex-wrap">
+      {/* Pleine largeur, comme l'onglet Devis voisin : un bloc borné ici
+          faisait sauter la mise en page d'un onglet à l'autre. */}
+      <div className="flex items-center gap-2 flex-wrap">
         <div className="flex border border-ink/10">
           {(["ALL", "EN_ATTENTE", "VALIDEE", "REFUSEE"] as StatusFilter[]).map((status) => (
             <button
@@ -302,9 +308,7 @@ export function FacturationTab({
           </p>
         </div>
       ) : (
-        // Largeur bornée : neuf colonnes étirées sur un grand écran, ça se
-        // lit mal — le contenu reste groupé, l'espace vide est à droite.
-        <div className={`mx-auto max-w-6xl bg-white border border-ink/10 overflow-hidden transition-opacity ${stale ? "opacity-60" : ""}`}>
+        <div className={`bg-white border border-ink/10 overflow-hidden transition-opacity ${stale ? "opacity-60" : ""}`}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white">
@@ -353,6 +357,24 @@ export function FacturationTab({
                               </span>
                             )}
                           </>
+                        ) : invoice.documentUrl ? (
+                          // Facture d'avant le champ Nature : on la relit sur
+                          // le PDF archivé, sans toucher au reste (autorisé
+                          // même validée — on remplit un vide, on ne modifie rien).
+                          <ReadOnlyGate fallback={<span className="text-ink/25">—</span>}>
+                            <button
+                              onClick={() => handleReadNature(invoice.id)}
+                              disabled={readingNatureId !== null}
+                              title="Lire la nature sur le PDF"
+                              className="inline-flex h-9 w-9 items-center justify-center text-ink/40 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
+                            >
+                              {readingNatureId === invoice.id ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <Wand2 size={16} />
+                              )}
+                            </button>
+                          </ReadOnlyGate>
                         ) : (
                           <span className="text-ink/25">—</span>
                         )}
