@@ -50,6 +50,7 @@ const TH_NUM = "label-tech px-3 py-2.5 text-right";
 export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnalytics }: DecompteP3TabProps) {
   const [sortKey, setSortKey] = useState<SortKey>("p3Balance");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const unallocated = siteAnalytics?.unallocatedP3Invoices ?? 0;
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -203,6 +204,17 @@ export function DecompteP3Tab({ loading, p3Data, siteAnalytics, loadingSiteAnaly
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-ink/50">Aucun site avec activité P3</p>
+          )}
+          {/* Lignes facturées sur un libellé qui ne correspond à aucun site du
+              contrat : le montant existe, mais l'attribuer au prorata
+              inventerait des recettes sur des sites qui n'ont rien reçu. */}
+          {!loadingSiteAnalytics && unallocated > 0 && (
+            <div className="flex items-baseline justify-between border-t border-ink/10 px-3 py-2">
+              <span className="text-[12px] text-[#8a6200]">Non rattaché à un site</span>
+              <span className="font-mono text-[13px] tabular-nums text-[#8a6200]">
+                {fmt(unallocated)} €
+              </span>
+            </div>
           )}
         </div>
       </div>

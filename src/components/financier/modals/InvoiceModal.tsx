@@ -3,6 +3,7 @@
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { P1_SUBTYPES } from "@/components/financier/constants";
+import { InvoiceLinesTable } from "@/components/financier/modals/InvoiceLinesTable";
 import type { InvoiceFormData, InvoiceType, Site } from "@/components/financier/types";
 
 const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "AUTRE"];
@@ -29,9 +30,24 @@ export function InvoiceModal({
   error,
   handleSubmit,
 }: InvoiceModalProps) {
+  const hasLines = formData.lines.length > 0;
+  const parsedAmount = Number.parseFloat(formData.amount);
+  const amountHT = Number.isFinite(parsedAmount) ? parsedAmount : null;
+
+  const setLineSite = (index: number, siteId: string) => {
+    setFormData({
+      ...formData,
+      lines: formData.lines.map((line, i) => (i === index ? { ...line, siteId } : line)),
+    });
+  };
+
   return (
     <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-ink/15 shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div
+        className={`bg-white border border-ink/15 shadow-large w-full max-h-[90vh] overflow-y-auto ${
+          hasLines ? "max-w-2xl" : "max-w-lg"
+        }`}
+      >
         <div className="flex items-center justify-between p-4 border-b border-ink/10">
           <h2 className="text-base font-semibold text-ink">
             {editing ? "Modifier la facture" : "Nouvelle facture"}
@@ -115,6 +131,35 @@ export function InvoiceModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label-tech mb-1.5 block">Période facturée — début</label>
+              <input
+                type="date"
+                value={formData.periodStart}
+                onChange={(e) => setFormData({ ...formData, periodStart: e.target.value })}
+                className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="label-tech mb-1.5 block">Période facturée — fin</label>
+              <input
+                type="date"
+                value={formData.periodEnd}
+                onChange={(e) => setFormData({ ...formData, periodEnd: e.target.value })}
+                className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+              />
+            </div>
+          </div>
+
+          {hasLines ? (
+            <InvoiceLinesTable
+              lines={formData.lines}
+              contractSites={contractSites}
+              onChangeSite={setLineSite}
+              amountHT={amountHT}
+            />
+          ) : (
           <div>
             <label className="label-tech mb-1.5 block">
               Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
@@ -135,6 +180,7 @@ export function InvoiceModal({
               Laisser vide si la facture couvre l&apos;ensemble des sites du contrat
             </p>
           </div>
+          )}
 
           <div>
             <label className="label-tech mb-1.5 block">Description</label>

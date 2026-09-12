@@ -15,6 +15,46 @@ export const AI_HARD_MAX_PAGES = 8;
 // première page qui le porte.
 const TOTAL_HT = /(?:total|montant|net)\s*(?:g[ée]n[ée]ral\s*)?h\.?\s*t\b/i;
 
+/**
+ * Plafond dur pour les documents envoyés en entier à l'IA (factures : la
+ * répartition par site vient APRÈS le total, on ne peut pas couper au total).
+ * Au-delà, les tokens d'entrée deviennent le poste de coût principal.
+ */
+export const AI_FULL_DOCUMENT_MAX_PAGES = 40;
+
+export interface CapResult {
+  buffer: Buffer;
+  /** Pages du document d'origine (0 si illisible). */
+  pages: number;
+  /** Vrai si le document a été coupé au plafond. */
+  truncated: boolean;
+}
+
+/**
+ * Renvoie le PDF tel quel s'il tient sous le plafond, sinon ses `max`
+ * premières pages. Contrairement à trimPdfForAi, ne cherche pas le total HT :
+ * sur une facture, tout ce qui suit le total nous intéresse.
+ */
+export async function capPdfPages(
+  pdf: Buffer,
+  max: number = AI_FULL_DOCUMENT_MAX_PAGES
+): Promise<CapResult> {
+  try {
+    const source = await PDFDocument.load(pdf, { ignoreEncryption: true });
+    const pages = source.getPageCount();
+    if (pages <= max) return { buffer: pdf, pages, truncated: false };
+
+    const capped = await PDFDocument.create();
+    const copied = await capped.copyPages(source, Array.from({ length: max }, (_, i) => i));
+    for (const page of copied) capped.addPage(page);
+    const bytes = await capped.save();
+    return { buffer: Buffer.from(bytes), pages, truncated: true };
+  } catch (error) {
+    console.error("PDF page cap failed, sending the full document:", error);
+    return { buffer: pdf, pages: 0, truncated: false };
+  }
+}
+
 export interface TrimResult {
   buffer: Buffer;
   /** Pages du document d'origine (0 si illisible). */

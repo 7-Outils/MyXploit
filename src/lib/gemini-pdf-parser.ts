@@ -3,7 +3,9 @@ import type { ParsedQuote } from "./quote-import";
 import {
   INVOICE_TYPES,
   P1_SUBTYPES,
+  stripLineOrderPrefix,
   type ParsedInvoice,
+  type ParsedInvoiceLine,
   type InvoiceTypeValue,
   type P1SubType,
 } from "./invoice-import";
@@ -76,7 +78,11 @@ Règle de rattachement au site — importante :
 
 Pour amountHT, retourne le montant total hors taxes en nombre décimal (sans symbole monétaire ni espaces).
 
-Pour issueDate, retourne la date d'émission de la facture au format ISO "YYYY-MM-DD". C'est la date affichée en tête du document, pas la date d'échéance, pas la période de prestation.`;
+Pour issueDate, retourne la date d'émission de la facture au format ISO "YYYY-MM-DD". C'est la date affichée en tête du document, pas la date d'échéance, pas la période de prestation.
+
+periodStart / periodEnd : la période de prestation facturée, au format ISO "YYYY-MM-DD" (mentions du genre « Période facturée du 01/06/2026 au 31/08/2026 », « Prestations du … au … »). null si le document ne l'indique pas.
+
+lines : la liste COMPLÈTE des sites facturés, dans l'ordre du document. Pour chaque site : label = nom du site tel qu'écrit, sans le numéro d'ordre qui le précède ; amountHT = montant hors taxes facturé pour ce site sur CETTE facture (le « Total HT » du bloc du site), et surtout pas le prix de base annuel ni un montant de référence. N'omets aucun site, n'invente aucun site, ne regroupe pas deux sites en une ligne. Si la facture ne détaille pas la répartition par site, retourne une liste vide.`;
 
 export const invoiceResponseSchema = {
   type: Type.OBJECT,
@@ -87,6 +93,8 @@ export const invoiceResponseSchema = {
     objet: { type: Type.STRING, nullable: true },
     amountHT: { type: Type.NUMBER, nullable: true },
     issueDate: { type: Type.STRING, nullable: true },
+    periodStart: { type: Type.STRING, nullable: true },
+    periodEnd: { type: Type.STRING, nullable: true },
     invoiceType: {
       type: Type.STRING,
       enum: [...INVOICE_TYPES],
@@ -97,8 +105,24 @@ export const invoiceResponseSchema = {
       enum: [...P1_SUBTYPES],
       nullable: true,
     },
+    lines: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          label: { type: Type.STRING },
+          amountHT: { type: Type.NUMBER },
+        },
+        required: ["label", "amountHT"],
+      },
+    },
   },
 };
+
+/** Date ISO stricte : le modèle renvoie parfois "31/08/2026" ou du vide. */
+function isoDateOrNull(value: unknown): string | null {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
 
 /**
  * Traduit l'erreur du fournisseur en une phrase actionnable, et surtout ne
@@ -216,8 +240,11 @@ export async function parseInvoiceWithGemini(
       objet: string | null;
       amountHT: number | null;
       issueDate: string | null;
+      periodStart: string | null;
+      periodEnd: string | null;
       invoiceType: string | null;
       p1SubType: string | null;
+      lines: Array<{ label?: unknown; amountHT?: unknown }> | null;
     };
 
     // Le modèle peut renvoyer une valeur hors enum malgré le schéma : on la
@@ -231,6 +258,16 @@ export async function parseInvoiceWithGemini(
         ? (parsed.p1SubType as P1SubType)
         : null;
 
+    // Lignes : on retire le numéro d'ordre du libellé et on jette ce qui n'a
+    // ni nom ni montant numérique — une ligne à montant absent fausserait la
+    // somme affichée à l'écran sans qu'on puisse la corriger.
+    const lines: ParsedInvoiceLine[] = (Array.isArray(parsed.lines) ? parsed.lines : [])
+      .map((line) => ({
+        label: typeof line?.label === "string" ? stripLineOrderPrefix(line.label) : "",
+        amountHT: typeof line?.amountHT === "number" ? line.amountHT : Number.NaN,
+      }))
+      .filter((line) => line.label.length > 0 && Number.isFinite(line.amountHT));
+
     return {
       parsed: {
         reference: parsed.reference,
@@ -238,9 +275,12 @@ export async function parseInvoiceWithGemini(
         siteCity: parsed.siteCity,
         objet: parsed.objet,
         amountHT: parsed.amountHT,
-        issueDate: parsed.issueDate ?? null,
+        issueDate: isoDateOrNull(parsed.issueDate),
+        periodStart: isoDateOrNull(parsed.periodStart),
+        periodEnd: isoDateOrNull(parsed.periodEnd),
         invoiceType,
         p1SubType,
+        lines,
       },
       error: null,
       usage: result.usage,

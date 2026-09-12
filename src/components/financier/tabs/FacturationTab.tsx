@@ -25,6 +25,30 @@ import type {
   TypeFilter,
 } from "@/components/financier/types";
 
+/**
+ * Période de prestation, forme courte « 01/06 → 31/08/2026 » : l'année n'est
+ * rappelée sur la borne de début que si elle diffère de celle de fin.
+ */
+function formatPeriod(start?: string | null, end?: string | null): string | null {
+  if (!start && !end) return null;
+  const fmt = (iso: string, withYear: boolean) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return withYear
+      ? d.toLocaleDateString("fr-FR")
+      : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  };
+  if (start && end) {
+    const sameYear = new Date(start).getFullYear() === new Date(end).getFullYear();
+    const a = fmt(start, !sameYear);
+    const b = fmt(end, true);
+    return a && b ? `${a} → ${b}` : null;
+  }
+  const only = fmt((start ?? end) as string, true);
+  if (!only) return null;
+  return start ? `depuis ${only}` : `jusqu'au ${only}`;
+}
+
 interface FacturationTabProps {
   loading: boolean;
   /** Erreur SWR : une route en panne n'est pas une liste vide. */
@@ -59,7 +83,10 @@ interface FacturationTabProps {
   canDeleteInvoice: boolean;
   handleAttachPdf: (id: string) => void;
   attachingId: string | null;
+  /** Erreur d'une action sur une ligne (PDF joint, détail chargé). */
   attachError: string | null;
+  /** Facture dont le détail est en cours de chargement avant édition. */
+  loadingInvoiceDetailId: string | null;
   setShowImportModal: (v: boolean) => void;
   setShowInvoiceModal: (v: boolean) => void;
 }
@@ -94,6 +121,7 @@ export function FacturationTab({
   handleAttachPdf,
   attachingId,
   attachError,
+  loadingInvoiceDetailId,
   setShowImportModal,
   setShowInvoiceModal,
 }: FacturationTabProps) {
@@ -232,6 +260,7 @@ export function FacturationTab({
                   <SortableTh label="Référence" col="reference" sort={sort} onSort={onSort} />
                   <SortableTh label="Type" col="type" sort={sort} onSort={onSort} />
                   <SortableTh label="Site" col="site" sort={sort} onSort={onSort} />
+                  <th className="label-tech px-4 py-2.5 text-left">Sites</th>
                   <SortableTh label="Montant HT" col="amount" sort={sort} onSort={onSort} className="text-right" />
                   <SortableTh label="État" col="status" sort={sort} onSort={onSort} />
                   <th className="label-tech px-4 py-2.5 text-center">PDF</th>
@@ -242,9 +271,22 @@ export function FacturationTab({
                 {invoices.map((invoice) => {
                   const status = statusConfig[invoice.status];
                   const type = typeConfig[invoice.type];
+                  // Répartition par site : la liste ne reçoit que les siteId,
+                  // assez pour dire combien de lignes et combien sans site.
+                  const lines = invoice.siteLines ?? [];
+                  const lineCount = lines.length;
+                  const unmatchedLines = lines.filter((l) => !l.siteId).length;
+                  const period = formatPeriod(invoice.periodStart, invoice.periodEnd);
                   return (
                     <tr key={invoice.id} className="border-t border-ink/[0.06] hover:bg-ink/[0.02] transition-colors">
-                      <td className="px-4 py-3 text-sm text-ink/60">{new Date(invoice.issueDate).toLocaleDateString("fr-FR")}</td>
+                      <td className="px-4 py-3 text-sm text-ink/60">
+                        {new Date(invoice.issueDate).toLocaleDateString("fr-FR")}
+                        {period && (
+                          <div className="font-mono text-[10px] text-ink/45" title="Période facturée">
+                            {period}
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium text-ink">{invoice.reference}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 text-xs font-medium ${type.color}`}>
@@ -252,6 +294,18 @@ export function FacturationTab({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-ink/60">{invoice.site ? invoice.site.name : "—"}</td>
+                      <td className="px-4 py-3 text-sm text-ink/60">
+                        {lineCount === 0 ? (
+                          "—"
+                        ) : (
+                          <>
+                            <span className="font-mono tabular-nums">{lineCount}</span>
+                            {unmatchedLines > 0 && (
+                              <span className="text-[#8a6200]"> · {unmatchedLines} non rattachée{unmatchedLines > 1 ? "s" : ""}</span>
+                            )}
+                          </>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">{invoice.amount.toLocaleString("fr-FR")} €</td>
                       <td className="px-4 py-3 text-sm">
                         {invoice.status === "VALIDEE" ? (
@@ -335,10 +389,15 @@ export function FacturationTab({
                             )}
                             <button
                               onClick={() => handleEditInvoice(invoice)}
+                              disabled={loadingInvoiceDetailId === invoice.id}
                               title="Modifier"
-                              className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-accent hover:bg-ink/[0.02] transition-colors"
+                              className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
                             >
-                              <Pencil size={16} />
+                              {loadingInvoiceDetailId === invoice.id ? (
+                                <Loader2 size={16} className="animate-spin" />
+                              ) : (
+                                <Pencil size={16} />
+                              )}
                             </button>
                             {canDeleteInvoice && (
                               <button

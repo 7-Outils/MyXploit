@@ -26,6 +26,12 @@ interface SiteP3AnalyticsResponse {
     p3Quotes: number;
     p3Balance: number;
   };
+  /**
+   * Montant P3 facturé sur des lignes qui ne correspondent à aucun site du
+   * contrat. Ne l'attribuer à personne est volontaire : le répartir au prorata
+   * inventerait des recettes sur des sites qui n'ont rien reçu.
+   */
+  unallocatedP3Invoices: number;
 }
 
 // GET /api/contracts/[id]/site-analytics - Get P3 balance per site
@@ -85,6 +91,10 @@ export async function GET(
       select: {
         siteId: true,
         amount: true,
+        // Répartition lue sur la facture : quand elle existe, elle prime sur
+        // le prorata contractuel — c'est le montant réellement facturé site
+        // par site, pas une estimation.
+        siteLines: { select: { siteId: true, amountHT: true } },
       },
     });
 
@@ -129,7 +139,26 @@ export async function GET(
     const totalContractP3 = [...sitesMap.values()].reduce((sum, s) => sum + s.amountP3Contract, 0);
 
     // Add P3 invoices
+    let unallocatedP3Invoices = 0;
     for (const invoice of invoices) {
+      if (invoice.siteLines.length > 0) {
+        // Facture détaillée : chaque site reçoit la somme exacte de ses lignes.
+        const perSite = new Map<string, number>();
+        for (const line of invoice.siteLines) {
+          if (!line.siteId || !sitesMap.has(line.siteId)) {
+            unallocatedP3Invoices += line.amountHT;
+            continue;
+          }
+          perSite.set(line.siteId, (perSite.get(line.siteId) ?? 0) + line.amountHT);
+        }
+        for (const [lineSiteId, amount] of perSite) {
+          const siteData = sitesMap.get(lineSiteId);
+          if (!siteData) continue;
+          siteData.p3InvoiceCount++;
+          siteData.p3Invoices += amount;
+        }
+        continue;
+      }
       if (invoice.siteId) {
         const siteData = sitesMap.get(invoice.siteId);
         if (siteData) {
@@ -187,6 +216,7 @@ export async function GET(
       contractReference: contract.reference,
       sites,
       totals,
+      unallocatedP3Invoices,
     };
 
     return NextResponse.json(response);

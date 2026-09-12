@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { invoiceUpdateSchema } from "@/lib/validations";
+import { replaceInvoiceSiteLines } from "@/lib/invoice-site-lines";
+
+/** Lignes de répartition renvoyées telles quelles aux écrans d'édition. */
+const siteLinesInclude = {
+  select: {
+    id: true,
+    label: true,
+    amountHT: true,
+    sortOrder: true,
+    siteId: true,
+    site: { select: { id: true, name: true } },
+  },
+  orderBy: { sortOrder: "asc" as const },
+};
 
 // GET /api/invoices/[id] - Get a single invoice
 export async function GET(
@@ -21,6 +35,7 @@ export async function GET(
       include: {
         site: true,
         contract: true,
+        siteLines: siteLinesInclude,
       },
     });
 
@@ -93,25 +108,55 @@ export async function PUT(
           ? input.p1SubType || null
           : existingInvoice.p1SubType;
 
-    const invoice = await prisma.invoice.update({
-      where: { id },
-      data: {
-        ...(input.reference !== undefined && { reference: input.reference }),
-        ...(input.type !== undefined && { type: input.type }),
-        ...(input.amount !== undefined && { amount: input.amount }),
-        ...(input.taxAmount !== undefined && { taxAmount: input.taxAmount ?? null }),
-        ...(input.issueDate !== undefined && { issueDate: new Date(input.issueDate) }),
-        ...(input.dueDate ? { dueDate: new Date(input.dueDate) } : {}),
-        ...(input.description !== undefined && { description: input.description ?? null }),
-        ...(input.documentUrl !== undefined && { documentUrl: input.documentUrl ?? null }),
-        ...(input.siteId !== undefined && { siteId: input.siteId ?? null }),
-        ...(input.contractId !== undefined && { contractId: input.contractId ?? null }),
-        p1SubType: nextP1SubType,
-      },
-      include: {
-        site: { select: { id: true, name: true, city: true } },
-        contract: { select: { id: true, reference: true, provider: true } },
-      },
+    // `lines` absent = le client ne touche pas à la répartition (édition
+    // partielle) ; `lines: []` = il la vide explicitement.
+    const nextLines = input.lines;
+    const nextContractId =
+      input.contractId !== undefined ? (input.contractId ?? null) : existingInvoice.contractId;
+
+    const invoice = await prisma.$transaction(async (tx) => {
+      await tx.invoice.update({
+        where: { id },
+        data: {
+          ...(input.reference !== undefined && { reference: input.reference }),
+          ...(input.type !== undefined && { type: input.type }),
+          ...(input.amount !== undefined && { amount: input.amount }),
+          ...(input.taxAmount !== undefined && { taxAmount: input.taxAmount ?? null }),
+          ...(input.issueDate !== undefined && { issueDate: new Date(input.issueDate) }),
+          ...(input.dueDate ? { dueDate: new Date(input.dueDate) } : {}),
+          ...(input.periodStart !== undefined && {
+            periodStart: input.periodStart ? new Date(input.periodStart) : null,
+          }),
+          ...(input.periodEnd !== undefined && {
+            periodEnd: input.periodEnd ? new Date(input.periodEnd) : null,
+          }),
+          ...(input.description !== undefined && { description: input.description ?? null }),
+          ...(input.documentUrl !== undefined && { documentUrl: input.documentUrl ?? null }),
+          ...(input.siteId !== undefined && { siteId: input.siteId ?? null }),
+          ...(input.contractId !== undefined && { contractId: input.contractId ?? null }),
+          p1SubType: nextP1SubType,
+          // Facture répartie : pas de site global en plus des lignes.
+          ...(nextLines && nextLines.length > 0 ? { siteId: null } : {}),
+        },
+      });
+
+      if (nextLines) {
+        await replaceInvoiceSiteLines(tx, {
+          invoiceId: id,
+          contractId: nextContractId,
+          organizationId: effectiveOrgId,
+          lines: nextLines,
+        });
+      }
+
+      return tx.invoice.findUniqueOrThrow({
+        where: { id },
+        include: {
+          site: { select: { id: true, name: true, city: true } },
+          contract: { select: { id: true, reference: true, provider: true } },
+          siteLines: siteLinesInclude,
+        },
+      });
     });
 
     return NextResponse.json(invoice);

@@ -53,8 +53,11 @@ const emptyInvoiceForm: InvoiceFormData = {
   p1SubType: "",
   amount: "",
   issueDate: "",
+  periodStart: "",
+  periodEnd: "",
   description: "",
   siteId: "",
+  lines: [],
 };
 
 function FinancierPageContent() {
@@ -156,6 +159,9 @@ function FinancierPageContent() {
   const [refusingInvoiceId, setRefusingInvoiceId] = useState<string | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  // Chargement du détail (lignes de répartition) avant d'ouvrir l'édition.
+  const [loadingInvoiceDetailId, setLoadingInvoiceDetailId] = useState<string | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -178,6 +184,8 @@ function FinancierPageContent() {
   const [importSource, setImportSource] = useState<"ia" | "degrade" | null>(null);
   const [importAiError, setImportAiError] = useState<string | null>(null);
   const [importedPdfUrl, setImportedPdfUrl] = useState<string | null>(null);
+  // PDF trop long pour être lu en entier : la fin de la répartition peut manquer.
+  const [importTruncated, setImportTruncated] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [matchedSiteId, setMatchedSiteId] = useState<string | null>(null);
   const [importFormData, setImportFormData] = useState<InvoiceFormData>(emptyInvoiceForm);
@@ -201,19 +209,56 @@ function FinancierPageContent() {
     setFormError(null);
   };
 
-  const handleEditInvoice = (invoice: Invoice) => {
-    setEditingInvoice(invoice);
+  const handleEditInvoice = async (invoice: Invoice) => {
     setFormError(null);
-    setFormData({
+    setDetailError(null);
+    const baseForm: InvoiceFormData = {
       reference: invoice.reference,
       type: invoice.type,
       p1SubType: invoice.p1SubType ?? "",
       amount: String(invoice.amount),
       issueDate: invoice.issueDate.slice(0, 10),
+      periodStart: invoice.periodStart ? invoice.periodStart.slice(0, 10) : "",
+      periodEnd: invoice.periodEnd ? invoice.periodEnd.slice(0, 10) : "",
       description: invoice.description ?? "",
       siteId: invoice.site?.id ?? "",
-    });
-    setShowInvoiceModal(true);
+      lines: [],
+    };
+
+    // La liste ne transporte que le siteId des lignes : pour éditer la
+    // répartition il faut le détail. Tant qu'il n'est pas là on n'ouvre pas le
+    // formulaire — un tableau vide passerait pour « aucune ligne ».
+    if (!invoice.siteLines || invoice.siteLines.length === 0) {
+      setEditingInvoice(invoice);
+      setFormData(baseForm);
+      setShowInvoiceModal(true);
+      return;
+    }
+
+    setLoadingInvoiceDetailId(invoice.id);
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}`);
+      if (!res.ok) {
+        setDetailError("Impossible de charger la répartition par site");
+        return;
+      }
+      const detail = (await res.json()) as Invoice;
+      setEditingInvoice(invoice);
+      setFormData({
+        ...baseForm,
+        lines: (detail.siteLines ?? []).map((line) => ({
+          label: line.label ?? "",
+          amountHT: line.amountHT ?? 0,
+          siteId: line.siteId ?? "",
+        })),
+      });
+      setShowInvoiceModal(true);
+    } catch (error) {
+      console.error("Error loading invoice detail:", error);
+      setDetailError("Erreur réseau lors du chargement de la facture");
+    } finally {
+      setLoadingInvoiceDetailId(null);
+    }
   };
 
   // Création et édition partagent le formulaire ; seul le verbe HTTP change.
@@ -229,9 +274,19 @@ function FinancierPageContent() {
         p1SubType: formData.type === "P1" ? formData.p1SubType || null : null,
         amount: parseFloat(formData.amount) || 0,
         issueDate: formData.issueDate,
+        periodStart: formData.periodStart || null,
+        periodEnd: formData.periodEnd || null,
         description: formData.description || null,
         siteId: formData.siteId || null,
         contractId: selectedContract.id,
+        // Répartition renvoyée telle quelle : le serveur remplace les lignes
+        // et mémorise les rattachements corrigés comme alias.
+        lines: formData.lines.map((line, index) => ({
+          label: line.label,
+          amountHT: line.amountHT,
+          siteId: line.siteId || null,
+          sortOrder: index,
+        })),
         // Édition : le PDF déjà rattaché ne doit pas être perdu.
         ...(editingInvoice ? { documentUrl: editingInvoice.documentUrl } : {}),
       };
@@ -346,6 +401,7 @@ function FinancierPageContent() {
     setImportSource(null);
     setImportAiError(null);
     setImportedPdfUrl(null);
+    setImportTruncated(false);
     setImportError(null);
     setMatchedSiteId(null);
     setImportFormData(emptyInvoiceForm);
@@ -387,6 +443,23 @@ function FinancierPageContent() {
         p1SubType: string | null;
         issueDate: string | null;
       };
+      // Répartition site par site lue sur le PDF, avec le rapprochement
+      // proposé (alias mémorisé, ou déduction sur le libellé).
+      const importedLines = (
+        Array.isArray(result.lines)
+          ? (result.lines as Array<{
+              label: string;
+              amountHT: number;
+              siteId: string | null;
+              matchedBy: "alias" | "auto" | null;
+            }>)
+          : []
+      ).map((line) => ({
+        label: line.label,
+        amountHT: line.amountHT,
+        siteId: line.siteId ?? "",
+        matchedBy: line.matchedBy,
+      }));
 
       setImportFormData({
         reference: parsed.reference ?? "",
@@ -398,10 +471,15 @@ function FinancierPageContent() {
         // Date d'émission non trouvée : on laisse vide plutôt que d'inscrire
         // la date du jour, qui passerait pour une valeur lue sur la facture.
         issueDate: parsed.issueDate ?? "",
+        periodStart: typeof result.periodStart === "string" ? result.periodStart : "",
+        periodEnd: typeof result.periodEnd === "string" ? result.periodEnd : "",
         description: parsed.objet ?? "",
-        siteId: result.matchedSite?.id ?? "",
+        // Facture répartie : pas de site global, la répartition porte tout.
+        siteId: importedLines.length > 0 ? "" : (result.matchedSite?.id ?? ""),
+        lines: importedLines,
       });
-      setMatchedSiteId(result.matchedSite?.id ?? null);
+      setImportTruncated(result.truncated === true);
+      setMatchedSiteId(importedLines.length > 0 ? null : (result.matchedSite?.id ?? null));
       setImportSource(result.source === "gemini" ? "ia" : "degrade");
       setImportAiError(typeof result.aiError === "string" ? result.aiError : null);
       setImportedPdfUrl(result.documentUrl ?? null);
@@ -434,9 +512,19 @@ function FinancierPageContent() {
           p1SubType: importFormData.type === "P1" ? importFormData.p1SubType || null : null,
           amount: parseFloat(importFormData.amount) || 0,
           issueDate: importFormData.issueDate,
+          periodStart: importFormData.periodStart || null,
+          periodEnd: importFormData.periodEnd || null,
           description: importFormData.description || null,
           siteId: importFormData.siteId || null,
           contractId: selectedContract.id,
+          // Les rattachements corrigés à l'écran sont enregistrés et mémorisés
+          // comme alias pour les prochains imports du même exploitant.
+          lines: importFormData.lines.map((line, index) => ({
+            label: line.label,
+            amountHT: line.amountHT,
+            siteId: line.siteId || null,
+            sortOrder: index,
+          })),
           // PDF archivé pendant l'import : on le rattache à la facture créée.
           documentUrl: importedPdfUrl,
         }),
@@ -562,7 +650,8 @@ function FinancierPageContent() {
           canDeleteInvoice={canDeleteInvoice}
           handleAttachPdf={handleAttachPdf}
           attachingId={attachingId}
-          attachError={attachError}
+          attachError={attachError ?? detailError}
+          loadingInvoiceDetailId={loadingInvoiceDetailId}
           setShowImportModal={setShowImportModal}
           setShowInvoiceModal={setShowInvoiceModal}
         />
@@ -610,6 +699,7 @@ function FinancierPageContent() {
           loadingContractSites={!contractSitesData}
           creating={creating}
           handleImportSubmit={handleImportSubmit}
+          importTruncated={importTruncated}
         />
       )}
 

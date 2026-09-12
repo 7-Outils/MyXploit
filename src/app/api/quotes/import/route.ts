@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { findSiteMatch, emptyParsedQuote, type ParsedQuote } from "@/lib/quote-import";
-import { emptyParsedInvoice, type ParsedInvoice } from "@/lib/invoice-import";
+import {
+  emptyParsedInvoice,
+  areLinesConsistent,
+  normalizeBillingAlias,
+  type ParsedInvoice,
+} from "@/lib/invoice-import";
 import { parseWithGemini, parseInvoiceWithGemini } from "@/lib/gemini-pdf-parser";
-import { trimPdfForAi } from "@/lib/pdf-trim";
+import { trimPdfForAi, capPdfPages, AI_FULL_DOCUMENT_MAX_PAGES } from "@/lib/pdf-trim";
 import { GEMINI_MODEL, estimateCostUsd, isAiConfigured } from "@/lib/ai-client";
 import { checkAiBudget, recordAiUsage } from "@/lib/ai-usage";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
@@ -13,6 +18,15 @@ import { archiveQuotePdfToR2 } from "@/lib/quote-pdf";
 // Le PDF part intégralement en tokens d'entrée chez Gemini : sans plafond,
 // un fichier volumineux ou une boucle de retry se paie directement.
 const MAX_PDF_SIZE = 10 * 1024 * 1024;
+
+/** Une ligne de répartition lue, avec son rapprochement proposé. */
+export interface ImportedInvoiceLine {
+  label: string;
+  amountHT: number;
+  siteId: string | null;
+  /** Comment le site a été trouvé ; null quand la ligne reste non rattachée. */
+  matchedBy: "alias" | "auto" | null;
+}
 
 export interface ImportResult {
   success: boolean;
@@ -24,6 +38,14 @@ export interface ImportResult {
   error?: string;
   /** Ligne de consommation IA de cet import, à renvoyer à la création du devis. */
   aiUsageId?: string;
+  /** Répartition par site (factures uniquement) ; absente pour un devis. */
+  lines?: ImportedInvoiceLine[];
+  linesTotal?: number;
+  linesConsistent?: boolean;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  /** Le PDF dépassait le plafond de pages : la fin n'a pas été lue. */
+  truncated?: boolean;
 }
 
 // POST /api/quotes/import - Import a quote from PDF
@@ -87,6 +109,7 @@ export async function POST(request: NextRequest) {
     let source: "gemini" | "none" = "none";
     let aiError: string | null = null;
     let aiUsageId: string | null = null;
+    let truncated = false;
 
     // Client de rattachement : la consommation IA est suivie par collectivité,
     // et le contrat doit appartenir à l'organisation.
@@ -107,9 +130,18 @@ export async function POST(request: NextRequest) {
       if (!budget.allowed) {
         aiError = budget.message ?? "plafond IA mensuel atteint";
       } else {
-        // Seules les premières pages partent chez Gemini ; l'archive R2 plus
-        // bas reçoit toujours le PDF complet.
-        const { buffer: aiBuffer } = await trimPdfForAi(buffer);
+        // Facture : le document part EN ENTIER (dans la limite du plafond de
+        // pages) — la répartition site par site vient après le total, couper au
+        // total la ferait disparaître. Devis : seules les premières pages.
+        // L'archive R2 plus bas reçoit toujours le PDF complet.
+        let aiBuffer: Buffer;
+        if (isInvoice) {
+          const capped = await capPdfPages(buffer, AI_FULL_DOCUMENT_MAX_PAGES);
+          aiBuffer = capped.buffer;
+          truncated = capped.truncated;
+        } else {
+          aiBuffer = (await trimPdfForAi(buffer)).buffer;
+        }
         // Consigne facture : elle connaît le P2 et le prorata multi-sites,
         // celle des devis classerait « conduite et entretien courant » en P1.
         const geminiResult = isInvoice
@@ -145,10 +177,57 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Répartition par site (factures détaillées) : chaque libellé lu est
+    // rapproché d'un site DU CONTRAT — d'abord par alias déjà validé, puis par
+    // le rapprochement flou, sinon rien. On ne devine pas : une ligne non
+    // rattachée est affichée comme telle.
+    const invoiceLines = isInvoice ? (parsed as ParsedInvoice).lines : [];
+    let importedLines: ImportedInvoiceLine[] = [];
+    if (isInvoice && invoiceLines.length > 0 && contractId) {
+      const [contractSites, aliases] = await Promise.all([
+        prisma.contractSite.findMany({
+          where: { contractId, contract: { organizationId: effectiveOrgId } },
+          select: { site: { select: { id: true, name: true, city: true, address: true } } },
+        }),
+        prisma.contractSiteAlias.findMany({
+          where: { contractId, organizationId: effectiveOrgId },
+          select: { alias: true, siteId: true },
+        }),
+      ]);
+      const sites = contractSites.map((cs) => cs.site);
+      const siteIds = new Set(sites.map((s) => s.id));
+      const aliasMap = new Map(
+        aliases.filter((a) => siteIds.has(a.siteId)).map((a) => [a.alias, a.siteId])
+      );
+
+      importedLines = invoiceLines.map((line) => {
+        const aliasSiteId = aliasMap.get(normalizeBillingAlias(line.label));
+        if (aliasSiteId) {
+          return { label: line.label, amountHT: line.amountHT, siteId: aliasSiteId, matchedBy: "alias" as const };
+        }
+        const auto = findSiteMatch(line.label, null, sites);
+        return {
+          label: line.label,
+          amountHT: line.amountHT,
+          siteId: auto?.id ?? null,
+          matchedBy: auto ? ("auto" as const) : null,
+        };
+      });
+    } else if (isInvoice) {
+      importedLines = invoiceLines.map((line) => ({
+        label: line.label,
+        amountHT: line.amountHT,
+        siteId: null,
+        matchedBy: null,
+      }));
+    }
+
     // Try to find matching site
     let matchedSite: { id: string; name: string } | null = null;
 
-    if (parsed.siteName || parsed.siteCity) {
+    // Facture détaillée par site : le site « global » n'a pas de sens, la
+    // répartition porte l'information. On ne le cherche même pas.
+    if (importedLines.length === 0 && (parsed.siteName || parsed.siteCity)) {
       const sites = await prisma.site.findMany({
         where: { organizationId: effectiveOrgId },
         select: { id: true, name: true, city: true, address: true },
@@ -170,6 +249,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Une facture détaillée par site n'a pas de site global : la laisser
+    // renseignée ferait apparaître un site « principal » qui n'existe pas.
+    if (importedLines.length > 0) {
+      parsed = { ...(parsed as ParsedInvoice), siteName: null, siteCity: null };
+    }
+
     // Return parsed data for preview
     const result: ImportResult & { source?: string; aiError?: string } = {
       success: true,
@@ -182,6 +267,16 @@ export async function POST(request: NextRequest) {
       // Renvoyé au front pour rattacher la ligne de consommation au devis
       // une fois celui-ci créé.
       aiUsageId: aiUsageId || undefined,
+      ...(isInvoice
+        ? {
+            lines: importedLines,
+            linesTotal: importedLines.reduce((sum, l) => sum + l.amountHT, 0),
+            linesConsistent: areLinesConsistent(importedLines, parsed.amountHT),
+            periodStart: (parsed as ParsedInvoice).periodStart,
+            periodEnd: (parsed as ParsedInvoice).periodEnd,
+            truncated,
+          }
+        : {}),
     };
 
     return NextResponse.json(result);

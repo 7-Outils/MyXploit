@@ -32,6 +32,13 @@ export const P1_SUBTYPES = [
 ] as const;
 export type P1SubType = (typeof P1_SUBTYPES)[number];
 
+/** Une ligne de répartition lue sur la facture : un site, un montant HT. */
+export interface ParsedInvoiceLine {
+  /** Libellé tel qu'écrit, numéro d'ordre « 13 - » retiré. */
+  label: string;
+  amountHT: number;
+}
+
 export interface ParsedInvoice {
   reference: string | null;
   siteName: string | null;
@@ -39,9 +46,14 @@ export interface ParsedInvoice {
   objet: string | null;
   amountHT: number | null;
   issueDate: string | null; // ISO "YYYY-MM-DD"
+  /** Période de prestation facturée, ISO "YYYY-MM-DD". */
+  periodStart: string | null;
+  periodEnd: string | null;
   invoiceType: InvoiceTypeValue | null;
   /** Renseigné uniquement quand invoiceType vaut P1. */
   p1SubType: P1SubType | null;
+  /** Répartition site par site ; vide quand la facture ne détaille pas. */
+  lines: ParsedInvoiceLine[];
 }
 
 export function emptyParsedInvoice(): ParsedInvoice {
@@ -52,7 +64,47 @@ export function emptyParsedInvoice(): ParsedInvoice {
     objet: null,
     amountHT: null,
     issueDate: null,
+    periodStart: null,
+    periodEnd: null,
     invoiceType: null,
     p1SubType: null,
+    lines: [],
   };
+}
+
+/**
+ * Retire le numéro d'ordre qui préfixe les blocs de la facture (« 13 - Mairie »
+ * → « Mairie »). Le numéro change d'une facture à l'autre : le garder ferait
+ * rater tous les rapprochements par alias.
+ */
+export function stripLineOrderPrefix(label: string): string {
+  return label.replace(/^\d+\s*[-–]\s*/, "").trim();
+}
+
+/**
+ * Forme normalisée d'un libellé de facturation, utilisée comme clé d'alias.
+ * Doit rester identique entre l'écriture (création/édition d'une facture) et
+ * la lecture (rapprochement à l'import), sinon les alias ne servent à rien.
+ */
+export function normalizeBillingAlias(label: string): string {
+  return stripLineOrderPrefix(label)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Écart toléré entre la somme des lignes et le total de la facture. */
+export const LINES_TOTAL_TOLERANCE = 0.05;
+
+/** Vrai si la somme des lignes retombe sur le total (ou s'il n'y a pas de ligne). */
+export function areLinesConsistent(
+  lines: Array<{ amountHT: number }>,
+  amountHT: number | null
+): boolean {
+  if (lines.length === 0) return true;
+  if (amountHT === null || !Number.isFinite(amountHT)) return false;
+  const sum = lines.reduce((acc, l) => acc + l.amountHT, 0);
+  return Math.abs(sum - amountHT) <= LINES_TOTAL_TOLERANCE;
 }

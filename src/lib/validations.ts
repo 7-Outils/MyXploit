@@ -95,6 +95,18 @@ export const quoteCreateSchema = z.object({
 // comme URL, on ne la fabrique jamais à partir d'une saisie libre.
 const invoiceDocumentUrlSchema = z.url().max(2000).nullish();
 
+/**
+ * Une ligne de répartition site par site. siteId null = ligne lue mais non
+ * rapprochée : c'est une situation normale (site hors périmètre, site manquant
+ * au contrat), elle doit pouvoir être enregistrée telle quelle.
+ */
+export const invoiceSiteLineSchema = z.object({
+  label: z.string().min(1).max(MAX_STRING_LENGTH),
+  amountHT: z.coerce.number().min(0).max(100000000),
+  siteId: idSchema.nullish(),
+  sortOrder: z.coerce.number().int().min(0).max(10000),
+});
+
 export const invoiceCreateSchema = z.object({
   reference: z.string().min(1).max(100),
   type: z.enum(["P1", "P2", "P3", "AUTRE"]),
@@ -103,10 +115,16 @@ export const invoiceCreateSchema = z.object({
   taxAmount: z.coerce.number().min(0).max(100000000).nullish(),
   issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  // Période de prestation facturée, indépendante de la date d'émission.
+  periodStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  periodEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
   description: z.string().max(MAX_TEXT_LENGTH).nullish(),
   documentUrl: invoiceDocumentUrlSchema,
   siteId: idSchema.nullish(),
   contractId: idSchema.nullish(),
+  // Plafond : une facture d'exploitant détaille quelques dizaines de sites ;
+  // au-delà c'est un envoi malformé, pas un cas métier.
+  lines: z.array(invoiceSiteLineSchema).max(200).optional(),
 });
 
 export const invoiceUpdateSchema = invoiceCreateSchema.partial();

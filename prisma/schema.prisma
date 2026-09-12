@@ -550,6 +550,8 @@ model Site {
   missionSites       MissionSite[] // Missions rattachées
   technicalRooms     TechnicalRoom[] // Locaux techniques (topologie)
   circuits           Circuit[] // Circuits hydrauliques (topologie)
+  invoiceLines       InvoiceSiteLine[] // Lignes de factures rattachées à ce site
+  billingAliases     ContractSiteAlias[] // Libellés de facturation rapprochés
 
   @@index([organizationId])
   @@index([clientId])
@@ -1486,6 +1488,7 @@ model Contract {
   missionContracts MissionContract[] // Missions rattachées
   contacts         ContractContact[] // Carnet de contacts (envoi des devis)
   aiUsages         AiUsage[]
+  siteAliases      ContractSiteAlias[] // Libellés de facturation → sites
 
   @@index([organizationId])
   @@index([clientId])
@@ -2015,6 +2018,11 @@ model Invoice {
   issueDate      DateTime
   dueDate        DateTime
   paidDate       DateTime?
+  // Période de prestation facturée, lue sur le document (« Période facturée du
+  // … au … »). Distincte de issueDate : une facture émise en octobre peut
+  // couvrir juin→août.
+  periodStart    DateTime?
+  periodEnd      DateTime?
   description    String?
   p1SubType      String?
   documentUrl    String?
@@ -2034,11 +2042,52 @@ model Invoice {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   acceptedByUser User?        @relation("InvoiceAcceptedBy", fields: [acceptedBy], references: [id])
   refusedByUser  User?        @relation("InvoiceRefusedBy", fields: [refusedBy], references: [id])
+  siteLines      InvoiceSiteLine[]
 
   @@index([organizationId, issueDate(sort: Desc)]) // liste principale
   @@index([contractId])
   @@index([siteId])
   @@map("invoices")
+}
+
+// Répartition site par site d'une facture d'exploitant : les factures P1/P2/P3
+// détaillent en pages 2..N un bloc par site (« Total HT », « Période facturée
+// du … au … »). Une ligne peut rester non rattachée (siteId null) : site
+// absent du contrat, ou facturation hors périmètre — on ne devine pas.
+model InvoiceSiteLine {
+  id        String   @id @default(cuid())
+  invoiceId String
+  siteId    String? // null = ligne lue mais non rapprochée
+  label     String // libellé tel que lu, numéro d'ordre « 13 - » retiré
+  amountHT  Float
+  sortOrder Int
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  site    Site?   @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([siteId])
+  @@map("invoice_site_lines")
+}
+
+// Mémoire des rapprochements validés par l'utilisateur entre un libellé de
+// facturation et un site du contrat. Un alias posé = l'import suivant du même
+// exploitant rapproche tout seul.
+model ContractSiteAlias {
+  id             String   @id @default(cuid())
+  contractId     String
+  siteId         String
+  alias          String // libellé normalisé (minuscules, sans accents, espaces réduits)
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  site     Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, alias])
+  @@index([siteId])
+  @@map("contract_site_aliases")
 }
 
 // ============================================

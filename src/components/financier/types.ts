@@ -27,6 +27,20 @@ export interface InvoiceUser {
 /** Doit rester aligné sur l'enum InvoiceType du schéma Prisma. */
 export type InvoiceType = "P1" | "P2" | "P3" | "AUTRE";
 
+/**
+ * Ligne de répartition d'une facture. La liste ne reçoit que `siteId` (assez
+ * pour compter les lignes non rattachées) ; le détail et l'édition reçoivent
+ * tout.
+ */
+export interface InvoiceSiteLine {
+  id?: string;
+  label?: string;
+  amountHT?: number;
+  sortOrder?: number;
+  siteId: string | null;
+  site?: { id: string; name: string } | null;
+}
+
 export interface Invoice {
   id: string;
   reference: string;
@@ -37,9 +51,14 @@ export interface Invoice {
   taxAmount: number | null;
   issueDate: string;
   dueDate: string;
+  /** Période de prestation facturée, quand le document l'indique. */
+  periodStart?: string | null;
+  periodEnd?: string | null;
   description: string | null;
   /** PDF archivé dans R2, à l'import ou rattaché après coup. */
   documentUrl: string | null;
+  /** Répartition site par site ; vide sur une facture non détaillée. */
+  siteLines?: InvoiceSiteLine[];
   site: Site | null;
   contract: Contract | null;
   acceptedAt: string | null;
@@ -137,6 +156,8 @@ export interface SiteAnalyticsData {
     p3Quotes: number;
     p3Balance: number;
   };
+  /** Lignes P3 facturées sans site reconnu — attribuées à aucun site. */
+  unallocatedP3Invoices?: number;
 }
 
 /** Site du filtre : uniquement ceux qui portent au moins une facture. */
@@ -147,6 +168,18 @@ export interface InvoiceSite {
   invoices: number;
 }
 
+/**
+ * Ligne de répartition en cours d'édition. `label` et `amountHT` sont figés
+ * (ce qui est écrit sur le PDF) ; seul le rattachement se modifie.
+ */
+export interface InvoiceLineDraft {
+  label: string;
+  amountHT: number;
+  siteId: string;
+  /** Origine du rapprochement proposé à l'import ; absent en édition. */
+  matchedBy?: "alias" | "auto" | null;
+}
+
 /** Formulaire de facture, partagé entre création et édition. */
 export interface InvoiceFormData {
   reference: string;
@@ -155,8 +188,13 @@ export interface InvoiceFormData {
   p1SubType: string;
   amount: string;
   issueDate: string;
+  /** Période facturée, vide quand le document ne l'indique pas. */
+  periodStart: string;
+  periodEnd: string;
   description: string;
   siteId: string;
+  /** Répartition site par site ; vide sur une facture non détaillée. */
+  lines: InvoiceLineDraft[];
 }
 
 export type Tab = "facturation" | "budget" | "decompte-p3" | "devis";

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { P1_SUBTYPES } from "@/components/financier/constants";
+import { InvoiceLinesTable } from "@/components/financier/modals/InvoiceLinesTable";
 import type { InvoiceFormData, InvoiceType, Site } from "@/components/financier/types";
 
 const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "AUTRE"];
@@ -37,6 +38,8 @@ interface ImportModalProps {
   loadingContractSites: boolean;
   creating: boolean;
   handleImportSubmit: () => void;
+  /** Le PDF dépassait le plafond de pages : la fin n'a pas été lue par l'IA. */
+  importTruncated: boolean;
 }
 
 export function ImportModal({
@@ -57,13 +60,28 @@ export function ImportModal({
   loadingContractSites,
   creating,
   handleImportSubmit,
+  importTruncated,
 }: ImportModalProps) {
   const missingDate = !importFormData.issueDate;
   const missingType = !importFormData.type;
+  const hasLines = importFormData.lines.length > 0;
+  const parsedAmount = Number.parseFloat(importFormData.amount);
+  const amountHT = Number.isFinite(parsedAmount) ? parsedAmount : null;
+
+  const setLineSite = (index: number, siteId: string) => {
+    setImportFormData({
+      ...importFormData,
+      lines: importFormData.lines.map((line, i) => (i === index ? { ...line, siteId } : line)),
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white border border-ink/15 shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div
+        className={`bg-white border border-ink/15 shadow-large w-full max-h-[90vh] overflow-y-auto ${
+          hasLines ? "max-w-2xl" : "max-w-lg"
+        }`}
+      >
         <div className="flex items-center justify-between p-4 border-b border-ink/10">
           <h2 className="text-base font-semibold text-ink">Importer une facture PDF</h2>
           <button onClick={onClose} className="p-2 hover:bg-ink/5">
@@ -117,6 +135,15 @@ export function ImportModal({
                     Lecture IA indisponible
                     {importAiError ? ` (${importAiError})` : ""}. Le PDF est
                     joint : renseignez les champs à la main.
+                  </span>
+                </div>
+              )}
+              {importTruncated && (
+                <div className="flex items-start gap-2 border border-[#f0b429]/40 bg-[rgba(250,178,25,0.10)] px-3 py-2 text-xs text-[#8a6200]">
+                  <AlertTriangle size={14} className="mt-px flex-shrink-0" />
+                  <span>
+                    PDF très long : seules les premières pages ont été lues. La
+                    fin de la répartition par site peut manquer.
                   </span>
                 </div>
               )}
@@ -204,6 +231,39 @@ export function ImportModal({
                   </p>
                 )}
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label-tech mb-1.5 block">Période facturée — début</label>
+                  <input
+                    type="date"
+                    value={importFormData.periodStart}
+                    onChange={(e) =>
+                      setImportFormData({ ...importFormData, periodStart: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="label-tech mb-1.5 block">Période facturée — fin</label>
+                  <input
+                    type="date"
+                    value={importFormData.periodEnd}
+                    onChange={(e) =>
+                      setImportFormData({ ...importFormData, periodEnd: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+                  />
+                </div>
+              </div>
+              {hasLines ? (
+                <InvoiceLinesTable
+                  lines={importFormData.lines}
+                  contractSites={contractSites}
+                  onChangeSite={setLineSite}
+                  amountHT={amountHT}
+                  disabled={loadingContractSites}
+                />
+              ) : (
               <div>
                 <label className="label-tech mb-1.5 block">
                   Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
@@ -230,6 +290,7 @@ export function ImportModal({
                 </select>
                 <p className="text-xs text-text-secondary mt-1">Laisser vide si la facture concerne tous les sites</p>
               </div>
+              )}
             </div>
           )}
           <div className="flex gap-3 pt-4">

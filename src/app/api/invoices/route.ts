@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { invoiceCreateSchema } from "@/lib/validations";
+import { replaceInvoiceSiteLines } from "@/lib/invoice-site-lines";
 
 // GET /api/invoices - List all invoices
 const MAX_PAGE_SIZE = 200;
@@ -82,7 +83,10 @@ export async function GET(request: NextRequest) {
     const where = {
       organizationId: effectiveOrgId,
       ...(contractId ? { contractId } : {}),
-      ...(siteId ? { siteId } : {}),
+      // Filtre site : une facture répartie porte le site dans ses LIGNES, pas
+      // dans son champ siteId (qui reste vide). Ignorer les lignes ferait
+      // disparaître du filtre les factures multi-sites, les plus nombreuses.
+      ...(siteId ? { OR: [{ siteId }, { siteLines: { some: { siteId } } }] } : {}),
       ...(status ? { status: status as never } : {}),
       ...(type ? { type: type as never } : {}),
       ...(issueDate.gte || issueDate.lte ? { issueDate } : {}),
@@ -93,6 +97,9 @@ export async function GET(request: NextRequest) {
       contract: { select: { id: true, reference: true, provider: true } },
       acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
+      // Le seul siteId suffit à la liste : elle en déduit le nombre de lignes
+      // et combien restent non rattachées, sans requête de comptage séparée.
+      siteLines: { select: { siteId: true } },
     };
 
     // Mode historique : tableau nu, sans pagination.
@@ -156,28 +163,58 @@ export async function POST(request: NextRequest) {
     }
     const input = parsedBody.data;
 
-    const invoice = await prisma.invoice.create({
-      data: {
-        reference: input.reference,
-        type: input.type,
-        status: "EN_ATTENTE",
-        amount: input.amount,
-        taxAmount: input.taxAmount ?? null,
-        issueDate: new Date(input.issueDate),
-        dueDate: input.dueDate ? new Date(input.dueDate) : new Date(input.issueDate),
-        description: input.description ?? null,
-        p1SubType: input.type === "P1" ? (input.p1SubType || null) : null,
-        // PDF déjà archivé dans R2 par la route d'import : on ne conserve que
-        // l'URL renvoyée, jamais une URL arbitraire venue du navigateur.
-        documentUrl: input.documentUrl ?? null,
-        siteId: input.siteId ?? null,
+    const lines = input.lines ?? [];
+
+    const invoice = await prisma.$transaction(async (tx) => {
+      const created = await tx.invoice.create({
+        data: {
+          reference: input.reference,
+          type: input.type,
+          status: "EN_ATTENTE",
+          amount: input.amount,
+          taxAmount: input.taxAmount ?? null,
+          issueDate: new Date(input.issueDate),
+          dueDate: input.dueDate ? new Date(input.dueDate) : new Date(input.issueDate),
+          periodStart: input.periodStart ? new Date(input.periodStart) : null,
+          periodEnd: input.periodEnd ? new Date(input.periodEnd) : null,
+          description: input.description ?? null,
+          p1SubType: input.type === "P1" ? (input.p1SubType || null) : null,
+          // PDF déjà archivé dans R2 par la route d'import : on ne conserve que
+          // l'URL renvoyée, jamais une URL arbitraire venue du navigateur.
+          documentUrl: input.documentUrl ?? null,
+          // Facture répartie : le site global n'a pas de sens, la répartition
+          // porte l'information. Les deux à la fois compteraient double.
+          siteId: lines.length > 0 ? null : (input.siteId ?? null),
+          contractId: input.contractId ?? null,
+          organizationId: effectiveOrgId,
+        },
+      });
+
+      await replaceInvoiceSiteLines(tx, {
+        invoiceId: created.id,
         contractId: input.contractId ?? null,
         organizationId: effectiveOrgId,
-      },
-      include: {
-        site: { select: { id: true, name: true, city: true } },
-        contract: { select: { id: true, reference: true, provider: true } },
-      },
+        lines,
+      });
+
+      return tx.invoice.findUniqueOrThrow({
+        where: { id: created.id },
+        include: {
+          site: { select: { id: true, name: true, city: true } },
+          contract: { select: { id: true, reference: true, provider: true } },
+          siteLines: {
+            select: {
+              id: true,
+              label: true,
+              amountHT: true,
+              sortOrder: true,
+              siteId: true,
+              site: { select: { id: true, name: true } },
+            },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      });
     });
 
     return NextResponse.json(invoice, { status: 201 });
