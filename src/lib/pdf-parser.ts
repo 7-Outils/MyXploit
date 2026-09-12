@@ -25,6 +25,13 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   return text;
 }
 
+// Deux intitulés de colonne consécutifs, avec majuscule, en fin d'objet =
+// en-tête du tableau de lignes collé par l'extracteur de texte. Sensible à la
+// casse exprès : « au prix total » dans une phrase ne doit pas déclencher.
+const HEADER_WORD =
+  "(?:Réf(?:érence)?\\.?|Désignation|Description|Libellé|Unité|Qté\\.?|Qt\\.?|Quantité|P\\.?U\\.?|P\\.?T\\.?|Prix(?:\\s+[Uu]nitaire)?|Montant|Total)";
+const TABLE_HEADER_TAIL = new RegExp(`\\s+${HEADER_WORD}(?:\\s+${HEADER_WORD})+\\b.*$`);
+
 /**
  * Le texte d'un PDF arrive découpé en lignes : un objet de travaux un peu long
  * y passe à la ligne, et les motifs de recherche s'arrêtent au saut de ligne.
@@ -173,6 +180,9 @@ export function parseQuoteFromText(text: string): ParsedQuote {
     const match = text.match(pattern);
     if (match) {
       let objet = joinWrappedLine(text, match[1]).trim();
+      // L'extracteur de texte colle parfois l'en-tête du tableau de lignes à
+      // la fin de l'objet (« … dans l'armoire Référence Désignation Unité Qt »).
+      objet = objet.replace(TABLE_HEADER_TAIL, "").trim();
       // Nettoyer - enlever les quantités/prix à la fin et caractères indésirables
       objet = objet.replace(/\s+\d+[\s,\.]*\d*\s*(€|EUR|U\.|Ens|Forf|ML|M2|M3|H)?.*$/i, "").trim();
       objet = objet.replace(/\s{2,}/g, " ").trim(); // Espaces multiples
