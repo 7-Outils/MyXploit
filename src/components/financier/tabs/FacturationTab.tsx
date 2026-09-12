@@ -25,7 +25,6 @@ import {
 } from "@/components/financier/constants";
 import type {
   Invoice,
-  InvoiceSite,
   InvoiceSortKey,
   NatureFilter,
   StatusFilter,
@@ -81,14 +80,10 @@ interface FacturationTabProps {
   setTypeFilter: (t: TypeFilter) => void;
   natureFilter: NatureFilter;
   setNatureFilter: (n: NatureFilter) => void;
-  siteFilter: string;
-  setSiteFilter: (s: string) => void;
   dateStart: string;
   setDateStart: (d: string) => void;
   dateEnd: string;
   setDateEnd: (d: string) => void;
-  /** Sites portant au moins une facture, avec leur compteur. */
-  invoiceSites: InvoiceSite[];
   sort: SortState<InvoiceSortKey>;
   onSort: (k: InvoiceSortKey) => void;
   /** Page courante déjà filtrée et paginée par le serveur. */
@@ -125,13 +120,10 @@ export function FacturationTab({
   setTypeFilter,
   natureFilter,
   setNatureFilter,
-  siteFilter,
-  setSiteFilter,
   dateStart,
   setDateStart,
   dateEnd,
   setDateEnd,
-  invoiceSites,
   sort,
   onSort,
   invoices,
@@ -158,8 +150,7 @@ export function FacturationTab({
     statusFilter !== "ALL" ||
     typeFilter !== "ALL" ||
     natureFilter !== "ALL" ||
-    siteFilter !== "all" ||
-    !!dateStart ||
+       !!dateStart ||
     !!dateEnd;
 
   // Si le total se réduit sous nos pieds, on se recale sur la dernière page.
@@ -211,25 +202,6 @@ export function FacturationTab({
             </option>
           ))}
         </select>
-        <select
-          value={siteFilter}
-          onChange={(e) => setSiteFilter(e.target.value)}
-          // Largeur fixe : sans elle, le select prend celle de son option la
-          // plus longue (60 sites, certains noms à rallonge) et écrase la barre.
-          className="h-9 w-60 px-3 border border-ink/10 text-sm bg-white"
-        >
-          <option value="all">Tous sites</option>
-          {invoiceSites.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name} ({site.invoices})
-            </option>
-          ))}
-          {/* Valeur courante pas encore dans la liste (chargement) : on la
-              garde affichée plutôt que de retomber sur « Tous sites ». */}
-          {siteFilter !== "all" && !invoiceSites.some((s) => s.id === siteFilter) && (
-            <option value={siteFilter}>…</option>
-          )}
-        </select>
         <input
           type="date"
           value={dateStart}
@@ -249,7 +221,6 @@ export function FacturationTab({
               setStatusFilter("ALL");
               setTypeFilter("ALL");
               setNatureFilter("ALL");
-              setSiteFilter("all");
               setDateStart("");
               setDateEnd("");
             }}

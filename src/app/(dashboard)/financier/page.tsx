@@ -18,7 +18,6 @@ import type {
   Site,
   Invoice,
   InvoiceFormData,
-  InvoiceSite,
   InvoiceSortKey,
   P3BalanceData,
   SiteAnalyticsData,
@@ -90,7 +89,6 @@ function FinancierPageContent() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
   const [natureFilter, setNatureFilter] = useState<NatureFilter>("ALL");
-  const [siteFilter, setSiteFilter] = useState<string>("all");
   const [dateStart, setDateStart] = useState<string>("");
   const [dateEnd, setDateEnd] = useState<string>("");
   const [invoicePage, setInvoicePage] = useState(1);
@@ -113,7 +111,6 @@ function FinancierPageContent() {
     if (statusFilter !== "ALL") p.set("status", statusFilter);
     if (typeFilter !== "ALL") p.set("type", typeFilter);
     if (natureFilter !== "ALL") p.set("nature", natureFilter);
-    if (siteFilter !== "all") p.set("siteId", siteFilter);
     if (dateStart) p.set("dateStart", dateStart);
     if (dateEnd) p.set("dateEnd", dateEnd);
     return `/api/invoices?${p.toString()}`;
@@ -124,7 +121,6 @@ function FinancierPageContent() {
     statusFilter,
     typeFilter,
     natureFilter,
-    siteFilter,
     dateStart,
     dateEnd,
   ]);
@@ -144,18 +140,12 @@ function FinancierPageContent() {
   const { data: contractSitesData } = useSWR<Site[]>(
     contractKey ? `/api/contracts/${contractKey}/sites` : null, fetcher
   );
-  // Filtre : seulement les sites qui portent au moins une facture (la liste
-  // est paginée côté serveur, on ne peut pas le déduire des lignes affichées).
-  const { data: invoiceSitesData } = useSWR<InvoiceSite[]>(
-    contractKey ? `/api/invoices/sites?contractId=${contractKey}` : null, fetcher
-  );
 
   const invoices = useMemo(() => invoicesPage?.data ?? [], [invoicesPage]);
   const totalInvoices = invoicesPage?.total ?? 0;
   const p3Data = p3DataRaw ?? null;
   const siteAnalytics = siteAnalyticsData ?? null;
   const contractSites = useMemo(() => contractSitesData ?? [], [contractSitesData]);
-  const invoiceSites = useMemo(() => invoiceSitesData ?? [], [invoiceSitesData]);
 
   /**
    * Toute écriture sur une facture change potentiellement le solde P3 : seules
@@ -570,7 +560,7 @@ function FinancierPageContent() {
   // Retour à la première page dès qu'un filtre ou le tri change.
   useEffect(() => {
     setInvoicePage(1);
-  }, [statusFilter, typeFilter, natureFilter, siteFilter, dateStart, dateEnd, sort]);
+  }, [statusFilter, typeFilter, natureFilter, dateStart, dateEnd, sort]);
 
   // Loading
   if (loadingContracts) {
@@ -652,13 +642,10 @@ function FinancierPageContent() {
           setTypeFilter={setTypeFilter}
           natureFilter={natureFilter}
           setNatureFilter={setNatureFilter}
-          siteFilter={siteFilter}
-          setSiteFilter={setSiteFilter}
           dateStart={dateStart}
           setDateStart={setDateStart}
           dateEnd={dateEnd}
           setDateEnd={setDateEnd}
-          invoiceSites={invoiceSites}
           sort={sort}
           onSort={toggleSort}
           invoices={invoices}

@@ -43,6 +43,22 @@ export async function GET(request: NextRequest) {
       amountHT: "amountHT",
       status: "status",
     } as const;
+    // Filtre statut, même vocabulaire que l'onglet Factures : « Acceptés »
+    // regroupe accepté, commandé et facturé (un devis accepté avance, il ne
+    // change pas de camp). Liste séparée par des virgules, chaque valeur
+    // validée contre l'enum.
+    const QUOTE_STATUSES = ["BROUILLON", "EN_ATTENTE", "ACCEPTE", "REFUSE", "COMMANDE", "FACTURE"] as const;
+    const statusValues = (searchParams.get("status") ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (statusValues.some((s) => !QUOTE_STATUSES.includes(s as (typeof QUOTE_STATUSES)[number]))) {
+      return NextResponse.json(
+        { error: `Statut de devis inconnu. Valeurs acceptées : ${QUOTE_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
     const sortParam = searchParams.get("sort") as keyof typeof SORTABLE | null;
     const dir: "asc" | "desc" = searchParams.get("dir") === "asc" ? "asc" : "desc";
     const orderBy =
@@ -78,6 +94,7 @@ export async function GET(request: NextRequest) {
       ...(contractId && { contractId }),
       ...(siteId && { siteId }),
       ...(quoteType && { quoteType: quoteType as never }),
+      ...(statusValues.length > 0 && { status: { in: statusValues as never[] } }),
       ...(issueDate.gte || issueDate.lte ? { issueDate } : {}),
     };
 
