@@ -13,7 +13,7 @@ export const equipmentCharacteristicsSchema = z
 
 // Equipment validation
 // Identifiants Prisma : des cuid ("cmb1x…"), pas des UUID.
-const idSchema = z.string().regex(/^[a-zA-Z0-9_-]{10,40}$/, "Identifiant invalide");
+export const idSchema = z.string().regex(/^[a-zA-Z0-9_-]{10,40}$/, "Identifiant invalide");
 
 export const equipmentCreateSchema = z.object({
   siteId: idSchema,
@@ -89,6 +89,27 @@ export const quoteCreateSchema = z.object({
   siteId: idSchema.optional(),
   contractId: idSchema,
 });
+
+// Invoice validation
+// `documentUrl` est l'URL R2 renvoyée par la route d'import : on la valide
+// comme URL, on ne la fabrique jamais à partir d'une saisie libre.
+const invoiceDocumentUrlSchema = z.url().max(2000).nullish();
+
+export const invoiceCreateSchema = z.object({
+  reference: z.string().min(1).max(100),
+  type: z.enum(["P1", "P2", "P3", "TRAVAUX", "AUTRE"]),
+  p1SubType: z.string().max(MAX_STRING_LENGTH).nullish(),
+  amount: z.coerce.number().min(0).max(100000000),
+  taxAmount: z.coerce.number().min(0).max(100000000).nullish(),
+  issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
+  description: z.string().max(MAX_TEXT_LENGTH).nullish(),
+  documentUrl: invoiceDocumentUrlSchema,
+  siteId: idSchema.nullish(),
+  contractId: idSchema.nullish(),
+});
+
+export const invoiceUpdateSchema = invoiceCreateSchema.partial();
 
 // Audit validation (simple audit)
 export const auditCreateSchema = z.object({

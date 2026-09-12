@@ -9,17 +9,22 @@ export function isPdfFile(file: File): boolean {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 }
 
+/** Dossier racine dans R2 : devis et factures ne se mélangent pas. */
+export type PdfArchiveKind = "quotes" | "invoices";
+
 /**
- * Archive le PDF d'un devis dans R2, rangé par client puis par contrat, pour
- * qu'il reste consultable depuis la fiche. Partagé entre l'import (le PDF
- * arrive avant le devis) et le rattachement après coup (le devis existe déjà).
+ * Archive un PDF (devis ou facture) dans R2, rangé par nature puis par client
+ * et par contrat, pour qu'il reste consultable depuis la fiche. Partagé entre
+ * l'import (le PDF arrive avant la pièce) et le rattachement après coup (la
+ * pièce existe déjà).
  * Échec non bloquant : renvoie null, l'appelant décide.
  */
 export async function archiveQuotePdfToR2(
   buffer: Buffer,
   originalName: string,
   contractId: string,
-  organizationId: string
+  organizationId: string,
+  kind: PdfArchiveKind = "quotes"
 ): Promise<string | null> {
   if (!process.env.R2_ACCOUNT_ID) return null;
   try {
@@ -37,8 +42,8 @@ export async function archiveQuotePdfToR2(
       .replace(/[̀-ͯ]/g, "")
       .replace(/[^a-zA-Z0-9_-]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 80) || "devis";
-    const key = `quotes/${contract.clientId ?? "sans-client"}/${contractId}/${randomUUID()}-${safeName}.pdf`;
+      .slice(0, 80) || (kind === "invoices" ? "facture" : "devis");
+    const key = `${kind}/${contract.clientId ?? "sans-client"}/${contractId}/${randomUUID()}-${safeName}.pdf`;
 
     await r2Client.send(
       new PutObjectCommand({

@@ -24,10 +24,13 @@ export interface InvoiceUser {
   email: string;
 }
 
+/** Doit rester aligné sur l'enum InvoiceType du schéma Prisma. */
+export type InvoiceType = "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+
 export interface Invoice {
   id: string;
   reference: string;
-  type: "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+  type: InvoiceType;
   p1SubType: string | null;
   status: "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
   amount: number;
@@ -35,6 +38,8 @@ export interface Invoice {
   issueDate: string;
   dueDate: string;
   description: string | null;
+  /** PDF archivé dans R2, à l'import ou rattaché après coup. */
+  documentUrl: string | null;
   site: Site | null;
   contract: Contract | null;
   acceptedAt: string | null;
@@ -134,6 +139,27 @@ export interface SiteAnalyticsData {
   };
 }
 
+/** Site du filtre : uniquement ceux qui portent au moins une facture. */
+export interface InvoiceSite {
+  id: string;
+  name: string;
+  city: string | null;
+  invoices: number;
+}
+
+/** Formulaire de facture, partagé entre création et édition. */
+export interface InvoiceFormData {
+  reference: string;
+  /** Vide tant que le type n'a pas été détecté ni choisi. */
+  type: InvoiceType | "";
+  p1SubType: string;
+  amount: string;
+  issueDate: string;
+  description: string;
+  siteId: string;
+}
+
 export type Tab = "facturation" | "budget" | "decompte-p3" | "devis";
 export type StatusFilter = "ALL" | "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
-export type TypeFilter = "ALL" | "P1" | "P2" | "P3";
+export type TypeFilter = "ALL" | InvoiceType;
+export type InvoiceSortKey = "issueDate" | "reference" | "type" | "site" | "amount" | "status";

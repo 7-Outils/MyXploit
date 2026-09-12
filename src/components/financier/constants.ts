@@ -1,5 +1,16 @@
 import { Check, Clock, X } from "lucide-react";
 
+/**
+ * Sous-types P1 : liste unique de référence. Elle alimente le formulaire de
+ * saisie ET la consigne envoyée à l'IA pour la lecture des factures — deux
+ * listes divergentes produiraient des valeurs que le select ne sait pas
+ * afficher. Définie dans une lib neutre pour rester importable côté serveur.
+ */
+export { P1_SUBTYPES } from "@/lib/invoice-import";
+
+/** Nombre de factures par page — partagé entre la page et l'onglet. */
+export const INVOICE_PAGE_SIZE = 30;
+
 export const typeConfig = {
   P1: { label: "P1 - Énergie", color: "bg-orange-50 text-orange-700 border border-orange-600/20" },
   P2: { label: "P2 - Petit entretien", color: "bg-accent/10 text-accent border border-accent/20" },

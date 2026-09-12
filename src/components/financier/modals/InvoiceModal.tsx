@@ -2,42 +2,45 @@
 
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-const P1_SUBTYPES = ["Combustible", "ECS", "Location compteur", "Abonnement", "Décompte", "Intéressement", "Autre"];
+import { P1_SUBTYPES } from "@/components/financier/constants";
+import type { InvoiceFormData, InvoiceType, Site } from "@/components/financier/types";
 
-interface InvoiceFormData {
-  reference: string;
-  type: "P1" | "P2" | "P3";
-  p1SubType: string;
-  amount: string;
-  issueDate: string;
-  description: string;
-}
+const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "TRAVAUX", "AUTRE"];
 
 interface InvoiceModalProps {
+  /** Édition quand true : même formulaire, autre verbe. */
+  editing?: boolean;
   onClose: () => void;
   formData: InvoiceFormData;
   setFormData: (data: InvoiceFormData) => void;
-  creating: boolean;
-  handleCreate: (e: React.FormEvent) => void;
+  contractSites: Site[];
+  saving: boolean;
+  error?: string | null;
+  handleSubmit: (e: React.FormEvent) => void;
 }
 
 export function InvoiceModal({
+  editing = false,
   onClose,
   formData,
   setFormData,
-  creating,
-  handleCreate,
+  contractSites,
+  saving,
+  error,
+  handleSubmit,
 }: InvoiceModalProps) {
   return (
     <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white border border-ink/15 shadow-large w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-ink/10">
-          <h2 className="text-base font-semibold text-ink">Nouvelle facture</h2>
+          <h2 className="text-base font-semibold text-ink">
+            {editing ? "Modifier la facture" : "Nouvelle facture"}
+          </h2>
           <button onClick={onClose} className="p-2 hover:bg-ink/5">
             <X size={20} />
           </button>
         </div>
-        <form onSubmit={handleCreate} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="label-tech mb-1.5 block">Référence *</label>
@@ -54,12 +57,19 @@ export function InvoiceModal({
               <select
                 required
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as "P1" | "P2" | "P3", p1SubType: "" })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    type: e.target.value as InvoiceType | "",
+                    p1SubType: e.target.value === "P1" ? formData.p1SubType : "",
+                  })
+                }
                 className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
               >
-                <option value="P1">P1</option>
-                <option value="P2">P2</option>
-                <option value="P3">P3</option>
+                <option value="">— Sélectionner —</option>
+                {INVOICE_TYPES.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -80,27 +90,52 @@ export function InvoiceModal({
             </div>
           )}
 
-          <div>
-            <label className="label-tech mb-1.5 block">Montant HT (€) *</label>
-            <input
-              type="number"
-              required
-              step="0.01"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              {/* Tout est HT dans l'application : pas de TVA, pas de TTC. */}
+              <label className="label-tech mb-1.5 block">Montant HT (€) *</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="label-tech mb-1.5 block">Date d&apos;émission *</label>
+              <input
+                type="date"
+                required
+                value={formData.issueDate}
+                onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+                className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+              />
+            </div>
           </div>
+
           <div>
-            <label className="label-tech mb-1.5 block">Date émission *</label>
-            <input
-              type="date"
-              required
-              value={formData.issueDate}
-              onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
+            <label className="label-tech mb-1.5 block">
+              Site <span className="text-xs text-text-secondary font-normal">(optionnel)</span>
+            </label>
+            <select
+              value={formData.siteId}
+              onChange={(e) => setFormData({ ...formData, siteId: e.target.value })}
               className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
-            />
+            >
+              <option value="">Tous les sites</option>
+              {contractSites.map((site) => (
+                <option key={site.id} value={site.id}>
+                  {site.name}{site.city ? ` (${site.city})` : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-text-secondary mt-1">
+              Laisser vide si la facture couvre l&apos;ensemble des sites du contrat
+            </p>
           </div>
+
           <div>
             <label className="label-tech mb-1.5 block">Description</label>
             <textarea
@@ -110,12 +145,19 @@ export function InvoiceModal({
               rows={2}
             />
           </div>
+
+          {error && (
+            <div className="border border-red-600/20 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-4">
             <Button variant="outline" className="flex-1" onClick={onClose} type="button">
               Annuler
             </Button>
-            <Button type="submit" className="flex-1" disabled={creating}>
-              {creating ? <Loader2 size={18} className="animate-spin" /> : "Créer"}
+            <Button type="submit" className="flex-1" disabled={saving || !formData.type}>
+              {saving ? <Loader2 size={18} className="animate-spin" /> : editing ? "Enregistrer" : "Créer"}
             </Button>
           </div>
         </form>

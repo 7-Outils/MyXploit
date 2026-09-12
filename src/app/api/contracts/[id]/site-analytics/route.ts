@@ -72,11 +72,14 @@ export async function GET(
       },
     });
 
-    // Get P3 invoices only
+    // Factures P3 VALIDÉES uniquement — filtre aligné sur p3-balance.
+    // RÈGLE MÉTIER : une facture en attente ou refusée n'alimente pas le pot,
+    // sinon le solde par site et le décompte annuel divergent.
     const invoices = await prisma.invoice.findMany({
       where: {
         contractId,
         type: "P3",
+        status: "VALIDEE",
         organizationId: effectiveOrgId,
       },
       select: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { invoiceCreateSchema } from "@/lib/validations";
 
 // GET /api/invoices - List all invoices
 const MAX_PAGE_SIZE = 200;
@@ -15,6 +16,9 @@ const INVOICE_TYPES = ["P1", "P2", "P3", "TRAVAUX", "AUTRE"] as const;
  * Comme /api/quotes : sans `page`, renvoie le tableau complet (comportement
  * historique) ; avec `page`, renvoie { data, total, page, pageSize } et
  * applique les filtres en SQL.
+ *
+ * Filtres : contractId, siteId, status, type, dateStart, dateEnd (bornes
+ * inclusives sur issueDate). Tri : sort + dir, liste blanche.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -22,8 +26,11 @@ export async function GET(request: NextRequest) {
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { searchParams } = new URL(request.url);
     const contractId = searchParams.get("contractId");
+    const siteId = searchParams.get("siteId");
     const status = searchParams.get("status");
     const type = searchParams.get("type");
+    const dateStart = searchParams.get("dateStart");
+    const dateEnd = searchParams.get("dateEnd");
     const pageParam = searchParams.get("page");
 
     if (status && !INVOICE_STATUSES.includes(status as (typeof INVOICE_STATUSES)[number])) {
@@ -39,15 +46,50 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Tri piloté par l'en-tête du tableau. Liste blanche : une colonne
+    // inconnue retombe sur le tri par défaut, jamais sur une erreur.
+    const SORTABLE = {
+      issueDate: "issueDate",
+      reference: "reference",
+      type: "type",
+      amount: "amount",
+      status: "status",
+      site: "site",
+    } as const;
+    const sortParam = searchParams.get("sort") as keyof typeof SORTABLE | null;
+    const dir: "asc" | "desc" = searchParams.get("dir") === "asc" ? "asc" : "desc";
+    const orderBy =
+      sortParam && sortParam in SORTABLE
+        ? sortParam === "site"
+          ? [{ site: { name: dir } }, { createdAt: "desc" as const }]
+          : [{ [SORTABLE[sortParam]]: dir }, { createdAt: "desc" as const }]
+        : [{ issueDate: "desc" as const }, { createdAt: "desc" as const }];
+
+    const issueDate: { gte?: Date; lte?: Date } = {};
+    if (dateStart) {
+      const d = new Date(dateStart);
+      if (!Number.isNaN(d.getTime())) issueDate.gte = d;
+    }
+    if (dateEnd) {
+      const d = new Date(dateEnd);
+      // Borne de fin inclusive : l'utilisateur saisit un jour, pas un instant.
+      if (!Number.isNaN(d.getTime())) {
+        d.setHours(23, 59, 59, 999);
+        issueDate.lte = d;
+      }
+    }
+
     const where = {
       organizationId: effectiveOrgId,
       ...(contractId ? { contractId } : {}),
+      ...(siteId ? { siteId } : {}),
       ...(status ? { status: status as never } : {}),
       ...(type ? { type: type as never } : {}),
+      ...(issueDate.gte || issueDate.lte ? { issueDate } : {}),
     };
 
     const include = {
-      site: { select: { id: true, name: true } },
+      site: { select: { id: true, name: true, city: true } },
       contract: { select: { id: true, reference: true, provider: true } },
       acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -58,7 +100,7 @@ export async function GET(request: NextRequest) {
       const invoices = await prisma.invoice.findMany({
         where,
         include,
-        orderBy: { issueDate: "desc" },
+        orderBy,
       });
       return NextResponse.json(invoices);
     }
@@ -73,7 +115,7 @@ export async function GET(request: NextRequest) {
       prisma.invoice.findMany({
         where,
         include,
-        orderBy: { issueDate: "desc" },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -105,20 +147,36 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    const parsedBody = invoiceCreateSchema.safeParse(body);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: parsedBody.error.issues[0]?.message ?? "Données invalides" },
+        { status: 400 }
+      );
+    }
+    const input = parsedBody.data;
+
     const invoice = await prisma.invoice.create({
       data: {
-        reference: body.reference,
-        type: body.type,
+        reference: input.reference,
+        type: input.type,
         status: "EN_ATTENTE",
-        amount: parseFloat(body.amount),
-        taxAmount: body.taxAmount ? parseFloat(body.taxAmount) : null,
-        issueDate: new Date(body.issueDate),
-        dueDate: body.dueDate ? new Date(body.dueDate) : new Date(body.issueDate),
-        description: body.description,
-        p1SubType: body.type === "P1" ? (body.p1SubType || null) : null,
-        siteId: body.siteId,
-        contractId: body.contractId,
+        amount: input.amount,
+        taxAmount: input.taxAmount ?? null,
+        issueDate: new Date(input.issueDate),
+        dueDate: input.dueDate ? new Date(input.dueDate) : new Date(input.issueDate),
+        description: input.description ?? null,
+        p1SubType: input.type === "P1" ? (input.p1SubType || null) : null,
+        // PDF déjà archivé dans R2 par la route d'import : on ne conserve que
+        // l'URL renvoyée, jamais une URL arbitraire venue du navigateur.
+        documentUrl: input.documentUrl ?? null,
+        siteId: input.siteId ?? null,
+        contractId: input.contractId ?? null,
         organizationId: effectiveOrgId,
+      },
+      include: {
+        site: { select: { id: true, name: true, city: true } },
+        contract: { select: { id: true, reference: true, provider: true } },
       },
     });
 

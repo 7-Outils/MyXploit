@@ -1,5 +1,12 @@
 import { Type } from "@google/genai";
 import type { ParsedQuote } from "./quote-import";
+import {
+  INVOICE_TYPES,
+  P1_SUBTYPES,
+  type ParsedInvoice,
+  type InvoiceTypeValue,
+  type P1SubType,
+} from "./invoice-import";
 import { aiJson, type AiUsageTokens } from "@/lib/ai-client";
 
 // Exportés pour le banc d'essai scripts/benchmark-devis-extraction.ts, qui
@@ -34,6 +41,61 @@ export const responseSchema = {
     quoteType: {
       type: Type.STRING,
       enum: ["P1", "P3", "P5", "TRAVAUX", "AMELIORATION", "AUTRE"],
+      nullable: true,
+    },
+  },
+};
+
+// ============================================
+// FACTURES
+// ============================================
+
+/**
+ * Consigne dédiée aux factures. Celle des devis ignore le P2 et classe une
+ * facture « Prestations de conduite et entretien courant » en P1 : faux, et
+ * ça pollue à la fois le suivi énergie et le solde P3.
+ */
+export const INVOICE_PROMPT = `Tu analyses une facture au format PDF, émise par un exploitant de chauffage (Dalkia, ENGIE, IDEX, Équans, Cofely, etc.) ou par un artisan, et adressée à une collectivité.
+
+Extrais les champs demandés. Si un champ n'est pas clairement présent sur le document, mets null. N'invente jamais une valeur plausible.
+
+Classification du type de facture (très important — lis l'objet et le détail des lignes, pas seulement l'en-tête) :
+- "P1" : fourniture d'énergie, combustible, gaz, fioul, bois, électricité de chauffage, abonnement, TICGN, CEE, décompte ou intéressement énergie.
+- "P2" : conduite, entretien courant, maintenance, prestations d'exploitation, petit entretien, astreinte, dépannage courant, surveillance des installations.
+- "P3" : gros entretien, renouvellement, garantie totale, remplacement de matériel, APE (actions préventives extraordinaires).
+- "TRAVAUX" : travaux réalisés hors contrat d'exploitation.
+- "AUTRE" : si aucun des cas ci-dessus ne correspond.
+
+Repère typique : « Prestations de conduite et entretien courant » = P2 (jamais P1). « Travaux de Gros Entretien et APE » = P3.
+
+p1SubType : uniquement si le type est "P1", choisis exactement une valeur parmi ${P1_SUBTYPES.map((s) => `"${s}"`).join(", ")}. Pour tout autre type, mets null.
+
+Règle de rattachement au site — importante :
+- Ne renseigne siteName/siteCity QUE si la facture désigne nommément un bâtiment précis (ex : "École Jules Ferry", "Piscine municipale").
+- Si la facture couvre l'ensemble des sites du contrat (mentions du genre "Bâtiments communaux", "ensemble des sites", "tous bâtiments", ou facture périodique globale sans bâtiment nommé), mets siteName ET siteCity à null. La répartition par site est calculée ailleurs au prorata.
+- Pour siteName, retourne uniquement le nom du bâtiment/établissement, pas l'adresse complète.
+
+Pour amountHT, retourne le montant total hors taxes en nombre décimal (sans symbole monétaire ni espaces).
+
+Pour issueDate, retourne la date d'émission de la facture au format ISO "YYYY-MM-DD". C'est la date affichée en tête du document, pas la date d'échéance, pas la période de prestation.`;
+
+export const invoiceResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    reference: { type: Type.STRING, nullable: true },
+    siteName: { type: Type.STRING, nullable: true },
+    siteCity: { type: Type.STRING, nullable: true },
+    objet: { type: Type.STRING, nullable: true },
+    amountHT: { type: Type.NUMBER, nullable: true },
+    issueDate: { type: Type.STRING, nullable: true },
+    invoiceType: {
+      type: Type.STRING,
+      enum: [...INVOICE_TYPES],
+      nullable: true,
+    },
+    p1SubType: {
+      type: Type.STRING,
+      enum: [...P1_SUBTYPES],
       nullable: true,
     },
   },
@@ -114,6 +176,79 @@ export async function parseWithGemini(pdfBuffer: Buffer): Promise<GeminiParseRes
     };
   } catch (error) {
     console.error("Gemini parsing failed:", error);
+    return {
+      parsed: null,
+      error: explainAiError(error),
+      usage: { inputTokens: 0, outputTokens: 0 },
+      durationMs: Date.now() - startedAt,
+    };
+  }
+}
+
+export type GeminiInvoiceParseResult = {
+  parsed: ParsedInvoice | null;
+  /** Raison lisible de l'échec, à afficher ; null si la lecture a réussi. */
+  error: string | null;
+  /** Tokens facturés ; à 0 en cas d'échec, le fournisseur ne les renvoyant pas. */
+  usage: AiUsageTokens;
+  /** Durée de l'appel, succès comme échec, pour le suivi de consommation. */
+  durationMs: number;
+};
+
+/**
+ * Lecture IA d'une facture. Même mécanique que parseWithGemini, mais avec la
+ * consigne et le schéma factures : le type renvoyé est directement une valeur
+ * de l'enum InvoiceType, aucun mappage n'est à faire côté écran.
+ */
+export async function parseInvoiceWithGemini(
+  pdfBuffer: Buffer
+): Promise<GeminiInvoiceParseResult> {
+  const startedAt = Date.now();
+  try {
+    const result = await aiJson({
+      pdf: pdfBuffer,
+      prompt: INVOICE_PROMPT,
+      geminiSchema: invoiceResponseSchema,
+    });
+    const parsed = result.data as {
+      reference: string | null;
+      siteName: string | null;
+      siteCity: string | null;
+      objet: string | null;
+      amountHT: number | null;
+      issueDate: string | null;
+      invoiceType: string | null;
+      p1SubType: string | null;
+    };
+
+    // Le modèle peut renvoyer une valeur hors enum malgré le schéma : on la
+    // jette plutôt que de la propager jusqu'à Prisma, qui lèverait un 500.
+    const invoiceType = INVOICE_TYPES.includes(parsed.invoiceType as InvoiceTypeValue)
+      ? (parsed.invoiceType as InvoiceTypeValue)
+      : null;
+    // Un sous-type sur une facture qui n'est pas P1 n'a pas de sens.
+    const p1SubType =
+      invoiceType === "P1" && P1_SUBTYPES.includes(parsed.p1SubType as P1SubType)
+        ? (parsed.p1SubType as P1SubType)
+        : null;
+
+    return {
+      parsed: {
+        reference: parsed.reference,
+        siteName: parsed.siteName,
+        siteCity: parsed.siteCity,
+        objet: parsed.objet,
+        amountHT: parsed.amountHT,
+        issueDate: parsed.issueDate ?? null,
+        invoiceType,
+        p1SubType,
+      },
+      error: null,
+      usage: result.usage,
+      durationMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    console.error("Gemini invoice parsing failed:", error);
     return {
       parsed: null,
       error: explainAiError(error),

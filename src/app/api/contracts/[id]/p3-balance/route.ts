@@ -77,11 +77,15 @@ export async function GET(
       );
     }
 
-    // Get all P3 invoices for this contract
+    // Recettes P3 = factures P3 VALIDÉES uniquement.
+    // RÈGLE MÉTIER : une facture en attente ou refusée n'alimente pas le pot.
+    // Tant qu'elle n'est pas validée (✓ dans Financier › Factures), elle n'est
+    // pas une recette acquise et ne doit pas gonfler le solde disponible.
     const invoices = await prisma.invoice.findMany({
       where: {
         contractId,
         type: "P3",
+        status: "VALIDEE",
         organizationId: effectiveOrgId,
       },
       include: {

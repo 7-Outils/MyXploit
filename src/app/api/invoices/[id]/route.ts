@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { invoiceUpdateSchema } from "@/lib/validations";
 
 // GET /api/invoices/[id] - Get a single invoice
 export async function GET(
@@ -59,6 +60,15 @@ export async function PUT(
 
     const body = await request.json();
 
+    const parsedBody = invoiceUpdateSchema.safeParse(body);
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: parsedBody.error.issues[0]?.message ?? "Données invalides" },
+        { status: 400 }
+      );
+    }
+    const input = parsedBody.data;
+
     const existingInvoice = await prisma.invoice.findFirst({
       where: {
         id,
@@ -73,24 +83,34 @@ export async function PUT(
       );
     }
 
+    // Le sous-type suit le type : repasser une facture P1 en P2 doit vider le
+    // sous-type, sinon il reste affiché à côté d'un type qui ne le porte pas.
+    const nextType = input.type ?? existingInvoice.type;
+    const nextP1SubType =
+      nextType !== "P1"
+        ? null
+        : input.p1SubType !== undefined
+          ? input.p1SubType || null
+          : existingInvoice.p1SubType;
+
     const invoice = await prisma.invoice.update({
       where: { id },
       data: {
-        ...(body.reference && { reference: body.reference }),
-        ...(body.type && { type: body.type }),
-        ...(body.amount && { amount: parseFloat(body.amount) }),
-        ...(body.taxAmount !== undefined && {
-          taxAmount: body.taxAmount ? parseFloat(body.taxAmount) : null,
-        }),
-        ...(body.issueDate && { issueDate: new Date(body.issueDate) }),
-        ...(body.dueDate && { dueDate: new Date(body.dueDate) }),
-        ...(body.description !== undefined && { description: body.description }),
-        ...(body.siteId !== undefined && {
-          siteId: body.siteId || null,
-        }),
-        ...(body.contractId !== undefined && {
-          contractId: body.contractId || null,
-        }),
+        ...(input.reference !== undefined && { reference: input.reference }),
+        ...(input.type !== undefined && { type: input.type }),
+        ...(input.amount !== undefined && { amount: input.amount }),
+        ...(input.taxAmount !== undefined && { taxAmount: input.taxAmount ?? null }),
+        ...(input.issueDate !== undefined && { issueDate: new Date(input.issueDate) }),
+        ...(input.dueDate ? { dueDate: new Date(input.dueDate) } : {}),
+        ...(input.description !== undefined && { description: input.description ?? null }),
+        ...(input.documentUrl !== undefined && { documentUrl: input.documentUrl ?? null }),
+        ...(input.siteId !== undefined && { siteId: input.siteId ?? null }),
+        ...(input.contractId !== undefined && { contractId: input.contractId ?? null }),
+        p1SubType: nextP1SubType,
+      },
+      include: {
+        site: { select: { id: true, name: true, city: true } },
+        contract: { select: { id: true, reference: true, provider: true } },
       },
     });
 
@@ -114,7 +134,7 @@ export async function DELETE(
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
-    if (user.role !== "ADMIN") {
+    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
       return NextResponse.json(
         { error: "Vous n'avez pas les droits pour supprimer une facture" },
         { status: 403 }

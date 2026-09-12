@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { findSiteMatch, emptyParsedQuote, type ParsedQuote } from "@/lib/quote-import";
-import { parseWithGemini } from "@/lib/gemini-pdf-parser";
+import { emptyParsedInvoice, type ParsedInvoice } from "@/lib/invoice-import";
+import { parseWithGemini, parseInvoiceWithGemini } from "@/lib/gemini-pdf-parser";
 import { trimPdfForAi } from "@/lib/pdf-trim";
 import { GEMINI_MODEL, estimateCostUsd, isAiConfigured } from "@/lib/ai-client";
 import { checkAiBudget, recordAiUsage } from "@/lib/ai-usage";
@@ -15,7 +16,8 @@ const MAX_PDF_SIZE = 10 * 1024 * 1024;
 
 export interface ImportResult {
   success: boolean;
-  parsed: ParsedQuote;
+  /** Forme devis par défaut, forme facture quand `kind=invoice` est envoyé. */
+  parsed: ParsedQuote | ParsedInvoice;
   siteMatched: boolean;
   matchedSite?: { id: string; name: string };
   documentUrl?: string;
@@ -46,6 +48,9 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const contractId = formData.get("contractId") as string | null;
+    // Même tuyau pour les deux natures de pièce : seuls changent la consigne
+    // IA, le dossier d'archive R2 et la ligne de consommation.
+    const isInvoice = formData.get("kind") === "invoice";
 
     if (!file) {
       return NextResponse.json(
@@ -76,7 +81,9 @@ export async function POST(request: NextRequest) {
     // Lecture IA seule, sans parser de secours : si elle n'a pas lieu, le
     // formulaire s'ouvre vide avec la cause. Une valeur devinée qui a l'air
     // vraie est pire qu'une case vide.
-    let parsed: ParsedQuote = emptyParsedQuote();
+    let parsed: ParsedQuote | ParsedInvoice = isInvoice
+      ? emptyParsedInvoice()
+      : emptyParsedQuote();
     let source: "gemini" | "none" = "none";
     let aiError: string | null = null;
     let aiUsageId: string | null = null;
@@ -103,7 +110,11 @@ export async function POST(request: NextRequest) {
         // Seules les premières pages partent chez Gemini ; l'archive R2 plus
         // bas reçoit toujours le PDF complet.
         const { buffer: aiBuffer } = await trimPdfForAi(buffer);
-        const geminiResult = await parseWithGemini(aiBuffer);
+        // Consigne facture : elle connaît le P2 et le prorata multi-sites,
+        // celle des devis classerait « conduite et entretien courant » en P1.
+        const geminiResult = isInvoice
+          ? await parseInvoiceWithGemini(aiBuffer)
+          : await parseWithGemini(aiBuffer);
         if (geminiResult.parsed) {
           parsed = geminiResult.parsed;
           source = "gemini";
@@ -117,7 +128,7 @@ export async function POST(request: NextRequest) {
           clientId,
           contractId: contractId || null,
           userId: user.id,
-          feature: "QUOTE_IMPORT",
+          feature: isInvoice ? "INVOICE_IMPORT" : "QUOTE_IMPORT",
           provider: "GEMINI",
           model,
           inputTokens: geminiResult.usage.inputTokens,
@@ -145,12 +156,18 @@ export async function POST(request: NextRequest) {
       matchedSite = findSiteMatch(parsed.siteName, parsed.siteCity, sites);
     }
 
-    // Archiver le PDF original dans R2 (rangé par client/contrat) pour
-    // consultation ultérieure. Sans contractId (ex: import de facture depuis
-    // la page Financier), on ne stocke rien.
+    // Archiver le PDF original dans R2 (rangé par nature puis client/contrat)
+    // pour consultation ultérieure. Sans contractId, on ne stocke rien : on ne
+    // saurait pas où ranger le fichier.
     let documentUrl: string | null = null;
     if (contractId) {
-      documentUrl = await archiveQuotePdfToR2(buffer, file.name, contractId, effectiveOrgId);
+      documentUrl = await archiveQuotePdfToR2(
+        buffer,
+        file.name,
+        contractId,
+        effectiveOrgId,
+        isInvoice ? "invoices" : "quotes"
+      );
     }
 
     // Return parsed data for preview
