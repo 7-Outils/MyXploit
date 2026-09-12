@@ -259,6 +259,8 @@ export function FacturationTab({
                   <SortableTh label="Date" col="issueDate" sort={sort} onSort={onSort} />
                   <SortableTh label="Référence" col="reference" sort={sort} onSort={onSort} />
                   <SortableTh label="Type" col="type" sort={sort} onSort={onSort} />
+                  <th className="label-tech px-4 py-2.5 text-left">Période</th>
+                  <th className="label-tech px-4 py-2.5 text-left">Acompte</th>
                   <SortableTh label="Montant HT" col="amount" sort={sort} onSort={onSort} className="text-right" />
                   <SortableTh label="État" col="status" sort={sort} onSort={onSort} />
                   <th className="label-tech px-4 py-2.5 text-center">PDF</th>
@@ -274,17 +276,24 @@ export function FacturationTab({
                     <tr key={invoice.id} className="border-t border-ink/[0.06] hover:bg-ink/[0.02] transition-colors">
                       <td className="px-4 py-3 text-sm text-ink/60">
                         {new Date(invoice.issueDate).toLocaleDateString("fr-FR")}
-                        {period && (
-                          <div className="font-mono text-[10px] text-ink/45" title="Période facturée">
-                            {period}
-                          </div>
-                        )}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium text-ink">{invoice.reference}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 text-xs font-medium ${type.color}`}>
                           {invoice.type}{invoice.p1SubType ? ` · ${invoice.p1SubType}` : ""}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[12px] tabular-nums text-ink/60 whitespace-nowrap">
+                        {period ?? <span className="text-ink/25">—</span>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[12px] tabular-nums text-ink/60">
+                        {invoice.installment ? (
+                          <span title={`${invoice.installment.index}ᵉ acompte sur ${invoice.installment.count} de l'année contractuelle`}>
+                            {invoice.installment.index}/{invoice.installment.count}
+                          </span>
+                        ) : (
+                          <span className="text-ink/25">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">{invoice.amount.toLocaleString("fr-FR")} €</td>
                       <td className="px-4 py-3 text-sm">

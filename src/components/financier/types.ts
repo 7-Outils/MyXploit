@@ -54,6 +54,8 @@ export interface Invoice {
   /** Période de prestation facturée, quand le document l'indique. */
   periodStart?: string | null;
   periodEnd?: string | null;
+  /** Rang d'acompte dans l'année contractuelle, calculé par l'API. */
+  installment?: { index: number; count: number } | null;
   description: string | null;
   /** PDF archivé dans R2, à l'import ou rattaché après coup. */
   documentUrl: string | null;

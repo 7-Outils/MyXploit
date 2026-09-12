@@ -3,6 +3,20 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { invoiceCreateSchema } from "@/lib/validations";
 import { replaceInvoiceSiteLines, learnBillingAliases } from "@/lib/invoice-site-lines";
+import { installmentOf } from "@/lib/invoice-installment";
+
+// Rang d'acompte calculé à la lecture : il dépend de la date anniversaire du
+// contrat, qui peut changer — rien à stocker.
+function withInstallment<T extends {
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  contract: { startDate: Date | null } | null;
+}>(invoice: T) {
+  return {
+    ...invoice,
+    installment: installmentOf(invoice.periodStart, invoice.periodEnd, invoice.contract?.startDate),
+  };
+}
 
 // GET /api/invoices - List all invoices
 const MAX_PAGE_SIZE = 200;
@@ -94,7 +108,7 @@ export async function GET(request: NextRequest) {
 
     const include = {
       site: { select: { id: true, name: true, city: true } },
-      contract: { select: { id: true, reference: true, provider: true } },
+      contract: { select: { id: true, reference: true, provider: true, startDate: true } },
       acceptedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       refusedByUser: { select: { id: true, firstName: true, lastName: true, email: true } },
       // Le seul siteId suffit à la liste : elle en déduit le nombre de lignes
@@ -109,7 +123,7 @@ export async function GET(request: NextRequest) {
         include,
         orderBy,
       });
-      return NextResponse.json(invoices);
+      return NextResponse.json(invoices.map(withInstallment));
     }
 
     const parsedPage = Number.parseInt(pageParam, 10);
@@ -129,7 +143,7 @@ export async function GET(request: NextRequest) {
       prisma.invoice.count({ where }),
     ]);
 
-    return NextResponse.json({ data, total, page, pageSize });
+    return NextResponse.json({ data: data.map(withInstallment), total, page, pageSize });
   } catch (error) {
     console.error("Error fetching invoices:", error);
     return NextResponse.json(
@@ -201,7 +215,7 @@ export async function POST(request: NextRequest) {
         where: { id: created.id },
         include: {
           site: { select: { id: true, name: true, city: true } },
-          contract: { select: { id: true, reference: true, provider: true } },
+          contract: { select: { id: true, reference: true, provider: true, startDate: true } },
           siteLines: {
             select: {
               id: true,
