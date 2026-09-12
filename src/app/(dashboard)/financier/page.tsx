@@ -103,8 +103,6 @@ function FinancierPageContent() {
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [expandedP3Years, setExpandedP3Years] = useState<Set<string>>(new Set());
-
   // Form data
   const [importPreview, setImportPreview] = useState<{
     reference: string | null;
@@ -145,14 +143,6 @@ function FinancierPageContent() {
     router.push(`/financier?${params.toString()}`, { scroll: false });
   };
 
-
-  // Expand most recent P3 year by default when data arrives
-  useEffect(() => {
-    if (p3Data?.years && p3Data.years.length > 0 && expandedP3Years.size === 0) {
-      const last = p3Data.years[p3Data.years.length - 1];
-      setExpandedP3Years(new Set([last.year]));
-    }
-  }, [p3Data, expandedP3Years.size]);
 
   // Invoice handlers
   const handleCreateInvoice = async (e: React.FormEvent) => {
@@ -345,15 +335,6 @@ function FinancierPageContent() {
   };
 
 
-  const toggleP3Year = (year: string) => {
-    setExpandedP3Years((prev) => {
-      const next = new Set(prev);
-      if (next.has(year)) next.delete(year);
-      else next.add(year);
-      return next;
-    });
-  };
-
   // Le filtrage est fait en SQL : `invoices` est déjà la page filtrée.
   // Retour à la première page dès qu'un filtre change.
   useEffect(() => { setInvoicePage(1); }, [statusFilter, typeFilter]);
@@ -449,8 +430,6 @@ function FinancierPageContent() {
         <DecompteP3Tab
           loading={loadingP3}
           p3Data={p3Data}
-          expandedP3Years={expandedP3Years}
-          toggleP3Year={toggleP3Year}
           siteAnalytics={siteAnalytics}
           loadingSiteAnalytics={loadingSiteAnalytics}
         />
