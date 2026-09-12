@@ -2008,10 +2008,24 @@ enum InvoiceType {
   AUTRE
 }
 
+// Nature d'une facture d'exploitant : ce que le document EST, indépendamment
+// du poste P1/P2/P3 qu'il porte. Un acompte est une échéance périodique (seul
+// cas où un rang « 4/4 » a un sens) ; un décompte régularise une période ; un
+// avoir porte un montant négatif ; l'intéressement partage la performance
+// énergétique (P1). Null sur les factures antérieures : on ne devine pas.
+enum InvoiceNature {
+  ACOMPTE
+  DECOMPTE
+  AVOIR
+  INTERESSEMENT
+  AUTRE
+}
+
 model Invoice {
   id             String        @id @default(cuid())
   reference      String
   type           InvoiceType
+  nature         InvoiceNature?
   status         InvoiceStatus @default(EN_ATTENTE)
   amount         Float
   taxAmount      Float?

@@ -16,14 +16,34 @@ import {
 } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 import { SortableTh, type SortState } from "@/components/ui/SortableTh";
-import { statusConfig, typeConfig, INVOICE_PAGE_SIZE } from "@/components/financier/constants";
+import {
+  statusConfig,
+  typeConfig,
+  natureLabels,
+  INVOICE_NATURES,
+  INVOICE_PAGE_SIZE,
+} from "@/components/financier/constants";
 import type {
   Invoice,
   InvoiceSite,
   InvoiceSortKey,
+  NatureFilter,
   StatusFilter,
   TypeFilter,
 } from "@/components/financier/types";
+
+/**
+ * Montant HT signé. Un avoir est négatif : on l'affiche avec un vrai signe
+ * moins typographique, en gris comme les autres — un avoir est une écriture
+ * normale, pas une anomalie à signaler en rouge.
+ */
+function formatAmountHT(amount: number): string {
+  const formatted = Math.abs(amount).toLocaleString("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${amount < 0 ? "−" : ""}${formatted} €`;
+}
 
 /**
  * Période de prestation, forme courte « 01/06 → 31/08/2026 » : l'année n'est
@@ -57,6 +77,8 @@ interface FacturationTabProps {
   setStatusFilter: (s: StatusFilter) => void;
   typeFilter: TypeFilter;
   setTypeFilter: (t: TypeFilter) => void;
+  natureFilter: NatureFilter;
+  setNatureFilter: (n: NatureFilter) => void;
   siteFilter: string;
   setSiteFilter: (s: string) => void;
   dateStart: string;
@@ -98,6 +120,8 @@ export function FacturationTab({
   setStatusFilter,
   typeFilter,
   setTypeFilter,
+  natureFilter,
+  setNatureFilter,
   siteFilter,
   setSiteFilter,
   dateStart,
@@ -128,7 +152,12 @@ export function FacturationTab({
   const totalPages = Math.max(1, Math.ceil(totalInvoices / INVOICE_PAGE_SIZE));
   const pageClamped = Math.min(currentPage, totalPages);
   const hasFilters =
-    statusFilter !== "ALL" || typeFilter !== "ALL" || siteFilter !== "all" || !!dateStart || !!dateEnd;
+    statusFilter !== "ALL" ||
+    typeFilter !== "ALL" ||
+    natureFilter !== "ALL" ||
+    siteFilter !== "all" ||
+    !!dateStart ||
+    !!dateEnd;
 
   // Si le total se réduit sous nos pieds, on se recale sur la dernière page.
   useEffect(() => {
@@ -140,7 +169,7 @@ export function FacturationTab({
       {/* Filters + Actions */}
       {/* Même largeur bornée que le tableau, sinon la barre déborde à droite
           d'un tableau qui s'arrête avant elle. */}
-      <div className="flex max-w-6xl items-center gap-2 flex-wrap">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 flex-wrap">
         <div className="flex border border-ink/10">
           {(["ALL", "EN_ATTENTE", "VALIDEE", "REFUSEE"] as StatusFilter[]).map((status) => (
             <button
@@ -165,6 +194,20 @@ export function FacturationTab({
             </button>
           ))}
         </div>
+        {/* Largeur fixe, comme le filtre site : sinon le select s'élargit sur
+            « Intéressement » et décale toute la barre. */}
+        <select
+          value={natureFilter}
+          onChange={(e) => setNatureFilter(e.target.value as NatureFilter)}
+          className="h-9 w-44 px-3 border border-ink/10 text-sm bg-white"
+        >
+          <option value="ALL">Toutes natures</option>
+          {INVOICE_NATURES.map((n) => (
+            <option key={n} value={n}>
+              {natureLabels[n]}
+            </option>
+          ))}
+        </select>
         <select
           value={siteFilter}
           onChange={(e) => setSiteFilter(e.target.value)}
@@ -202,6 +245,7 @@ export function FacturationTab({
             onClick={() => {
               setStatusFilter("ALL");
               setTypeFilter("ALL");
+              setNatureFilter("ALL");
               setSiteFilter("all");
               setDateStart("");
               setDateEnd("");
@@ -257,7 +301,7 @@ export function FacturationTab({
       ) : (
         // Largeur bornée : neuf colonnes étirées sur un grand écran, ça se
         // lit mal — le contenu reste groupé, l'espace vide est à droite.
-        <div className="max-w-6xl bg-white border border-ink/10 overflow-hidden">
+        <div className="mx-auto max-w-6xl bg-white border border-ink/10 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white">
@@ -266,7 +310,7 @@ export function FacturationTab({
                   <SortableTh label="Référence" col="reference" sort={sort} onSort={onSort} />
                   <SortableTh label="Type" col="type" sort={sort} onSort={onSort} />
                   <th className="label-tech px-4 py-2.5 text-left">Période</th>
-                  <th className="label-tech px-4 py-2.5 text-left">Acompte</th>
+                  <th className="label-tech px-4 py-2.5 text-left">Nature</th>
                   <SortableTh label="Montant HT" col="amount" sort={sort} onSort={onSort} className="text-right" />
                   <SortableTh label="État" col="status" sort={sort} onSort={onSort} />
                   <th className="label-tech px-4 py-2.5 text-right">Actions</th>
@@ -291,16 +335,28 @@ export function FacturationTab({
                       <td className="px-4 py-3 font-mono text-[12px] tabular-nums text-ink/60 whitespace-nowrap">
                         {period ?? <span className="text-ink/25">—</span>}
                       </td>
-                      <td className="px-4 py-3 font-mono text-[12px] tabular-nums text-ink/60">
-                        {invoice.installment ? (
-                          <span title={`${invoice.installment.index}ᵉ acompte sur ${invoice.installment.count} de l'année contractuelle`}>
-                            {invoice.installment.index}/{invoice.installment.count}
-                          </span>
+                      <td className="px-4 py-3 text-sm text-ink/60 whitespace-nowrap">
+                        {invoice.nature ? (
+                          <>
+                            {natureLabels[invoice.nature]}
+                            {/* Le rang ne s'affiche que sur un acompte : l'API
+                                ne le calcule pas pour les autres natures. */}
+                            {invoice.nature === "ACOMPTE" && invoice.installment && (
+                              <span
+                                className="ml-1 font-mono text-[12px] tabular-nums text-ink/45"
+                                title={`${invoice.installment.index}ᵉ acompte sur ${invoice.installment.count} de l'année contractuelle`}
+                              >
+                                {invoice.installment.index}/{invoice.installment.count}
+                              </span>
+                            )}
+                          </>
                         ) : (
                           <span className="text-ink/25">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">{invoice.amount.toLocaleString("fr-FR")} €</td>
+                      <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">
+                        {formatAmountHT(invoice.amount)}
+                      </td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`px-2 py-1 text-xs font-medium ${status.color}`}>{status.label}</span>
                         {(() => {

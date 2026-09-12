@@ -2,9 +2,18 @@
 
 import { X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { P1_SUBTYPES } from "@/components/financier/constants";
+import {
+  P1_SUBTYPES,
+  INVOICE_NATURES,
+  natureLabels,
+} from "@/components/financier/constants";
 import { InvoiceLinesTable } from "@/components/financier/modals/InvoiceLinesTable";
-import type { InvoiceFormData, InvoiceType, Site } from "@/components/financier/types";
+import type {
+  InvoiceFormData,
+  InvoiceNature,
+  InvoiceType,
+  Site,
+} from "@/components/financier/types";
 
 const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "AUTRE"];
 
@@ -90,21 +99,47 @@ export function InvoiceModal({
             </div>
           </div>
 
-          {formData.type === "P1" && (
+          {/* Nature à côté du type : ce que le document EST (acompte,
+              décompte, avoir, intéressement), indépendamment du poste. */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="label-tech mb-1.5 block">Sous-type P1</label>
+              <label className="label-tech mb-1.5 block">Nature</label>
               <select
-                value={formData.p1SubType}
-                onChange={(e) => setFormData({ ...formData, p1SubType: e.target.value })}
+                value={formData.nature}
+                onChange={(e) =>
+                  setFormData({ ...formData, nature: e.target.value as InvoiceNature | "" })
+                }
                 className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
               >
-                <option value="">— Sélectionner —</option>
-                {P1_SUBTYPES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                <option value="">—</option>
+                {INVOICE_NATURES.map((n) => (
+                  <option key={n} value={n}>{natureLabels[n]}</option>
                 ))}
               </select>
             </div>
-          )}
+            {formData.type === "P1" && (
+              <div>
+                <label className="label-tech mb-1.5 block">Sous-type P1</label>
+                <select
+                  value={formData.p1SubType}
+                  onChange={(e) => setFormData({ ...formData, p1SubType: e.target.value })}
+                  className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+                >
+                  <option value="">— Sélectionner —</option>
+                  {P1_SUBTYPES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                  {/* Ancienne valeur (« Décompte », « Intéressement ») retirée
+                      de la liste : on la garde affichée plutôt que de la
+                      remplacer silencieusement par « — ». */}
+                  {formData.p1SubType &&
+                    !P1_SUBTYPES.includes(formData.p1SubType as (typeof P1_SUBTYPES)[number]) && (
+                      <option value={formData.p1SubType}>{formData.p1SubType}</option>
+                    )}
+                </select>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>

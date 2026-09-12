@@ -7,14 +7,20 @@ import { installmentOf } from "@/lib/invoice-installment";
 
 // Rang d'acompte calculé à la lecture : il dépend de la date anniversaire du
 // contrat, qui peut changer — rien à stocker.
+// Seul un ACOMPTE a un rang : « 4/4 » n'a aucun sens sur un décompte, un avoir
+// ou un intéressement, qui ne s'inscrivent pas dans une série périodique.
 function withInstallment<T extends {
+  nature: string | null;
   periodStart: Date | null;
   periodEnd: Date | null;
   contract: { startDate: Date | null } | null;
 }>(invoice: T) {
   return {
     ...invoice,
-    installment: installmentOf(invoice.periodStart, invoice.periodEnd, invoice.contract?.startDate),
+    installment:
+      invoice.nature === "ACOMPTE"
+        ? installmentOf(invoice.periodStart, invoice.periodEnd, invoice.contract?.startDate)
+        : null,
   };
 }
 
@@ -24,6 +30,7 @@ const MAX_PAGE_SIZE = 200;
 // Doivent rester alignés sur les enums InvoiceStatus / InvoiceType du schéma.
 const INVOICE_STATUSES = ["EN_ATTENTE", "VALIDEE", "REFUSEE"] as const;
 const INVOICE_TYPES = ["P1", "P2", "P3", "AUTRE"] as const;
+const INVOICE_NATURES = ["ACOMPTE", "DECOMPTE", "AVOIR", "INTERESSEMENT", "AUTRE"] as const;
 
 /**
  * GET /api/invoices - Liste les factures.
@@ -44,6 +51,7 @@ export async function GET(request: NextRequest) {
     const siteId = searchParams.get("siteId");
     const status = searchParams.get("status");
     const type = searchParams.get("type");
+    const nature = searchParams.get("nature");
     const dateStart = searchParams.get("dateStart");
     const dateEnd = searchParams.get("dateEnd");
     const pageParam = searchParams.get("page");
@@ -57,6 +65,12 @@ export async function GET(request: NextRequest) {
     if (type && !INVOICE_TYPES.includes(type as (typeof INVOICE_TYPES)[number])) {
       return NextResponse.json(
         { error: `Type de facture inconnu. Valeurs acceptées : ${INVOICE_TYPES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    if (nature && !INVOICE_NATURES.includes(nature as (typeof INVOICE_NATURES)[number])) {
+      return NextResponse.json(
+        { error: `Nature de facture inconnue. Valeurs acceptées : ${INVOICE_NATURES.join(", ")}` },
         { status: 400 }
       );
     }
@@ -103,6 +117,7 @@ export async function GET(request: NextRequest) {
       ...(siteId ? { OR: [{ siteId }, { siteLines: { some: { siteId } } }] } : {}),
       ...(status ? { status: status as never } : {}),
       ...(type ? { type: type as never } : {}),
+      ...(nature ? { nature: nature as never } : {}),
       ...(issueDate.gte || issueDate.lte ? { issueDate } : {}),
     };
 
@@ -184,6 +199,7 @@ export async function POST(request: NextRequest) {
         data: {
           reference: input.reference,
           type: input.type,
+          nature: input.nature ?? null,
           status: "EN_ATTENTE",
           amount: input.amount,
           taxAmount: input.taxAmount ?? null,

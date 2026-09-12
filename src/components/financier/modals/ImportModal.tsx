@@ -11,9 +11,18 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { P1_SUBTYPES } from "@/components/financier/constants";
+import {
+  P1_SUBTYPES,
+  INVOICE_NATURES,
+  natureLabels,
+} from "@/components/financier/constants";
 import { InvoiceLinesTable } from "@/components/financier/modals/InvoiceLinesTable";
-import type { InvoiceFormData, InvoiceType, Site } from "@/components/financier/types";
+import type {
+  InvoiceFormData,
+  InvoiceNature,
+  InvoiceType,
+  Site,
+} from "@/components/financier/types";
 
 const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "AUTRE"];
 
@@ -200,21 +209,43 @@ export function ImportModal({
                   />
                 </div>
               </div>
-              {importFormData.type === "P1" && (
+              {/* Nature pré-remplie par la lecture IA ; vide si le document
+                  ne permettait pas de trancher — jamais devinée. */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label-tech mb-1.5 block">Sous-type P1</label>
+                  <label className="label-tech mb-1.5 block">Nature</label>
                   <select
-                    value={importFormData.p1SubType}
-                    onChange={(e) => setImportFormData({ ...importFormData, p1SubType: e.target.value })}
+                    value={importFormData.nature}
+                    onChange={(e) =>
+                      setImportFormData({
+                        ...importFormData,
+                        nature: e.target.value as InvoiceNature | "",
+                      })
+                    }
                     className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
                   >
-                    <option value="">— Sélectionner —</option>
-                    {P1_SUBTYPES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
+                    <option value="">—</option>
+                    {INVOICE_NATURES.map((n) => (
+                      <option key={n} value={n}>{natureLabels[n]}</option>
                     ))}
                   </select>
                 </div>
-              )}
+                {importFormData.type === "P1" && (
+                  <div>
+                    <label className="label-tech mb-1.5 block">Sous-type P1</label>
+                    <select
+                      value={importFormData.p1SubType}
+                      onChange={(e) => setImportFormData({ ...importFormData, p1SubType: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-ink/20 focus:border-accent focus:outline-none"
+                    >
+                      <option value="">— Sélectionner —</option>
+                      {P1_SUBTYPES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
               <div>
                 <label className="label-tech mb-1.5 block">Date d&apos;émission *</label>
                 <input

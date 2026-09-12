@@ -17,17 +17,33 @@ export const INVOICE_TYPES = ["P1", "P2", "P3", "AUTRE"] as const;
 export type InvoiceTypeValue = (typeof INVOICE_TYPES)[number];
 
 /**
+ * Nature de la facture — doit rester alignée sur l'enum InvoiceNature du
+ * schéma. Orthogonale au type : une facture P1 peut être un acompte, un
+ * décompte, un avoir ou un intéressement.
+ */
+export const INVOICE_NATURES = [
+  "ACOMPTE",
+  "DECOMPTE",
+  "AVOIR",
+  "INTERESSEMENT",
+  "AUTRE",
+] as const;
+export type InvoiceNatureValue = (typeof INVOICE_NATURES)[number];
+
+/**
  * Sous-types P1 : liste unique de référence, partagée entre le formulaire de
  * saisie (InvoiceModal) et la consigne IA. Voir
  * src/components/financier/constants.ts qui la réexporte côté écran.
+ *
+ * « Décompte » et « Intéressement » en ont été retirés : ce sont des NATURES
+ * de facture, pas des postes P1. Les factures antérieures qui portent encore
+ * ces valeurs les gardent telles quelles — rien n'est migré.
  */
 export const P1_SUBTYPES = [
   "Combustible",
   "ECS",
   "Location compteur",
   "Abonnement",
-  "Décompte",
-  "Intéressement",
   "Autre",
 ] as const;
 export type P1SubType = (typeof P1_SUBTYPES)[number];
@@ -50,6 +66,8 @@ export interface ParsedInvoice {
   periodStart: string | null;
   periodEnd: string | null;
   invoiceType: InvoiceTypeValue | null;
+  /** Nature du document : acompte, décompte, avoir, intéressement. */
+  nature: InvoiceNatureValue | null;
   /** Renseigné uniquement quand invoiceType vaut P1. */
   p1SubType: P1SubType | null;
   /** Répartition site par site ; vide quand la facture ne détaille pas. */
@@ -67,6 +85,7 @@ export function emptyParsedInvoice(): ParsedInvoice {
     periodStart: null,
     periodEnd: null,
     invoiceType: null,
+    nature: null,
     p1SubType: null,
     lines: [],
   };

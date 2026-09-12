@@ -25,6 +25,8 @@ import type {
   Tab,
   StatusFilter,
   TypeFilter,
+  NatureFilter,
+  InvoiceNature,
 } from "@/components/financier/types";
 
 // Tabs
@@ -50,6 +52,7 @@ const FINANCIER_TABS = sortTabsAlpha([
 const emptyInvoiceForm: InvoiceFormData = {
   reference: "",
   type: "",
+  nature: "",
   p1SubType: "",
   amount: "",
   issueDate: "",
@@ -86,6 +89,7 @@ function FinancierPageContent() {
   // et pagine.
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
+  const [natureFilter, setNatureFilter] = useState<NatureFilter>("ALL");
   const [siteFilter, setSiteFilter] = useState<string>("all");
   const [dateStart, setDateStart] = useState<string>("");
   const [dateEnd, setDateEnd] = useState<string>("");
@@ -108,11 +112,22 @@ function FinancierPageContent() {
     });
     if (statusFilter !== "ALL") p.set("status", statusFilter);
     if (typeFilter !== "ALL") p.set("type", typeFilter);
+    if (natureFilter !== "ALL") p.set("nature", natureFilter);
     if (siteFilter !== "all") p.set("siteId", siteFilter);
     if (dateStart) p.set("dateStart", dateStart);
     if (dateEnd) p.set("dateEnd", dateEnd);
     return `/api/invoices?${p.toString()}`;
-  }, [contractKey, invoicePage, sort, statusFilter, typeFilter, siteFilter, dateStart, dateEnd]);
+  }, [
+    contractKey,
+    invoicePage,
+    sort,
+    statusFilter,
+    typeFilter,
+    natureFilter,
+    siteFilter,
+    dateStart,
+    dateEnd,
+  ]);
 
   const {
     data: invoicesPage,
@@ -215,6 +230,7 @@ function FinancierPageContent() {
     const baseForm: InvoiceFormData = {
       reference: invoice.reference,
       type: invoice.type,
+      nature: invoice.nature ?? "",
       p1SubType: invoice.p1SubType ?? "",
       amount: String(invoice.amount),
       issueDate: invoice.issueDate.slice(0, 10),
@@ -271,6 +287,7 @@ function FinancierPageContent() {
       const payload = {
         reference: formData.reference,
         type: formData.type,
+        nature: formData.nature || null,
         p1SubType: formData.type === "P1" ? formData.p1SubType || null : null,
         amount: parseFloat(formData.amount) || 0,
         issueDate: formData.issueDate,
@@ -440,6 +457,7 @@ function FinancierPageContent() {
         objet: string | null;
         amountHT: number | null;
         invoiceType: "P1" | "P2" | "P3" | "AUTRE" | null;
+        nature: InvoiceNature | null;
         p1SubType: string | null;
         issueDate: string | null;
       };
@@ -466,6 +484,8 @@ function FinancierPageContent() {
         // Type lu par la consigne factures : c'est déjà une valeur de l'enum
         // InvoiceType, aucun mappage à faire. Vide si non détecté.
         type: parsed.invoiceType ?? "",
+        // Nature lue par l'IA, déjà filtrée sur l'enum côté serveur.
+        nature: parsed.nature ?? "",
         p1SubType: parsed.invoiceType === "P1" ? (parsed.p1SubType ?? "") : "",
         amount: parsed.amountHT ? String(parsed.amountHT) : "",
         // Date d'émission non trouvée : on laisse vide plutôt que d'inscrire
@@ -509,6 +529,7 @@ function FinancierPageContent() {
         body: JSON.stringify({
           reference: importFormData.reference,
           type: importFormData.type,
+          nature: importFormData.nature || null,
           p1SubType: importFormData.type === "P1" ? importFormData.p1SubType || null : null,
           amount: parseFloat(importFormData.amount) || 0,
           issueDate: importFormData.issueDate,
@@ -548,7 +569,7 @@ function FinancierPageContent() {
   // Retour à la première page dès qu'un filtre ou le tri change.
   useEffect(() => {
     setInvoicePage(1);
-  }, [statusFilter, typeFilter, siteFilter, dateStart, dateEnd, sort]);
+  }, [statusFilter, typeFilter, natureFilter, siteFilter, dateStart, dateEnd, sort]);
 
   // Loading
   if (loadingContracts) {
@@ -625,6 +646,8 @@ function FinancierPageContent() {
           setStatusFilter={setStatusFilter}
           typeFilter={typeFilter}
           setTypeFilter={setTypeFilter}
+          natureFilter={natureFilter}
+          setNatureFilter={setNatureFilter}
           siteFilter={siteFilter}
           setSiteFilter={setSiteFilter}
           dateStart={dateStart}

@@ -1,4 +1,5 @@
 import { Check, Clock, X } from "lucide-react";
+import type { InvoiceNature } from "@/components/financier/types";
 
 /**
  * Sous-types P1 : liste unique de référence. Elle alimente le formulaire de
@@ -6,7 +7,19 @@ import { Check, Clock, X } from "lucide-react";
  * listes divergentes produiraient des valeurs que le select ne sait pas
  * afficher. Définie dans une lib neutre pour rester importable côté serveur.
  */
-export { P1_SUBTYPES } from "@/lib/invoice-import";
+export { P1_SUBTYPES, INVOICE_NATURES } from "@/lib/invoice-import";
+
+/**
+ * Libellés français des natures de facture. Une facture sans nature (import
+ * antérieur au champ) n'a pas d'entrée ici : l'écran affiche un tiret.
+ */
+export const natureLabels: Record<InvoiceNature, string> = {
+  ACOMPTE: "Acompte",
+  DECOMPTE: "Décompte",
+  AVOIR: "Avoir",
+  INTERESSEMENT: "Intéressement",
+  AUTRE: "Autre",
+};
 
 /** Nombre de factures par page — partagé entre la page et l'onglet. */
 export const INVOICE_PAGE_SIZE = 30;

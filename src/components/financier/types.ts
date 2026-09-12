@@ -28,6 +28,12 @@ export interface InvoiceUser {
 export type InvoiceType = "P1" | "P2" | "P3" | "AUTRE";
 
 /**
+ * Nature du document, alignée sur l'enum InvoiceNature du schéma. Orthogonale
+ * au type : seul un ACOMPTE porte un rang « 4/4 ».
+ */
+export type InvoiceNature = "ACOMPTE" | "DECOMPTE" | "AVOIR" | "INTERESSEMENT" | "AUTRE";
+
+/**
  * Ligne de répartition d'une facture. La liste ne reçoit que `siteId` (assez
  * pour compter les lignes non rattachées) ; le détail et l'édition reçoivent
  * tout.
@@ -45,6 +51,8 @@ export interface Invoice {
   id: string;
   reference: string;
   type: InvoiceType;
+  /** null sur les factures antérieures au champ : afficher un tiret. */
+  nature: InvoiceNature | null;
   p1SubType: string | null;
   status: "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
   amount: number;
@@ -54,7 +62,10 @@ export interface Invoice {
   /** Période de prestation facturée, quand le document l'indique. */
   periodStart?: string | null;
   periodEnd?: string | null;
-  /** Rang d'acompte dans l'année contractuelle, calculé par l'API. */
+  /**
+   * Rang d'acompte dans l'année contractuelle, calculé par l'API — renseigné
+   * seulement quand la nature vaut ACOMPTE.
+   */
   installment?: { index: number; count: number } | null;
   description: string | null;
   /** PDF archivé dans R2, à l'import ou rattaché après coup. */
@@ -187,6 +198,8 @@ export interface InvoiceFormData {
   reference: string;
   /** Vide tant que le type n'a pas été détecté ni choisi. */
   type: InvoiceType | "";
+  /** Vide = nature non renseignée ; jamais devinée à partir du type. */
+  nature: InvoiceNature | "";
   p1SubType: string;
   amount: string;
   issueDate: string;
@@ -202,4 +215,5 @@ export interface InvoiceFormData {
 export type Tab = "facturation" | "budget" | "decompte-p3" | "devis";
 export type StatusFilter = "ALL" | "EN_ATTENTE" | "VALIDEE" | "REFUSEE";
 export type TypeFilter = "ALL" | InvoiceType;
+export type NatureFilter = "ALL" | InvoiceNature;
 export type InvoiceSortKey = "issueDate" | "reference" | "type" | "site" | "amount" | "status";

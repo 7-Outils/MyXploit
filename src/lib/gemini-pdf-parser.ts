@@ -2,11 +2,13 @@ import { Type } from "@google/genai";
 import type { ParsedQuote } from "./quote-import";
 import {
   INVOICE_TYPES,
+  INVOICE_NATURES,
   P1_SUBTYPES,
   stripLineOrderPrefix,
   type ParsedInvoice,
   type ParsedInvoiceLine,
   type InvoiceTypeValue,
+  type InvoiceNatureValue,
   type P1SubType,
 } from "./invoice-import";
 import { aiJson, type AiUsageTokens } from "@/lib/ai-client";
@@ -69,7 +71,17 @@ Classification du type de facture (très important — lis l'objet et le détail
 
 Repère typique : « Prestations de conduite et entretien courant » = P2 (jamais P1). « Travaux de Gros Entretien et APE » = P3.
 
-p1SubType : uniquement si le type est "P1", choisis exactement une valeur parmi ${P1_SUBTYPES.map((s) => `"${s}"`).join(", ")}. Pour tout autre type, mets null.
+Nature du document (champ "nature") — indépendante du type P1/P2/P3, lis l'intitulé et le corps de la facture :
+- "ACOMPTE" : facturation périodique d'une redevance (mensuelle, trimestrielle, semestrielle…), mentions du genre « acompte », « × 1/4 », « redevance du trimestre », « échéance ».
+- "DECOMPTE" : régularisation ou solde d'une période (« décompte », « régularisation », « solde », comparaison entre consommé et déjà facturé) — typiquement le P1 en fin de saison de chauffe.
+- "AVOIR" : avoir, note de crédit, annulation — montants négatifs.
+- "INTERESSEMENT" : partage de performance énergétique, intéressement (P1).
+- "AUTRE" : si aucun des cas ci-dessus.
+Mets null si le document ne permet pas de trancher.
+
+Pour un AVOIR, amountHT doit être NÉGATIF : respecte le signe porté par le document, ne renvoie jamais la valeur absolue.
+
+p1SubType : uniquement si le type est "P1", choisis exactement une valeur parmi ${P1_SUBTYPES.map((s) => `"${s}"`).join(", ")}. Pour tout autre type, mets null. Attention : « décompte » et « intéressement » ne sont pas des sous-types P1, ils se renseignent dans "nature".
 
 Règle de rattachement au site — importante :
 - Ne renseigne siteName/siteCity QUE si la facture désigne nommément un bâtiment précis (ex : "École Jules Ferry", "Piscine municipale").
@@ -98,6 +110,11 @@ export const invoiceResponseSchema = {
     invoiceType: {
       type: Type.STRING,
       enum: [...INVOICE_TYPES],
+      nullable: true,
+    },
+    nature: {
+      type: Type.STRING,
+      enum: [...INVOICE_NATURES],
       nullable: true,
     },
     p1SubType: {
@@ -243,6 +260,7 @@ export async function parseInvoiceWithGemini(
       periodStart: string | null;
       periodEnd: string | null;
       invoiceType: string | null;
+      nature: string | null;
       p1SubType: string | null;
       lines: Array<{ label?: unknown; amountHT?: unknown }> | null;
     };
@@ -251,6 +269,9 @@ export async function parseInvoiceWithGemini(
     // jette plutôt que de la propager jusqu'à Prisma, qui lèverait un 500.
     const invoiceType = INVOICE_TYPES.includes(parsed.invoiceType as InvoiceTypeValue)
       ? (parsed.invoiceType as InvoiceTypeValue)
+      : null;
+    const nature = INVOICE_NATURES.includes(parsed.nature as InvoiceNatureValue)
+      ? (parsed.nature as InvoiceNatureValue)
       : null;
     // Un sous-type sur une facture qui n'est pas P1 n'a pas de sens.
     const p1SubType =
@@ -279,6 +300,7 @@ export async function parseInvoiceWithGemini(
         periodStart: isoDateOrNull(parsed.periodStart),
         periodEnd: isoDateOrNull(parsed.periodEnd),
         invoiceType,
+        nature,
         p1SubType,
         lines,
       },

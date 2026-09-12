@@ -102,7 +102,10 @@ const invoiceDocumentUrlSchema = z.url().max(2000).nullish();
  */
 export const invoiceSiteLineSchema = z.object({
   label: z.string().min(1).max(MAX_STRING_LENGTH),
-  amountHT: z.coerce.number().min(0).max(100000000),
+  // Négatif autorisé, comme le total : un avoir réparti site par site porte
+  // des lignes négatives ; les refuser rendrait l'avoir multi-sites
+  // inenregistrable.
+  amountHT: z.coerce.number().min(-100000000).max(100000000),
   siteId: idSchema.nullish(),
   sortOrder: z.coerce.number().int().min(0).max(10000),
 });
@@ -110,8 +113,13 @@ export const invoiceSiteLineSchema = z.object({
 export const invoiceCreateSchema = z.object({
   reference: z.string().min(1).max(100),
   type: z.enum(["P1", "P2", "P3", "AUTRE"]),
+  // Nature du document, orthogonale au type. Absente = non renseignée : on
+  // n'invente pas la nature des factures déjà en base.
+  nature: z.enum(["ACOMPTE", "DECOMPTE", "AVOIR", "INTERESSEMENT", "AUTRE"]).nullish(),
   p1SubType: z.string().max(MAX_STRING_LENGTH).nullish(),
-  amount: z.coerce.number().min(0).max(100000000),
+  // Négatif autorisé : un avoir se saisit avec son signe, pas en valeur
+  // absolue — sinon il gonfle les totaux au lieu de les réduire.
+  amount: z.coerce.number().min(-100000000).max(100000000),
   taxAmount: z.coerce.number().min(0).max(100000000).nullish(),
   issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),

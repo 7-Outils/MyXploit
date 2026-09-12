@@ -4,6 +4,11 @@
  * de plus à l'IA : la longueur de la période donne le rythme (3 mois =
  * trimestriel, 4 acomptes par an), sa position dans l'année contractuelle
  * donne le rang (juin-août d'un contrat au 1er septembre = 4/4).
+ *
+ * À n'appeler que sur une facture de nature ACOMPTE : un décompte, un avoir ou
+ * un intéressement porte lui aussi une période, mais ne s'inscrit dans aucune
+ * série périodique — lui coller un « 4/4 » serait faux. Le filtre est posé
+ * dans /api/invoices (withInstallment).
  */
 
 export interface Installment {

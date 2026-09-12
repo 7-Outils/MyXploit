@@ -130,6 +130,7 @@ export async function PUT(
         data: {
           ...(input.reference !== undefined && { reference: input.reference }),
           ...(input.type !== undefined && { type: input.type }),
+          ...(input.nature !== undefined && { nature: input.nature ?? null }),
           ...(input.amount !== undefined && { amount: input.amount }),
           ...(input.taxAmount !== undefined && { taxAmount: input.taxAmount ?? null }),
           ...(input.issueDate !== undefined && { issueDate: new Date(input.issueDate) }),
