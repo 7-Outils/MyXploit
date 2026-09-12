@@ -25,7 +25,7 @@ export interface InvoiceUser {
 }
 
 /** Doit rester aligné sur l'enum InvoiceType du schéma Prisma. */
-export type InvoiceType = "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE";
+export type InvoiceType = "P1" | "P2" | "P3" | "AUTRE";
 
 export interface Invoice {
   id: string;

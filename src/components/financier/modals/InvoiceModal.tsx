@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { P1_SUBTYPES } from "@/components/financier/constants";
 import type { InvoiceFormData, InvoiceType, Site } from "@/components/financier/types";
 
-const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "TRAVAUX", "AUTRE"];
+const INVOICE_TYPES: InvoiceType[] = ["P1", "P2", "P3", "AUTRE"];
 
 interface InvoiceModalProps {
   /** Édition quand true : même formulaire, autre verbe. */

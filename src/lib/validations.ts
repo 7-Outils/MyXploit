@@ -97,7 +97,7 @@ const invoiceDocumentUrlSchema = z.url().max(2000).nullish();
 
 export const invoiceCreateSchema = z.object({
   reference: z.string().min(1).max(100),
-  type: z.enum(["P1", "P2", "P3", "TRAVAUX", "AUTRE"]),
+  type: z.enum(["P1", "P2", "P3", "AUTRE"]),
   p1SubType: z.string().max(MAX_STRING_LENGTH).nullish(),
   amount: z.coerce.number().min(0).max(100000000),
   taxAmount: z.coerce.number().min(0).max(100000000).nullish(),

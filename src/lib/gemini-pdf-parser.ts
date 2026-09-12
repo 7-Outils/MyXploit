@@ -63,7 +63,6 @@ Classification du type de facture (très important — lis l'objet et le détail
 - "P1" : fourniture d'énergie, combustible, gaz, fioul, bois, électricité de chauffage, abonnement, TICGN, CEE, décompte ou intéressement énergie.
 - "P2" : conduite, entretien courant, maintenance, prestations d'exploitation, petit entretien, astreinte, dépannage courant, surveillance des installations.
 - "P3" : gros entretien, renouvellement, garantie totale, remplacement de matériel, APE (actions préventives extraordinaires).
-- "TRAVAUX" : travaux réalisés hors contrat d'exploitation.
 - "AUTRE" : si aucun des cas ci-dessus ne correspond.
 
 Repère typique : « Prestations de conduite et entretien courant » = P2 (jamais P1). « Travaux de Gros Entretien et APE » = P3.

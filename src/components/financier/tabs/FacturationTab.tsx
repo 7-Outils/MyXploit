@@ -125,13 +125,13 @@ export function FacturationTab({
           ))}
         </div>
         <div className="flex items-center border border-ink/10 overflow-hidden">
-          {(["P1", "P2", "P3", "TRAVAUX", "AUTRE"] as const).map((t) => (
+          {(["P1", "P2", "P3", "AUTRE"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTypeFilter(typeFilter === t ? "ALL" : t)}
               className={`h-9 px-3 text-xs font-medium transition-colors ${typeFilter === t ? "bg-ink text-paper" : "bg-white text-ink/60 hover:bg-ink/[0.02]"}`}
             >
-              {t === "TRAVAUX" ? "Travaux" : t === "AUTRE" ? "Autre" : t}
+              {t === "AUTRE" ? "Autre" : t}
             </button>
           ))}
         </div>

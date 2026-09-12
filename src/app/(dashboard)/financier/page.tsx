@@ -383,7 +383,7 @@ function FinancierPageContent() {
         reference: string | null;
         objet: string | null;
         amountHT: number | null;
-        invoiceType: "P1" | "P2" | "P3" | "TRAVAUX" | "AUTRE" | null;
+        invoiceType: "P1" | "P2" | "P3" | "AUTRE" | null;
         p1SubType: string | null;
         issueDate: string | null;
       };

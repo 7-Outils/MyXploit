@@ -11,7 +11,9 @@
  */
 
 /** Types de facture — doit rester aligné sur l'enum InvoiceType du schéma. */
-export const INVOICE_TYPES = ["P1", "P2", "P3", "TRAVAUX", "AUTRE"] as const;
+// Pas de « TRAVAUX » : une facture d'exploitant est P1, P2 ou P3 — les travaux
+// hors contrat passent par un devis. AUTRE reste le filet de sécurité.
+export const INVOICE_TYPES = ["P1", "P2", "P3", "AUTRE"] as const;
 export type InvoiceTypeValue = (typeof INVOICE_TYPES)[number];
 
 /**

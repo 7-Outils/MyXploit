@@ -8,7 +8,7 @@ const MAX_PAGE_SIZE = 200;
 
 // Doivent rester alignés sur les enums InvoiceStatus / InvoiceType du schéma.
 const INVOICE_STATUSES = ["EN_ATTENTE", "VALIDEE", "REFUSEE"] as const;
-const INVOICE_TYPES = ["P1", "P2", "P3", "TRAVAUX", "AUTRE"] as const;
+const INVOICE_TYPES = ["P1", "P2", "P3", "AUTRE"] as const;
 
 /**
  * GET /api/invoices - Liste les factures.
