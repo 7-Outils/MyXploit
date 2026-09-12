@@ -138,7 +138,9 @@ export function FacturationTab({
   return (
     <>
       {/* Filters + Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
+      {/* Même largeur bornée que le tableau, sinon la barre déborde à droite
+          d'un tableau qui s'arrête avant elle. */}
+      <div className="flex max-w-6xl items-center gap-2 flex-wrap">
         <div className="flex border border-ink/10">
           {(["ALL", "EN_ATTENTE", "VALIDEE", "REFUSEE"] as StatusFilter[]).map((status) => (
             <button
@@ -166,7 +168,9 @@ export function FacturationTab({
         <select
           value={siteFilter}
           onChange={(e) => setSiteFilter(e.target.value)}
-          className="h-9 px-3 border border-ink/10 text-sm bg-white"
+          // Largeur fixe : sans elle, le select prend celle de son option la
+          // plus longue (60 sites, certains noms à rallonge) et écrase la barre.
+          className="h-9 w-60 px-3 border border-ink/10 text-sm bg-white"
         >
           <option value="all">Tous sites</option>
           {invoiceSites.map((site) => (
