@@ -20,7 +20,7 @@ export const AI_PROVIDER_LABELS: Record<AiProvider, string> = {
   ANTHROPIC: "Anthropic Claude",
 };
 
-const MODELS: Record<AiProvider, string> = {
+export const MODELS: Record<AiProvider, string> = {
   GEMINI: "gemini-3-flash-preview",
   OPENAI: "gpt-5-mini",
   ANTHROPIC: "claude-haiku-4-5-20251001",

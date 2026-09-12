@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, Check, KeyRound, Loader2, Trash2 } from "lucide-react";
+import { AlertCircle, Check, KeyRound, Loader2, PlugZap, Trash2 } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/chart-card";
 
 type Provider = "GEMINI" | "OPENAI" | "ANTHROPIC";
@@ -21,6 +21,23 @@ export default function AiKeySection() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // Résultat du test de la clé auprès du fournisseur (appel minimal réel).
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTest(null);
+    try {
+      const res = await fetch("/api/organization/ai-test", { method: "POST" });
+      const data = await res.json();
+      setTest({ ok: !!data.ok, message: data.message ?? (data.ok ? "Clé valide" : "Échec") });
+    } catch {
+      setTest({ ok: false, message: "Erreur de connexion au serveur" });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   const refresh = () => {
     fetch("/api/organization")
@@ -108,6 +125,18 @@ export default function AiKeySection() {
           <span className="text-amber-700">Aucune clé configurée : les fonctions IA sont désactivées.</span>
         )}
       </div>
+      {test && (
+        <div
+          className={`mb-3 flex items-center gap-2 border p-3 text-sm ${
+            test.ok
+              ? "border-green-600/20 bg-green-50 text-green-700"
+              : "border-red-600/20 bg-red-50 text-red-700"
+          }`}
+        >
+          {test.ok ? <Check size={16} /> : <AlertCircle size={16} />}
+          {test.message}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <select
@@ -143,6 +172,16 @@ export default function AiKeySection() {
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
           </button>
+          {(keySet || fallback) && (
+            <button
+              onClick={runTest}
+              disabled={busy || testing}
+              title="Tester la clé auprès du fournisseur"
+              className="flex h-9 w-9 items-center justify-center border border-ink/10 text-ink/60 transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
+            >
+              {testing ? <Loader2 size={16} className="animate-spin" /> : <PlugZap size={16} />}
+            </button>
+          )}
           {keySet && (
             <button
               onClick={() => { if (confirm("Supprimer la clé API de l'organisation ?")) save({ aiApiKey: null }); }}

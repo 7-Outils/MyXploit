@@ -41,7 +41,7 @@ const responseSchema = {
  * Traduit l'erreur du fournisseur en une phrase actionnable, et surtout ne
  * laisse jamais filtrer la clé API dans un message affiché à l'écran.
  */
-function explainAiError(error: unknown): string {
+export function explainAiError(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
   const safe = raw
     .replace(/AIza[0-9A-Za-z_-]{10,}/g, "[clé masquée]")
