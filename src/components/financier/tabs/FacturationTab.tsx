@@ -259,7 +259,6 @@ export function FacturationTab({
                   <SortableTh label="Date" col="issueDate" sort={sort} onSort={onSort} />
                   <SortableTh label="Référence" col="reference" sort={sort} onSort={onSort} />
                   <SortableTh label="Type" col="type" sort={sort} onSort={onSort} />
-                  <SortableTh label="Site" col="site" sort={sort} onSort={onSort} />
                   <SortableTh label="Montant HT" col="amount" sort={sort} onSort={onSort} className="text-right" />
                   <SortableTh label="État" col="status" sort={sort} onSort={onSort} />
                   <th className="label-tech px-4 py-2.5 text-center">PDF</th>
@@ -287,7 +286,6 @@ export function FacturationTab({
                           {invoice.type}{invoice.p1SubType ? ` · ${invoice.p1SubType}` : ""}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-ink/60">{invoice.site ? invoice.site.name : "—"}</td>
                       <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">{invoice.amount.toLocaleString("fr-FR")} €</td>
                       <td className="px-4 py-3 text-sm">
                         {invoice.status === "VALIDEE" ? (
