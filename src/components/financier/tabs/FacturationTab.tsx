@@ -13,7 +13,6 @@ import {
   FileText,
   Paperclip,
   AlertTriangle,
-  Wand2,
 } from "lucide-react";
 import { ReadOnlyGate } from "@/components/permissions";
 import { SortableTh, type SortState } from "@/components/ui/SortableTh";
@@ -108,9 +107,6 @@ interface FacturationTabProps {
   canDeleteInvoice: boolean;
   handleAttachPdf: (id: string) => void;
   attachingId: string | null;
-  /** Nature manquante : relue sur le PDF archivé (factures d'avant le champ). */
-  handleReadNature: (id: string) => void;
-  readingNatureId: string | null;
   /** Erreur d'une action sur une ligne (PDF joint, détail chargé). */
   attachError: string | null;
   /** Facture dont le détail est en cours de chargement avant édition. */
@@ -151,8 +147,6 @@ export function FacturationTab({
   canDeleteInvoice,
   handleAttachPdf,
   attachingId,
-  handleReadNature,
-  readingNatureId,
   attachError,
   loadingInvoiceDetailId,
   setShowImportModal,
@@ -357,24 +351,6 @@ export function FacturationTab({
                               </span>
                             )}
                           </>
-                        ) : invoice.documentUrl ? (
-                          // Facture d'avant le champ Nature : on la relit sur
-                          // le PDF archivé, sans toucher au reste (autorisé
-                          // même validée — on remplit un vide, on ne modifie rien).
-                          <ReadOnlyGate fallback={<span className="text-ink/25">—</span>}>
-                            <button
-                              onClick={() => handleReadNature(invoice.id)}
-                              disabled={readingNatureId !== null}
-                              title="Lire la nature sur le PDF"
-                              className="inline-flex h-9 w-9 items-center justify-center text-ink/40 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
-                            >
-                              {readingNatureId === invoice.id ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <Wand2 size={16} />
-                              )}
-                            </button>
-                          </ReadOnlyGate>
                         ) : (
                           <span className="text-ink/25">—</span>
                         )}

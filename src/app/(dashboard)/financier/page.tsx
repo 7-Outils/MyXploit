@@ -384,27 +384,6 @@ function FinancierPageContent() {
     attachInputRef.current?.click();
   };
 
-  // Nature manquante (factures importées avant que le champ existe) : relue
-  // sur le PDF archivé, sans toucher au reste de la facture.
-  const [readingNatureId, setReadingNatureId] = useState<string | null>(null);
-  const handleReadNature = async (invoiceId: string) => {
-    setReadingNatureId(invoiceId);
-    setAttachError(null);
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}/nature-from-pdf`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) {
-        setAttachError(data.error ?? "Erreur lors de la lecture de la nature");
-        return;
-      }
-      refreshInvoiceData();
-    } catch {
-      setAttachError("Erreur réseau");
-    } finally {
-      setReadingNatureId(null);
-    }
-  };
-
   const handleAttachSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -697,8 +676,6 @@ function FinancierPageContent() {
           }}
           canDeleteInvoice={canDeleteInvoice}
           handleAttachPdf={handleAttachPdf}
-          handleReadNature={handleReadNature}
-          readingNatureId={readingNatureId}
           attachingId={attachingId}
           attachError={attachError ?? detailError}
           loadingInvoiceDetailId={loadingInvoiceDetailId}
