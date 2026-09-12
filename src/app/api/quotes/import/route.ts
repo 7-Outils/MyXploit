@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { findSiteMatch, emptyParsedQuote, type ParsedQuote } from "@/lib/quote-import";
 import { parseWithGemini } from "@/lib/gemini-pdf-parser";
+import { trimPdfForAi } from "@/lib/pdf-trim";
 import { GEMINI_MODEL, estimateCostUsd, isAiConfigured } from "@/lib/ai-client";
 import { checkAiBudget, recordAiUsage } from "@/lib/ai-usage";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
@@ -149,7 +150,10 @@ export async function POST(request: NextRequest) {
       if (!budget.allowed) {
         aiError = budget.message ?? "plafond IA mensuel atteint";
       } else {
-        const geminiResult = await parseWithGemini(buffer);
+        // Seules les premières pages partent chez Gemini ; l'archive R2 plus
+        // bas reçoit toujours le PDF complet.
+        const { buffer: aiBuffer } = await trimPdfForAi(buffer);
+        const geminiResult = await parseWithGemini(aiBuffer);
         if (geminiResult.parsed) {
           parsed = geminiResult.parsed;
           source = "gemini";
