@@ -133,6 +133,7 @@ function FinancierPageContent() {
     data: invoicesPage,
     error: invoicesError,
     isLoading: loadingInvoices,
+    isValidating: validatingInvoices,
   } = useSWR<{ data: Invoice[]; total: number }>(invoicesKey, fetcher, { keepPreviousData: true });
   const { data: p3DataRaw, isLoading: loadingP3 } = useSWR<P3BalanceData>(
     contractKey ? `/api/contracts/${contractKey}/p3-balance` : null, fetcher
@@ -640,7 +641,10 @@ function FinancierPageContent() {
       {/* Tab Content */}
       {activeTab === "facturation" && (
         <FacturationTab
-          loading={loadingInvoices}
+          // Spinner seulement quand on n'a encore rien ; un changement de filtre
+          // garde le tableau visible, estompé, le temps de l'aller-retour.
+          loading={loadingInvoices && !invoicesPage}
+          stale={validatingInvoices && !!invoicesPage}
           error={invoicesError}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}

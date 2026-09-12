@@ -71,6 +71,8 @@ function formatPeriod(start?: string | null, end?: string | null): string | null
 
 interface FacturationTabProps {
   loading: boolean;
+  /** Données d'un filtre précédent encore affichées pendant le rechargement. */
+  stale?: boolean;
   /** Erreur SWR : une route en panne n'est pas une liste vide. */
   error?: (Error & { status?: number }) | null;
   statusFilter: StatusFilter;
@@ -115,6 +117,7 @@ interface FacturationTabProps {
 
 export function FacturationTab({
   loading,
+  stale = false,
   error,
   statusFilter,
   setStatusFilter,
@@ -301,7 +304,7 @@ export function FacturationTab({
       ) : (
         // Largeur bornée : neuf colonnes étirées sur un grand écran, ça se
         // lit mal — le contenu reste groupé, l'espace vide est à droite.
-        <div className="mx-auto max-w-6xl bg-white border border-ink/10 overflow-hidden">
+        <div className={`mx-auto max-w-6xl bg-white border border-ink/10 overflow-hidden transition-opacity ${stale ? "opacity-60" : ""}`}>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white">
