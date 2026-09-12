@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { invoiceCreateSchema } from "@/lib/validations";
-import { replaceInvoiceSiteLines } from "@/lib/invoice-site-lines";
+import { replaceInvoiceSiteLines, learnBillingAliases } from "@/lib/invoice-site-lines";
 
 // GET /api/invoices - List all invoices
 const MAX_PAGE_SIZE = 200;
@@ -190,14 +190,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      await replaceInvoiceSiteLines(tx, {
+      const resolvedLines = await replaceInvoiceSiteLines(tx, {
         invoiceId: created.id,
         contractId: input.contractId ?? null,
         organizationId: effectiveOrgId,
         lines,
       });
 
-      return tx.invoice.findUniqueOrThrow({
+      const full = await tx.invoice.findUniqueOrThrow({
         where: { id: created.id },
         include: {
           site: { select: { id: true, name: true, city: true } },
@@ -215,13 +215,29 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+      return { full, resolvedLines };
+    // 66 lignes + lecture finale : au-delà des 5 s par défaut de Prisma sur Neon.
+    }, { timeout: 20_000 });
+
+    // Hors transaction : la mémoire des rapprochements n'a pas à pouvoir faire
+    // échouer une facture déjà écrite.
+    await learnBillingAliases(prisma, {
+      contractId: input.contractId ?? null,
+      organizationId: effectiveOrgId,
+      lines: invoice.resolvedLines,
     });
 
-    return NextResponse.json(invoice, { status: 201 });
+    return NextResponse.json(invoice.full, { status: 201 });
   } catch (error) {
     console.error("Error creating invoice:", error);
     return NextResponse.json(
-      { error: "Erreur lors de la création de la facture" },
+      // La cause remonte à l'écran : un « erreur » nu oblige à aller lire les
+      // logs Vercel pour savoir si c'est le schéma, un délai ou une validation.
+      {
+        error: `Erreur lors de la création de la facture : ${
+          error instanceof Error ? error.message.split("\n")[0].slice(0, 200) : "cause inconnue"
+        }`,
+      },
       { status: 500 }
     );
   }

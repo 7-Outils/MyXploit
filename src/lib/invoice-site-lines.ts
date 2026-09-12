@@ -38,11 +38,11 @@ export async function replaceInvoiceSiteLines(
     organizationId: string;
     lines: InvoiceSiteLineInput[];
   }
-): Promise<void> {
+): Promise<{ label: string; siteId: string | null }[]> {
   const { invoiceId, contractId, organizationId, lines } = params;
 
   await tx.invoiceSiteLine.deleteMany({ where: { invoiceId } });
-  if (lines.length === 0) return;
+  if (lines.length === 0) return [];
 
   const requestedSiteIds = [...new Set(lines.map((l) => l.siteId).filter((id): id is string => !!id))];
   let allowedSiteIds = new Set<string>();
@@ -76,24 +76,50 @@ export async function replaceInvoiceSiteLines(
     data: resolved.map((line) => ({ ...line, invoiceId })),
   });
 
-  // Apprentissage des alias : un rapprochement validé vaut pour tous les
-  // imports suivants du même contrat. Sans contrat, rien à mémoriser — l'alias
-  // n'aurait pas de portée.
+  return resolved;
+}
+
+/**
+ * Apprentissage des alias : un rapprochement validé vaut pour tous les imports
+ * suivants du même contrat. Hors transaction et en deux requêtes (suppression
+ * puis insertion groupée) : 66 upserts un par un dans la transaction de
+ * création dépassaient le délai de Prisma et faisaient échouer la facture —
+ * alors que perdre un alias n'a aucune conséquence financière.
+ */
+export async function learnBillingAliases(
+  db: Prisma.TransactionClient | PrismaClientLike,
+  params: {
+    contractId: string | null;
+    organizationId: string;
+    lines: { label: string; siteId: string | null }[];
+  }
+): Promise<void> {
+  const { contractId, organizationId, lines } = params;
   if (!contractId) return;
+
+  // Le dernier choix de l'utilisateur fait foi : un libellé réaffecté à un
+  // autre site doit déplacer l'alias, pas en créer un second.
   const aliasBySite = new Map<string, string>();
-  for (const line of resolved) {
+  for (const line of lines) {
     if (!line.siteId) continue;
     const alias = normalizeBillingAlias(line.label);
-    if (!alias) continue;
-    aliasBySite.set(alias, line.siteId);
+    if (alias) aliasBySite.set(alias, line.siteId);
   }
-  for (const [alias, siteId] of aliasBySite) {
-    await tx.contractSiteAlias.upsert({
-      where: { contractId_alias: { contractId, alias } },
-      // Le dernier choix de l'utilisateur fait foi : un libellé réaffecté à un
-      // autre site doit déplacer l'alias, pas en créer un second.
-      update: { siteId, organizationId },
-      create: { contractId, alias, siteId, organizationId },
+  if (aliasBySite.size === 0) return;
+
+  try {
+    await db.contractSiteAlias.deleteMany({
+      where: { contractId, alias: { in: [...aliasBySite.keys()] } },
     });
+    await db.contractSiteAlias.createMany({
+      data: [...aliasBySite].map(([alias, siteId]) => ({ contractId, alias, siteId, organizationId })),
+      skipDuplicates: true,
+    });
+  } catch (error) {
+    console.error("Error learning billing aliases:", error);
   }
 }
+
+type PrismaClientLike = {
+  contractSiteAlias: Prisma.TransactionClient["contractSiteAlias"];
+};

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { invoiceUpdateSchema } from "@/lib/validations";
-import { replaceInvoiceSiteLines } from "@/lib/invoice-site-lines";
+import { replaceInvoiceSiteLines, learnBillingAliases } from "@/lib/invoice-site-lines";
 
 /** Lignes de répartition renvoyées telles quelles aux écrans d'édition. */
 const siteLinesInclude = {
@@ -140,16 +140,16 @@ export async function PUT(
         },
       });
 
-      if (nextLines) {
-        await replaceInvoiceSiteLines(tx, {
-          invoiceId: id,
-          contractId: nextContractId,
-          organizationId: effectiveOrgId,
-          lines: nextLines,
-        });
-      }
+      const resolvedLines = nextLines
+        ? await replaceInvoiceSiteLines(tx, {
+            invoiceId: id,
+            contractId: nextContractId,
+            organizationId: effectiveOrgId,
+            lines: nextLines,
+          })
+        : [];
 
-      return tx.invoice.findUniqueOrThrow({
+      const full = await tx.invoice.findUniqueOrThrow({
         where: { id },
         include: {
           site: { select: { id: true, name: true, city: true } },
@@ -157,9 +157,17 @@ export async function PUT(
           siteLines: siteLinesInclude,
         },
       });
+      return { full, resolvedLines };
+    }, { timeout: 20_000 });
+
+    // Hors transaction : perdre un alias n'a aucune conséquence financière.
+    await learnBillingAliases(prisma, {
+      contractId: nextContractId,
+      organizationId: effectiveOrgId,
+      lines: invoice.resolvedLines,
     });
 
-    return NextResponse.json(invoice);
+    return NextResponse.json(invoice.full);
   } catch (error) {
     console.error("Error updating invoice:", error);
     return NextResponse.json(
