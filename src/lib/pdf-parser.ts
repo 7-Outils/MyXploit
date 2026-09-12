@@ -26,6 +26,32 @@ export async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
 }
 
 /**
+ * Le texte d'un PDF arrive découpé en lignes : un objet de travaux un peu long
+ * y passe à la ligne, et les motifs de recherche s'arrêtent au saut de ligne.
+ * On repart donc de la position trouvée pour reprendre la fin de la ligne, puis
+ * la ligne suivante quand elle prolonge visiblement la phrase.
+ */
+function joinWrappedLine(text: string, captured: string): string {
+  const start = text.indexOf(captured);
+  if (start === -1) return captured;
+
+  const lineEnd = text.indexOf("\n", start);
+  const firstLine = (lineEnd === -1 ? text.slice(start) : text.slice(start, lineEnd)).trim();
+  if (lineEnd === -1) return firstLine;
+
+  const nextLine = text.slice(lineEnd + 1).split("\n")[0].trim();
+  // Une continuation commence en minuscule et ne porte ni montant ni intitulé
+  // de colonne — sinon on collerait un morceau de tableau à l'objet.
+  const isContinuation =
+    nextLine.length > 0 &&
+    nextLine.length < 200 &&
+    /^[a-zà-ÿ(]/.test(nextLine) &&
+    !/€|\b(?:TVA|HT|TTC|Total|Quantité|Unité|Réf)\b/i.test(nextLine);
+
+  return isContinuation ? `${firstLine} ${nextLine}` : firstLine;
+}
+
+/**
  * Parser le texte extrait pour trouver les informations clés du devis
  */
 export function parseQuoteFromText(text: string): ParsedQuote {
@@ -122,26 +148,31 @@ export function parseQuoteFromText(text: string): ParsedQuote {
   }
 
   // 3. OBJET DES TRAVAUX - Chercher "Remplacement", "Installation", "Travaux" etc.
+  // (voir joinWrappedLine plus bas pour la reprise des objets sur deux lignes)
   // D'abord chercher les lignes encadrées (format IDEX avec bordure)
   // Le pattern cherche une ligne isolée commençant par un mot-clé de travaux
+  // Les bornes hautes sont volontairement larges : un objet de devis fait
+  // couramment 150 caractères (« Remplacement des thermostats dans la salle de
+  // motricité et entrée principale par des nouveaux thermostats sans fil… »).
+  // Des quantificateurs courts amputaient la description en plein milieu.
   const objetPatterns = [
     // Format IDEX: ligne isolée avec travaux (avant "Travaux réalisés le")
-    /\n([Rr]emplacement[^\n]{5,60})\n(?:\s*Travaux\s*réalisés|Référence|MAT|MO)/,
+    /\n([Rr]emplacement[^\n]{5,200})\n(?:\s*Travaux\s*réalisés|Référence|MAT|MO)/,
     // Champ "Objet" explicite
     /Objet\s*(?:des\s*travaux)?\s*:?\s*([^\n]+)/i,
     /Nature\s*des\s*travaux\s*:?\s*([^\n]+)/i,
     // Lignes commençant par un numéro puis description de travaux
-    /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,80})/im,
+    /^\s*1\s+((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Travaux|Mise en place|Création|Modification)[^€\n]{10,200})/im,
     // Format IDEX: "Remplacement ballon ecs en cuisine" (sans préposition obligatoire)
-    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+[A-Za-zÀ-ü\s]{5,50})/i,
+    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+[A-Za-zÀ-ÿ0-9'’\-\s]{5,200})/i,
     // Recherche directe de mots-clés de travaux avec préposition
-    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+(?:des?|du|de la|d'un|d'une)\s+[A-Za-zÀ-ü\s]{3,40})/i,
+    /((?:Remplacement|Installation|Réparation|Maintenance|Fourniture|Mise en place|Création|Modification)\s+(?:des?|du|de la|d'un|d'une)\s+[A-Za-zÀ-ÿ0-9'’\-\s]{3,200})/i,
   ];
 
   for (const pattern of objetPatterns) {
     const match = text.match(pattern);
     if (match) {
-      let objet = match[1].trim();
+      let objet = joinWrappedLine(text, match[1]).trim();
       // Nettoyer - enlever les quantités/prix à la fin et caractères indésirables
       objet = objet.replace(/\s+\d+[\s,\.]*\d*\s*(€|EUR|U\.|Ens|Forf|ML|M2|M3|H)?.*$/i, "").trim();
       objet = objet.replace(/\s{2,}/g, " ").trim(); // Espaces multiples
@@ -154,9 +185,13 @@ export function parseQuoteFromText(text: string): ParsedQuote {
       // l'objet de sa moitié utile (« Remplacement des thermostats » au lieu
       // de la description complète des travaux).
       if (objet.length > 200) {
-        const shortened = objet.match(/^(.{20,200}?)(?:[,;.]|$)/);
-        if (shortened) objet = shortened[1].trim();
-        else objet = objet.slice(0, 200).trim();
+        const cut = objet.slice(0, 200);
+        const lastStop = Math.max(
+          cut.lastIndexOf(", "),
+          cut.lastIndexOf(". "),
+          cut.lastIndexOf("; ")
+        );
+        objet = (lastStop > 120 ? cut.slice(0, lastStop) : cut).trim();
       }
       if (objet.length > 5 && objet.length <= 200) {
         result.objet = objet;
