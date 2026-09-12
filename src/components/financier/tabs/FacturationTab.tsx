@@ -251,7 +251,9 @@ export function FacturationTab({
           </p>
         </div>
       ) : (
-        <div className="bg-white border border-ink/10 overflow-hidden">
+        // Largeur bornée : neuf colonnes étirées sur un grand écran, ça se
+        // lit mal — le contenu reste groupé, l'espace vide est à droite.
+        <div className="max-w-6xl bg-white border border-ink/10 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white">
@@ -263,8 +265,7 @@ export function FacturationTab({
                   <th className="label-tech px-4 py-2.5 text-left">Acompte</th>
                   <SortableTh label="Montant HT" col="amount" sort={sort} onSort={onSort} className="text-right" />
                   <SortableTh label="État" col="status" sort={sort} onSort={onSort} />
-                  <th className="label-tech px-4 py-2.5 text-center">PDF</th>
-                  <th className="label-tech px-4 py-2.5 text-center">Actions</th>
+                  <th className="label-tech px-4 py-2.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -297,65 +298,52 @@ export function FacturationTab({
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-sm font-medium tabular-nums text-ink">{invoice.amount.toLocaleString("fr-FR")} €</td>
                       <td className="px-4 py-3 text-sm">
-                        {invoice.status === "VALIDEE" ? (
-                          <div>
-                            <span className={`px-2 py-1 text-xs font-medium ${status.color}`}>{status.label}</span>
-                            {invoice.acceptedByUser && (
-                              <div className="text-xs text-ink/60 mt-1">
-                                par {invoice.acceptedByUser.firstName || ""} {invoice.acceptedByUser.lastName || invoice.acceptedByUser.email}
-                              </div>
-                            )}
-                            {invoice.acceptedAt && (
-                              <div className="text-xs text-ink/50">{new Date(invoice.acceptedAt).toLocaleDateString("fr-FR")}</div>
-                            )}
-                          </div>
-                        ) : invoice.status === "REFUSEE" ? (
-                          <div>
-                            <span className={`px-2 py-1 text-xs font-medium ${status.color}`}>{status.label}</span>
-                            {invoice.refusedByUser && (
-                              <div className="text-xs text-ink/60 mt-1">
-                                par {invoice.refusedByUser.firstName || ""} {invoice.refusedByUser.lastName || invoice.refusedByUser.email}
-                              </div>
-                            )}
-                            {invoice.refusedAt && (
-                              <div className="text-xs text-ink/50">{new Date(invoice.refusedAt).toLocaleDateString("fr-FR")}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className={`px-2 py-1 text-xs font-medium ${status.color}`}>{status.label}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {invoice.documentUrl ? (
-                          <a
-                            href={invoice.documentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Voir le PDF original"
-                            className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-accent hover:bg-ink/[0.02] transition-colors"
-                          >
-                            <FileText size={16} />
-                          </a>
-                        ) : (
-                          <ReadOnlyGate fallback={<span className="text-sm text-ink/25">—</span>}>
-                            <button
-                              onClick={() => handleAttachPdf(invoice.id)}
-                              disabled={attachingId !== null}
-                              title="Joindre le PDF"
-                              className="inline-flex h-9 w-9 items-center justify-center text-ink/40 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
-                            >
-                              {attachingId === invoice.id ? (
-                                <Loader2 size={16} className="animate-spin" />
-                              ) : (
-                                <Paperclip size={16} />
-                              )}
-                            </button>
-                          </ReadOnlyGate>
-                        )}
+                        <span className={`px-2 py-1 text-xs font-medium ${status.color}`}>{status.label}</span>
+                        {(() => {
+                          // Qui a décidé, quand : une seule ligne discrète sous
+                          // le badge, pas trois lignes qui étirent la rangée.
+                          const who = invoice.status === "VALIDEE" ? invoice.acceptedByUser : invoice.status === "REFUSEE" ? invoice.refusedByUser : null;
+                          const when = invoice.status === "VALIDEE" ? invoice.acceptedAt : invoice.status === "REFUSEE" ? invoice.refusedAt : null;
+                          if (!who && !when) return null;
+                          const name = who ? `${who.firstName || ""} ${who.lastName || who.email}`.trim() : null;
+                          return (
+                            <div className="mt-1 text-[11px] text-ink/50 whitespace-nowrap">
+                              {[name, when ? new Date(when).toLocaleDateString("fr-FR") : null].filter(Boolean).join(" · ")}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Le PDF est une action comme les autres — et la
+                              seule qui reste une fois la facture décidée. */}
+                          {invoice.documentUrl ? (
+                            <a
+                              href={invoice.documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Voir le PDF original"
+                              className="inline-flex h-9 w-9 items-center justify-center text-ink/60 hover:text-accent hover:bg-ink/[0.02] transition-colors"
+                            >
+                              <FileText size={16} />
+                            </a>
+                          ) : (
+                            <ReadOnlyGate>
+                              <button
+                                onClick={() => handleAttachPdf(invoice.id)}
+                                disabled={attachingId !== null}
+                                title="Joindre le PDF"
+                                className="inline-flex h-9 w-9 items-center justify-center text-ink/40 hover:text-accent hover:bg-ink/[0.02] transition-colors disabled:opacity-50"
+                              >
+                                {attachingId === invoice.id ? (
+                                  <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                  <Paperclip size={16} />
+                                )}
+                              </button>
+                            </ReadOnlyGate>
+                          )}
                         <ReadOnlyGate>
-                          <div className="flex items-center justify-center gap-1">
                             {invoice.status === "EN_ATTENTE" && (
                               <>
                                 <button
@@ -397,10 +385,8 @@ export function FacturationTab({
                                 )}
                               </>
                             )}
-                            {/* Validée ou refusée : figée. Il ne reste que la
-                                consultation du PDF, dans la colonne d'à côté. */}
-                          </div>
                         </ReadOnlyGate>
+                        </div>
                       </td>
                     </tr>
                   );
