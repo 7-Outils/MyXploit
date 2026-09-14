@@ -460,12 +460,22 @@ function Timeline({
                     </td>
                   );
                 }
+                // Échéance future : les indices de ce mois-là n'existent pas
+                // encore. Afficher la dernière valeur connue serait un chiffre
+                // faux posé sur une date à venir.
+                if (entry.status === "upcoming") {
+                  return (
+                    <td key={component.indexId} className="px-4 py-2 text-right font-mono text-ink/30">
+                      —
+                    </td>
+                  );
+                }
                 return (
                   <td
                     key={component.indexId}
                     className="px-4 py-2 text-right font-mono tabular-nums whitespace-nowrap"
                   >
-                    <span className={entry.status === "upcoming" ? "text-ink/40" : "text-ink"}>
+                    <span className="text-ink">
                       {formatNumber(cell.value, 4)}
                     </span>
                     {cell.isProvisional && (
@@ -481,15 +491,14 @@ function Timeline({
               })}
 
               <td className="px-4 py-2 text-right font-mono tabular-nums">
-                {entry.K === null ? (
+                {entry.K === null || entry.status === "upcoming" ? (
                   <span className="text-ink/30">—</span>
                 ) : (
-                  <span
-                    className={
-                      entry.status === "upcoming" ? "text-ink/40" : "font-semibold text-ink"
-                    }
-                  >
-                    {entry.K.toFixed(formula.roundingDecimals)}
+                  <span className="font-semibold text-ink">
+                    {entry.K.toLocaleString("fr-FR", {
+                      minimumFractionDigits: formula.roundingDecimals,
+                      maximumFractionDigits: formula.roundingDecimals,
+                    })}
                   </span>
                 )}
               </td>
@@ -1052,7 +1061,10 @@ function ApplyModal({
             ))}
             {" = "}
             <span className="font-semibold text-ink">
-              {data.K.toFixed(data.roundingDecimals)}
+              {data.K.toLocaleString("fr-FR", {
+                minimumFractionDigits: data.roundingDecimals,
+                maximumFractionDigits: data.roundingDecimals,
+              })}
             </span>
             <span className="text-ink/40">
               {" "}
