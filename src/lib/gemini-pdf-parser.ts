@@ -23,7 +23,7 @@ Classification du type (très important) :
 - "P1" : énergie, combustible, gaz, fioul, abonnement gaz, TICGN, PEG, TVD, CEE, P0 (énergie uniquement)
 - "P3" : gros entretien, remplacement d'équipement, renouvellement, réfection, rénovation
 - "P5" : prestations exceptionnelles, actions préventives extraordinaires (APE)
-- "TRAVAUX" : travaux hors contrat
+- "TRAVAUX" : travaux hors contrat / hors marché (offre dite « P6 » chez Dalkia)
 - "AMELIORATION" : amélioration énergétique, MDE
 - "AUTRE" : si aucun des ci-dessus
 
@@ -194,11 +194,11 @@ export async function parseWithGemini(pdfBuffer: Buffer): Promise<GeminiParseRes
       quoteType: "P1" | "P3" | "P5" | "TRAVAUX" | "AMELIORATION" | "AUTRE" | null;
     };
 
-    // ParsedQuote.quoteType restreint aux 5 valeurs originales — on mappe P1 vers AUTRE
+    // L'application ne distingue que P3 et P5 : tout ce qui n'est pas du
+    // gros entretien P3 (travaux hors contrat, « offre P6 » Dalkia, MDE,
+    // énergie, indéterminé) tombe en P5.
     const mappedQuoteType: ParsedQuote["quoteType"] =
-      parsed.quoteType === "P1" ? "AUTRE" :
-      parsed.quoteType === null ? null :
-      parsed.quoteType;
+      parsed.quoteType === "P3" ? "P3" : "P5";
 
     return {
       parsed: {

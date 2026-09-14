@@ -12,7 +12,8 @@ export interface ParsedQuote {
   objet: string | null;
   amountHT: number | null;
   issueDate: string | null; // ISO "YYYY-MM-DD"
-  quoteType: "P3" | "P5" | "TRAVAUX" | "AMELIORATION" | "AUTRE" | null;
+  /** Seuls types connus de l'application ; tout ce qui n'est pas P3 est ramené à P5. */
+  quoteType: "P3" | "P5" | null;
 }
 
 export function emptyParsedQuote(): ParsedQuote {
