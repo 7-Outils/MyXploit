@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
-import { buildRevisionTimeline, toLegacyPending } from "@/lib/revision-timeline";
+import { buildRevisionTimeline } from "@/lib/revision-timeline";
 
 /**
- * Compatibilité : forme historique « prochaine échéance par P ».
- * Dérivée de la chronologie (`revision-timeline`), qui est la source de vérité.
- * Les formules non paramétrées (sans firstRevisionDate) sont omises.
+ * Chronologie de révision du contrat : pour chaque formule paramétrée
+ * (firstRevisionDate + periodicity), les échéances de la première jusqu'à la
+ * première échéance future incluse, avec statut, K et détail par composante.
  */
 export async function GET(
   _request: NextRequest,
@@ -28,11 +28,10 @@ export async function GET(
       return NextResponse.json({ error: "Contrat introuvable" }, { status: 404 });
     }
 
-    const now = new Date();
-    const timeline = await buildRevisionTimeline(contractId, now);
-    return NextResponse.json(toLegacyPending(timeline, now));
+    const timeline = await buildRevisionTimeline(contractId);
+    return NextResponse.json(timeline);
   } catch (error) {
-    console.error("Error fetching pending revisions:", error);
+    console.error("Error building revision timeline:", error);
     return NextResponse.json({ error: "Erreur" }, { status: 500 });
   }
 }

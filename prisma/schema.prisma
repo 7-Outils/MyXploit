@@ -1761,6 +1761,13 @@ model ContractRevisionFormula {
   pType        RevisionPType
   periodicity      RevisionPeriod @default(ANNUAL)
   baseDate         DateTime
+  // Première échéance de révision. null = échéancier non paramétré :
+  // l'écran n'affiche alors aucune chronologie (aucune règle par défaut).
+  firstRevisionDate DateTime?
+  // Mois de l'indice retenu à l'échéance :
+  //   null = dernier indice connu à l'échéance
+  //   n    = indice du mois (échéance − n mois)
+  indexLagMonths   Int?
   constantPart     Float          @default(0)
   roundingDecimals Int            @default(4) // arrondi du coefficient K
   createdAt        DateTime       @default(now())

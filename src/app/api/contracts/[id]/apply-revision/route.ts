@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { RevisionPType } from "@/generated/prisma/client";
+import { computeK, monthKey, valueCutoff } from "@/lib/revision";
 
 const P_TYPES: RevisionPType[] = ["P1", "P2", "P3"];
 
@@ -48,8 +49,12 @@ export async function POST(
       return NextResponse.json({ error: "Aucune formule définie pour ce P" }, { status: 400 });
     }
 
-    // Résoudre la valeur de chaque indice à periodStart (la plus récente avec date <= periodStart)
-    let Kraw = formula.constantPart;
+    // Valeur d'indice retenue à l'échéance :
+    //  - indexLagMonths null → dernière valeur connue de date ≤ échéance ;
+    //  - indexLagMonths = n  → dernière valeur du mois (échéance − n mois) ou antérieure.
+    const lagMonths = formula.indexLagMonths ?? null;
+    const cutoff = valueCutoff(periodStart, lagMonths);
+
     const componentDetails: {
       indexId: string;
       indexName: string;
@@ -59,12 +64,13 @@ export async function POST(
       reconnectionCoef: number;
       isProvisional: boolean;
       valueDate: string;
+      valueMonth: string;
       ratio: number;
     }[] = [];
 
     for (const c of formula.components) {
       const latest = await prisma.contractRevisionIndexValue.findFirst({
-        where: { indexId: c.indexId, date: { lte: periodStart } },
+        where: { indexId: c.indexId, date: { lt: cutoff } },
         orderBy: { date: "desc" },
         include: { index: { select: { name: true } } },
       });
@@ -76,7 +82,6 @@ export async function POST(
       }
       const recon = c.reconnectionCoef ?? 1;
       const ratio = (latest.value * recon) / c.baseValue;
-      Kraw += c.coefficient * ratio;
       componentDetails.push({
         indexId: c.indexId,
         indexName: latest.index.name,
@@ -86,13 +91,21 @@ export async function POST(
         reconnectionCoef: recon,
         isProvisional: latest.isProvisional,
         valueDate: latest.date.toISOString(),
+        valueMonth: monthKey(latest.date),
         ratio,
       });
     }
 
-    const decimals = Math.max(0, Math.min(10, formula.roundingDecimals ?? 4));
-    const factor = Math.pow(10, decimals);
-    const K = Math.round(Kraw * factor) / factor;
+    const { K, Kraw, decimals } = computeK(
+      formula.constantPart,
+      componentDetails.map((c) => ({
+        coefficient: c.coefficient,
+        baseValue: c.baseValue,
+        reconnectionCoef: c.reconnectionCoef,
+        value: c.currentValue,
+      })),
+      formula.roundingDecimals ?? 4
+    );
 
     const amountField = `amount${pType}` as "amountP1" | "amountP2" | "amountP3";
     const baseField = `amount${pType}Base` as "amountP1Base" | "amountP2Base" | "amountP3Base";
@@ -139,6 +152,7 @@ export async function POST(
         Kraw,
         roundingDecimals: decimals,
         constantPart: formula.constantPart,
+        indexLagMonths: lagMonths,
         components: componentDetails,
         sites: siteResults,
         hasProvisionalIndex: componentDetails.some((c) => c.isProvisional),
@@ -200,6 +214,7 @@ export async function POST(
       Kraw,
       roundingDecimals: decimals,
       constantPart: formula.constantPart,
+      indexLagMonths: lagMonths,
       components: componentDetails,
       sites: siteResults,
       hasProvisionalIndex: componentDetails.some((c) => c.isProvisional),

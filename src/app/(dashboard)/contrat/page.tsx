@@ -93,8 +93,7 @@ function AdministratifContent() {
                   preload(`/api/heating-seasons?contractId=${selectedContract.id}`, fetcher);
                 } else if (tab.id === "revision") {
                   preload(`/api/contracts/${selectedContract.id}/revision-indices`, fetcher);
-                  preload(`/api/contracts/${selectedContract.id}/revision-formulas`, fetcher);
-                  preload(`/api/contracts/${selectedContract.id}/revision-pending`, fetcher);
+                  preload(`/api/contracts/${selectedContract.id}/revision-timeline`, fetcher);
                 } else if (tab.id === "montants") {
                   preload(`/api/contracts/${selectedContract.id}/amounts-timeline`, fetcher);
                 }

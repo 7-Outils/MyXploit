@@ -1,13 +1,48 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import useSWR from "swr";
-import { fetcher } from "@/lib/swr-fetcher";
-import { Loader2, Plus, Trash2, Pencil, Check, X, Calculator, AlertTriangle, Clock, ArrowDown } from "lucide-react";
-import { ReadOnlyGate } from "@/components/permissions";
+/**
+ * Contrat › Révision — lecture et paramétrage de la révision indicielle.
+ *
+ * Principe : il n'existe AUCUNE règle générale de révision. Chaque P a une
+ * fiche de paramètres, vide tant que personne ne l'a renseignée à partir du
+ * CCAP. L'écran n'affiche donc ni périodicité par défaut ni échéance déduite
+ * tant que la première échéance n'est pas saisie.
+ *
+ * Le moteur de calcul reste côté serveur (`apply-revision`) ; cet écran lit la
+ * chronologie (`revision-timeline`) et ouvre l'aperçu avant application.
+ */
 
-type PType = "P1" | "P2" | "P3";
+import { useCallback, useMemo, useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
+import { fetcher } from "@/lib/swr-fetcher";
+import { api, getErrorMessage } from "@/lib/api-client";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
+import { ReadOnlyGate } from "@/components/permissions";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Pencil,
+  Check,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
+
+// ============================================================
+// Types
+// ============================================================
+
+type PType = "P2" | "P3";
 type Periodicity = "MONTHLY" | "QUARTERLY" | "SEMI_ANNUAL" | "ANNUAL";
+type EntryStatus =
+  | "applied"
+  | "ready"
+  | "provisional"
+  | "missing_index"
+  | "upcoming";
 
 interface IndexValue {
   id: string;
@@ -23,786 +58,1592 @@ interface RevisionIndex {
   values: IndexValue[];
 }
 
-interface FormulaComponent {
-  id?: string;
+interface TimelineComponent {
   indexId: string;
+  indexName: string;
   coefficient: number;
   baseValue: number;
   reconnectionCoef: number;
-  index?: { id: string; name: string };
+  value: number | null;
+  valueMonth: string | null;
+  isProvisional: boolean;
 }
 
-interface Formula {
+interface TimelineEntry {
+  dueDate: string;
+  status: EntryStatus;
+  isOverdue: boolean;
+  appliedAt: string | null;
+  appliedBy: string | null;
+  K: number | null;
+  hasProvisionalIndex: boolean;
+  missingIndexNames: string[];
+  components: TimelineComponent[];
+}
+
+interface TimelineFormula {
   id: string;
-  pType: PType;
+  pType: PType | "P1";
   periodicity: Periodicity;
-  baseDate: string;
+  firstRevisionDate: string | null;
+  indexLagMonths: number | null;
   constantPart: number;
   roundingDecimals: number;
-  components: FormulaComponent[];
+  configured: boolean;
+  components: {
+    indexId: string;
+    indexName: string;
+    coefficient: number;
+    baseValue: number;
+    reconnectionCoef: number;
+  }[];
+  entries: TimelineEntry[];
 }
 
-interface PendingRevision {
-  pType: PType;
-  periodicity: Periodicity;
-  lastAppliedDate: string | null;
-  nextDueDate: string;
-  isOverdue: boolean;
-  indicesReady: boolean;
-  missingIndex: string | null;
+interface PreviewSite {
+  contractSiteId: string;
+  siteName: string;
+  base: number;
+  before: number;
+  after: number;
+  delta: number;
 }
+
+interface PreviewResult {
+  pType: string;
+  periodStart: string;
+  K: number;
+  Kraw: number;
+  roundingDecimals: number;
+  constantPart: number;
+  components: {
+    indexName: string;
+    coefficient: number;
+    baseValue: number;
+    currentValue: number;
+    reconnectionCoef: number;
+    isProvisional: boolean;
+    valueMonth: string;
+  }[];
+  sites: PreviewSite[];
+  hasProvisionalIndex: boolean;
+}
+
+const P_TYPES: PType[] = ["P2", "P3"];
 
 const PERIOD_LABEL: Record<Periodicity, string> = {
-  MONTHLY: "Mensuel",
-  QUARTERLY: "Trimestriel",
-  SEMI_ANNUAL: "Semestriel",
-  ANNUAL: "Annuel",
+  MONTHLY: "mensuelle",
+  QUARTERLY: "trimestrielle",
+  SEMI_ANNUAL: "semestrielle",
+  ANNUAL: "annuelle",
 };
 
+// ============================================================
+// Formatage
+// ============================================================
+
+const MONTHS_SHORT = [
+  "janv.", "févr.", "mars", "avr.", "mai", "juin",
+  "juil.", "août", "sept.", "oct.", "nov.", "déc.",
+];
+
+function formatDay(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("fr-FR", { timeZone: "UTC" });
+}
+
+/** « 2025-06 » → « juin 25 ». */
+function formatMonth(monthKey: string | null): string {
+  if (!monthKey) return "—";
+  const [y, m] = monthKey.split("-");
+  const idx = parseInt(m, 10) - 1;
+  if (isNaN(idx) || !MONTHS_SHORT[idx]) return monthKey;
+  return `${MONTHS_SHORT[idx]} ${y.slice(2)}`;
+}
+
+function formatNumber(n: number, maxDecimals = 4): string {
+  return n.toLocaleString("fr-FR", { maximumFractionDigits: maxDecimals });
+}
+
+function formatEuro(n: number): string {
+  return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €`;
+}
+
+/** Résumé mono des paramètres : « trimestrielle · 1re échéance 01/09/2025 · … ». */
+function settingsSummary(formula: TimelineFormula): string {
+  const parts = [
+    PERIOD_LABEL[formula.periodicity],
+    `1re échéance ${formatDay(formula.firstRevisionDate)}`,
+    formula.indexLagMonths == null
+      ? "dernier indice connu"
+      : `indice m−${formula.indexLagMonths}`,
+    `arrondi ${formula.roundingDecimals}`,
+  ];
+  return parts.join(" · ");
+}
+
+/** Formule rendue : « K = 0,15 + 0,45 × ICHT-IME / 133,2 ». */
+function renderFormula(
+  constantPart: number,
+  components: {
+    indexName: string;
+    coefficient: number;
+    baseValue: number;
+    reconnectionCoef: number;
+  }[]
+): string {
+  const terms: string[] = [];
+  if (constantPart !== 0 || components.length === 0) {
+    terms.push(formatNumber(constantPart));
+  }
+  for (const c of components) {
+    const recon =
+      c.reconnectionCoef && c.reconnectionCoef !== 1
+        ? ` × ${formatNumber(c.reconnectionCoef, 6)}`
+        : "";
+    terms.push(
+      `${formatNumber(c.coefficient)} × ${c.indexName}${recon} / ${formatNumber(c.baseValue, 6)}`
+    );
+  }
+  return `K = ${terms.join(" + ")}`;
+}
+
+// ============================================================
+// Écran
+// ============================================================
+
 export default function ContractRevisionTab({ contractId }: { contractId: string }) {
-  const { data: indicesData, isLoading: l1, mutate: mIndices } = useSWR<RevisionIndex[]>(
-    `/api/contracts/${contractId}/revision-indices`, fetcher
-  );
-  const { data: formulasData, isLoading: l2, mutate: mFormulas } = useSWR<Formula[]>(
-    `/api/contracts/${contractId}/revision-formulas`, fetcher
-  );
-  const { data: pendingData, isLoading: l3, mutate: mPending } = useSWR<PendingRevision[]>(
-    `/api/contracts/${contractId}/revision-pending`, fetcher
+  const {
+    data: indicesData,
+    isLoading: loadingIndices,
+    error: indicesError,
+  } = useSWR<RevisionIndex[]>(`/api/contracts/${contractId}/revision-indices`, fetcher);
+  const {
+    data: timelineData,
+    isLoading: loadingTimeline,
+    error: timelineError,
+  } = useSWR<TimelineFormula[]>(`/api/contracts/${contractId}/revision-timeline`, fetcher);
+
+  // mutate LIÉ au provider de cache de l'app : on invalide par préfixe pour
+  // rafraîchir indices, formules et chronologie d'un coup.
+  const { mutate: swrMutate } = useSWRConfig();
+  const refresh = useCallback(
+    () =>
+      swrMutate(
+        (key) =>
+          typeof key === "string" &&
+          key.startsWith(`/api/contracts/${contractId}/revision`)
+      ),
+    [swrMutate, contractId]
   );
 
   const indices = useMemo(() => indicesData ?? [], [indicesData]);
-  const formulas = useMemo(() => formulasData ?? [], [formulasData]);
-  const pending = useMemo(() => pendingData ?? [], [pendingData]);
-  const loading = l1 || l2 || l3;
+  const timeline = useMemo(() => timelineData ?? [], [timelineData]);
+  const error = indicesError || timelineError;
 
-  const [selectedIndexId, setSelectedIndexId] = useState<string | null>(null);
-  const [applyTarget, setApplyTarget] = useState<{ pType: PType; periodStart: string } | null>(null);
+  // Spinner uniquement au tout premier chargement.
+  const firstLoad =
+    (loadingIndices || loadingTimeline) && !indicesData && !timelineData;
 
-  const fetchAll = () => {
-    mIndices();
-    mFormulas();
-    mPending();
-  };
-
-  useEffect(() => {
-    if (indices.length > 0 && !selectedIndexId) setSelectedIndexId(indices[0].id);
-  }, [indices, selectedIndexId]);
-
-  if (loading && indices.length === 0 && formulas.length === 0) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      <div className="border border-red-600/30 bg-red-50 px-4 py-3 text-sm text-red-700">
+        Impossible de charger les données de révision. Rechargez la page.
       </div>
     );
   }
 
-  const selectedIndex = indices.find((i) => i.id === selectedIndexId) ?? null;
+  if (firstLoad) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-accent" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      <PendingSection
-        pending={pending}
-        onApply={(p) => {
-          setApplyTarget({ pType: p.pType, periodStart: p.nextDueDate.slice(0, 10) });
-          document.getElementById("revision-apply")?.scrollIntoView({ behavior: "smooth" });
-        }}
-      />
-      <IndicesSection
+    <div className="space-y-6">
+      {P_TYPES.map((pType) => (
+        <PBlock
+          key={pType}
+          contractId={contractId}
+          pType={pType}
+          formula={timeline.find((f) => f.pType === pType) ?? null}
+          indices={indices}
+          onChanged={refresh}
+        />
+      ))}
+
+      <IndicesTable
         contractId={contractId}
         indices={indices}
-        selectedIndex={selectedIndex}
-        onSelect={setSelectedIndexId}
-        onChanged={fetchAll}
-      />
-      <FormulasSection
-        contractId={contractId}
-        indices={indices}
-        formulas={formulas}
-        onChanged={fetchAll}
-      />
-      <ApplySection
-        contractId={contractId}
-        formulas={formulas}
-        indices={indices}
-        target={applyTarget}
-        onApplied={fetchAll}
+        timeline={timeline}
+        onChanged={refresh}
       />
     </div>
   );
 }
 
-// ============ Section 0 — Révisions à venir ============
+// ============================================================
+// Bloc par P
+// ============================================================
 
-function PendingSection({ pending, onApply }: { pending: PendingRevision[]; onApply: (p: PendingRevision) => void }) {
-  if (pending.length === 0) return null;
-
-  return (
-    <section className="panel p-4">
-      <h2 className="label-tech mb-3 flex items-center gap-2">
-        <Clock size={18} />
-        Révisions à venir
-      </h2>
-      <ul className="divide-y divide-ink/10">
-        {pending.map((p) => {
-          const dueLabel = new Date(p.nextDueDate).toLocaleDateString("fr-FR");
-          return (
-            <li key={p.pType} className="py-3 flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="px-2 py-1 text-xs font-medium bg-ink/5 text-ink/70">{p.pType}</span>
-                <div className="text-sm text-ink/70">
-                  <div>Prochaine révision : <span className="font-mono font-semibold tabular-nums text-ink">{dueLabel}</span></div>
-                  <div className="text-xs text-ink/50">
-                    {p.lastAppliedDate
-                      ? `Dernière révision : ${new Date(p.lastAppliedDate).toLocaleDateString("fr-FR")}`
-                      : "Aucune révision appliquée"}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {p.isOverdue && (
-                  <span className="px-2 py-1 text-xs bg-red-50 text-red-700">En retard</span>
-                )}
-                {!p.indicesReady ? (
-                  <span className="flex items-center gap-1 border border-amber-600/20 bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                    <AlertTriangle size={12} />
-                    Indice {p.missingIndex} manquant
-                  </span>
-                ) : (
-                  <ReadOnlyGate>
-                    <button
-                      onClick={() => onApply(p)}
-                      className="px-3 py-1.5 text-sm bg-ink text-paper hover:bg-accent flex items-center gap-1"
-                    >
-                      <ArrowDown size={14} />
-                      Appliquer
-                    </button>
-                  </ReadOnlyGate>
-                )}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-// ============ Section A — Indices ============
-
-function IndicesSection({
-  contractId, indices, selectedIndex, onSelect, onChanged,
+function PBlock({
+  contractId,
+  pType,
+  formula,
+  indices,
+  onChanged,
 }: {
   contractId: string;
+  pType: PType;
+  formula: TimelineFormula | null;
   indices: RevisionIndex[];
-  selectedIndex: RevisionIndex | null;
-  onSelect: (id: string) => void;
   onChanged: () => void;
 }) {
-  const [newName, setNewName] = useState("");
-  const [newIdentifier, setNewIdentifier] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [editingIndexId, setEditingIndexId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [editingIdentifier, setEditingIdentifier] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [applyDue, setApplyDue] = useState<string | null>(null);
 
-  const [newDate, setNewDate] = useState("");
-  const [newValue, setNewValue] = useState("");
-  const [newProvisional, setNewProvisional] = useState(false);
-  const [addingValue, setAddingValue] = useState(false);
-  const [editingValueId, setEditingValueId] = useState<string | null>(null);
-  const [editDate, setEditDate] = useState("");
-  const [editValue, setEditValue] = useState("");
-  const [editProvisional, setEditProvisional] = useState(false);
-
-  const createIndex = async () => {
-    if (!newName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/revision-indices`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), identifier: newIdentifier.trim() || null }),
-      });
-      if (res.ok) { setNewName(""); setNewIdentifier(""); onChanged(); }
-      else { alert((await res.json()).error ?? "Erreur"); }
-    } finally { setCreating(false); }
-  };
-
-  const renameIndex = async (id: string) => {
-    if (!editingName.trim()) return;
-    const res = await fetch(`/api/contracts/${contractId}/revision-indices/${id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editingName.trim(), identifier: editingIdentifier.trim() || null }),
-    });
-    if (res.ok) { setEditingIndexId(null); onChanged(); }
-    else { alert((await res.json()).error ?? "Erreur"); }
-  };
-
-  const deleteIndex = async (id: string) => {
-    if (!confirm("Supprimer cet indice ? (supprime aussi ses valeurs et les composantes qui l'utilisent)")) return;
-    const res = await fetch(`/api/contracts/${contractId}/revision-indices/${id}`, { method: "DELETE" });
-    if (res.ok) onChanged();
-  };
-
-  const addValue = async () => {
-    if (!selectedIndex || !newDate || !newValue) return;
-    setAddingValue(true);
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/revision-indices/${selectedIndex.id}/values`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: newDate, value: parseFloat(newValue), isProvisional: newProvisional }),
-      });
-      if (res.ok) { setNewDate(""); setNewValue(""); setNewProvisional(false); onChanged(); }
-      else { alert((await res.json()).error ?? "Erreur"); }
-    } finally { setAddingValue(false); }
-  };
-
-  const saveValue = async (valueId: string) => {
-    if (!selectedIndex) return;
-    const res = await fetch(`/api/contracts/${contractId}/revision-indices/${selectedIndex.id}/values/${valueId}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: editDate, value: parseFloat(editValue), isProvisional: editProvisional }),
-    });
-    if (res.ok) { setEditingValueId(null); onChanged(); }
-    else { alert((await res.json()).error ?? "Erreur"); }
-  };
-
-  const deleteValue = async (valueId: string) => {
-    if (!selectedIndex) return;
-    if (!confirm("Supprimer cette valeur ?")) return;
-    const res = await fetch(`/api/contracts/${contractId}/revision-indices/${selectedIndex.id}/values/${valueId}`, { method: "DELETE" });
-    if (res.ok) onChanged();
-  };
+  const configured = !!formula?.configured;
+  const componentsForHeader = formula?.components ?? [];
 
   return (
-    <section className="panel p-4">
-      <h2 className="label-tech mb-3">Indices de révision</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Liste indices */}
-        <div className="border border-ink/10 overflow-hidden">
-          <div className="panel-header">
-            <span className="label-tech">Indices</span>
-          </div>
-          <ul className="divide-y divide-ink/10 max-h-80 overflow-y-auto">
-            {indices.length === 0 && (
-              <li className="px-4 py-6 text-sm text-ink/60 text-center">Aucun indice</li>
-            )}
-            {indices.map((i) => (
-              <li key={i.id} className={`px-4 py-2 flex items-start justify-between gap-2 cursor-pointer ${selectedIndex?.id === i.id ? "bg-accent/5" : "hover:bg-ink/[0.02]"}`} onClick={() => onSelect(i.id)}>
-                {editingIndexId === i.id ? (
-                  <div className="flex-1 space-y-1" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      autoFocus
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") renameIndex(i.id); if (e.key === "Escape") setEditingIndexId(null); }}
-                      placeholder="Nom"
-                      className="w-full text-sm border border-ink/20 px-2 py-1"
-                    />
-                    <input
-                      value={editingIdentifier}
-                      onChange={(e) => setEditingIdentifier(e.target.value)}
-                      placeholder="Identifiant INSEE (ex: 001710973)"
-                      className="w-full text-xs border border-ink/20 px-2 py-1"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{i.name}</div>
-                    {i.identifier && <div className="text-xs text-ink/50 truncate">Id. {i.identifier}</div>}
-                  </div>
-                )}
-                <ReadOnlyGate>
-                  <div className="flex items-center gap-1">
-                    {editingIndexId === i.id ? (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); renameIndex(i.id); }} className="p-1 text-green-600 hover:bg-green-50 "><Check size={14} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(null); }} className="p-1 text-ink/50 hover:bg-ink/5 "><X size={14} /></button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingIndexId(i.id); setEditingName(i.name); setEditingIdentifier(i.identifier ?? ""); }} className="p-1 text-ink/50 hover:bg-ink/5 "><Pencil size={14} /></button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteIndex(i.id); }} className="p-1 text-red-500 hover:bg-red-50 "><Trash2 size={14} /></button>
-                      </>
-                    )}
-                  </div>
-                </ReadOnlyGate>
-              </li>
-            ))}
-          </ul>
-          <ReadOnlyGate>
-            <div className="border-t border-ink/10 p-3 space-y-2">
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nom (ex: BT40 — Chauffage central)" className="w-full text-sm border border-ink/20 px-2 py-1.5" />
-              <div className="flex gap-2">
-                <input value={newIdentifier} onChange={(e) => setNewIdentifier(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createIndex(); }} placeholder="Identifiant INSEE (optionnel)" className="flex-1 text-sm border border-ink/20 px-2 py-1.5" />
-                <button onClick={createIndex} disabled={creating || !newName.trim()} className="px-3 py-1.5 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-1">
-                  {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                  Ajouter
-                </button>
-              </div>
-            </div>
-          </ReadOnlyGate>
-        </div>
-
-        {/* Valeurs */}
-        <div className="border border-ink/10 overflow-hidden">
-          <div className="panel-header">
-            <span className="label-tech">
-              Valeurs {selectedIndex ? `de ${selectedIndex.name}` : ""}
+    <section className="panel">
+      <div className="panel-header flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="label-tech">Révision {pType}</span>
+          {configured && formula ? (
+            <span className="font-mono text-xs text-ink/50">
+              {settingsSummary(formula)}
             </span>
-          </div>
-          {!selectedIndex ? (
-            <div className="p-4 text-center text-sm text-ink/50">Sélectionnez un indice à gauche</div>
           ) : (
-            <>
-              <ul className="divide-y divide-ink/10 max-h-72 overflow-y-auto">
-                {selectedIndex.values.length === 0 && (
-                  <li className="px-4 py-6 text-sm text-ink/60 text-center">Aucune valeur</li>
-                )}
-                {selectedIndex.values.map((v) => (
-                  <li key={v.id} className="px-4 py-2 flex items-center justify-between gap-2">
-                    {editingValueId === v.id ? (
-                      <>
-                        <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="text-sm border border-ink/20 px-2 py-1 w-32" />
-                        <input type="number" step="0.001" value={editValue} onChange={(e) => setEditValue(e.target.value)} className="text-sm border border-ink/20 px-2 py-1 w-20 text-right" />
-                        <label className="flex items-center gap-1 text-xs text-ink/60"><input type="checkbox" checked={editProvisional} onChange={(e) => setEditProvisional(e.target.checked)} />Prov.</label>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => saveValue(v.id)} className="p-1 text-green-600 hover:bg-green-50 "><Check size={14} /></button>
-                          <button onClick={() => setEditingValueId(null)} className="p-1 text-ink/50 hover:bg-ink/5 "><X size={14} /></button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-mono text-sm tabular-nums text-ink/70">{new Date(v.date).toLocaleDateString("fr-FR")}</span>
-                        <div className="flex items-center gap-2 flex-1 justify-end">
-                          {v.isProvisional && <span className="border border-amber-600/20 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">provisoire</span>}
-                          <span className="font-mono text-sm font-semibold tabular-nums text-ink">{v.value}</span>
-                        </div>
-                        <ReadOnlyGate>
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => { setEditingValueId(v.id); setEditDate(v.date.slice(0, 10)); setEditValue(String(v.value)); setEditProvisional(v.isProvisional); }} className="p-1 text-ink/50 hover:bg-ink/5 "><Pencil size={14} /></button>
-                            <button onClick={() => deleteValue(v.id)} className="p-1 text-red-500 hover:bg-red-50 "><Trash2 size={14} /></button>
-                          </div>
-                        </ReadOnlyGate>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <ReadOnlyGate>
-                <div className="border-t border-ink/10 p-3 space-y-2">
-                  <div className="flex gap-2">
-                    <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="text-sm border border-ink/20 px-2 py-1.5 w-36" />
-                    <input type="number" step="0.001" value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="Valeur" className="text-sm border border-ink/20 px-2 py-1.5 flex-1" />
-                    <button onClick={addValue} disabled={addingValue || !newDate || !newValue} className="px-3 py-1.5 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-1">
-                      {addingValue ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                    </button>
-                  </div>
-                  <label className="flex items-center gap-2 text-xs text-ink/60">
-                    <input type="checkbox" checked={newProvisional} onChange={(e) => setNewProvisional(e.target.checked)} />
-                    Valeur provisoire (à confirmer ensuite)
-                  </label>
-                </div>
-              </ReadOnlyGate>
-            </>
+            <span className="font-mono text-xs text-amber-700">
+              {formula ? "échéancier non paramétré" : "non paramétrée"}
+            </span>
           )}
         </div>
+        <ReadOnlyGate>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            title={`Paramètres de révision ${pType}`}
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
+          >
+            <Pencil size={16} />
+          </button>
+        </ReadOnlyGate>
       </div>
-    </section>
-  );
-}
 
-// ============ Section B — Formules ============
+      {formula && componentsForHeader.length > 0 && (
+        <div className="border-b border-ink/[0.06] px-4 py-2 font-mono text-xs tabular-nums text-ink/80">
+          {renderFormula(formula.constantPart, componentsForHeader)}
+        </div>
+      )}
 
-function FormulasSection({
-  contractId, indices, formulas, onChanged,
-}: {
-  contractId: string;
-  indices: RevisionIndex[];
-  formulas: Formula[];
-  onChanged: () => void;
-}) {
-  return (
-    <section className="panel p-4">
-      <h2 className="label-tech mb-3">Formules de révision</h2>
-      {indices.length === 0 ? (
-        <p className="text-sm text-ink/60">Ajoutez d'abord au moins un indice ci-dessus avant de définir une formule.</p>
+      {configured && formula ? (
+        <Timeline
+          formula={formula}
+          onApply={(dueDate) => setApplyDue(dueDate)}
+        />
       ) : (
-        <>
-          <p className="text-xs text-ink/60 mb-3">P1 (énergie) n'est pas révisable par formule indicielle — feature dédiée à venir pour le décompte MTI (NB / N&apos;B).</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(["P2", "P3"] as const).map((p) => (
-              <FormulaCard
-                key={p}
-                pType={p}
-                contractId={contractId}
-                indices={indices}
-                existing={formulas.find((f) => f.pType === p) ?? null}
-                onChanged={onChanged}
-              />
-            ))}
-          </div>
-        </>
+        <p className="px-4 py-3 text-sm text-ink/50">
+          Aucun paramètre de révision {pType} enregistré pour ce contrat.
+        </p>
+      )}
+
+      {settingsOpen && (
+        <SettingsModal
+          contractId={contractId}
+          pType={pType}
+          formula={formula}
+          indices={indices}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={onChanged}
+        />
+      )}
+
+      {applyDue && formula && (
+        <ApplyModal
+          contractId={contractId}
+          pType={pType}
+          dueDate={applyDue}
+          onClose={() => setApplyDue(null)}
+          onApplied={onChanged}
+        />
       )}
     </section>
   );
 }
 
-function FormulaCard({
-  pType, contractId, indices, existing, onChanged,
+// ============================================================
+// Chronologie
+// ============================================================
+
+function Timeline({
+  formula,
+  onApply,
 }: {
-  pType: PType;
-  contractId: string;
-  indices: RevisionIndex[];
-  existing: Formula | null;
-  onChanged: () => void;
+  formula: TimelineFormula;
+  onApply: (dueDate: string) => void;
 }) {
-  const [enabled, setEnabled] = useState<boolean>(!!existing);
-  const [periodicity, setPeriodicity] = useState<Periodicity>(existing?.periodicity ?? "ANNUAL");
-  const [baseDate, setBaseDate] = useState<string>(existing?.baseDate?.slice(0, 10) ?? "");
-  const [constantPart, setConstantPart] = useState<string>(String(existing?.constantPart ?? 0));
-  const [roundingDecimals, setRoundingDecimals] = useState<string>(String(existing?.roundingDecimals ?? 4));
-  const [components, setComponents] = useState<FormulaComponent[]>(
-    existing?.components.map((c) => ({ ...c, indexId: c.index?.id ?? c.indexId, reconnectionCoef: c.reconnectionCoef ?? 1 })) ?? []
+  const indexNames = formula.components.map((c) => c.indexName);
+
+  if (formula.entries.length === 0) {
+    return (
+      <p className="px-4 py-3 text-sm text-ink/50">
+        Aucune échéance à cette date.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-ink/[0.06]">
+            <th className="label-tech px-4 py-2 text-left">Échéance</th>
+            {indexNames.map((name) => (
+              <th key={name} className="label-tech px-4 py-2 text-right">
+                {name}
+              </th>
+            ))}
+            <th className="label-tech px-4 py-2 text-right">K</th>
+            <th className="label-tech px-4 py-2 text-left">Appliquée</th>
+          </tr>
+        </thead>
+        <tbody>
+          {formula.entries.map((entry) => (
+            <tr key={entry.dueDate} className="border-t border-ink/[0.06]">
+              <td className="px-4 py-2 whitespace-nowrap">
+                <span
+                  className={`font-mono tabular-nums ${
+                    entry.status === "upcoming" ? "text-ink/40" : "text-ink"
+                  }`}
+                >
+                  {formatDay(entry.dueDate)}
+                </span>
+                {entry.isOverdue && (
+                  <span className="ml-2 border border-red-600/20 bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+                    en retard
+                  </span>
+                )}
+              </td>
+
+              {formula.components.map((component) => {
+                const cell = entry.components.find(
+                  (c) => c.indexId === component.indexId
+                );
+                if (!cell || cell.value === null) {
+                  return (
+                    <td
+                      key={component.indexId}
+                      className="px-4 py-2 text-right font-mono text-xs text-amber-700"
+                    >
+                      — manquant
+                    </td>
+                  );
+                }
+                return (
+                  <td
+                    key={component.indexId}
+                    className="px-4 py-2 text-right font-mono tabular-nums whitespace-nowrap"
+                  >
+                    <span className={entry.status === "upcoming" ? "text-ink/40" : "text-ink"}>
+                      {formatNumber(cell.value, 4)}
+                    </span>
+                    {cell.isProvisional && (
+                      <span className="ml-1 text-amber-700" title="Valeur provisoire">
+                        p
+                      </span>
+                    )}
+                    <span className="ml-2 text-xs text-ink/40">
+                      ({formatMonth(cell.valueMonth)})
+                    </span>
+                  </td>
+                );
+              })}
+
+              <td className="px-4 py-2 text-right font-mono tabular-nums">
+                {entry.K === null ? (
+                  <span className="text-ink/30">—</span>
+                ) : (
+                  <span
+                    className={
+                      entry.status === "upcoming" ? "text-ink/40" : "font-semibold text-ink"
+                    }
+                  >
+                    {entry.K.toFixed(formula.roundingDecimals)}
+                  </span>
+                )}
+              </td>
+
+              <td className="px-4 py-2">
+                <EntryAction entry={entry} onApply={onApply} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
+}
+
+function EntryAction({
+  entry,
+  onApply,
+}: {
+  entry: TimelineEntry;
+  onApply: (dueDate: string) => void;
+}) {
+  if (entry.status === "applied") {
+    return (
+      <span className="flex items-center gap-1.5 font-mono text-xs text-ink/60">
+        <Check size={13} className="text-green-700" />
+        {formatDay(entry.appliedAt)}
+        {entry.appliedBy && <span>· {entry.appliedBy}</span>}
+      </span>
+    );
+  }
+
+  if (entry.status === "missing_index") {
+    return (
+      <span
+        className="flex items-center gap-1 text-xs text-amber-700"
+        title={`Indice manquant : ${entry.missingIndexNames.join(", ")}`}
+      >
+        <AlertTriangle size={13} />
+        en attente d&apos;indice
+      </span>
+    );
+  }
+
+  if (entry.status === "upcoming") {
+    return <span className="text-xs text-ink/35">à venir</span>;
+  }
+
+  // ready | provisional → applicable
+  return (
+    <ReadOnlyGate>
+      <button
+        onClick={() => onApply(entry.dueDate)}
+        title={
+          entry.status === "provisional"
+            ? "Appliquer (au moins un indice est provisoire)"
+            : "Appliquer cette révision"
+        }
+        className="flex h-9 w-9 items-center justify-center text-ink/50 transition-colors hover:bg-ink/[0.03] hover:text-accent"
+      >
+        <Check size={16} />
+      </button>
+    </ReadOnlyGate>
+  );
+}
+
+// ============================================================
+// Modale « Paramètres de révision P<N> »
+// ============================================================
+
+interface DraftComponent {
+  indexName: string;
+  coefficient: string;
+  baseValue: string;
+  reconnectionCoef: string;
+}
+
+function SettingsModal({
+  contractId,
+  pType,
+  formula,
+  indices,
+  onClose,
+  onSaved,
+}: {
+  contractId: string;
+  pType: PType;
+  formula: TimelineFormula | null;
+  indices: RevisionIndex[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setEnabled(!!existing);
-    setPeriodicity(existing?.periodicity ?? "ANNUAL");
-    setBaseDate(existing?.baseDate?.slice(0, 10) ?? "");
-    setConstantPart(String(existing?.constantPart ?? 0));
-    setRoundingDecimals(String(existing?.roundingDecimals ?? 4));
-    setComponents(existing?.components.map((c) => ({ ...c, indexId: c.index?.id ?? c.indexId, reconnectionCoef: c.reconnectionCoef ?? 1 })) ?? []);
-  }, [existing]);
+  const [firstRevisionDate, setFirstRevisionDate] = useState(
+    formula?.firstRevisionDate ? formula.firstRevisionDate.slice(0, 10) : ""
+  );
+  const [periodicity, setPeriodicity] = useState<Periodicity>(
+    formula?.periodicity ?? "ANNUAL"
+  );
+  const [lagMode, setLagMode] = useState<"latest" | "offset">(
+    formula?.indexLagMonths == null ? "latest" : "offset"
+  );
+  const [lagMonths, setLagMonths] = useState(
+    formula?.indexLagMonths == null ? "3" : String(formula.indexLagMonths)
+  );
+  const [roundingDecimals, setRoundingDecimals] = useState(
+    String(formula?.roundingDecimals ?? 4)
+  );
+  const [constantPart, setConstantPart] = useState(
+    String(formula?.constantPart ?? 0)
+  );
+  const [components, setComponents] = useState<DraftComponent[]>(
+    (formula?.components ?? []).map((c) => ({
+      indexName: c.indexName,
+      coefficient: String(c.coefficient),
+      baseValue: String(c.baseValue),
+      reconnectionCoef: String(c.reconnectionCoef ?? 1),
+    }))
+  );
 
-  const sum = useMemo(() => {
-    const c = parseFloat(constantPart) || 0;
-    return c + components.reduce((s, x) => s + (Number(x.coefficient) || 0), 0);
-  }, [constantPart, components]);
+  const patchComponent = (i: number, patch: Partial<DraftComponent>) =>
+    setComponents((prev) =>
+      prev.map((c, j) => (j === i ? { ...c, ...patch } : c))
+    );
 
-  const formulaText = useMemo(() => {
-    const parts: string[] = [];
-    const cst = parseFloat(constantPart) || 0;
-    if (cst !== 0) parts.push(cst.toString());
-    for (const c of components) {
-      const idx = indices.find((i) => i.id === c.indexId);
-      const name = idx?.name ?? "?";
-      const coef = Number(c.coefficient) || 0;
-      const base = Number(c.baseValue) || 0;
-      const recon = Number(c.reconnectionCoef) || 1;
-      const ratioStr = recon !== 1 ? `(${name} × ${recon})/${base}` : `${name}/${base}`;
-      parts.push(`${coef} × ${ratioStr}`);
-    }
-    if (parts.length === 0) return `${pType}ₙ = ${pType}₀`;
-    return `${pType}ₙ = ${pType}₀ × ( ${parts.join(" + ")} )`;
-  }, [pType, constantPart, components, indices]);
+  const preview = useMemo(
+    () =>
+      renderFormula(
+        parseFloat(constantPart) || 0,
+        components.map((c) => ({
+          indexName: c.indexName.trim() || "?",
+          coefficient: parseFloat(c.coefficient) || 0,
+          baseValue: parseFloat(c.baseValue) || 0,
+          reconnectionCoef: parseFloat(c.reconnectionCoef) || 1,
+        }))
+      ),
+    [constantPart, components]
+  );
+
+  const coefSum = useMemo(
+    () =>
+      (parseFloat(constantPart) || 0) +
+      components.reduce((s, c) => s + (parseFloat(c.coefficient) || 0), 0),
+    [constantPart, components]
+  );
 
   const save = async () => {
+    for (const c of components) {
+      if (!c.indexName.trim()) {
+        toast.error("Chaque terme doit désigner un indice");
+        return;
+      }
+      if (!Number.isFinite(parseFloat(c.baseValue)) || parseFloat(c.baseValue) === 0) {
+        toast.error(`Valeur de base I₀ manquante pour ${c.indexName.trim()}`);
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      const body = enabled
-        ? {
-            pType,
-            enabled: true,
-            periodicity,
-            baseDate,
-            constantPart: parseFloat(constantPart) || 0,
-            roundingDecimals: parseInt(roundingDecimals, 10) || 4,
-            components: components.map((c) => ({
-              indexId: c.indexId,
-              coefficient: Number(c.coefficient) || 0,
-              baseValue: Number(c.baseValue) || 0,
-              reconnectionCoef: Number(c.reconnectionCoef) || 1,
-            })),
-          }
-        : { pType, enabled: false };
-      const res = await fetch(`/api/contracts/${contractId}/revision-formulas`, {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      await api.put(`/api/contracts/${contractId}/revision-formulas`, {
+        pType,
+        periodicity,
+        firstRevisionDate: firstRevisionDate || null,
+        indexLagMonths:
+          lagMode === "latest" ? null : parseInt(lagMonths, 10) || 0,
+        constantPart: parseFloat(constantPart) || 0,
+        roundingDecimals: parseInt(roundingDecimals, 10) || 4,
+        components: components.map((c) => ({
+          indexName: c.indexName.trim(),
+          coefficient: parseFloat(c.coefficient) || 0,
+          baseValue: parseFloat(c.baseValue) || 0,
+          reconnectionCoef: parseFloat(c.reconnectionCoef) || 1,
+        })),
       });
-      if (res.ok) onChanged();
-      else alert((await res.json()).error ?? "Erreur");
+      toast.success(`Paramètres de révision ${pType} enregistrés`);
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/api/contracts/${contractId}/revision-formulas`, {
+        pType,
+        enabled: false,
+      });
+      toast.success(`Révision ${pType} supprimée`);
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="border border-ink/10 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="label-tech">{pType}</h3>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          Activer
-        </label>
-      </div>
-      {enabled && (
+    <Modal
+      title={`Paramètres de révision ${pType}`}
+      subtitle="Renseignés d'après le CCAP. Aucune valeur n'est supposée par défaut."
+      onClose={onClose}
+      size="lg"
+      footer={
         <>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label-tech mb-1 block">Périodicité</label>
-              <select value={periodicity} onChange={(e) => setPeriodicity(e.target.value as Periodicity)} className="w-full text-sm border border-ink/20 px-2 py-1.5">
-                {(Object.keys(PERIOD_LABEL) as Periodicity[]).map((p) => (
-                  <option key={p} value={p}>{PERIOD_LABEL[p]}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label-tech mb-1 block">Arrondi K (déc.)</label>
-              <input type="number" min="0" max="10" step="1" value={roundingDecimals} onChange={(e) => setRoundingDecimals(e.target.value)} className="w-full text-sm border border-ink/20 px-2 py-1.5" />
-            </div>
-          </div>
-          <div>
-            <label className="label-tech mb-1 block">Date de base (I_0)</label>
-            <input type="date" value={baseDate} onChange={(e) => setBaseDate(e.target.value)} className="w-full text-sm border border-ink/20 px-2 py-1.5" />
-          </div>
-          <div>
-            <label className="label-tech mb-1 block">Partie constante</label>
-            <input type="number" step="0.01" value={constantPart} onChange={(e) => setConstantPart(e.target.value)} className="w-full text-sm border border-ink/20 px-2 py-1.5" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="label-tech">Composantes (indice / coef / I₀ / raccord.)</label>
-            {components.map((c, i) => (
-              <div key={i} className="flex items-center gap-1">
-                <select
-                  value={c.indexId}
-                  onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, indexId: e.target.value } : x))}
-                  className="text-xs border border-ink/20 px-1 py-1 flex-1 min-w-0"
-                >
-                  <option value="">— Indice —</option>
-                  {indices.map((idx) => <option key={idx.id} value={idx.id}>{idx.name}</option>)}
-                </select>
-                <input
-                  type="number" step="0.01" value={c.coefficient}
-                  onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, coefficient: parseFloat(e.target.value) || 0 } : x))}
-                  className="text-xs border border-ink/20 px-1 py-1 w-12 text-right" title="Coefficient"
-                />
-                <input
-                  type="number" step="0.001" value={c.baseValue}
-                  onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, baseValue: parseFloat(e.target.value) || 0 } : x))}
-                  className="text-xs border border-ink/20 px-1 py-1 w-14 text-right" title="I₀"
-                />
-                <input
-                  type="number" step="0.001" value={c.reconnectionCoef}
-                  onChange={(e) => setComponents((prev) => prev.map((x, j) => j === i ? { ...x, reconnectionCoef: parseFloat(e.target.value) || 1 } : x))}
-                  className="text-xs border border-ink/20 px-1 py-1 w-12 text-right" title="Coef. raccordement (changement de base INSEE, défaut 1)"
-                />
-                <button onClick={() => setComponents((prev) => prev.filter((_, j) => j !== i))} className="p-1 text-red-500 hover:bg-red-50 ">
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
+          {formula && (
             <button
-              onClick={() => setComponents((prev) => [...prev, { indexId: "", coefficient: 0, baseValue: 0, reconnectionCoef: 1 }])}
-              className="w-full text-xs border border-dashed border-ink/20 py-1.5 text-ink/50 hover:bg-ink/[0.02]"
+              onClick={remove}
+              disabled={saving}
+              title={`Supprimer les paramètres de révision ${pType}`}
+              className="mr-auto flex h-9 w-9 items-center justify-center text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
             >
-              + Composante
+              <Trash2 size={16} />
+            </button>
+          )}
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving && <Loader2 size={14} className="mr-2 animate-spin" />}
+            Enregistrer
+          </Button>
+        </>
+      }
+    >
+      <datalist id={`revision-indices-${pType}`}>
+        {indices.map((i) => (
+          <option key={i.id} value={i.name} />
+        ))}
+      </datalist>
+
+      <div className="space-y-5">
+        {/* Échéancier */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="label-tech mb-1 block">Première échéance</span>
+            <input
+              type="date"
+              value={firstRevisionDate}
+              onChange={(e) => setFirstRevisionDate(e.target.value)}
+              className="w-full border border-ink/20 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="block">
+            <span className="label-tech mb-1 block">Périodicité</span>
+            <select
+              value={periodicity}
+              onChange={(e) => setPeriodicity(e.target.value as Periodicity)}
+              className="w-full border border-ink/20 px-2 py-1.5 text-sm"
+            >
+              {(Object.keys(PERIOD_LABEL) as Periodicity[]).map((p) => (
+                <option key={p} value={p}>
+                  {PERIOD_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* Mois d'indice */}
+        <fieldset>
+          <legend className="label-tech mb-1">Mois d&apos;indice retenu</legend>
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`lag-${pType}`}
+                checked={lagMode === "latest"}
+                onChange={() => setLagMode("latest")}
+              />
+              Dernier indice connu à l&apos;échéance
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                name={`lag-${pType}`}
+                checked={lagMode === "offset"}
+                onChange={() => setLagMode("offset")}
+              />
+              Indice du mois m−
+              <input
+                type="number"
+                min="0"
+                max="36"
+                step="1"
+                value={lagMonths}
+                onChange={(e) => {
+                  setLagMonths(e.target.value);
+                  setLagMode("offset");
+                }}
+                className="w-16 border border-ink/20 px-2 py-1 text-sm tabular-nums"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        {/* Arrondi / partie fixe */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="label-tech mb-1 block">Arrondi de K (décimales)</span>
+            <input
+              type="number"
+              min="0"
+              max="10"
+              step="1"
+              value={roundingDecimals}
+              onChange={(e) => setRoundingDecimals(e.target.value)}
+              className="w-full border border-ink/20 px-2 py-1.5 text-sm tabular-nums"
+            />
+          </label>
+          <label className="block">
+            <span className="label-tech mb-1 block">Partie fixe</span>
+            <input
+              type="number"
+              step="0.0001"
+              value={constantPart}
+              onChange={(e) => setConstantPart(e.target.value)}
+              className="w-full border border-ink/20 px-2 py-1.5 text-sm tabular-nums"
+            />
+          </label>
+        </div>
+
+        {/* Termes */}
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="label-tech">Termes indiciels</span>
+            <button
+              onClick={() =>
+                setComponents((prev) => [
+                  ...prev,
+                  { indexName: "", coefficient: "", baseValue: "", reconnectionCoef: "1" },
+                ])
+              }
+              title="Ajouter un terme"
+              className="flex h-9 w-9 items-center justify-center text-ink/50 transition-colors hover:bg-ink/[0.03] hover:text-accent"
+            >
+              <Plus size={16} />
             </button>
           </div>
 
-          <div className="text-xs font-mono bg-white border border-ink/10 p-2 text-ink/70 break-words">
-            {formulaText}
-          </div>
+          {components.length === 0 ? (
+            <p className="border-t border-ink/[0.06] py-3 text-sm text-ink/50">
+              Aucun terme. La révision se réduirait à la partie fixe.
+            </p>
+          ) : (
+            <div>
+              {components.map((c, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-1.5 border-t border-ink/[0.06] py-2"
+                >
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={c.coefficient}
+                    onChange={(e) => patchComponent(i, { coefficient: e.target.value })}
+                    placeholder="coef"
+                    title="Coefficient"
+                    className="w-20 border border-ink/20 px-2 py-1 text-sm tabular-nums"
+                  />
+                  <span className="text-ink/40">×</span>
+                  <input
+                    list={`revision-indices-${pType}`}
+                    value={c.indexName}
+                    onChange={(e) => patchComponent(i, { indexName: e.target.value })}
+                    placeholder="Indice (ex : ICHT-IME)"
+                    title="Nom de l'indice — créé s'il n'existe pas encore"
+                    className="min-w-0 flex-1 border border-ink/20 px-2 py-1 text-sm"
+                  />
+                  <span className="text-ink/40">/</span>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    value={c.baseValue}
+                    onChange={(e) => patchComponent(i, { baseValue: e.target.value })}
+                    placeholder="I₀"
+                    title="Valeur de base I₀"
+                    className="w-24 border border-ink/20 px-2 py-1 text-sm tabular-nums"
+                  />
+                  <input
+                    type="number"
+                    step="0.000001"
+                    value={c.reconnectionCoef}
+                    onChange={(e) =>
+                      patchComponent(i, { reconnectionCoef: e.target.value })
+                    }
+                    placeholder="raccord."
+                    title="Coefficient de raccordement (changement de base INSEE) — 1 par défaut"
+                    className="w-24 border border-ink/20 px-2 py-1 text-sm tabular-nums"
+                  />
+                  <button
+                    onClick={() =>
+                      setComponents((prev) => prev.filter((_, j) => j !== i))
+                    }
+                    title="Supprimer ce terme"
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-red-600 transition-colors hover:bg-red-50"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-          <div className={`border px-2 py-1 font-mono text-xs tabular-nums ${Math.abs(sum - 1) < 0.001 ? "border-green-600/20 bg-green-50 text-green-700" : "border-amber-600/20 bg-amber-50 text-amber-700"}`}>
-            Somme : {sum.toFixed(3)} {Math.abs(sum - 1) < 0.001 ? "✓" : "⚠ devrait être 1"}
+        {/* Aperçu */}
+        <div className="border-t border-ink/[0.06] pt-3">
+          <div className="font-mono text-xs tabular-nums break-words text-ink/80">
+            {preview}
           </div>
-        </>
-      )}
-
-      <ReadOnlyGate>
-        <button onClick={save} disabled={saving} className="w-full px-3 py-2 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center justify-center gap-1">
-          {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-          Enregistrer
-        </button>
-      </ReadOnlyGate>
-    </div>
+          <div
+            className={`mt-1 font-mono text-xs tabular-nums ${
+              Math.abs(coefSum - 1) < 0.001 ? "text-ink/40" : "text-amber-700"
+            }`}
+          >
+            Somme partie fixe + coefficients : {formatNumber(coefSum, 4)}
+            {Math.abs(coefSum - 1) < 0.001 ? "" : " (généralement 1)"}
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
-// ============ Section C — Appliquer ============
+// ============================================================
+// Modale d'application (aperçu par site)
+// ============================================================
 
-interface PreviewComponent {
-  indexId: string;
-  indexName: string;
-  coefficient: number;
-  baseValue: number;
-  currentValue: number;
-  reconnectionCoef: number;
-  isProvisional: boolean;
-  valueDate: string;
-  ratio: number;
-}
-
-interface PreviewResult {
-  preview: boolean;
-  pType: PType;
-  periodStart: string;
-  K: number;
-  Kraw: number;
-  roundingDecimals: number;
-  constantPart: number;
-  components: PreviewComponent[];
-  sites: { contractSiteId: string; siteName: string; base: number; before: number; after: number; delta: number }[];
-  hasProvisionalIndex: boolean;
-}
-
-function ApplySection({
-  contractId, formulas, indices, target, onApplied,
+function ApplyModal({
+  contractId,
+  pType,
+  dueDate,
+  onClose,
+  onApplied,
 }: {
   contractId: string;
-  formulas: Formula[];
-  indices: RevisionIndex[];
-  target: { pType: PType; periodStart: string } | null;
+  pType: PType;
+  dueDate: string;
+  onClose: () => void;
   onApplied: () => void;
 }) {
-  void indices;
-  const availablePTypes = formulas.map((f) => f.pType);
-  const [pType, setPType] = useState<PType | "">(availablePTypes[0] ?? "");
-  const [periodStart, setPeriodStart] = useState("");
-  const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [applying, setApplying] = useState(false);
 
-  useEffect(() => {
-    if (availablePTypes.length > 0 && !availablePTypes.includes(pType as PType)) {
-      setPType(availablePTypes[0]);
-    }
-  }, [availablePTypes, pType]);
+  const { data, error, isLoading } = useSWR<PreviewResult>(
+    [`/api/contracts/${contractId}/apply-revision?preview=1`, pType, dueDate],
+    async ([url]: [string]) =>
+      api.post<PreviewResult>(url, { pType, periodStart: dueDate })
+  );
 
-  useEffect(() => {
-    if (target) {
-      setPType(target.pType);
-      setPeriodStart(target.periodStart);
-      setPreview(null);
-    }
-  }, [target]);
-
-  const computePreview = async () => {
-    if (!pType || !periodStart) return;
-    setLoading(true); setPreview(null);
-    try {
-      const res = await fetch(`/api/contracts/${contractId}/apply-revision?preview=1`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pType, periodStart }),
-      });
-      if (res.ok) setPreview(await res.json());
-      else alert((await res.json()).error ?? "Erreur");
-    } finally { setLoading(false); }
-  };
-
-  const apply = async () => {
-    if (!pType || !periodStart) return;
-    if (!confirm(`Appliquer la révision ${pType} au ${new Date(periodStart).toLocaleDateString("fr-FR")} ?`)) return;
+  const confirm = async () => {
     setApplying(true);
     try {
-      const res = await fetch(`/api/contracts/${contractId}/apply-revision`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pType, periodStart }),
+      await api.post(`/api/contracts/${contractId}/apply-revision`, {
+        pType,
+        periodStart: dueDate,
       });
-      if (res.ok) {
-        alert("Révision appliquée");
-        setPreview(null);
-        onApplied();
-      } else {
-        alert((await res.json()).error ?? "Erreur");
-      }
-    } finally { setApplying(false); }
+      toast.success(`Révision ${pType} du ${formatDay(dueDate)} appliquée`);
+      onApplied();
+      onClose();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setApplying(false);
+    }
   };
 
-  if (formulas.length === 0) {
-    return (
-      <section className="panel p-4">
-        <h2 className="label-tech mb-2">Appliquer une révision</h2>
-        <p className="text-sm text-ink/60">Définissez d'abord une formule pour pouvoir appliquer une révision.</p>
-      </section>
-    );
-  }
+  const total = data
+    ? data.sites.reduce((s, site) => s + site.delta, 0)
+    : 0;
 
   return (
-    <section id="revision-apply" className="panel p-4 scroll-mt-20">
-      <h2 className="label-tech mb-3">Appliquer une révision</h2>
-      <div className="flex flex-wrap items-end gap-3 mb-4">
-        <div>
-          <label className="label-tech mb-1 block">P</label>
-          <select value={pType} onChange={(e) => setPType(e.target.value as PType)} className="text-sm border border-ink/20 px-2 py-1.5">
-            {availablePTypes.map((p) => <option key={p} value={p}>{p}</option>)}
-          </select>
+    <Modal
+      title={`Appliquer la révision ${pType}`}
+      subtitle={`Échéance du ${formatDay(dueDate)}`}
+      onClose={onClose}
+      size="xl"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={applying}>
+            Annuler
+          </Button>
+          <Button size="sm" onClick={confirm} disabled={applying || !data}>
+            {applying && <Loader2 size={14} className="mr-2 animate-spin" />}
+            Confirmer
+          </Button>
+        </>
+      }
+    >
+      {isLoading && (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-accent" />
         </div>
-        <div>
-          <label className="label-tech mb-1 block">Date de la période</label>
-          <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="text-sm border border-ink/20 px-2 py-1.5" />
-        </div>
-        <button onClick={computePreview} disabled={loading || !pType || !periodStart} className="h-9 px-3 border border-ink/20 text-sm hover:bg-ink/[0.02] disabled:opacity-50 flex items-center gap-1">
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Calculator size={14} />}
-          Calculer
-        </button>
-      </div>
+      )}
 
-      {preview && (
+      {error && (
+        <div className="border border-red-600/30 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {getErrorMessage(error)}
+        </div>
+      )}
+
+      {data && (
         <div className="space-y-4">
-          {preview.hasProvisionalIndex && (
-            <div className="flex items-center gap-2 border border-amber-600/20 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              <AlertTriangle size={14} />
-              Au moins un indice utilisé est <strong>provisoire</strong>. Une régularisation sera probablement nécessaire.
+          {data.hasProvisionalIndex && (
+            <div className="flex items-start gap-2 border border-amber-600/20 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+              <span>
+                Au moins un indice utilisé est <strong>provisoire</strong> : une
+                régularisation sera nécessaire à sa confirmation.
+              </span>
             </div>
           )}
 
-          <div className="border border-ink/10 p-4 space-y-2">
-            <div className="label-tech">Détail du calcul</div>
-            <div className="font-mono text-sm text-ink">
-              K = {preview.constantPart}
-              {preview.components.map((c, i) => (
-                <span key={i}>
-                  {" + "}
-                  {c.coefficient} × ({c.indexName} {new Date(c.valueDate).toLocaleDateString("fr-FR")} : {c.currentValue}
-                  {c.reconnectionCoef !== 1 ? ` × ${c.reconnectionCoef}` : ""}
-                  {c.isProvisional ? " [prov.]" : ""}
-                  ) / {c.baseValue}
-                </span>
-              ))}
-            </div>
-            <div className="font-mono text-sm text-ink">
-              K = {preview.Kraw.toFixed(8)} <span className="text-ink/50">→ arrondi à {preview.roundingDecimals} décimales →</span>{" "}
-              <span className="font-semibold">{preview.K.toFixed(preview.roundingDecimals)}</span>
-            </div>
+          <div className="font-mono text-xs tabular-nums break-words text-ink/70">
+            K = {formatNumber(data.constantPart)}
+            {data.components.map((c, i) => (
+              <span key={i}>
+                {" + "}
+                {formatNumber(c.coefficient)} × {c.indexName}{" "}
+                {formatNumber(c.currentValue, 4)} ({formatMonth(c.valueMonth)})
+                {c.reconnectionCoef !== 1 ? ` × ${formatNumber(c.reconnectionCoef, 6)}` : ""}
+                {c.isProvisional ? " p" : ""} / {formatNumber(c.baseValue, 6)}
+              </span>
+            ))}
+            {" = "}
+            <span className="font-semibold text-ink">
+              {data.K.toFixed(data.roundingDecimals)}
+            </span>
+            <span className="text-ink/40">
+              {" "}
+              (brut {data.Kraw.toFixed(8)})
+            </span>
           </div>
 
-          <div className="overflow-x-auto border border-ink/10">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-ink/10">
-                <tr>
+              <thead>
+                <tr className="border-b border-ink/[0.06]">
                   <th className="label-tech px-3 py-2 text-left">Site</th>
                   <th className="label-tech px-3 py-2 text-right">Base P₀</th>
                   <th className="label-tech px-3 py-2 text-right">Avant</th>
-                  <th className="label-tech px-3 py-2 text-right">Après (P₀ × K)</th>
+                  <th className="label-tech px-3 py-2 text-right">Après</th>
                   <th className="label-tech px-3 py-2 text-right">Delta</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ink/10">
-                {preview.sites.map((s) => (
-                  <tr key={s.contractSiteId}>
-                    <td className="px-3 py-2">{s.siteName}</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/80">{s.base.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
-                    <td className="px-3 py-2 text-right font-mono tabular-nums text-ink/80">{s.before.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
-                    <td className="px-3 py-2 text-right font-mono font-semibold tabular-nums text-ink">{s.after.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €</td>
-                    <td className={`px-3 py-2 text-right font-mono tabular-nums ${s.delta >= 0 ? "text-green-700" : "text-red-700"}`}>
-                      {s.delta >= 0 ? "+" : ""}{s.delta.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} €
+              <tbody>
+                {data.sites.map((s) => (
+                  <tr key={s.contractSiteId} className="border-t border-ink/[0.06]">
+                    <td className="px-3 py-1.5">{s.siteName}</td>
+                    <td className="px-3 py-1.5 text-right font-mono tabular-nums text-ink/60">
+                      {formatEuro(s.base)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono tabular-nums text-ink/60">
+                      {formatEuro(s.before)}
+                    </td>
+                    <td className="px-3 py-1.5 text-right font-mono font-semibold tabular-nums text-ink">
+                      {formatEuro(s.after)}
+                    </td>
+                    <td
+                      className={`px-3 py-1.5 text-right font-mono tabular-nums ${
+                        s.delta >= 0 ? "text-ink/80" : "text-red-700"
+                      }`}
+                    >
+                      {s.delta >= 0 ? "+" : ""}
+                      {formatEuro(s.delta)}
                     </td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="border-t border-ink/15">
+                  <td className="label-tech px-3 py-2" colSpan={4}>
+                    Delta total annuel
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold tabular-nums text-ink">
+                    {total >= 0 ? "+" : ""}
+                    {formatEuro(total)}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
-          <ReadOnlyGate>
-            <button onClick={apply} disabled={applying} className="px-4 py-2 bg-ink text-paper text-sm hover:bg-accent disabled:opacity-50 flex items-center gap-1">
-              {applying ? <Loader2 size={14} className="animate-spin" /> : null}
-              Valider et appliquer
-            </button>
-          </ReadOnlyGate>
         </div>
       )}
+    </Modal>
+  );
+}
+
+// ============================================================
+// Table des indices
+// ============================================================
+
+function IndicesTable({
+  contractId,
+  indices,
+  timeline,
+  onChanged,
+}: {
+  contractId: string;
+  indices: RevisionIndex[];
+  timeline: TimelineFormula[];
+  onChanged: () => void;
+}) {
+  const toast = useToast();
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [editingIdentifier, setEditingIdentifier] = useState<string | null>(null);
+  const [identifierDraft, setIdentifierDraft] = useState("");
+  const [addValueFor, setAddValueFor] = useState<RevisionIndex | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RevisionIndex | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  // Indices employés par une formule : suppression interdite.
+  const usedIndexIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const f of timeline) {
+      for (const c of f.components) set.add(c.indexId);
+    }
+    return set;
+  }, [timeline]);
+
+  const lastValue = (index: RevisionIndex): IndexValue | null =>
+    index.values.length > 0 ? index.values[index.values.length - 1] : null;
+
+  const saveIdentifier = async (index: RevisionIndex) => {
+    const next = identifierDraft.trim();
+    if (next === (index.identifier ?? "")) {
+      setEditingIdentifier(null);
+      return;
+    }
+    try {
+      await api.put(`/api/contracts/${contractId}/revision-indices/${index.id}`, {
+        name: index.name,
+        identifier: next || null,
+      });
+      setEditingIdentifier(null);
+      onChanged();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    }
+  };
+
+  const toggleProvisional = async (index: RevisionIndex, value: IndexValue) => {
+    try {
+      await api.put(
+        `/api/contracts/${contractId}/revision-indices/${index.id}/values/${value.id}`,
+        { isProvisional: !value.isProvisional }
+      );
+      onChanged();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    }
+  };
+
+  const deleteValue = async (index: RevisionIndex, valueId: string) => {
+    try {
+      await api.del(
+        `/api/contracts/${contractId}/revision-indices/${index.id}/values/${valueId}`
+      );
+      onChanged();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    }
+  };
+
+  const deleteIndex = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.del(`/api/contracts/${contractId}/revision-indices/${deleteTarget.id}`);
+      toast.success(`Indice ${deleteTarget.name} supprimé`);
+      setDeleteTarget(null);
+      onChanged();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    }
+  };
+
+  return (
+    <section className="panel">
+      <div className="panel-header flex items-center justify-between gap-3">
+        <span className="label-tech">Indices</span>
+        <ReadOnlyGate>
+          <button
+            onClick={() => setCreateOpen(true)}
+            title="Ajouter un indice"
+            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
+          >
+            <Plus size={16} />
+          </button>
+        </ReadOnlyGate>
+      </div>
+
+      {indices.length === 0 ? (
+        <p className="px-4 py-3 text-sm text-ink/50">
+          Aucun indice enregistré sur ce contrat.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-ink/[0.06]">
+                <th className="label-tech px-4 py-2 text-left">Indice</th>
+                <th className="label-tech px-4 py-2 text-left">Identifiant INSEE</th>
+                <th className="label-tech px-4 py-2 text-right">Dernière valeur</th>
+                <th className="label-tech px-4 py-2 text-left">Mois</th>
+                <th className="label-tech px-4 py-2 text-left">Provisoire</th>
+                <th className="label-tech px-4 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {indices.map((index) => {
+                const last = lastValue(index);
+                const isExpanded = expanded === index.id;
+                const used = usedIndexIds.has(index.id);
+                return (
+                  <IndexRows
+                    key={index.id}
+                    index={index}
+                    last={last}
+                    used={used}
+                    isExpanded={isExpanded}
+                    onToggleExpand={() =>
+                      setExpanded(isExpanded ? null : index.id)
+                    }
+                    editingIdentifier={editingIdentifier === index.id}
+                    identifierDraft={identifierDraft}
+                    onStartEditIdentifier={() => {
+                      setEditingIdentifier(index.id);
+                      setIdentifierDraft(index.identifier ?? "");
+                    }}
+                    onChangeIdentifier={setIdentifierDraft}
+                    onSaveIdentifier={() => saveIdentifier(index)}
+                    onCancelIdentifier={() => setEditingIdentifier(null)}
+                    onToggleProvisional={(value) => toggleProvisional(index, value)}
+                    onDeleteValue={(valueId) => deleteValue(index, valueId)}
+                    onAddValue={() => setAddValueFor(index)}
+                    onDelete={() => setDeleteTarget(index)}
+                  />
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="border-t border-ink/[0.06] px-4 py-2 text-xs text-ink/50">
+        L&apos;identifiant INSEE (idBank) permettra la mise à jour automatique des
+        valeurs.
+      </p>
+
+      {createOpen && (
+        <CreateIndexModal
+          contractId={contractId}
+          onClose={() => setCreateOpen(false)}
+          onCreated={onChanged}
+        />
+      )}
+
+      {addValueFor && (
+        <AddValueModal
+          contractId={contractId}
+          index={addValueFor}
+          onClose={() => setAddValueFor(null)}
+          onCreated={onChanged}
+        />
+      )}
+
+      {deleteTarget && (
+        <Modal
+          title="Supprimer l'indice"
+          onClose={() => setDeleteTarget(null)}
+          size="sm"
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Annuler
+              </Button>
+              <Button size="sm" onClick={deleteIndex}>
+                Supprimer
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-ink/70">
+            Supprimer <strong>{deleteTarget.name}</strong> et ses{" "}
+            {deleteTarget.values.length} valeur
+            {deleteTarget.values.length > 1 ? "s" : ""} ? Cette action est
+            définitive.
+          </p>
+        </Modal>
+      )}
     </section>
+  );
+}
+
+function IndexRows({
+  index,
+  last,
+  used,
+  isExpanded,
+  onToggleExpand,
+  editingIdentifier,
+  identifierDraft,
+  onStartEditIdentifier,
+  onChangeIdentifier,
+  onSaveIdentifier,
+  onCancelIdentifier,
+  onToggleProvisional,
+  onDeleteValue,
+  onAddValue,
+  onDelete,
+}: {
+  index: RevisionIndex;
+  last: IndexValue | null;
+  used: boolean;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  editingIdentifier: boolean;
+  identifierDraft: string;
+  onStartEditIdentifier: () => void;
+  onChangeIdentifier: (v: string) => void;
+  onSaveIdentifier: () => void;
+  onCancelIdentifier: () => void;
+  onToggleProvisional: (value: IndexValue) => void;
+  onDeleteValue: (valueId: string) => void;
+  onAddValue: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <>
+      <tr className="border-t border-ink/[0.06]">
+        <td className="px-4 py-2">
+          <button
+            onClick={onToggleExpand}
+            className="flex items-center gap-1.5 text-left text-ink transition-colors hover:text-accent"
+            title={isExpanded ? "Masquer les valeurs" : "Voir toutes les valeurs"}
+          >
+            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            <span className="font-medium">{index.name}</span>
+            <span className="font-mono text-xs text-ink/40">
+              ({index.values.length})
+            </span>
+          </button>
+        </td>
+
+        <td className="px-4 py-2">
+          {editingIdentifier ? (
+            <input
+              autoFocus
+              value={identifierDraft}
+              onChange={(e) => onChangeIdentifier(e.target.value)}
+              onBlur={onSaveIdentifier}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSaveIdentifier();
+                if (e.key === "Escape") onCancelIdentifier();
+              }}
+              placeholder="001710973"
+              className="w-40 border border-ink/20 px-2 py-1 font-mono text-xs tabular-nums"
+            />
+          ) : (
+            <ReadOnlyGate
+              fallback={
+                <span className="font-mono text-xs text-ink/60">
+                  {index.identifier ?? "—"}
+                </span>
+              }
+            >
+              <button
+                onClick={onStartEditIdentifier}
+                title="Modifier l'identifiant INSEE"
+                className="font-mono text-xs text-ink/60 transition-colors hover:text-accent"
+              >
+                {index.identifier ?? "—"}
+              </button>
+            </ReadOnlyGate>
+          )}
+        </td>
+
+        <td className="px-4 py-2 text-right font-mono tabular-nums">
+          {last ? formatNumber(last.value, 4) : <span className="text-ink/30">—</span>}
+        </td>
+
+        <td className="px-4 py-2 font-mono text-xs text-ink/60">
+          {last ? formatDay(last.date) : "—"}
+        </td>
+
+        <td className="px-4 py-2">
+          {last ? (
+            <ReadOnlyGate
+              fallback={
+                <span className="text-xs text-ink/60">
+                  {last.isProvisional ? "oui" : "non"}
+                </span>
+              }
+            >
+              <label className="flex items-center gap-1.5 text-xs text-ink/60">
+                <input
+                  type="checkbox"
+                  checked={last.isProvisional}
+                  onChange={() => onToggleProvisional(last)}
+                />
+                {last.isProvisional ? "provisoire" : "définitive"}
+              </label>
+            </ReadOnlyGate>
+          ) : (
+            <span className="text-ink/30">—</span>
+          )}
+        </td>
+
+        <td className="px-4 py-2">
+          <ReadOnlyGate>
+            <div className="flex items-center justify-end gap-1">
+              <button
+                onClick={onAddValue}
+                title="Ajouter une valeur"
+                className="flex h-9 w-9 items-center justify-center text-ink/50 transition-colors hover:bg-ink/[0.03] hover:text-accent"
+              >
+                <Plus size={16} />
+              </button>
+              <button
+                onClick={used ? undefined : onDelete}
+                disabled={used}
+                title={
+                  used
+                    ? "Indice utilisé par une formule de révision — retirez d'abord le terme correspondant"
+                    : "Supprimer cet indice"
+                }
+                className="flex h-9 w-9 items-center justify-center text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:text-ink/20 disabled:hover:bg-transparent"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          </ReadOnlyGate>
+        </td>
+      </tr>
+
+      {isExpanded && (
+        <tr className="border-t border-ink/[0.06] bg-ink/[0.015]">
+          <td colSpan={6} className="px-4 py-2">
+            {index.values.length === 0 ? (
+              <p className="text-sm text-ink/50">Aucune valeur enregistrée.</p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {[...index.values]
+                      .reverse()
+                      .map((v) => (
+                        <tr key={v.id} className="border-t border-ink/[0.06] first:border-t-0">
+                          <td className="py-1.5 pr-4 font-mono text-xs tabular-nums text-ink/60">
+                            {formatDay(v.date)}
+                          </td>
+                          <td className="py-1.5 pr-4 text-right font-mono tabular-nums text-ink">
+                            {formatNumber(v.value, 4)}
+                          </td>
+                          <td className="py-1.5 pr-4">
+                            <ReadOnlyGate
+                              fallback={
+                                v.isProvisional ? (
+                                  <span className="text-xs text-amber-700">provisoire</span>
+                                ) : null
+                              }
+                            >
+                              <label className="flex items-center gap-1.5 text-xs text-ink/60">
+                                <input
+                                  type="checkbox"
+                                  checked={v.isProvisional}
+                                  onChange={() => onToggleProvisional(v)}
+                                />
+                                provisoire
+                              </label>
+                            </ReadOnlyGate>
+                          </td>
+                          <td className="py-1.5 text-right">
+                            <ReadOnlyGate>
+                              <button
+                                onClick={() => onDeleteValue(v.id)}
+                                title="Supprimer cette valeur"
+                                className="flex h-9 w-9 items-center justify-center text-red-600 transition-colors hover:bg-red-50"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </ReadOnlyGate>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+function CreateIndexModal({
+  contractId,
+  onClose,
+  onCreated,
+}: {
+  contractId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const toast = useToast();
+  const [name, setName] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/api/contracts/${contractId}/revision-indices`, {
+        name: name.trim(),
+        identifier: identifier.trim() || null,
+      });
+      toast.success("Indice ajouté");
+      onCreated();
+      onClose();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title="Ajouter un indice"
+      onClose={onClose}
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button size="sm" onClick={save} disabled={saving || !name.trim()}>
+            {saving && <Loader2 size={14} className="mr-2 animate-spin" />}
+            Ajouter
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="label-tech mb-1 block">Nom</span>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="ICHT-IME"
+            className="w-full border border-ink/20 px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="block">
+          <span className="label-tech mb-1 block">Identifiant INSEE (optionnel)</span>
+          <input
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+            }}
+            placeholder="001710973"
+            className="w-full border border-ink/20 px-2 py-1.5 font-mono text-sm tabular-nums"
+          />
+        </label>
+      </div>
+    </Modal>
+  );
+}
+
+function AddValueModal({
+  contractId,
+  index,
+  onClose,
+  onCreated,
+}: {
+  contractId: string;
+  index: RevisionIndex;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const toast = useToast();
+  const [month, setMonth] = useState("");
+  const [value, setValue] = useState("");
+  const [isProvisional, setIsProvisional] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!month || !value) return;
+    setSaving(true);
+    try {
+      // Un indice est mensuel : on enregistre la valeur au 1er du mois.
+      await api.post(
+        `/api/contracts/${contractId}/revision-indices/${index.id}/values`,
+        { date: `${month}-01`, value: parseFloat(value), isProvisional }
+      );
+      toast.success(`Valeur ajoutée pour ${index.name}`);
+      onCreated();
+      onClose();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={`Ajouter une valeur — ${index.name}`}
+      onClose={onClose}
+      size="sm"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={saving}>
+            Annuler
+          </Button>
+          <Button size="sm" onClick={save} disabled={saving || !month || !value}>
+            {saving && <Loader2 size={14} className="mr-2 animate-spin" />}
+            Ajouter
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="label-tech mb-1 block">Mois</span>
+          <input
+            autoFocus
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="w-full border border-ink/20 px-2 py-1.5 text-sm tabular-nums"
+          />
+        </label>
+        <label className="block">
+          <span className="label-tech mb-1 block">Valeur</span>
+          <input
+            type="number"
+            step="0.0001"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+            }}
+            className="w-full border border-ink/20 px-2 py-1.5 text-sm tabular-nums"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-ink/70">
+          <input
+            type="checkbox"
+            checked={isProvisional}
+            onChange={(e) => setIsProvisional(e.target.checked)}
+          />
+          Valeur provisoire (à confirmer)
+        </label>
+      </div>
+    </Modal>
   );
 }
