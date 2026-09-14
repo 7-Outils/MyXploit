@@ -46,6 +46,10 @@ export interface ImportResult {
   periodEnd?: string | null;
   /** Le PDF dépassait le plafond de pages : la fin n'a pas été lue. */
   truncated?: boolean;
+  /** Devis déjà enregistré sur ce contrat avec la même référence (devis uniquement). */
+  existingQuote?: { id: string; reference: string; title: string; status: string };
+  /** Facture déjà enregistrée sur ce contrat avec la même référence (factures uniquement). */
+  existingInvoice?: { id: string; reference: string; status: string };
 }
 
 // POST /api/quotes/import - Import a quote from PDF
@@ -222,6 +226,36 @@ export async function POST(request: NextRequest) {
       }));
     }
 
+    // Doublon : la référence lue existe déjà sur ce contrat. On ne bloque
+    // pas ici (la lecture a déjà été payée, le PDF est archivé), on prévient
+    // dès l'ouverture du formulaire ; la création refuse ensuite en 409.
+    let existingQuote: ImportResult["existingQuote"];
+    const parsedReference = !isInvoice && parsed.reference ? parsed.reference.trim() : "";
+    if (parsedReference && contractId) {
+      const found = await prisma.quote.findFirst({
+        where: {
+          organizationId: effectiveOrgId,
+          contractId,
+          reference: { equals: parsedReference, mode: "insensitive" },
+        },
+        select: { id: true, reference: true, title: true, status: true },
+      });
+      existingQuote = found ?? undefined;
+    }
+    let existingInvoice: ImportResult["existingInvoice"];
+    const parsedInvoiceRef = isInvoice && parsed.reference ? parsed.reference.trim() : "";
+    if (parsedInvoiceRef && contractId) {
+      const found = await prisma.invoice.findFirst({
+        where: {
+          organizationId: effectiveOrgId,
+          contractId,
+          reference: { equals: parsedInvoiceRef, mode: "insensitive" },
+        },
+        select: { id: true, reference: true, status: true },
+      });
+      existingInvoice = found ?? undefined;
+    }
+
     // Try to find matching site
     let matchedSite: { id: string; name: string } | null = null;
 
@@ -267,6 +301,8 @@ export async function POST(request: NextRequest) {
       // Renvoyé au front pour rattacher la ligne de consommation au devis
       // une fois celui-ci créé.
       aiUsageId: aiUsageId || undefined,
+      existingQuote,
+      existingInvoice,
       ...(isInvoice
         ? {
             lines: importedLines,

@@ -167,9 +167,29 @@ export async function POST(request: NextRequest) {
       provider = contract?.provider || "Fournisseur";
     }
 
+    // Garde-fou doublon : même référence sur le même contrat (ou, sans
+    // contrat, dans l'organisation). Comparaison insensible à la casse.
+    const reference: string = (body.reference || "").trim();
+    if (reference) {
+      const existing = await prisma.quote.findFirst({
+        where: {
+          organizationId: effectiveOrgId,
+          reference: { equals: reference, mode: "insensitive" },
+          ...(body.contractId ? { contractId: body.contractId } : {}),
+        },
+        select: { id: true, reference: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: `Le devis ${existing.reference} existe déjà sur ce contrat`, existingQuoteId: existing.id },
+          { status: 409 }
+        );
+      }
+    }
+
     const quote = await prisma.quote.create({
       data: {
-        reference: body.reference || "DEV-" + Date.now(),
+        reference: reference || "DEV-" + Date.now(),
         title: body.title || "Devis importé",
         provider: provider || "Fournisseur",
         client: body.client || null,

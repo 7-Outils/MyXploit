@@ -176,6 +176,8 @@ function FinancierPageContent() {
   const [formError, setFormError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  // Facture déjà présente sur le contrat avec la référence lue dans le PDF.
+  const [importDuplicate, setImportDuplicate] = useState<{ id: string; reference: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Rattachement après coup du PDF d'une facture saisie à la main : un seul
@@ -411,6 +413,7 @@ function FinancierPageContent() {
     setImportedPdfUrl(null);
     setImportTruncated(false);
     setImportError(null);
+    setImportDuplicate(null);
     setMatchedSiteId(null);
     setImportFormData(emptyInvoiceForm);
   };
@@ -490,6 +493,7 @@ function FinancierPageContent() {
         lines: importedLines,
       });
       setImportTruncated(result.truncated === true);
+      setImportDuplicate(result.existingInvoice ?? null);
       setMatchedSiteId(importedLines.length > 0 ? null : (result.matchedSite?.id ?? null));
       setImportSource(result.source === "gemini" ? "ia" : "degrade");
       setImportAiError(typeof result.aiError === "string" ? result.aiError : null);
@@ -714,6 +718,7 @@ function FinancierPageContent() {
           creating={creating}
           handleImportSubmit={handleImportSubmit}
           importTruncated={importTruncated}
+          importDuplicate={importDuplicate}
         />
       )}
 

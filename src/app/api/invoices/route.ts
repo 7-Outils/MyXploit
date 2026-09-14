@@ -194,6 +194,23 @@ export async function POST(request: NextRequest) {
 
     const lines = input.lines ?? [];
 
+    // Garde-fou doublon : même référence sur le même contrat (ou, sans
+    // contrat, dans l'organisation). Comparaison insensible à la casse.
+    const duplicate = await prisma.invoice.findFirst({
+      where: {
+        organizationId: effectiveOrgId,
+        reference: { equals: input.reference.trim(), mode: "insensitive" },
+        ...(input.contractId ? { contractId: input.contractId } : {}),
+      },
+      select: { id: true, reference: true },
+    });
+    if (duplicate) {
+      return NextResponse.json(
+        { error: `La facture ${duplicate.reference} existe déjà sur ce contrat`, existingInvoiceId: duplicate.id },
+        { status: 409 }
+      );
+    }
+
     const invoice = await prisma.$transaction(async (tx) => {
       const created = await tx.invoice.create({
         data: {

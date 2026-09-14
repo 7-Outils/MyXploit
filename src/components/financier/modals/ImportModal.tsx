@@ -49,6 +49,8 @@ interface ImportModalProps {
   handleImportSubmit: () => void;
   /** Le PDF dépassait le plafond de pages : la fin n'a pas été lue par l'IA. */
   importTruncated: boolean;
+  /** Facture déjà enregistrée avec la référence lue : l'enregistrement sera refusé. */
+  importDuplicate: { id: string; reference: string } | null;
 }
 
 export function ImportModal({
@@ -70,6 +72,7 @@ export function ImportModal({
   creating,
   handleImportSubmit,
   importTruncated,
+  importDuplicate,
 }: ImportModalProps) {
   const missingDate = !importFormData.issueDate;
   const missingType = !importFormData.type;
@@ -144,6 +147,15 @@ export function ImportModal({
                     Lecture IA indisponible
                     {importAiError ? ` (${importAiError})` : ""}. Le PDF est
                     joint : renseignez les champs à la main.
+                  </span>
+                </div>
+              )}
+              {importDuplicate && (
+                <div className="flex items-start gap-2 border border-red-600/30 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <AlertTriangle size={14} className="mt-px flex-shrink-0" />
+                  <span>
+                    La facture <span className="font-medium">{importDuplicate.reference}</span> existe déjà sur ce contrat.
+                    L&apos;enregistrer à nouveau sera refusé.
                   </span>
                 </div>
               )}
