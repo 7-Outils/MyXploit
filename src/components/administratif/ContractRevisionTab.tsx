@@ -591,6 +591,26 @@ function SettingsModal({
   const [periodicity, setPeriodicity] = useState<Periodicity>(
     formula?.periodicity ?? "ANNUAL"
   );
+
+  // Première échéance PROPOSÉE = début du marché + une période. Ce n'est pas
+  // une règle : c'est un point de départ que l'utilisateur corrige si le CCAP
+  // fixe autre chose (mois d'établissement des prix, 13e mois…). On ne
+  // remplace jamais une date qu'il a tapée ou déjà enregistrée.
+  const { data: contractData } = useSWR<{ startDate?: string | null }>(
+    `/api/contracts/${contractId}`,
+    fetcher
+  );
+  const [dateTouched, setDateTouched] = useState(!!formula?.firstRevisionDate);
+  const suggestedFirstDate = useMemo(() => {
+    const start = contractData?.startDate ? new Date(contractData.startDate) : null;
+    if (!start || Number.isNaN(start.getTime())) return "";
+    const months = { MONTHLY: 1, QUARTERLY: 3, SEMI_ANNUAL: 6, ANNUAL: 12 }[periodicity];
+    const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + months, start.getUTCDate()));
+    return d.toISOString().slice(0, 10);
+  }, [contractData?.startDate, periodicity]);
+  useEffect(() => {
+    if (!dateTouched && suggestedFirstDate) setFirstRevisionDate(suggestedFirstDate);
+  }, [dateTouched, suggestedFirstDate]);
   const [lagMode, setLagMode] = useState<"latest" | "offset">(
     formula?.indexLagMonths == null ? "latest" : "offset"
   );
@@ -736,9 +756,18 @@ function SettingsModal({
             <input
               type="date"
               value={firstRevisionDate}
-              onChange={(e) => setFirstRevisionDate(e.target.value)}
+              onChange={(e) => {
+                setDateTouched(true);
+                setFirstRevisionDate(e.target.value);
+              }}
               className="w-full border border-ink/20 px-2 py-1.5 text-sm"
             />
+            {!dateTouched && suggestedFirstDate && (
+              <span className="mt-1 block text-[11px] text-ink/50">
+                Proposée : début du marché + une période. À corriger si le CCAP fixe une autre
+                première révision.
+              </span>
+            )}
           </label>
           <label className="block">
             <span className="label-tech mb-1 block">Périodicité</span>
