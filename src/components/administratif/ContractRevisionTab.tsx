@@ -12,7 +12,7 @@
  * chronologie (`revision-timeline`) et ouvre l'aperçu avant application.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 import { api, getErrorMessage } from "@/lib/api-client";
