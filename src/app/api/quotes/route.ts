@@ -222,6 +222,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(quote, { status: 201 });
   } catch (error) {
     console.error("Error creating quote:", error);
+    if (typeof error === "object" && error && "code" in error && (error as { code: string }).code === "P2002") {
+      return NextResponse.json({ error: "Un devis avec cette référence existe déjà sur ce contrat" }, { status: 409 });
+    }
     return NextResponse.json(
       { error: "Erreur lors de la création du devis" },
       { status: 500 }

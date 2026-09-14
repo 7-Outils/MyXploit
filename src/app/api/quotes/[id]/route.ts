@@ -96,6 +96,9 @@ export async function PUT(
     return NextResponse.json(quote);
   } catch (error) {
     console.error("Error updating quote:", error);
+    if (typeof error === "object" && error && "code" in error && (error as { code: string }).code === "P2002") {
+      return NextResponse.json({ error: "Un devis avec cette référence existe déjà sur ce contrat" }, { status: 409 });
+    }
     return NextResponse.json(
       { error: "Erreur lors de la mise à jour du devis" },
       { status: 500 }

@@ -181,6 +181,9 @@ export async function PUT(
     return NextResponse.json(invoice.full);
   } catch (error) {
     console.error("Error updating invoice:", error);
+    if (typeof error === "object" && error && "code" in error && (error as { code: string }).code === "P2002") {
+      return NextResponse.json({ error: "Une facture avec cette référence existe déjà sur ce contrat" }, { status: 409 });
+    }
     return NextResponse.json(
       { error: "Erreur lors de la mise à jour de la facture" },
       { status: 500 }

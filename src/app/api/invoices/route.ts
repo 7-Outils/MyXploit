@@ -277,6 +277,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(invoice.full, { status: 201 });
   } catch (error) {
     console.error("Error creating invoice:", error);
+    if (typeof error === "object" && error && "code" in error && (error as { code: string }).code === "P2002") {
+      return NextResponse.json({ error: "Une facture avec cette référence existe déjà sur ce contrat" }, { status: 409 });
+    }
     return NextResponse.json(
       // La cause remonte à l'écran : un « erreur » nu oblige à aller lire les
       // logs Vercel pour savoir si c'est le schéma, un délai ou une validation.
