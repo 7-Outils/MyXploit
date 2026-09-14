@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 
 // ============================================================
@@ -127,6 +128,21 @@ interface PreviewResult {
   }[];
   sites: PreviewSite[];
   hasProvisionalIndex: boolean;
+}
+
+interface SyncResult {
+  indices: {
+    indexId: string;
+    name: string;
+    identifier: string;
+    titleFr: string | null;
+    added: number;
+    updated: number;
+    confirmed: number;
+    latestPeriod: string | null;
+  }[];
+  skipped: string[];
+  errors: { name: string; identifier: string; message: string }[];
 }
 
 const P_TYPES: PType[] = ["P2", "P3"];
@@ -1091,6 +1107,7 @@ function IndicesTable({
   const [addValueFor, setAddValueFor] = useState<RevisionIndex | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<RevisionIndex | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Indices employés par une formule : suppression interdite.
   const usedIndexIds = useMemo(() => {
@@ -1145,6 +1162,57 @@ function IndicesTable({
     }
   };
 
+  /**
+   * Mise à jour des valeurs depuis l'API publique Insee BDM.
+   * Le toast dit ce qui a changé indice par indice : sans ce détail, un clic
+   * qui ne bouge rien serait indiscernable d'un clic qui corrige une valeur.
+   */
+  const syncFromInsee = async () => {
+    setSyncing(true);
+    try {
+      const result = await api.post<SyncResult>(
+        `/api/contracts/${contractId}/revision-indices/sync`
+      );
+
+      const parts: string[] = [];
+
+      for (const i of result.indices) {
+        const changes: string[] = [];
+        if (i.added > 0) {
+          changes.push(`${i.added} valeur${i.added > 1 ? "s" : ""} ajoutée${i.added > 1 ? "s" : ""}`);
+        }
+        if (i.confirmed > 0) {
+          changes.push(`${i.confirmed} passée${i.confirmed > 1 ? "s" : ""} en définitif`);
+        }
+        const corrected = i.updated - i.confirmed;
+        if (corrected > 0) {
+          changes.push(`${corrected} corrigée${corrected > 1 ? "s" : ""}`);
+        }
+        parts.push(`${i.name} : ${changes.length > 0 ? changes.join(", ") : "à jour"}`);
+      }
+
+      for (const name of result.skipped) {
+        parts.push(`${name} : ignoré (pas d'identifiant Insee)`);
+      }
+
+      if (parts.length > 0) {
+        toast.success(parts.join(" · "));
+      } else {
+        toast.info("Aucun indice à mettre à jour");
+      }
+
+      for (const e of result.errors) {
+        toast.error(`${e.name} : ${e.message}`);
+      }
+
+      if (result.indices.length > 0) onChanged();
+    } catch (e) {
+      toast.error(getErrorMessage(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const deleteIndex = async () => {
     if (!deleteTarget) return;
     try {
@@ -1162,13 +1230,27 @@ function IndicesTable({
       <div className="panel-header flex items-center justify-between gap-3">
         <span className="label-tech">Indices</span>
         <ReadOnlyGate>
-          <button
-            onClick={() => setCreateOpen(true)}
-            title="Ajouter un indice"
-            className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
-          >
-            <Plus size={16} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={syncFromInsee}
+              disabled={syncing || indices.length === 0}
+              title="Mettre à jour les valeurs depuis l'Insee"
+              className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:cursor-not-allowed disabled:text-ink/20 disabled:hover:bg-transparent"
+            >
+              {syncing ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <RefreshCw size={16} />
+              )}
+            </button>
+            <button
+              onClick={() => setCreateOpen(true)}
+              title="Ajouter un indice"
+              className="flex h-9 w-9 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
         </ReadOnlyGate>
       </div>
 
@@ -1226,8 +1308,9 @@ function IndicesTable({
       )}
 
       <p className="border-t border-ink/[0.06] px-4 py-2 text-xs text-ink/50">
-        L&apos;identifiant INSEE (idBank) permettra la mise à jour automatique des
-        valeurs.
+        Identifiant Insee = idBank de la série (ex. 001710973 pour le BT40).
+        Les valeurs se mettent à jour d&apos;un clic, provisoires puis
+        définitives.
       </p>
 
       {createOpen && (
