@@ -12,8 +12,12 @@ export const AI_FALLBACK_PAGES = 4;
 export const AI_HARD_MAX_PAGES = 8;
 
 // Après le total HT, plus rien ne nous intéresse : la découpe s'arrête à la
-// première page qui le porte.
-const TOTAL_HT = /(?:total|montant|net)\s*(?:g[ée]n[ée]ral\s*)?h\.?\s*t\b/i;
+// première page qui le porte. Le libellé doit être SUIVI d'un montant : sur
+// les devis Dalkia, « Total HT » est aussi l'en-tête de colonne du tableau
+// des lignes (page 2), alors que la synthèse financière vient page 3 ; couper
+// sur l'en-tête privait l'IA du montant.
+const TOTAL_HT =
+  /(?:total|montant|net)\s*(?:g[ée]n[ée]ral\s*)?h\.?\s*t\b\.?\s*:?\s*-?\d{1,3}(?:[ \u00a0\u202f.]?\d{3})*(?:[,.]\d{2})?\s*(?:€|eur)/i;
 
 /**
  * Plafond dur pour les documents envoyés en entier à l'IA (factures : la
