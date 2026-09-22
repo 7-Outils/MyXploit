@@ -145,7 +145,16 @@ export async function POST(
     if (!quote) {
       return NextResponse.json({ error: "Devis introuvable" }, { status: 404 });
     }
-    if (!quote.documentUrl) {
+    // Le mail suit la décision prise sur le devis : accepté (PDF tamponné
+    // obligatoire) ou refusé (motif, PDF d'origine joint s'il existe).
+    const refused = quote.status === "REFUSE";
+    if (!refused && quote.status !== "ACCEPTE" && quote.status !== "COMMANDE" && quote.status !== "FACTURE") {
+      return NextResponse.json(
+        { error: "Le devis doit être accepté ou refusé avant d'être envoyé" },
+        { status: 400 }
+      );
+    }
+    if (!refused && !quote.documentUrl) {
       return NextResponse.json(
         { error: "Ce devis n'a pas de PDF joint : envoi impossible" },
         { status: 400 }
@@ -153,21 +162,24 @@ export async function POST(
     }
 
     // Récupérer le PDF archivé dans R2
-    const pdfResponse = await fetch(quote.documentUrl);
-    if (!pdfResponse.ok) {
-      return NextResponse.json(
-        { error: "Impossible de récupérer le PDF du devis" },
-        { status: 502 }
-      );
+    let pdfBuffer: Buffer | null = null;
+    if (quote.documentUrl) {
+      const pdfResponse = await fetch(quote.documentUrl);
+      if (!pdfResponse.ok) {
+        return NextResponse.json(
+          { error: "Impossible de récupérer le PDF du devis" },
+          { status: 502 }
+        );
+      }
+      pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
     }
-    let pdfBuffer: Buffer = Buffer.from(await pdfResponse.arrayBuffer());
 
     const senderName =
       [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
 
     // Tamponner si demandé : image du tampon si l'organisation en a une,
     // sinon tampon textuel "VALIDÉ / par <nom> / le <date>".
-    if (withStamp) {
+    if (withStamp && !refused && pdfBuffer) {
       const organization = await prisma.organization.findUnique({
         where: { id: effectiveOrgId },
         select: { stampUrl: true },
@@ -190,10 +202,16 @@ export async function POST(
     const amountFmt = (n: number) =>
       n.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const reasonHtml = quote.refusalReason
+      ? escapeHtml(quote.refusalReason).replace(/\n/g, "<br>")
+      : null;
+
     const html = `
       <div style="font-family: -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; color: #1a1a1a; max-width: 600px;">
         <p>Bonjour,</p>
-        <p>Le devis suivant a été <strong>accepté</strong> :</p>
+        <p>Le devis suivant a été <strong>${refused ? "refusé" : "accepté"}</strong> :</p>
         <table style="border-collapse: collapse; font-size: 14px;">
           <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Référence</td><td style="padding: 4px 0;"><strong>${quote.reference}</strong></td></tr>
           <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Objet</td><td style="padding: 4px 0;">${quote.title}</td></tr>
@@ -201,10 +219,25 @@ export async function POST(
           ${quote.contract ? `<tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Contrat</td><td style="padding: 4px 0;">${quote.contract.reference}</td></tr>` : ""}
           <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Montant HT</td><td style="padding: 4px 0;">${amountFmt(quote.amountHT)} €</td></tr>
         </table>
-        <p>Vous trouverez le devis${withStamp ? " tamponné" : ""} en pièce jointe.</p>
+        ${
+          refused
+            ? reasonHtml
+              ? `<p style="margin-top: 16px;"><strong>Motif du refus :</strong></p><p style="padding: 8px 12px; border-left: 3px solid #b91c1c; background: #fef2f2;">${reasonHtml}</p>`
+              : ""
+            : `<p>Vous trouverez le devis${withStamp ? " tamponné" : ""} en pièce jointe.</p>`
+        }
+        ${refused && pdfBuffer ? `<p>Le devis concerné est joint pour référence.</p>` : ""}
         <p style="color: #6b6b6b; font-size: 13px;">Email envoyé par ${senderName} via MyXploit.</p>
       </div>
     `;
+
+    const attachment = pdfBuffer
+      ? {
+          filename: `devis-${quote.reference.replace(/[^a-zA-Z0-9_-]+/g, "-")}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        }
+      : null;
 
     await sendEmail({
       to: toList,
@@ -212,15 +245,9 @@ export async function POST(
       // Les réponses (et les challenges type Mailinblack transférés) doivent
       // arriver chez l'utilisateur, pas dans la boîte noreply.
       replyTo: user.email,
-      subject: `Devis accepté — ${quote.reference}${quote.site ? ` — ${quote.site.name}` : ""}`,
+      subject: `Devis ${refused ? "refusé" : "accepté"} — ${quote.reference}${quote.site ? ` — ${quote.site.name}` : ""}`,
       html,
-      attachments: [
-        {
-          filename: `devis-${quote.reference.replace(/[^a-zA-Z0-9_-]+/g, "-")}.pdf`,
-          content: pdfBuffer,
-          contentType: "application/pdf",
-        },
-      ],
+      attachments: attachment ? [attachment] : undefined,
     });
 
     return NextResponse.json({ success: true });

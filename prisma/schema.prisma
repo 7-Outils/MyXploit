@@ -2147,6 +2147,7 @@ model Quote {
   acceptedAt DateTime? // Date d'acceptation
   refusedBy  String? // ID de l'utilisateur qui a refusé
   refusedAt  DateTime? // Date de refus
+  refusalReason String? // Motif du refus, repris dans l'email envoyé à l'exploitant
 
   description    String?
   documentUrl    String? // URL du PDF original

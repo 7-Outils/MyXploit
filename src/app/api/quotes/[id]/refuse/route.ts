@@ -38,6 +38,15 @@ export async function POST(
       );
     }
 
+    // Motif facultatif, repris dans l'email de refus et affiché sous l'état.
+    let reason: string | null = null;
+    try {
+      const body = await request.json();
+      if (typeof body?.reason === "string") reason = body.reason.trim().slice(0, 2000) || null;
+    } catch {
+      // Pas de corps (ancien appel) : refus sans motif.
+    }
+
     // Update quote status to REFUSE
     const updatedQuote = await prisma.quote.update({
       where: { id },
@@ -45,6 +54,7 @@ export async function POST(
         status: "REFUSE",
         refusedBy: user.id,
         refusedAt: new Date(),
+        refusalReason: reason,
       },
       include: {
         site: { select: { id: true, name: true } },
