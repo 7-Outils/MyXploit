@@ -154,14 +154,8 @@ export async function POST(
         { status: 400 }
       );
     }
-    if (!refused && !quote.documentUrl) {
-      return NextResponse.json(
-        { error: "Ce devis n'a pas de PDF joint : envoi impossible" },
-        { status: 400 }
-      );
-    }
-
-    // Récupérer le PDF archivé dans R2
+    // Récupérer le PDF archivé dans R2 (facultatif : sans PDF, le mail part
+    // sans pièce jointe et sans tampon)
     let pdfBuffer: Buffer | null = null;
     if (quote.documentUrl) {
       const pdfResponse = await fetch(quote.documentUrl);
@@ -224,7 +218,9 @@ export async function POST(
             ? reasonHtml
               ? `<p style="margin-top: 16px;"><strong>Motif du refus :</strong></p><p style="padding: 8px 12px; border-left: 3px solid #b91c1c; background: #fef2f2;">${reasonHtml}</p>`
               : ""
-            : `<p>Vous trouverez le devis${withStamp ? " tamponné" : ""} en pièce jointe.</p>`
+            : pdfBuffer
+              ? `<p>Vous trouverez le devis${withStamp ? " tamponné" : ""} en pièce jointe.</p>`
+              : ""
         }
         ${refused && pdfBuffer ? `<p>Le devis concerné est joint pour référence.</p>` : ""}
         <p style="color: #6b6b6b; font-size: 13px;">Email envoyé par ${senderName} via MyXploit.</p>
