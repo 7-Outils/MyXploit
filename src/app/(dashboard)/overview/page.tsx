@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import { useContract } from "@/contexts/ContractContext";
 import InsightHero from "@/components/overview/InsightHero";
+import HeatingSwitchPanel from "@/components/overview/HeatingSwitchPanel";
 import WorkOrdersToClose from "@/components/overview/WorkOrdersToClose";
 import UpcomingMeetings from "@/components/overview/UpcomingMeetings";
 
@@ -36,6 +37,7 @@ export default function OverviewPage() {
         />
       </div>
       <aside className="lg:col-span-4 flex flex-col gap-3">
+        <HeatingSwitchPanel contractId={selectedContract.id} />
         <WorkOrdersToClose contractId={selectedContract.id} />
         <UpcomingMeetings contractId={selectedContract.id} />
       </aside>

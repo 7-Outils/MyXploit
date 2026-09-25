@@ -4,6 +4,7 @@ import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 import { stampQuotePdf, stampQuotePdfWithText } from "@/lib/pdf-stamp";
 import { rateLimit, rateLimitExceeded } from "@/lib/rate-limit";
+import { getContractRecipients } from "@/lib/contract-recipients";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,40 +47,7 @@ export async function GET(
       select: { stampUrl: true },
     });
 
-    // Candidats à l'envoi : carnet de contacts du contrat, complété par les
-    // champs historiques (email exploitant du contrat, email de la fiche
-    // client), dédoublonnés par adresse.
-    const contacts = quote.contract?.id
-      ? await prisma.contractContact.findMany({
-          where: { contractId: quote.contract.id },
-          orderBy: [{ side: "asc" }, { name: "asc" }],
-        })
-      : [];
-
-    const recipients: { name: string; email: string; role: string | null; side: string }[] =
-      contacts.map((c) => ({ name: c.name, email: c.email, role: c.role, side: c.side }));
-    const seen = new Set(recipients.map((r) => r.email.toLowerCase()));
-
-    const legacyProvider = quote.contract?.providerEmail;
-    if (legacyProvider && !seen.has(legacyProvider.toLowerCase())) {
-      seen.add(legacyProvider.toLowerCase());
-      recipients.push({
-        name: quote.contract?.provider || "Exploitant",
-        email: legacyProvider,
-        role: "Contrat",
-        side: "EXPLOITANT",
-      });
-    }
-    const legacyClient = quote.contract?.client?.contactEmail;
-    if (legacyClient && !seen.has(legacyClient.toLowerCase())) {
-      seen.add(legacyClient.toLowerCase());
-      recipients.push({
-        name: quote.contract?.client?.name || "Client",
-        email: legacyClient,
-        role: "Fiche client",
-        side: "CLIENT",
-      });
-    }
+    const recipients = quote.contract?.id ? await getContractRecipients(quote.contract.id) : [];
 
     return NextResponse.json({
       recipients,

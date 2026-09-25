@@ -37,6 +37,7 @@ model Organization {
   renewalItems            ContractRenewalItem[]
   meetings                Meeting[]
   alerts                  Alert[]
+  heatingRequests         HeatingSwitchRequest[]
   equipments              Equipment[]
   consumptions            Consumption[]
   energyProviders         EnergyProvider[]
@@ -309,6 +310,7 @@ model User {
   ghostSessions       GhostSession[]           @relation("SuperAdminGhostSessions")
   quotesAccepted      Quote[]                  @relation("QuoteAcceptedBy")
   quotesRefused       Quote[]                  @relation("QuoteRefusedBy")
+  heatingRequests     HeatingSwitchRequest[]   @relation("HeatingSwitchRequestCreatedBy")
   invoicesAccepted    Invoice[]                @relation("InvoiceAcceptedBy")
   invoicesRefused     Invoice[]                @relation("InvoiceRefusedBy")
   ticketsCreated      Ticket[]                 @relation("TicketCreatedBy")
@@ -1489,6 +1491,7 @@ model Contract {
   contacts         ContractContact[] // Carnet de contacts (envoi des devis)
   aiUsages         AiUsage[]
   siteAliases      ContractSiteAlias[] // Libellés de facturation → sites
+  heatingRequests  HeatingSwitchRequest[]
 
   @@index([organizationId])
   @@index([clientId])
@@ -1876,14 +1879,56 @@ model HeatingPeriod {
   startDate DateTime // Date d'allumage du chauffage
   endDate   DateTime? // Date d'arrêt (null si saison en cours)
   notes     String?
+  // Dates provisoires : posées par une demande d'allumage/arrêt envoyée à
+  // l'exploitant, en attente de confirmation site par site.
+  startProvisional Boolean @default(false)
+  endProvisional   Boolean @default(false)
+  startRequestId   String?
+  endRequestId     String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  site         Site                  @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  startRequest HeatingSwitchRequest? @relation("HeatingPeriodStartRequest", fields: [startRequestId], references: [id], onDelete: SetNull)
+  endRequest   HeatingSwitchRequest? @relation("HeatingPeriodEndRequest", fields: [endRequestId], references: [id], onDelete: SetNull)
 
   @@index([siteId])
   @@index([startDate])
   @@map("heating_periods")
+}
+
+enum HeatingSwitchType {
+  ALLUMAGE
+  ARRET
+}
+
+// Demande d'allumage ou d'arrêt du chauffage envoyée à l'exploitant pour les
+// sites d'un contrat. Ouverte tant que closedAt/cancelledAt sont null ; se
+// ferme quand toutes les périodes provisoires liées ont été confirmées.
+model HeatingSwitchRequest {
+  id             String            @id @default(cuid())
+  contractId     String
+  organizationId String
+  type           HeatingSwitchType
+  season         String // "2026-2027"
+  requestedDate  DateTime          @db.Date
+  sentAt         DateTime          @default(now())
+  sentTo         Json // { to: string[], cc: string[], siteIds: string[] }
+  message        String?
+  createdById    String?
+  closedAt       DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  contract     Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?           @relation("HeatingSwitchRequestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  startPeriods HeatingPeriod[] @relation("HeatingPeriodStartRequest")
+  endPeriods   HeatingPeriod[] @relation("HeatingPeriodEndRequest")
+
+  @@index([contractId])
+  @@map("heating_switch_requests")
 }
 
 // ============================================
