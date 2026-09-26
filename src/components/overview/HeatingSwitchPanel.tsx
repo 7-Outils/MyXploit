@@ -7,10 +7,9 @@ import { Check, Flame, Power, X } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
 import { useToast } from "@/components/ui/toast";
 import { api, getErrorMessage } from "@/lib/api-client";
-import { HEATING_START_THRESHOLD, HEATING_STOP_THRESHOLD } from "@/lib/heating-season";
 import HeatingRequestModal from "./HeatingRequestModal";
 import HeatingConfirmModal from "./HeatingConfirmModal";
-import { fmtDay, fmtTemp, type HeatingStatusResponse, type HeatingSwitchType } from "./heating-types";
+import { fmtTemp, type HeatingStatusResponse, type HeatingSwitchType } from "./heating-types";
 
 interface Props {
   contractId: string;
@@ -20,6 +19,9 @@ const iconBtn =
   "h-9 w-9 flex items-center justify-center border border-ink/20 text-ink/60 hover:border-accent hover:text-accent transition-colors disabled:opacity-40 disabled:pointer-events-none";
 const iconBtnPrimary =
   "h-9 w-9 flex items-center justify-center bg-ink text-paper hover:bg-accent transition-colors disabled:opacity-40 disabled:pointer-events-none";
+
+const fmtWeekday = (iso: string) =>
+  new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
 
 const fmtDateLong = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
@@ -92,7 +94,7 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
       rule = "border-l-2 border-l-accent";
       emphasis = "text-accent";
     } else {
-      headline = `Installations à l'arrêt · ${counts.arrete}/${counts.total}`;
+      headline = `${counts.total} site${counts.total > 1 ? "s" : ""} à l'arrêt`;
     }
     actions.push(
       <button key="start" onClick={() => setRequestType("ALLUMAGE")} title="Demander l'allumage" className={signal === "START" ? iconBtnPrimary : iconBtn}>
@@ -105,9 +107,9 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
       rule = "border-l-2 border-l-accent";
       emphasis = "text-accent";
     } else if (counts.enChauffe === counts.total) {
-      headline = `Installations allumées · ${counts.enChauffe}/${counts.total}`;
+      headline = `${counts.total} site${counts.total > 1 ? "s" : ""} en chauffe`;
     } else {
-      headline = `${counts.enChauffe}/${counts.total} allumées`;
+      headline = `${counts.enChauffe} site${counts.enChauffe > 1 ? "s" : ""} en chauffe sur ${counts.total}`;
     }
     if (counts.arrete > 0) {
       actions.push(
@@ -126,16 +128,29 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
   }
 
   if (!detail) {
-    detail = weather ? (
-      <>
-        T° moy 5 j <strong className="font-mono tabular-nums text-ink">{fmtTemp(weather.observedMean5d)}</strong>
-        {" · "}prévision 7 j <strong className="font-mono tabular-nums text-ink">{fmtTemp(weather.forecastMean7d)}</strong>
-        {" · "}seuils <span className="font-mono tabular-nums">{HEATING_START_THRESHOLD} / {HEATING_STOP_THRESHOLD}</span>
-      </>
-    ) : (
-      <>Météo indisponible (pas de coordonnées ni de station sur les sites).</>
-    );
+    if (weather) {
+      const obs = fmtTemp(weather.observedMean5d);
+      const prev = fmtTemp(weather.forecastMean7d);
+      const lead =
+        signal === "START"
+          ? "Conditions d'allumage atteintes"
+          : signal === "STOP"
+            ? "Conditions d'arrêt atteintes"
+            : allOff
+              ? "Pas d'allumage à prévoir"
+              : "Pas d'arrêt à prévoir";
+      detail = (
+        <>
+          {lead} : <strong className="font-mono tabular-nums text-ink">{obs}</strong> en moyenne ces 5 jours,{" "}
+          <strong className="font-mono tabular-nums text-ink">{prev}</strong> prévus sur 7 jours.
+        </>
+      );
+    } else {
+      detail = <>Météo indisponible : aucun site n&apos;a de coordonnées ni de station météo.</>;
+    }
   }
+
+  const forecast = weather ? weather.days.filter((d) => d.isForecast).slice(0, 7) : [];
 
   return (
     <>
@@ -152,29 +167,24 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
           <div className="flex items-center gap-1.5 shrink-0">{actions}</div>
         </div>
 
-        {weather && weather.days.length > 0 && (
-          <div className="mt-2.5 pt-2.5 border-t border-ink/10 grid gap-1" style={{ gridTemplateColumns: `repeat(${weather.days.length}, minmax(0, 1fr))` }}>
-            {weather.days.map((d) => (
-              <div key={d.date} className={`text-center ${d.isForecast ? "text-ink/40" : "text-ink/70"}`} title={d.isForecast ? "Prévision" : "Observé"}>
-                <div className="label-tech !text-[9px] !tracking-wider">{fmtDay(d.date)}</div>
-                <div className="font-mono tabular-nums text-[11px] leading-tight">
-                  {Math.round(d.tMin)}<span className="text-ink/30">/</span>{Math.round(d.tMax)}
+        {forecast.length > 0 && (
+          <div className="mt-3 pt-2.5 border-t border-ink/10">
+            <div className="flex items-center justify-between">
+              <span className="label-tech">Prévision 7 jours · moyenne journalière</span>
+              <Link href={`/exploitation?tab=saisons&contractId=${contractId}`} className="label-tech hover:text-accent">
+                Saisons de chauffe
+              </Link>
+            </div>
+            <div className="mt-1.5 grid grid-cols-7 gap-1">
+              {forecast.map((d) => (
+                <div key={d.date} className="text-center border border-ink/10 py-1">
+                  <div className="text-[10px] uppercase tracking-wide text-ink/40">{fmtWeekday(d.date)}</div>
+                  <div className="font-mono tabular-nums text-sm text-ink leading-tight">{Math.round(d.tMean)}°</div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
-
-        <div className="mt-2 flex items-center justify-between text-[11px]">
-          <span className="text-ink/40 tabular-nums">
-            {counts.enChauffe} en chauffe · {counts.arrete} à l&apos;arrêt
-            {counts.allumagePrevu > 0 && ` · ${counts.allumagePrevu} allumage prévu`}
-            {counts.arretPrevu > 0 && ` · ${counts.arretPrevu} arrêt prévu`}
-          </span>
-          <Link href={`/exploitation?tab=saisons&contractId=${contractId}`} className="label-tech hover:text-accent">
-            Saisons de chauffe
-          </Link>
-        </div>
       </div>
 
       {requestType && (
