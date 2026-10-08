@@ -34,6 +34,8 @@ type SiteType =
   | "ECOLE"
   | "MAIRIE"
   | "HOPITAL"
+  | "CRECHE"
+  | "EHPAD"
   | "GYMNASE"
   | "PISCINE"
   | "MEDIATHEQUE"
@@ -75,6 +77,8 @@ const BUILDING_TYPE_FACTOR: Record<SiteType, number> = {
   ECOLE:        1.0,
   MAIRIE:       0.95, // Bureaux, moins de renouvellement d'air
   HOPITAL:      1.20, // Fort renouvellement d'air, 24/7
+  CRECHE:       1.05, // Consigne élevée, ventilation soutenue
+  EHPAD:        1.15, // Occupation 24/7, consigne élevée
   GYMNASE:      1.10, // Grand volume, hauteur
   PISCINE:      1.30, // Évaporation, déshumidification
   MEDIATHEQUE:  0.95,

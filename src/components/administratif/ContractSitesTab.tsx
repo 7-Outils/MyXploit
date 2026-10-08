@@ -107,6 +107,8 @@ const siteTypes = [
   { value: "ECOLE", label: "École" },
   { value: "MAIRIE", label: "Mairie" },
   { value: "HOPITAL", label: "Hôpital" },
+  { value: "CRECHE", label: "Crèche" },
+  { value: "EHPAD", label: "EHPAD" },
   { value: "GYMNASE", label: "Gymnase" },
   { value: "PISCINE", label: "Piscine" },
   { value: "MEDIATHEQUE", label: "Médiathèque" },

@@ -9,7 +9,7 @@ import type { SiteType, EnergyType } from "./types";
 
 export const siteTypeLabels: Record<SiteType, string> = {
   LYCEE: "Lycée", COLLEGE: "Collège", ECOLE: "École", MAIRIE: "Mairie",
-  HOPITAL: "Hôpital", GYMNASE: "Gymnase", PISCINE: "Piscine", MEDIATHEQUE: "Médiathèque", AUTRE: "Autre",
+  HOPITAL: "Hôpital", CRECHE: "Crèche", EHPAD: "EHPAD", GYMNASE: "Gymnase", PISCINE: "Piscine", MEDIATHEQUE: "Médiathèque", AUTRE: "Autre",
 };
 
 export const energyTypeLabels: Record<EnergyType, string> = {

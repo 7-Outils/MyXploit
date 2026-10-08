@@ -48,6 +48,7 @@ function parseSiteType(value?: string): SiteType {
     "COLLÈGE": SiteType.COLLEGE,
     "ÉCOLE": SiteType.ECOLE,
     "HÔPITAL": SiteType.HOPITAL,
+    "CRÈCHE": SiteType.CRECHE,
     "MÉDIATHÈQUE": SiteType.MEDIATHEQUE,
   };
   return mapping[upper] || SiteType.AUTRE;

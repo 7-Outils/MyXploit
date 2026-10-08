@@ -146,6 +146,8 @@ export const CHART_COLORS = {
     ECOLE: "#60A5FA",       // accent clair
     MAIRIE: "#4A5568",      // encre atténuée
     HOPITAL: "#1E40AF",     // accent foncé
+    CRECHE: "#60A5FA",      // accent clair
+    EHPAD: "#1E3A8A",       // accent très foncé
     GYMNASE: "#93C5FD",     // accent très clair
     PISCINE: "#334E68",     // encre moyenne
     MEDIATHEQUE: "#BFDBFE", // accent pâle

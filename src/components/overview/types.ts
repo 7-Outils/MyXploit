@@ -6,7 +6,7 @@ export interface ContractSite {
   };
 }
 
-export type SiteType = "LYCEE" | "COLLEGE" | "ECOLE" | "MAIRIE" | "HOPITAL" | "GYMNASE" | "PISCINE" | "MEDIATHEQUE" | "AUTRE";
+export type SiteType = "LYCEE" | "COLLEGE" | "ECOLE" | "MAIRIE" | "HOPITAL" | "CRECHE" | "EHPAD" | "GYMNASE" | "PISCINE" | "MEDIATHEQUE" | "AUTRE";
 export type EnergyType = "GAZ" | "ELECTRICITE" | "FIOUL" | "BOIS" | "RESEAU_CHALEUR" | "AUTRE";
 
 export interface Site {

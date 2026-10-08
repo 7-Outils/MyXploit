@@ -18,6 +18,8 @@ export const SITE_TYPE_LABELS: Record<string, string> = {
   ECOLE: "École",
   MAIRIE: "Mairie",
   HOPITAL: "Hôpital",
+  CRECHE: "Crèche",
+  EHPAD: "EHPAD",
   GYMNASE: "Gymnase",
   PISCINE: "Piscine",
   MEDIATHEQUE: "Médiathèque",

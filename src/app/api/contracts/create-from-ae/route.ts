@@ -366,7 +366,7 @@ function parseSiteType(value?: string): SiteType {
   if (!value) return SiteType.AUTRE;
   const upper = value.toUpperCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-  // Available types: LYCEE, COLLEGE, ECOLE, MAIRIE, HOPITAL, GYMNASE, PISCINE, MEDIATHEQUE, AUTRE
+  // Available types: LYCEE, COLLEGE, ECOLE, MAIRIE, HOPITAL, CRECHE, EHPAD, GYMNASE, PISCINE, MEDIATHEQUE, AUTRE
   const mapping: Record<string, SiteType> = {
     "LYCEE": SiteType.LYCEE,
     "COLLEGE": SiteType.COLLEGE,
@@ -376,6 +376,8 @@ function parseSiteType(value?: string): SiteType {
     "GYMNASE": SiteType.GYMNASE,
     "MEDIATHEQUE": SiteType.MEDIATHEQUE,
     "HOPITAL": SiteType.HOPITAL,
+    "CRECHE": SiteType.CRECHE,
+    "EHPAD": SiteType.EHPAD,
   };
 
   for (const [key, val] of Object.entries(mapping)) {
