@@ -45,37 +45,79 @@ export interface HeatingWeather {
   observedMean5d: number | null;
   forecastMean7d: number | null;
   forecastMinDaily7d: number | null;
+  /** Premier jour (aujourd'hui inclus) où les conditions d'allumage sont
+   *  réunies d'après la prévision 15 j, null si aucun dans l'horizon. */
+  startDate: string | null;
+  /** Idem pour l'arrêt. */
+  stopDate: string | null;
   days: DailyTemp[];
 }
+
+// Au-delà de J+7 la prévision n'est qu'une tendance : affichée à part.
+export const HEATING_RELIABLE_DAYS = 7;
+// Fenêtre de prévision minimale pour projeter une date (fin d'horizon).
+const MIN_FORWARD_DAYS = 3;
 
 function mean(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((s, v) => s + v, 0) / values.length;
 }
 
+type DayCheck = { mean5d: number; forwardMean: number; forwardMin: number };
+
+function checkStart(c: DayCheck) {
+  return c.mean5d < HEATING_START_THRESHOLD && c.forwardMean < HEATING_START_FORECAST_MAX;
+}
+
+function checkStop(c: DayCheck) {
+  return c.mean5d >= HEATING_STOP_THRESHOLD && c.forwardMin >= HEATING_STOP_FORECAST_MIN;
+}
+
+/**
+ * Applique la règle d'allumage/arrêt à chaque jour de la prévision, comme si
+ * on était ce jour-là : moyenne des 5 jours précédents (observés puis prévus)
+ * et prévision des 7 jours suivants. Pour aujourd'hui, c'est exactement le
+ * signal courant ; pour les jours suivants, c'est la date projetée.
+ */
 export function computeHeatingSignal(daily: DailyTemp[], todayIso: string): HeatingWeather {
   const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date));
-  const observed = sorted.filter((d) => d.date < todayIso);
-  const forecast = sorted.filter((d) => d.date >= todayIso).slice(0, 7);
+  const firstForecast = sorted.findIndex((d) => d.date >= todayIso);
+  const observed = firstForecast === -1 ? sorted : sorted.slice(0, firstForecast);
+  const forecast = firstForecast === -1 ? [] : sorted.slice(firstForecast);
 
-  const observedMean5d = mean(observed.slice(-5).map((d) => d.tMean));
-  const forecastMean7d = mean(forecast.map((d) => d.tMean));
-  const forecastMinDaily7d = forecast.length ? Math.min(...forecast.map((d) => d.tMean)) : null;
+  const checkAt = (i: number): DayCheck | null => {
+    if (i < 5) return null;
+    const forward = sorted.slice(i, i + 7).map((d) => d.tMean);
+    if (forward.length < MIN_FORWARD_DAYS) return null;
+    return {
+      mean5d: mean(sorted.slice(i - 5, i).map((d) => d.tMean))!,
+      forwardMean: mean(forward)!,
+      forwardMin: Math.min(...forward),
+    };
+  };
 
-  let signal: HeatingSignal = "NEUTRAL";
-  if (observedMean5d !== null && forecastMean7d !== null && forecastMinDaily7d !== null) {
-    if (observedMean5d >= HEATING_STOP_THRESHOLD && forecastMinDaily7d >= HEATING_STOP_FORECAST_MIN) {
-      signal = "STOP";
-    } else if (observedMean5d < HEATING_START_THRESHOLD && forecastMean7d < HEATING_START_FORECAST_MAX) {
-      signal = "START";
+  let startDate: string | null = null;
+  let stopDate: string | null = null;
+  if (firstForecast !== -1) {
+    for (let i = firstForecast; i < sorted.length && (!startDate || !stopDate); i++) {
+      const c = checkAt(i);
+      if (!c) continue;
+      if (!startDate && checkStart(c)) startDate = sorted[i].date;
+      if (!stopDate && checkStop(c)) stopDate = sorted[i].date;
     }
   }
 
+  const signal: HeatingSignal =
+    stopDate === todayIso ? "STOP" : startDate === todayIso ? "START" : "NEUTRAL";
+
+  const week = forecast.slice(0, HEATING_RELIABLE_DAYS);
   return {
     signal,
-    observedMean5d,
-    forecastMean7d,
-    forecastMinDaily7d,
+    observedMean5d: mean(observed.slice(-5).map((d) => d.tMean)),
+    forecastMean7d: mean(week.map((d) => d.tMean)),
+    forecastMinDaily7d: week.length ? Math.min(...week.map((d) => d.tMean)) : null,
+    startDate,
+    stopDate,
     days: [...observed.slice(-7), ...forecast],
   };
 }

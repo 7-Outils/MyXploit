@@ -1,5 +1,5 @@
 /**
- * Températures journalières observées (7 j) + prévues (7 j) pour le signal
+ * Températures journalières observées (7 j) + prévues (15 j) pour le signal
  * allumage/arrêt du chauffage. Source : Open-Meteo prévision (gratuit, sans
  * clé, modèles AROME/ARPEGE sur la France). Météo France DPClim ne fournit que
  * de l'observé, inutilisable pour la prévision.
@@ -41,7 +41,7 @@ export function contractCoordinates(sites: SiteCoords[]): { lat: number; lon: nu
 async function fetchDailyTempsUncached(lat: number, lon: number): Promise<DailyTemp[]> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-    `&past_days=7&forecast_days=7&daily=temperature_2m_min,temperature_2m_max,temperature_2m_mean&timezone=Europe/Paris`;
+    `&past_days=7&forecast_days=15&daily=temperature_2m_min,temperature_2m_max,temperature_2m_mean&timezone=Europe/Paris`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
   const json = await res.json();
@@ -67,7 +67,7 @@ export async function fetchDailyTemps(lat: number, lon: number): Promise<DailyTe
   const rLon = Math.round(lon * 10) / 10;
   const cached = unstable_cache(
     () => fetchDailyTempsUncached(rLat, rLon),
-    ["heating-weather", String(rLat), String(rLon)],
+    ["heating-weather-15d", String(rLat), String(rLon)],
     { revalidate: 6 * 3600 }
   );
   return cached();

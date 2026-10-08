@@ -17,6 +17,7 @@ import {
   FolderKanban,
   ClipboardList,
   Thermometer,
+  Flame,
   X,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
@@ -221,19 +222,27 @@ export function Sidebar() {
         )}
 
 
-        {/* Calculateur DJU — icône seule (Paramètres est dans le menu user). */}
-        <Link
-          href="/outils/dju"
-          title="Calculateur DJU"
-          className={cn(
-            "h-9 w-9 flex items-center justify-center transition-colors duration-200",
-            isActive("/outils/dju")
-              ? "bg-accent/5 text-accent"
-              : "text-ink/40 hover:text-accent hover:bg-ink/[0.02]"
-          )}
-        >
-          <Thermometer size={18} className="flex-shrink-0" />
-        </Link>
+        {/* Outils météo — icônes seules (Paramètres est dans le menu user). */}
+        <div className="flex flex-wrap gap-0.5">
+          {[
+            { href: "/outils/dju", title: "Calculateur DJU", Icon: Thermometer },
+            { href: "/outils/chauffage", title: "Allumage du chauffage", Icon: Flame },
+          ].map(({ href, title, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              title={title}
+              className={cn(
+                "h-9 w-9 flex items-center justify-center transition-colors duration-200",
+                isActive(href)
+                  ? "bg-accent/5 text-accent"
+                  : "text-ink/40 hover:text-accent hover:bg-ink/[0.02]"
+              )}
+            >
+              <Icon size={18} className="flex-shrink-0" />
+            </Link>
+          ))}
+        </div>
       </div>
       </aside>
     </>

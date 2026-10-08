@@ -13,6 +13,8 @@ interface Props {
   contractId: string;
   type: HeatingSwitchType;
   today: string;
+  /** Date projetée par la prévision météo, sinon défaut (J+3 / aujourd'hui). */
+  suggestedDate?: string | null;
   sites: HeatingSite[];
   recipients: ContractRecipient[];
   onClose: () => void;
@@ -25,7 +27,7 @@ function addDays(iso: string, n: number): string {
   return d.toLocaleDateString("sv-SE");
 }
 
-export default function HeatingRequestModal({ contractId, type, today, sites, recipients, onClose, onSent }: Props) {
+export default function HeatingRequestModal({ contractId, type, today, suggestedDate, sites, recipients, onClose, onSent }: Props) {
   const toast = useToast();
   const isStart = type === "ALLUMAGE";
   const eligible = useMemo(
@@ -33,7 +35,7 @@ export default function HeatingRequestModal({ contractId, type, today, sites, re
     [sites, isStart]
   );
 
-  const [date, setDate] = useState(isStart ? addDays(today, 3) : today);
+  const [date, setDate] = useState(suggestedDate ?? (isStart ? addDays(today, 3) : today));
   const [checkedSites, setCheckedSites] = useState<Record<string, boolean>>(
     () => Object.fromEntries(eligible.map((s) => [s.id, true]))
   );

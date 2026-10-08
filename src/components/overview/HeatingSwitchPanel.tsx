@@ -10,6 +10,8 @@ import { api, getErrorMessage } from "@/lib/api-client";
 import HeatingRequestModal from "./HeatingRequestModal";
 import HeatingConfirmModal from "./HeatingConfirmModal";
 import { fmtTemp, type HeatingStatusResponse, type HeatingSwitchType } from "./heating-types";
+import HeatingForecast, { daysFrom, fmtHeatingDate } from "@/components/heating/HeatingForecast";
+import { HEATING_RELIABLE_DAYS } from "@/lib/heating-season";
 
 interface Props {
   contractId: string;
@@ -19,9 +21,6 @@ const iconBtn =
   "h-9 w-9 flex items-center justify-center border border-ink/20 text-ink/60 hover:border-accent hover:text-accent transition-colors disabled:opacity-40 disabled:pointer-events-none";
 const iconBtnPrimary =
   "h-9 w-9 flex items-center justify-center bg-ink text-paper hover:bg-accent transition-colors disabled:opacity-40 disabled:pointer-events-none";
-
-const fmtWeekday = (iso: string) =>
-  new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
 
 const fmtDateLong = (iso: string) =>
   new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
@@ -43,6 +42,10 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
   const signal = weather?.signal ?? "NEUTRAL";
   const allOff = counts.enChauffe === 0 && counts.allumagePrevu === 0 && counts.arretPrevu === 0;
   const anyOn = counts.enChauffe > 0;
+  // Date projetée pertinente selon l'état : allumage si tout est à l'arrêt, arrêt sinon.
+  const projected = allOff ? weather?.startDate ?? null : anyOn ? weather?.stopDate ?? null : null;
+  const projectedIn = projected ? daysFrom(data.today, projected) : null;
+  const projectedIsTrend = projectedIn !== null && projectedIn >= HEATING_RELIABLE_DAYS;
 
   // ─── Phrase d'état + ton + actions ─────────────────────────────────────────
   let headline: string;
@@ -93,6 +96,12 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
       headline = "Il est temps d'allumer";
       rule = "border-l-2 border-l-accent";
       emphasis = "text-accent";
+    } else if (projected) {
+      headline = `Allumer le ${fmtHeatingDate(projected)}`;
+      if (!projectedIsTrend) {
+        rule = "border-l-2 border-l-accent";
+        emphasis = "text-accent";
+      }
     } else {
       headline = `${counts.total} site${counts.total > 1 ? "s" : ""} à l'arrêt`;
     }
@@ -106,6 +115,12 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
       headline = "Il est temps d'arrêter";
       rule = "border-l-2 border-l-accent";
       emphasis = "text-accent";
+    } else if (projected) {
+      headline = `Arrêter le ${fmtHeatingDate(projected)}`;
+      if (!projectedIsTrend) {
+        rule = "border-l-2 border-l-accent";
+        emphasis = "text-accent";
+      }
     } else if (counts.enChauffe === counts.total) {
       headline = `${counts.total} site${counts.total > 1 ? "s" : ""} en chauffe`;
     } else {
@@ -131,16 +146,28 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
     if (weather) {
       const obs = fmtTemp(weather.observedMean5d);
       const prev = fmtTemp(weather.forecastMean7d);
-      const lead =
-        signal === "START"
-          ? "Conditions d'allumage atteintes"
-          : signal === "STOP"
-            ? "Conditions d'arrêt atteintes"
-            : allOff
-              ? "Pas d'allumage à prévoir"
-              : "Pas d'arrêt à prévoir";
+      // Le signal du jour ne compte que s'il concerne l'état des sites
+      // (un signal d'arrêt quand tout est déjà à l'arrêt ne dit rien).
+      const nowStart = allOff && signal === "START";
+      const nowStop = anyOn && signal === "STOP";
+      const lead = nowStart
+        ? "Conditions d'allumage atteintes"
+        : nowStop
+          ? "Conditions d'arrêt atteintes"
+          : projected
+              ? "Aujourd'hui"
+              : allOff
+                ? "Pas d'allumage à prévoir sur 15 jours"
+                : "Pas d'arrêt à prévoir sur 15 jours";
+      const when =
+        projected && projectedIn! > 0
+          ? projectedIsTrend
+            ? `Date indicative : à J+${projectedIn}, la prévision n'est qu'une tendance. `
+            : `Dans ${projectedIn} jour${projectedIn! > 1 ? "s" : ""}, d'après la prévision. `
+          : "";
       detail = (
         <>
+          {when}
           {lead} : <strong className="font-mono tabular-nums text-ink">{obs}</strong> en moyenne ces 5 jours,{" "}
           <strong className="font-mono tabular-nums text-ink">{prev}</strong> prévus sur 7 jours.
         </>
@@ -150,7 +177,7 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
     }
   }
 
-  const forecast = weather ? weather.days.filter((d) => d.isForecast).slice(0, 7) : [];
+  const forecast = weather ? weather.days.filter((d) => d.isForecast) : [];
 
   return (
     <>
@@ -169,19 +196,11 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
 
         {forecast.length > 0 && (
           <div className="mt-3 pt-2.5 border-t border-ink/10">
-            <div className="flex items-center justify-between">
-              <span className="label-tech">Prévision 7 jours · moyenne journalière</span>
+            <HeatingForecast days={forecast} highlight={projected} />
+            <div className="mt-2 flex justify-end">
               <Link href={`/exploitation?tab=saisons&contractId=${contractId}`} className="label-tech hover:text-accent">
                 Saisons de chauffe
               </Link>
-            </div>
-            <div className="mt-1.5 grid grid-cols-7 gap-1">
-              {forecast.map((d) => (
-                <div key={d.date} className="text-center border border-ink/10 py-1">
-                  <div className="text-[10px] uppercase tracking-wide text-ink/40">{fmtWeekday(d.date)}</div>
-                  <div className="font-mono tabular-nums text-sm text-ink leading-tight">{Math.round(d.tMean)}°</div>
-                </div>
-              ))}
             </div>
           </div>
         )}
@@ -192,6 +211,9 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
           contractId={contractId}
           type={requestType}
           today={data.today}
+          suggestedDate={
+            projected && projected > data.today && (requestType === "ALLUMAGE") === allOff ? projected : null
+          }
           sites={sites}
           recipients={data.recipients}
           onClose={() => setRequestType(null)}
