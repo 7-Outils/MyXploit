@@ -38,14 +38,33 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
 
   if (!data || data.counts.total === 0) return null;
 
-  const { counts, weather, pendingRequest, season, sites } = data;
-  const signal = weather?.signal ?? "NEUTRAL";
+  const { counts, weather, groups, pendingRequest, season, sites } = data;
   const allOff = counts.enChauffe === 0 && counts.allumagePrevu === 0 && counts.arretPrevu === 0;
   const anyOn = counts.enChauffe > 0;
-  // Date projetée pertinente selon l'état : allumage si tout est à l'arrêt, arrêt sinon.
-  const projected = allOff ? weather?.startDate ?? null : anyOn ? weather?.stopDate ?? null : null;
+
+  // Événement pertinent selon l'état : allumage si tout est à l'arrêt, arrêt sinon.
+  // Une date par famille de bâtiments (seuils du profil + calendrier scolaire),
+  // limitée aux familles ayant des sites concernés.
+  const kind: "start" | "stop" | null = allOff ? "start" : anyOn ? "stop" : null;
+  const wanted = kind === "start" ? "ARRETE" : "EN_CHAUFFE";
+  const lines = kind
+    ? groups
+        .filter((g) => g.profile !== "HORS_SIGNAL" && g.siteIds.some((id) => sites.find((s) => s.id === id)?.status === wanted))
+        .map((g) => ({
+          key: g.key,
+          label: g.label,
+          count: g.siteIds.length,
+          date: kind === "start" ? g.startDate : g.stopDate,
+          note: kind === "start" ? g.startNote : g.stopNote,
+        }))
+    : [];
+  const dated = lines.filter((l): l is typeof l & { date: string } => !!l.date).sort((a, b) => a.date.localeCompare(b.date));
+  const projected = dated[0]?.date ?? null;
   const projectedIn = projected ? daysFrom(data.today, projected) : null;
   const projectedIsTrend = projectedIn !== null && projectedIn >= HEATING_RELIABLE_DAYS;
+  const now = projectedIn === 0;
+  const spread = dated.length > 1 && dated[dated.length - 1].date !== projected;
+  const dateWord = (iso: string) => (spread ? `à partir du ${fmtHeatingDate(iso)}` : `le ${fmtHeatingDate(iso)}`);
 
   // ─── Phrase d'état + ton + actions ─────────────────────────────────────────
   let headline: string;
@@ -92,12 +111,12 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
       </button>
     );
   } else if (allOff) {
-    if (signal === "START") {
+    if (now) {
       headline = "Il est temps d'allumer";
       rule = "border-l-2 border-l-accent";
       emphasis = "text-accent";
     } else if (projected) {
-      headline = `Allumer le ${fmtHeatingDate(projected)}`;
+      headline = `Allumer ${dateWord(projected)}`;
       if (!projectedIsTrend) {
         rule = "border-l-2 border-l-accent";
         emphasis = "text-accent";
@@ -106,17 +125,17 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
       headline = `${counts.total} site${counts.total > 1 ? "s" : ""} à l'arrêt`;
     }
     actions.push(
-      <button key="start" onClick={() => setRequestType("ALLUMAGE")} title="Demander l'allumage" className={signal === "START" ? iconBtnPrimary : iconBtn}>
+      <button key="start" onClick={() => setRequestType("ALLUMAGE")} title="Demander l'allumage" className={now ? iconBtnPrimary : iconBtn}>
         <Flame size={16} />
       </button>
     );
   } else {
-    if (signal === "STOP" && anyOn) {
+    if (now) {
       headline = "Il est temps d'arrêter";
       rule = "border-l-2 border-l-accent";
       emphasis = "text-accent";
     } else if (projected) {
-      headline = `Arrêter le ${fmtHeatingDate(projected)}`;
+      headline = `Arrêter ${dateWord(projected)}`;
       if (!projectedIsTrend) {
         rule = "border-l-2 border-l-accent";
         emphasis = "text-accent";
@@ -135,7 +154,7 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
     }
     if (anyOn) {
       actions.push(
-        <button key="stop" onClick={() => setRequestType("ARRET")} title="Demander l'arrêt" className={signal === "STOP" ? iconBtnPrimary : iconBtn}>
+        <button key="stop" onClick={() => setRequestType("ARRET")} title="Demander l'arrêt" className={now ? iconBtnPrimary : iconBtn}>
           <Power size={16} />
         </button>
       );
@@ -146,15 +165,11 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
     if (weather) {
       const obs = fmtTemp(weather.observedMean5d);
       const prev = fmtTemp(weather.forecastMean7d);
-      // Le signal du jour ne compte que s'il concerne l'état des sites
-      // (un signal d'arrêt quand tout est déjà à l'arrêt ne dit rien).
-      const nowStart = allOff && signal === "START";
-      const nowStop = anyOn && signal === "STOP";
-      const lead = nowStart
-        ? "Conditions d'allumage atteintes"
-        : nowStop
-          ? "Conditions d'arrêt atteintes"
-          : projected
+      const lead = now
+        ? kind === "start"
+          ? "Conditions d'allumage atteintes"
+          : "Conditions d'arrêt atteintes"
+        : projected
               ? "Aujourd'hui"
               : allOff
                 ? "Pas d'allumage à prévoir sur 15 jours"
@@ -190,13 +205,32 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
               <span className={`text-sm font-semibold tabular-nums ${emphasis}`}>{headline}</span>
             </div>
             <p className="text-[12px] text-ink/50 mt-1 leading-snug">{detail}</p>
+            {!pendingRequest && lines.length > 1 && (
+              <ul className="mt-2 space-y-0.5">
+                {lines.map((l) => (
+                  <li key={l.key} className="flex items-baseline gap-2 text-[12px] leading-snug">
+                    <span className="text-ink/60">
+                      {l.label} <span className="font-mono tabular-nums text-ink/40">×{l.count}</span>
+                    </span>
+                    <span className="flex-1 border-b border-dotted border-ink/15 translate-y-[-3px]" />
+                    <span className={`font-mono tabular-nums ${l.date === projected ? "text-accent font-semibold" : "text-ink"}`}>
+                      {l.date ? (l.date === data.today ? "aujourd'hui" : fmtHeatingDate(l.date)) : "pas sur 15 j"}
+                    </span>
+                    {l.note && <span className="text-ink/40">· {l.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!pendingRequest && lines.length === 1 && lines[0].note && (
+              <p className="text-[12px] text-ink/40 mt-0.5 leading-snug">{lines[0].note}</p>
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">{actions}</div>
         </div>
 
         {forecast.length > 0 && (
           <div className="mt-3 pt-2.5 border-t border-ink/10">
-            <HeatingForecast days={forecast} highlight={projected} />
+            <HeatingForecast days={forecast} highlight={dated.map((l) => l.date)} />
             <div className="mt-2 flex justify-end">
               <Link href={`/exploitation?tab=saisons&contractId=${contractId}`} className="label-tech hover:text-accent">
                 Saisons de chauffe
@@ -211,9 +245,7 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
           contractId={contractId}
           type={requestType}
           today={data.today}
-          suggestedDate={
-            projected && projected > data.today && (requestType === "ALLUMAGE") === allOff ? projected : null
-          }
+          suggestedDate={projected && projected > data.today && (requestType === "ALLUMAGE") === allOff ? projected : null}
           sites={sites}
           recipients={data.recipients}
           onClose={() => setRequestType(null)}

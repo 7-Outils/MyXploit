@@ -16,8 +16,8 @@ export const daysFrom = (todayIso: string, iso: string) =>
 interface Props {
   /** Jours prévus uniquement (aujourd'hui inclus), jusqu'à 15. */
   days: DailyTemp[];
-  /** Date d'allumage/arrêt projetée, mise en évidence. */
-  highlight?: string | null;
+  /** Date(s) d'allumage/arrêt projetée(s), mises en évidence. */
+  highlight?: string | string[] | null;
 }
 
 function Cell({ day, highlight, faded }: { day: DailyTemp; highlight: boolean; faded: boolean }) {
@@ -43,13 +43,14 @@ function Cell({ day, highlight, faded }: { day: DailyTemp; highlight: boolean; f
 export default function HeatingForecast({ days, highlight }: Props) {
   const week = days.slice(0, HEATING_RELIABLE_DAYS);
   const trend = days.slice(HEATING_RELIABLE_DAYS);
+  const marks = new Set(Array.isArray(highlight) ? highlight : highlight ? [highlight] : []);
   return (
     <div className="space-y-2">
       <div>
         <div className="label-tech mb-1">7 jours · moyenne journalière</div>
         <div className="grid grid-cols-7 gap-1">
           {week.map((d) => (
-            <Cell key={d.date} day={d} highlight={d.date === highlight} faded={false} />
+            <Cell key={d.date} day={d} highlight={marks.has(d.date)} faded={false} />
           ))}
         </div>
       </div>
@@ -58,7 +59,7 @@ export default function HeatingForecast({ days, highlight }: Props) {
           <div className="label-tech mb-1">Tendance · jours 8 à {days.length}</div>
           <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${trend.length}, minmax(0, 1fr))` }}>
             {trend.map((d) => (
-              <Cell key={d.date} day={d} highlight={d.date === highlight} faded />
+              <Cell key={d.date} day={d} highlight={marks.has(d.date)} faded />
             ))}
           </div>
         </div>

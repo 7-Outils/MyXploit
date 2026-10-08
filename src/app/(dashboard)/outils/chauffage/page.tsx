@@ -6,17 +6,30 @@ import { Flame, Loader2, MapPin, Search } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
 import HeatingForecast, { daysFrom, fmtHeatingDate } from "@/components/heating/HeatingForecast";
 import { fmtTemp } from "@/components/overview/heating-types";
-import {
-  HEATING_RELIABLE_DAYS,
-  HEATING_START_FORECAST_MAX,
-  HEATING_START_THRESHOLD,
-  HEATING_STOP_FORECAST_MIN,
-  HEATING_STOP_THRESHOLD,
-  type HeatingWeather,
-} from "@/lib/heating-season";
+import { HEATING_RELIABLE_DAYS, type HeatingWeather } from "@/lib/heating-season";
+import { HEATING_PROFILE_THRESHOLDS } from "@/lib/heating-profiles";
 import type { GeocodePlace } from "@/app/api/heating/geocode/route";
 
 const STORAGE_KEY = "heating-tool-place";
+const BUILDING_KEY = "heating-tool-building";
+
+// Types de bâtiment proposés : un profil de seuils, et le calendrier scolaire
+// pour les écoles.
+const BUILDINGS = [
+  { key: "CRECHE", label: "Crèche · santé", profile: "SENSIBLE", school: false },
+  { key: "ECOLE", label: "École · collège · lycée", profile: "STANDARD", school: true },
+  { key: "MAIRIE", label: "Mairie · bureaux", profile: "STANDARD", school: false },
+  { key: "GYMNASE", label: "Gymnase", profile: "SPORTIF", school: false },
+] as const;
+type BuildingKey = (typeof BUILDINGS)[number]["key"];
+
+interface ForecastResponse {
+  today: string;
+  weather: HeatingWeather;
+  startNote: string | null;
+  stopNote: string | null;
+  zone: string | null;
+}
 
 function loadPlace(): GeocodePlace | null {
   try {
@@ -40,6 +53,7 @@ const placeLabel = (p: GeocodePlace) =>
 
 export default function HeatingToolPage() {
   const [place, setPlace] = useState<GeocodePlace | null>(null);
+  const [building, setBuilding] = useState<BuildingKey>("ECOLE");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
@@ -48,7 +62,22 @@ export default function HeatingToolPage() {
   useEffect(() => {
     const saved = loadPlace();
     if (saved) setPlace(saved);
+    try {
+      const b = localStorage.getItem(BUILDING_KEY);
+      if (BUILDINGS.some((x) => x.key === b)) setBuilding(b as BuildingKey);
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  function chooseBuilding(b: BuildingKey) {
+    setBuilding(b);
+    try {
+      localStorage.setItem(BUILDING_KEY, b);
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 250);
@@ -69,8 +98,12 @@ export default function HeatingToolPage() {
     { revalidateOnFocus: false }
   );
 
-  const { data, error, isLoading } = useSWR<{ today: string; weather: HeatingWeather }>(
-    place ? `/api/heating/forecast?lat=${place.lat}&lon=${place.lon}` : null,
+  const cfg = BUILDINGS.find((b) => b.key === building)!;
+  const { data, error, isLoading } = useSWR<ForecastResponse>(
+    place
+      ? `/api/heating/forecast?lat=${place.lat}&lon=${place.lon}&profile=${cfg.profile}` +
+          (cfg.school ? `&school=1&postcode=${place.postcode ?? ""}` : "")
+      : null,
     fetcher,
     { revalidateOnFocus: false }
   );
@@ -91,8 +124,9 @@ export default function HeatingToolPage() {
         <h1 className="text-xl font-semibold text-ink">Allumage du chauffage</h1>
       </div>
 
+      <div className="flex flex-wrap items-start gap-3">
       {/* Recherche de ville */}
-      <div ref={boxRef} className="relative max-w-md">
+      <div ref={boxRef} className="relative w-full max-w-md">
         <div className="flex h-10 items-center gap-2 border border-ink/20 bg-white px-3 focus-within:border-accent">
           <Search size={14} className="shrink-0 text-ink/40" />
           <input
@@ -134,6 +168,22 @@ export default function HeatingToolPage() {
         )}
       </div>
 
+      {/* Type de bâtiment */}
+      <div className="inline-flex h-10 border border-ink/20">
+        {BUILDINGS.map((b, i) => (
+          <button
+            key={b.key}
+            onClick={() => chooseBuilding(b.key)}
+            className={`px-3 font-mono text-[11px] uppercase tracking-widest transition-colors ${i > 0 ? "border-l border-ink/20" : ""} ${
+              building === b.key ? "bg-ink text-paper" : "text-ink/50 hover:text-ink"
+            }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+      </div>
+
       {!place ? (
         <div className="flex min-h-[200px] items-center justify-center border border-dashed border-ink/15 text-sm text-ink/40">
           Tapez une ville pour savoir quand allumer ou arrêter le chauffage.
@@ -147,14 +197,16 @@ export default function HeatingToolPage() {
           {(error as { info?: { error?: string } } | undefined)?.info?.error ?? "Météo indisponible pour le moment"}
         </div>
       ) : (
-        <Result place={place} today={data.today} weather={data.weather} />
+        <Result place={place} building={cfg} data={data} />
       )}
     </div>
   );
 }
 
-function Result({ place, today, weather }: { place: GeocodePlace; today: string; weather: HeatingWeather }) {
+function Result({ place, building, data }: { place: GeocodePlace; building: (typeof BUILDINGS)[number]; data: ForecastResponse }) {
+  const { today, weather, startNote, stopNote, zone } = data;
   const { startDate, stopDate } = weather;
+  const t = HEATING_PROFILE_THRESHOLDS[building.profile];
   const forecast = weather.days.filter((d) => d.isForecast);
 
   // Sans état d'installation, on suit la saison : juillet → décembre on
@@ -167,6 +219,7 @@ function Result({ place, today, weather }: { place: GeocodePlace; today: string;
   const nextIn = next ? daysFrom(today, next.date) : null;
   const isTrend = nextIn !== null && nextIn >= HEATING_RELIABLE_DAYS;
 
+  const note = next?.type === "start" ? startNote : next?.type === "stop" ? stopNote : null;
   let headline: string;
   let sub: string;
   if (!next) {
@@ -190,10 +243,14 @@ function Result({ place, today, weather }: { place: GeocodePlace; today: string;
       <div className={`panel px-4 py-3 border-l-2 ${next && !isTrend ? "border-l-accent" : "border-l-ink"}`}>
         <div className="flex items-center gap-1.5 label-tech">
           <MapPin size={12} />
-          {placeLabel(place)}
+          {placeLabel(place)} · {building.label}
+          {building.school && zone && <> · {zone}</>}
         </div>
         <div className={`mt-1 text-2xl font-semibold ${next && !isTrend ? "text-accent" : "text-ink"}`}>{headline}</div>
-        <p className="mt-0.5 text-[13px] text-ink/50">{sub}</p>
+        <p className="mt-0.5 text-[13px] text-ink/50">
+          {sub}
+          {note && <> {note}.</>}
+        </p>
       </div>
 
       <div className="panel grid grid-cols-2 sm:grid-cols-4 divide-x divide-ink/10">
@@ -215,10 +272,13 @@ function Result({ place, today, weather }: { place: GeocodePlace; today: string;
       </div>
 
       <p className="text-xs text-ink/40 leading-relaxed">
-        Allumage le premier jour où la moyenne des 5 jours précédents passe sous {HEATING_START_THRESHOLD} °C et où la
-        semaine suivante reste sous {HEATING_START_FORECAST_MAX} °C en moyenne. Arrêt quand cette moyenne atteint{" "}
-        {HEATING_STOP_THRESHOLD} °C sans aucun jour prévu sous {HEATING_STOP_FORECAST_MIN} °C. Prévision Open-Meteo, mise à
-        jour toutes les 6 h.
+        {building.label} : allumage le premier jour où la moyenne des 5 jours précédents passe sous {t.start} °C et où la
+        semaine suivante reste sous {t.startForecastMax} °C en moyenne ; arrêt quand cette moyenne atteint {t.stop} °C sans
+        aucun jour prévu sous {t.stopForecastMin} °C.
+        {building.school && (
+          <> Une date tombant pendant les vacances scolaires est reportée à la veille de la rentrée (allumage) ou avancée au début des vacances (arrêt).</>
+        )}{" "}
+        Prévision Open-Meteo, mise à jour toutes les 6 h.
       </p>
     </div>
   );

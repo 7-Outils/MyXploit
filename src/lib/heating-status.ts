@@ -25,6 +25,7 @@ export interface SitePeriodInfo {
 export interface SiteHeatingInfo {
   id: string;
   name: string;
+  type: string;
   city: string;
   address: string | null;
   postalCode: string | null;
@@ -43,6 +44,7 @@ export async function loadContractSitesHeating(contractId: string, todayIso: str
         select: {
           id: true,
           name: true,
+          type: true,
           city: true,
           address: true,
           postalCode: true,
@@ -73,6 +75,7 @@ export async function loadContractSitesHeating(contractId: string, todayIso: str
       return {
         id: site.id,
         name: site.name,
+        type: site.type,
         city: site.city,
         address: site.address,
         postalCode: site.postalCode,

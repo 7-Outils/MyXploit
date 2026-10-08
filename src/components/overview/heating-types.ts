@@ -1,11 +1,13 @@
 import type { HeatingWeather, SiteHeatingStatus } from "@/lib/heating-season";
 import type { ContractRecipient } from "@/lib/contract-recipients";
+import type { HeatingGroup } from "@/lib/heating-groups";
 
 export type HeatingSwitchType = "ALLUMAGE" | "ARRET";
 
 export interface HeatingSite {
   id: string;
   name: string;
+  type: string;
   city: string;
   status: SiteHeatingStatus;
   period: {
@@ -32,6 +34,8 @@ export interface HeatingStatusResponse {
   season: string;
   today: string;
   weather: HeatingWeather | null;
+  /** Dates par famille de bâtiments (vide si météo indisponible). */
+  groups: HeatingGroup[];
   sites: HeatingSite[];
   counts: { total: number; enChauffe: number; arrete: number; allumagePrevu: number; arretPrevu: number };
   pendingRequest: HeatingPendingRequest | null;

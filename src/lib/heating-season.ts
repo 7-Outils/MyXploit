@@ -32,6 +32,21 @@ export const HEATING_START_FORECAST_MAX = 15;
 
 export type HeatingSignal = "START" | "STOP" | "NEUTRAL";
 
+/** Seuils d'une famille de bâtiments (voir heating-profiles.ts). */
+export interface HeatingThresholds {
+  start: number; // moyenne 5 j sous ce seuil → allumage
+  startForecastMax: number; // … et semaine suivante sous ce seuil en moyenne
+  stop: number; // moyenne 5 j à ce seuil ou plus → arrêt
+  stopForecastMin: number; // … et aucun jour prévu sous ce seuil
+}
+
+export const DEFAULT_THRESHOLDS: HeatingThresholds = {
+  start: HEATING_START_THRESHOLD,
+  startForecastMax: HEATING_START_FORECAST_MAX,
+  stop: HEATING_STOP_THRESHOLD,
+  stopForecastMin: HEATING_STOP_FORECAST_MIN,
+};
+
 export interface DailyTemp {
   date: string; // YYYY-MM-DD
   tMin: number;
@@ -65,12 +80,12 @@ function mean(values: number[]): number | null {
 
 type DayCheck = { mean5d: number; forwardMean: number; forwardMin: number };
 
-function checkStart(c: DayCheck) {
-  return c.mean5d < HEATING_START_THRESHOLD && c.forwardMean < HEATING_START_FORECAST_MAX;
+function checkStart(c: DayCheck, t: HeatingThresholds) {
+  return c.mean5d < t.start && c.forwardMean < t.startForecastMax;
 }
 
-function checkStop(c: DayCheck) {
-  return c.mean5d >= HEATING_STOP_THRESHOLD && c.forwardMin >= HEATING_STOP_FORECAST_MIN;
+function checkStop(c: DayCheck, t: HeatingThresholds) {
+  return c.mean5d >= t.stop && c.forwardMin >= t.stopForecastMin;
 }
 
 /**
@@ -79,7 +94,11 @@ function checkStop(c: DayCheck) {
  * et prévision des 7 jours suivants. Pour aujourd'hui, c'est exactement le
  * signal courant ; pour les jours suivants, c'est la date projetée.
  */
-export function computeHeatingSignal(daily: DailyTemp[], todayIso: string): HeatingWeather {
+export function computeHeatingSignal(
+  daily: DailyTemp[],
+  todayIso: string,
+  thresholds: HeatingThresholds = DEFAULT_THRESHOLDS
+): HeatingWeather {
   const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date));
   const firstForecast = sorted.findIndex((d) => d.date >= todayIso);
   const observed = firstForecast === -1 ? sorted : sorted.slice(0, firstForecast);
@@ -102,8 +121,8 @@ export function computeHeatingSignal(daily: DailyTemp[], todayIso: string): Heat
     for (let i = firstForecast; i < sorted.length && (!startDate || !stopDate); i++) {
       const c = checkAt(i);
       if (!c) continue;
-      if (!startDate && checkStart(c)) startDate = sorted[i].date;
-      if (!stopDate && checkStop(c)) stopDate = sorted[i].date;
+      if (!startDate && checkStart(c, thresholds)) startDate = sorted[i].date;
+      if (!stopDate && checkStop(c, thresholds)) stopDate = sorted[i].date;
     }
   }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getContractRecipients } from "@/lib/contract-recipients";
 import { computeHeatingSignal, dateToSeason, type HeatingWeather } from "@/lib/heating-season";
 import { contractCoordinates, fetchDailyTemps } from "@/lib/heating-weather";
+import { computeHeatingGroups, type HeatingGroup } from "@/lib/heating-groups";
 import { authorizeContract, findOpenRequest, loadContractSitesHeating, todayParisIso } from "@/lib/heating-status";
 
 // GET /api/contracts/[id]/heating-status
@@ -25,11 +26,13 @@ export async function GET(
 
     // Météo : jamais bloquante, null si pas de coordonnées ou API en échec.
     let weather: HeatingWeather | null = null;
+    let groups: HeatingGroup[] = [];
     const coords = contractCoordinates(sites);
     if (coords) {
       try {
         const daily = await fetchDailyTemps(coords.lat, coords.lon);
         weather = computeHeatingSignal(daily, todayIso);
+        groups = await computeHeatingGroups(sites, daily, todayIso);
       } catch (e) {
         console.warn("[heating-status] météo indisponible:", e instanceof Error ? e.message : e);
       }
@@ -69,9 +72,11 @@ export async function GET(
       season: dateToSeason(new Date(todayIso + "T12:00:00")),
       today: todayIso,
       weather,
+      groups,
       sites: sites.map((s) => ({
         id: s.id,
         name: s.name,
+        type: s.type,
         city: s.city,
         status: s.status,
         period: s.period
