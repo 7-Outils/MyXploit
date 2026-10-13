@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getContractRecipients } from "@/lib/contract-recipients";
 import { computeHeatingSignal, dateToSeason, type HeatingWeather } from "@/lib/heating-season";
 import { contractCoordinates, fetchDailyTemps } from "@/lib/heating-weather";
-import { computeHeatingGroups, type HeatingGroup } from "@/lib/heating-groups";
-import type { HolidayPeriod } from "@/lib/school-holidays";
 import { authorizeContract, findOpenRequest, loadContractSitesHeating, todayParisIso } from "@/lib/heating-status";
+import { fetchSchoolHolidays, holidaysWithin, schoolZoneOf, type HolidayPeriod } from "@/lib/school-holidays";
 
 // GET /api/contracts/[id]/heating-status
 // État de chauffe des sites du contrat + signal météo allumage/arrêt +
@@ -27,7 +26,7 @@ export async function GET(
 
     // Météo : jamais bloquante, null si pas de coordonnées ou API en échec.
     let weather: HeatingWeather | null = null;
-    let groups: HeatingGroup[] = [];
+    // Vacances scolaires (info) : zone du premier site avec code postal, jamais bloquant.
     let holidays: HolidayPeriod[] = [];
     const coords = contractCoordinates(sites);
     // Ville affichée par l'outil /outils/chauffage.
@@ -37,7 +36,15 @@ export async function GET(
       try {
         const daily = await fetchDailyTemps(coords.lat, coords.lon);
         weather = computeHeatingSignal(daily, todayIso);
-        ({ groups, holidays } = await computeHeatingGroups(sites, daily, todayIso));
+        const zone = schoolZoneOf(sites.find((s) => s.postalCode)?.postalCode);
+        if (zone) {
+          try {
+            const dates = weather.days.map((d) => d.date);
+            holidays = holidaysWithin(await fetchSchoolHolidays(zone, todayIso), dates[0], dates[dates.length - 1]);
+          } catch (e) {
+            console.warn("[heating-status] calendrier scolaire indisponible:", e instanceof Error ? e.message : e);
+          }
+        }
       } catch (e) {
         console.warn("[heating-status] météo indisponible:", e instanceof Error ? e.message : e);
       }
@@ -78,7 +85,6 @@ export async function GET(
       today: todayIso,
       weather,
       location,
-      groups,
       holidays,
       sites: sites.map((s) => ({
         id: s.id,

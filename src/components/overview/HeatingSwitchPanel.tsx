@@ -38,36 +38,17 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
 
   if (!data || data.counts.total === 0) return null;
 
-  // `?? []` : le cache SWR persiste en localStorage, une réponse d'avant ce
-  // champ peut être resservie au premier rendu.
   const { counts, weather, pendingRequest, season, sites } = data;
-  const groups = data.groups ?? [];
   const allOff = counts.enChauffe === 0 && counts.allumagePrevu === 0 && counts.arretPrevu === 0;
   const anyOn = counts.enChauffe > 0;
 
   // Événement pertinent selon l'état : allumage si tout est à l'arrêt, arrêt sinon.
-  // Une date par famille de bâtiments (seuils du profil + calendrier scolaire),
-  // limitée aux familles ayant des sites concernés.
   const kind: "start" | "stop" | null = allOff ? "start" : anyOn ? "stop" : null;
-  const wanted = kind === "start" ? "ARRETE" : "EN_CHAUFFE";
-  const lines = kind
-    ? groups
-        .filter((g) => g.profile !== "HORS_SIGNAL" && g.siteIds.some((id) => sites.find((s) => s.id === id)?.status === wanted))
-        .map((g) => ({
-          key: g.key,
-          label: g.label,
-          count: g.siteIds.length,
-          date: kind === "start" ? g.startDate : g.stopDate,
-          note: kind === "start" ? g.startNote : g.stopNote,
-        }))
-    : [];
-  const dated = lines.filter((l): l is typeof l & { date: string } => !!l.date).sort((a, b) => a.date.localeCompare(b.date));
-  const projected = dated[0]?.date ?? null;
+  const projected = kind === "start" ? weather?.startDate ?? null : kind === "stop" ? weather?.stopDate ?? null : null;
   const projectedIn = projected ? daysFrom(data.today, projected) : null;
   const projectedIsTrend = projectedIn !== null && projectedIn >= HEATING_RELIABLE_DAYS;
   const now = projectedIn === 0;
-  const spread = dated.length > 1 && dated[dated.length - 1].date !== projected;
-  const dateWord = (iso: string) => (spread ? `à partir du ${fmtHeatingDate(iso)}` : `le ${fmtHeatingDate(iso)}`);
+  const dateWord = (iso: string) => `le ${fmtHeatingDate(iso)}`;
 
   // ─── Phrase d'état + ton + actions ─────────────────────────────────────────
   let headline: string;
@@ -208,32 +189,13 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
               <span className={`text-sm font-semibold tabular-nums ${emphasis}`}>{headline}</span>
             </div>
             <p className="text-[12px] text-ink/50 mt-1 leading-snug">{detail}</p>
-            {!pendingRequest && lines.length > 1 && (
-              <ul className="mt-2 space-y-0.5">
-                {lines.map((l) => (
-                  <li key={l.key} className="flex items-baseline gap-2 text-[12px] leading-snug">
-                    <span className="text-ink/60">
-                      {l.label} <span className="font-mono tabular-nums text-ink/40">×{l.count}</span>
-                    </span>
-                    <span className="flex-1 border-b border-dotted border-ink/15 translate-y-[-3px]" />
-                    <span className={`font-mono tabular-nums ${l.date === projected ? "text-accent font-semibold" : "text-ink"}`}>
-                      {l.date ? (l.date === data.today ? "aujourd'hui" : fmtHeatingDate(l.date)) : "pas sur 15 j"}
-                    </span>
-                    {l.note && <span className="text-ink/40">· {l.note}</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {!pendingRequest && lines.length === 1 && lines[0].note && (
-              <p className="text-[12px] text-ink/40 mt-0.5 leading-snug">{lines[0].note}</p>
-            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">{actions}</div>
         </div>
 
         {forecast.length > 0 && (
           <div className="mt-3 pt-2.5 border-t border-ink/10">
-            <HeatingForecast days={forecast} highlight={dated.map((l) => l.date)} />
+            <HeatingForecast days={forecast} highlight={projected} />
             <div className="mt-2 flex justify-end gap-4">
               <Link href="/outils/chauffage" className="label-tech hover:text-accent">
                 Prévision détaillée

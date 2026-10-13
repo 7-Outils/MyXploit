@@ -3,16 +3,15 @@ import { requireAuth } from "@/lib/auth";
 import { computeHeatingSignal } from "@/lib/heating-season";
 import { fetchDailyTemps } from "@/lib/heating-weather";
 import { todayParisIso } from "@/lib/heating-status";
-import { computeHeatingGroups, GENERIC_SITES } from "@/lib/heating-groups";
-import { schoolZoneOf } from "@/lib/school-holidays";
+import { fetchSchoolHolidays, holidaysWithin, schoolZoneOf, type HolidayPeriod } from "@/lib/school-holidays";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/heating/forecast?lat=45.76&lon=4.83[&postcode=69001]
- * Météo 7 j observés + 15 j prévus pour un point sans contrat (outil
- * Chauffage, « autre ville ») et dates d'allumage/arrêt pour chaque famille
- * de bâtiments ; le code postal sert au calendrier scolaire.
+ * Météo 7 j observés + 15 j prévus et dates d'allumage/arrêt pour un point
+ * sans contrat (outil Chauffage, « autre ville ») ; le code postal donne la
+ * zone des vacances scolaires, affichées pour information.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -23,15 +22,22 @@ export async function GET(request: NextRequest) {
     if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
       return NextResponse.json({ error: "Coordonnées invalides" }, { status: 400 });
     }
-    const postalCode = searchParams.get("postcode") || null;
 
     const today = todayParisIso();
     try {
       const daily = await fetchDailyTemps(lat, lon);
       const weather = computeHeatingSignal(daily, today);
-      const sites = GENERIC_SITES.map((s) => ({ ...s, postalCode }));
-      const { groups, holidays } = await computeHeatingGroups(sites, daily, today);
-      return NextResponse.json({ today, weather, groups, holidays, zone: schoolZoneOf(postalCode) });
+      let holidays: HolidayPeriod[] = [];
+      const zone = schoolZoneOf(searchParams.get("postcode"));
+      if (zone) {
+        try {
+          const dates = weather.days.map((d) => d.date);
+          holidays = holidaysWithin(await fetchSchoolHolidays(zone, today), dates[0], dates[dates.length - 1]);
+        } catch (e) {
+          console.warn("[heating-forecast] calendrier scolaire indisponible:", e instanceof Error ? e.message : e);
+        }
+      }
+      return NextResponse.json({ today, weather, holidays });
     } catch (e) {
       console.warn("[heating-forecast] météo indisponible:", e instanceof Error ? e.message : e);
       return NextResponse.json({ error: "Météo indisponible pour le moment" }, { status: 502 });

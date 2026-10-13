@@ -181,8 +181,8 @@ function Chart({
     for (const [index, ms] of [...byIndex.entries()].sort((a, b) => a[0] - b[0])) {
       const date = ms[0].date;
       const verb = ms[0].kind === "start" ? "ALLUMER" : "ARRÊTER";
-      const who = ms.length === 1 ? ms[0].label : `${ms.length} familles`;
-      const text = `${verb} ${fmtWeekdayShort(date).toUpperCase()} ${fmtDM(date)} · ${who}`.toUpperCase();
+      const who = ms.length === 1 ? ms[0].label : `${ms.length} groupes`;
+      const text = `${verb} ${fmtWeekdayShort(date).toUpperCase()} ${fmtDM(date)}${who ? ` · ${who}` : ""}`.toUpperCase();
       const w = text.length * 6.2;
       let x = Math.min(W - w / 2 - 2, Math.max(GUTTER + w / 2, cx(index)));
       if (x - w / 2 < lastRight + 8) x = Math.min(W - w / 2 - 2, lastRight + 8 + w / 2);

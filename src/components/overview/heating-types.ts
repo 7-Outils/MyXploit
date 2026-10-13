@@ -1,6 +1,5 @@
 import type { HeatingWeather, SiteHeatingStatus } from "@/lib/heating-season";
 import type { ContractRecipient } from "@/lib/contract-recipients";
-import type { HeatingGroup } from "@/lib/heating-groups";
 import type { HolidayPeriod } from "@/lib/school-holidays";
 
 export type HeatingSwitchType = "ALLUMAGE" | "ARRET";
@@ -37,9 +36,7 @@ export interface HeatingStatusResponse {
   weather: HeatingWeather | null;
   /** Ville représentative du contrat, null sans météo. */
   location: { city: string; postalCode: string | null } | null;
-  /** Dates par famille de bâtiments (vide si météo indisponible). */
-  groups: HeatingGroup[];
-  /** Vacances scolaires recoupant les jours affichés (écoles du contrat). */
+  /** Vacances scolaires (info) recoupant les jours affichés. */
   holidays: HolidayPeriod[];
   sites: HeatingSite[];
   counts: { total: number; enChauffe: number; arrete: number; allumagePrevu: number; arretPrevu: number };

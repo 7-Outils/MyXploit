@@ -32,7 +32,7 @@ export const HEATING_START_FORECAST_MAX = 15;
 
 export type HeatingSignal = "START" | "STOP" | "NEUTRAL";
 
-/** Seuils d'une famille de bâtiments (voir heating-profiles.ts). */
+/** Seuils de la règle (un seul jeu, global). */
 export interface HeatingThresholds {
   start: number; // moyenne 5 j sous ce seuil → allumage
   startForecastMax: number; // … et semaine suivante sous ce seuil en moyenne

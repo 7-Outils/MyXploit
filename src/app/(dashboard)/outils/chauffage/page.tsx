@@ -9,9 +9,7 @@ import { daysFrom, fmtHeatingDate } from "@/components/heating/HeatingForecast";
 import HeatingTimeline from "@/components/heating/HeatingTimeline";
 import HeatingCalcPanel from "@/components/heating/HeatingCalcPanel";
 import { evaluateDays, fmtDeg } from "@/components/heating/heating-calc";
-import { HEATING_RELIABLE_DAYS, type HeatingWeather } from "@/lib/heating-season";
-import { HEATING_PROFILE_THRESHOLDS, type HeatingProfile } from "@/lib/heating-profiles";
-import type { HeatingGroup } from "@/lib/heating-groups";
+import { DEFAULT_THRESHOLDS, HEATING_RELIABLE_DAYS, type HeatingWeather } from "@/lib/heating-season";
 import type { HolidayPeriod } from "@/lib/school-holidays";
 import type { HeatingStatusResponse } from "@/components/overview/heating-types";
 import type { GeocodePlace } from "@/app/api/heating/geocode/route";
@@ -19,23 +17,20 @@ import type { GeocodePlace } from "@/app/api/heating/geocode/route";
 interface ForecastResponse {
   today: string;
   weather: HeatingWeather;
-  groups: HeatingGroup[];
   holidays: HolidayPeriod[];
-  zone: string | null;
 }
 
 /** Ce que la page affiche, que la source soit un contrat ou une ville libre. */
 interface View {
   today: string;
   weather: HeatingWeather | null;
-  groups: HeatingGroup[];
   holidays: HolidayPeriod[];
   /** Ligne « où » : client · ville, ou ville seule. */
   where: string;
   /** Événement attendu : allumage si les sites sont à l'arrêt, arrêt s'ils chauffent, saison sinon. */
   kind: "start" | "stop";
-  /** Effectifs par famille (mode contrat). */
-  withCounts: boolean;
+  /** Nombre de sites du contrat concernés, null pour une ville libre. */
+  sites: number | null;
   unavailable: string | null;
 }
 
@@ -87,11 +82,10 @@ export default function HeatingToolPage() {
       return {
         today: d.today,
         weather: d.weather,
-        groups: d.groups ?? [],
         holidays: d.holidays ?? [],
         where: placeLabel(manual),
         kind: seasonKind(d.today),
-        withCounts: false,
+        sites: null,
         unavailable: null,
       };
     }
@@ -105,11 +99,10 @@ export default function HeatingToolPage() {
     return {
       today: d.today,
       weather: d.weather,
-      groups: d.groups ?? [],
       holidays: d.holidays ?? [],
       where: d.location ? `${name} · ${d.location.city}` : name,
       kind,
-      withCounts: true,
+      sites: kind === "start" ? c.arrete : c.enChauffe,
       unavailable:
         c.total === 0
           ? "Ce contrat n'a pas encore de site."
@@ -227,47 +220,22 @@ export default function HeatingToolPage() {
 
 // ─── Résultat ───────────────────────────────────────────────────────────────
 
-interface Line {
-  key: string;
-  label: string;
-  count: number;
-  profile: HeatingProfile;
-  date: string | null;
-  note: string | null;
-}
-
 function Result({ view }: { view: View }) {
-  const { today, weather, groups, holidays, kind, withCounts } = view;
+  const { today, weather, holidays, kind, sites } = view;
+  const t = DEFAULT_THRESHOLDS;
 
-  // Une ligne par famille présente ; les piscines, chauffées toute l'année, sont hors sujet.
-  const lines: Line[] = groups
-    .filter((g) => g.profile !== "HORS_SIGNAL")
-    .map((g) => ({
-      key: g.key,
-      label: g.label,
-      count: g.siteIds.length,
-      profile: g.profile,
-      date: kind === "start" ? g.startDate : g.stopDate,
-      note: kind === "start" ? g.startNote : g.stopNote,
-    }));
-  const dated = lines.filter((l): l is Line & { date: string } => !!l.date).sort((a, b) => a.date.localeCompare(b.date));
-  const first = dated[0]?.date ?? null;
-  const firstIn = first ? daysFrom(today, first) : null;
-  const spread = dated.length > 1 && dated[dated.length - 1].date !== first;
-  const isTrend = firstIn !== null && firstIn >= HEATING_RELIABLE_DAYS;
+  const date = kind === "start" ? weather?.startDate ?? null : weather?.stopDate ?? null;
+  const dateIn = date ? daysFrom(today, date) : null;
+  const isTrend = dateIn !== null && dateIn >= HEATING_RELIABLE_DAYS;
 
   const [detail, setDetail] = useState(false);
-  const [family, setFamily] = useState<string | null>(null);
-  const shownFamily = lines.find((l) => l.key === family) ?? dated[0] ?? lines[0] ?? null;
-  const thresholds = HEATING_PROFILE_THRESHOLDS[(shownFamily?.profile ?? "STANDARD") as Exclude<HeatingProfile, "HORS_SIGNAL">];
-
-  const evals = useMemo(() => evaluateDays(weather?.days ?? [], today, thresholds), [weather?.days, today, thresholds]);
+  const evals = useMemo(() => evaluateDays(weather?.days ?? [], today, t), [weather?.days, today, t]);
   const todayIndex = evals.findIndex((e) => !e.past);
   const [pinned, setPinned] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const defaultPin = shownFamily?.date ? evals.findIndex((e) => e.day.date === shownFamily.date) : -1;
+  const dateIndex = date ? evals.findIndex((e) => e.day.date === date) : -1;
   const focus = evals.length
-    ? Math.min(evals.length - 1, hover ?? pinned ?? (defaultPin >= 0 ? defaultPin : Math.max(0, todayIndex)))
+    ? Math.min(evals.length - 1, hover ?? pinned ?? (dateIndex >= 0 ? dateIndex : Math.max(0, todayIndex)))
     : null;
 
   if (view.unavailable || !weather || evals.length === 0) {
@@ -280,51 +248,47 @@ function Result({ view }: { view: View }) {
 
   const verb = kind === "start" ? "Allumer" : "Arrêter";
   let headline: string;
-  if (!first) headline = kind === "start" ? "Pas d'allumage à prévoir" : "Pas d'arrêt à prévoir";
-  else if (firstIn! <= 0) headline = kind === "start" ? "Il est temps d'allumer" : "Il est temps d'arrêter";
-  else headline = `${verb} ${spread ? "à partir du" : "le"} ${fmtHeatingDate(first)}`;
+  if (!date) headline = kind === "start" ? "Pas d'allumage à prévoir" : "Pas d'arrêt à prévoir";
+  else if (dateIn! <= 0) headline = kind === "start" ? "Il est temps d'allumer" : "Il est temps d'arrêter";
+  else headline = `${verb} le ${fmtHeatingDate(date)}`;
 
   let sub: string;
-  if (!first) {
+  if (!date) {
     sub =
       kind === "start"
         ? "Sur les 15 prochains jours, il ne fait pas assez froid assez longtemps."
         : "Sur les 15 prochains jours, il ne fait pas assez doux assez longtemps.";
-  } else if (firstIn! <= 0) sub = "Les conditions sont réunies dès aujourd'hui.";
-  else if (isTrend) sub = `Dans ${firstIn} jours. Date indicative : au-delà de 7 jours, la prévision n'est qu'une tendance.`;
-  else sub = `Dans ${firstIn} jour${firstIn! > 1 ? "s" : ""}, d'après la météo des derniers jours et la prévision.`;
+  } else if (dateIn! <= 0) sub = "Les conditions sont réunies dès aujourd'hui.";
+  else if (isTrend) sub = `Dans ${dateIn} jours. Date indicative : au-delà de 7 jours, la prévision n'est qu'une tendance.`;
+  else sub = `Dans ${dateIn} jour${dateIn! > 1 ? "s" : ""}, d'après la météo des derniers jours et la prévision.`;
+  if (sites !== null && sites > 0) {
+    sub += ` ${sites} site${sites > 1 ? "s" : ""} ${kind === "start" ? "à l'arrêt" : "en chauffe"}.`;
+  }
 
-  const fmtLine = (iso: string | null) => (!iso ? "pas sur 15 jours" : iso === today ? "aujourd'hui" : fmtHeatingDate(iso));
-  const decisions = dated.map((l) => ({ kind, date: l.date, label: l.label }));
+  // Vacances scolaires à venir : pour information (bâtiments scolaires vides).
+  const upcoming = holidays.filter((h) => h.to >= today);
+
+  const decisions = date ? [{ kind, date, label: "" }] : [];
 
   return (
     <div className="space-y-4">
       {/* Décision */}
-      <div className={`panel border-l-2 ${first && !isTrend ? "border-l-accent" : "border-l-ink"} px-4 py-3`}>
+      <div className={`panel border-l-2 ${date && !isTrend ? "border-l-accent" : "border-l-ink"} px-4 py-3`}>
         <div className="label-tech">{view.where}</div>
-        <div className={`mt-1 text-lg font-semibold ${first && !isTrend ? "text-accent" : "text-ink"}`}>{headline}</div>
+        <div className={`mt-1 text-lg font-semibold ${date && !isTrend ? "text-accent" : "text-ink"}`}>{headline}</div>
         <p className="mt-0.5 text-[12px] text-ink/50">{sub}</p>
-
-        {lines.length > 0 && (
-          <ul className="mt-3 divide-y divide-ink/[0.06] border-t border-ink/10">
-            {lines.map((l) => (
-              <li key={l.key} className="flex items-baseline gap-3 py-1.5 text-sm">
-                <span className="text-ink">
-                  {l.label}
-                  {withCounts && <span className="ml-1.5 font-mono text-[11px] tabular-nums text-ink/40">×{l.count}</span>}
-                </span>
-                <span className="flex-1 translate-y-[-4px] border-b border-dotted border-ink/15" />
-                <span
-                  className={`font-mono tabular-nums ${
-                    l.date === first ? "font-semibold text-accent" : l.date ? "text-ink" : "text-ink/40"
-                  }`}
-                >
-                  {fmtLine(l.date)}
-                </span>
-                {l.note && <span className="text-[12px] text-ink/40">· {l.note}</span>}
-              </li>
-            ))}
-          </ul>
+        {upcoming.length > 0 && (
+          <p className="mt-1.5 text-[12px] text-ink/50">
+            Pour information,{" "}
+            {upcoming
+              .map((h) =>
+                h.from <= today
+                  ? `${h.label.toLowerCase()} en cours jusqu'au ${fmtHeatingDate(h.to)}`
+                  : `${h.label.toLowerCase()} du ${fmtHeatingDate(h.from)} au ${fmtHeatingDate(h.to)}`
+              )
+              .join(" ; ")}
+            .
+          </p>
         )}
       </div>
 
@@ -340,7 +304,7 @@ function Result({ view }: { view: View }) {
         <div className="px-2 pb-2">
           <HeatingTimeline
             evals={evals}
-            thresholds={thresholds}
+            thresholds={t}
             todayIndex={todayIndex}
             primary={kind}
             decisions={decisions}
@@ -354,7 +318,7 @@ function Result({ view }: { view: View }) {
         </div>
         <p className="border-t border-ink/10 px-4 py-2 text-[12px] text-ink/50">
           Chaque jour : barre du minimum au maximum, trait à la moyenne. Les jours 8 à 15 sont une tendance, moins fiable.
-          Les vacances scolaires sont hachurées.
+          {holidays.length > 0 && " Les vacances scolaires sont hachurées."}
         </p>
       </div>
 
@@ -368,31 +332,15 @@ function Result({ view }: { view: View }) {
           <div className="space-y-3 border-t border-ink/10 px-4 py-3">
             <p className="text-[13px] leading-relaxed text-ink/70">
               Pour chaque jour, on regarde la moyenne des <strong className="text-ink">5 jours précédents</strong> et celle des{" "}
-              <strong className="text-ink">7 jours suivants</strong>. On allume le premier jour où les deux passent sous les seuils de
-              la famille de bâtiments ({thresholds.start} °C et {thresholds.startForecastMax} °C pour{" "}
-              {shownFamily?.label.toLowerCase() ?? "cette famille"}) ; on arrête quand la moyenne des 5 jours atteint{" "}
-              {thresholds.stop} °C sans aucun jour prévu sous {thresholds.stopForecastMin} °C. Pour les écoles, une date tombant
-              pendant les vacances est reportée à la veille de la rentrée. Survolez un jour sur le graphique pour voir ses deux
-              fenêtres.
+              <strong className="text-ink">7 jours suivants</strong>. On allume le premier jour où la première passe sous {t.start} °C
+              et la seconde sous {t.startForecastMax} °C. On arrête quand la moyenne des 5 jours atteint {t.stop} °C sans aucun jour
+              prévu sous {t.stopForecastMin} °C. Survolez un jour sur le graphique pour voir ses deux fenêtres.
             </p>
-            {lines.length > 1 && (
-              <div className="inline-flex flex-wrap border border-ink/20">
-                {lines.map((l, i) => (
-                  <button
-                    key={l.key}
-                    type="button"
-                    onClick={() => setFamily(l.key)}
-                    className={`${i > 0 ? "border-l border-ink/20" : ""} px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
-                      l.key === shownFamily?.key ? "bg-ink text-paper" : "text-ink/50 hover:text-ink"
-                    }`}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <HeatingCalcPanel e={focus !== null ? evals[focus] : null} days={evals} thresholds={thresholds} primary={kind} todayIso={today} />
-            <p className="text-xs text-ink/40">Prévision Open-Meteo, mise à jour toutes les 6 h. Seuils d&apos;usage, sans norme derrière.</p>
+            <HeatingCalcPanel e={focus !== null ? evals[focus] : null} days={evals} thresholds={t} primary={kind} todayIso={today} />
+            <p className="text-xs text-ink/40">
+              Prévision Open-Meteo, mise à jour toutes les 6 h. Vacances : calendrier officiel de l&apos;Éducation nationale. Seuils
+              d&apos;usage, sans norme derrière.
+            </p>
           </div>
         )}
       </div>

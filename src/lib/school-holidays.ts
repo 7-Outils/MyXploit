@@ -1,7 +1,6 @@
 /**
  * Vacances scolaires (calendrier officiel, data.education.gouv.fr, sans clé).
- * Sert à caler l'allumage d'une école sur la rentrée plutôt qu'en plein
- * congés, et l'arrêt sur le début des vacances.
+ * Affichées pour information sur la prévision (bâtiments scolaires vides).
  */
 import { unstable_cache } from "next/cache";
 
@@ -80,30 +79,7 @@ export async function fetchSchoolHolidays(zone: SchoolZone, todayIso: string): P
   return cached();
 }
 
-export interface HolidayAdjustment {
-  date: string;
-  /** Explication quand la date a été déplacée, sinon null. */
-  note: string | null;
-}
-
-/**
- * Allumage tombant pendant les vacances → veille de la rentrée (le bâtiment
- * est vide, on chauffe pour le premier jour de classe). Arrêt tombant pendant
- * les vacances → premier jour de congé.
- */
-export function adjustForSchoolHolidays(
-  date: string,
-  kind: "start" | "stop",
-  holidays: HolidayPeriod[]
-): HolidayAdjustment {
-  const h = holidays.find((p) => date >= p.from && date <= p.to);
-  if (!h) return { date, note: null };
-  if (kind === "start") {
-    return h.to === date
-      ? { date, note: null }
-      : { date: h.to, note: `${h.label} : allumage reporté à la veille de la rentrée` };
-  }
-  return h.from === date
-    ? { date, note: null }
-    : { date: h.from, note: `${h.label} : arrêt avancé au début des vacances` };
+/** Périodes recoupant [first, last] (dates YYYY-MM-DD), pour affichage. */
+export function holidaysWithin(holidays: HolidayPeriod[], first: string, last: string): HolidayPeriod[] {
+  return holidays.filter((h) => h.to >= first && h.from <= last);
 }
