@@ -5,35 +5,24 @@ import type { HeatingThresholds } from "@/lib/heating-season";
 import type { HolidayPeriod } from "@/lib/school-holidays";
 import { fmtDeg, fmtDM, fmtWeekdayShort, type DayEval } from "./heating-calc";
 
-/** Couleurs de la page : allumage = braise, arrêt = lagon, fenêtres de calcul = violet. */
+/**
+ * Couleurs du thème : encre pour la structure, amber pour l'allumage, accent
+ * pour l'arrêt (et pour la date retenue).
+ */
 export const HX = {
-  start: "#EA580C",
-  stop: "#0D9488",
-  window: "#7C3AED",
-  holiday: "#059669",
-  ink: "#0F172A",
+  start: "#D97706", // amber-600
+  stop: "#2563EB", // accent
+  accent: "#2563EB",
+  ink: "#0F1E33",
 };
 
 // Largeur de la colonne d'étiquettes, partagée par le graphique et le tableau
 // pour que chaque jour tombe exactement dans la même colonne.
 const GUTTER = 100;
-const H = 320;
-const TOP = 52; // bandeau haut : date retenue + accolades des fenêtres
+const H = 300;
+const TOP = 44; // bandeau haut : date retenue + accolades des fenêtres
 const PLOT_BOTTOM = H - 40; // bandeau bas : zones + vacances
 const MIN_WIDTH = 880;
-
-// Dégradé « thermomètre » en °C absolus (même couleur = même température,
-// quelle que soit l'échelle).
-const THERMO: [number, string][] = [
-  [30, "#B91C1C"],
-  [24, "#EA580C"],
-  [19, "#F59E0B"],
-  [15, "#FACC15"],
-  [11, "#38BDF8"],
-  [6, "#3B82F6"],
-  [0, "#4338CA"],
-  [-6, "#312E81"],
-];
 
 function useWidth<T extends HTMLElement>() {
   const ref = useRef<T>(null);
@@ -80,7 +69,7 @@ export default function HeatingTimeline(props: Props) {
 
   return (
     <div
-      className="overflow-x-auto outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60 rounded-lg"
+      className="overflow-x-auto outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-accent"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") {
@@ -144,11 +133,12 @@ function Chart({
   const ticks: number[] = [];
   for (let v = lo; v <= hi; v += step) ticks.push(v);
 
-  const capW = Math.max(6, Math.min(14, colW * 0.36));
+  const barW = Math.max(4, Math.min(10, colW * 0.3));
   const trendIndex = todayIndex >= 0 ? todayIndex + 7 : -1;
   const decisionIndex = decision ? days.findIndex((d) => d.date === decision.date) : -1;
-  const decisionColor = decision?.kind === "stop" ? HX.stop : HX.start;
   const f = focus !== null ? evals[focus] : null;
+  const plotTop = TOP - 6;
+  const plotH = PLOT_BOTTOM - plotTop;
 
   // Étiquettes de seuil dans la marge : décalées si elles se chevauchent.
   let yStartLabel = y(t.start);
@@ -170,50 +160,48 @@ function Chart({
     })
     .filter((b): b is { label: string; from: number; to: number } => b !== null);
 
-  const pill = (() => {
+  const decisionLabel = (() => {
     if (decisionIndex < 0 || !decision) return null;
-    const text = `${decision.kind === "start" ? "ALLUMER" : "ARRÊTER"} · ${fmtWeekdayShort(decision.date)} ${fmtDM(decision.date)}`;
-    const w = text.length * 6.4 + 18;
-    const x = Math.min(W - w - 2, Math.max(GUTTER, cx(decisionIndex) - w / 2));
-    return { text, w, x };
+    const text = `${decision.kind === "start" ? "ALLUMER" : "ARRÊTER"} ${fmtWeekdayShort(decision.date).toUpperCase()} ${fmtDM(decision.date)}`;
+    const w = text.length * 6.2;
+    const x = Math.min(W - w / 2 - 2, Math.max(GUTTER + w / 2, cx(decisionIndex)));
+    return { text, x };
   })();
 
   const fwdThreshold = primary === "start" ? t.startForecastMax : t.stopForecastMin;
   const fwdColor = primary === "start" ? HX.start : HX.stop;
 
   return (
-    <svg width={W} height={H} className="block select-none" role="img" aria-label="Températures minimales, moyennes et maximales jour par jour, avec les seuils d'allumage et d'arrêt">
+    <svg
+      width={W}
+      height={H}
+      className="block select-none"
+      role="img"
+      aria-label="Températures minimales, moyennes et maximales jour par jour, avec les seuils d'allumage et d'arrêt"
+    >
       <defs>
-        <linearGradient id={`thermo${uid}`} gradientUnits="userSpaceOnUse" x1="0" x2="0" y1={y(30)} y2={y(-6)}>
-          {THERMO.map(([v, c]) => (
-            <stop key={v} offset={(30 - v) / 36} stopColor={c} />
-          ))}
-        </linearGradient>
-        <pattern id={`hatch${uid}`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1="0" y1="0" x2="0" y2="6" stroke={HX.ink} strokeOpacity="0.07" strokeWidth="2" />
+        <pattern id={`hatch${uid}`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="5" stroke={HX.ink} strokeOpacity="0.08" strokeWidth="1" />
         </pattern>
       </defs>
 
-      {/* Zones : observé, tendance, vacances */}
+      {/* Zones : observé, vacances */}
       {todayIndex > 0 && (
-        <rect x={GUTTER} y={TOP - 6} width={colX(todayIndex) - GUTTER} height={PLOT_BOTTOM - TOP + 6} fill={HX.ink} fillOpacity="0.035" />
-      )}
-      {trendIndex > 0 && trendIndex < n && (
-        <rect x={colX(trendIndex)} y={TOP - 6} width={W - colX(trendIndex)} height={PLOT_BOTTOM - TOP + 6} fill={`url(#hatch${uid})`} />
+        <rect x={GUTTER} y={plotTop} width={colX(todayIndex) - GUTTER} height={plotH} fill={HX.ink} fillOpacity="0.025" />
       )}
       {holidayBands.map((b) => (
         <g key={b.label + b.from}>
-          <rect x={colX(b.from)} y={TOP - 6} width={colW * (b.to - b.from + 1)} height={PLOT_BOTTOM - TOP + 6} fill={HX.holiday} fillOpacity="0.08" />
-          <line x1={colX(b.from)} x2={colX(b.to + 1)} y1={PLOT_BOTTOM + 1} y2={PLOT_BOTTOM + 1} stroke={HX.holiday} strokeWidth="3" />
+          <rect x={colX(b.from)} y={plotTop} width={colW * (b.to - b.from + 1)} height={plotH} fill={`url(#hatch${uid})`} />
+          <line x1={colX(b.from)} x2={colX(b.to + 1)} y1={PLOT_BOTTOM + 0.5} y2={PLOT_BOTTOM + 0.5} stroke={HX.ink} strokeOpacity="0.4" />
         </g>
       ))}
 
       {/* Grille + échelle */}
       {ticks.map((v) => (
         <g key={v}>
-          <line x1={GUTTER} x2={W} y1={y(v)} y2={y(v)} stroke={HX.ink} strokeOpacity={v === 0 ? 0.18 : 0.06} />
+          <line x1={GUTTER} x2={W} y1={y(v)} y2={y(v)} stroke={HX.ink} strokeOpacity={v === 0 ? 0.2 : 0.06} />
           {!nearLabel(y(v)) && (
-            <text x={GUTTER - 8} y={y(v) + 3.5} textAnchor="end" className="fill-slate-400 font-mono" fontSize="10">
+            <text x={GUTTER - 8} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill={HX.ink} fillOpacity="0.4" className="font-mono">
               {String(v).replace("-", "−")}°
             </text>
           )}
@@ -222,48 +210,52 @@ function Chart({
 
       {/* Date retenue : colonne teintée + trait */}
       {decisionIndex >= 0 && (
-        <g className="hx-fade" style={{ animationDelay: "900ms" }}>
-          <rect x={colX(decisionIndex)} y={TOP - 6} width={colW} height={PLOT_BOTTOM - TOP + 6} fill={decisionColor} fillOpacity="0.1" />
-          <line x1={cx(decisionIndex)} x2={cx(decisionIndex)} y1={22} y2={PLOT_BOTTOM} stroke={decisionColor} strokeWidth="1.5" strokeDasharray="2 3" />
+        <g>
+          <rect x={colX(decisionIndex)} y={plotTop} width={colW} height={plotH} fill={HX.accent} fillOpacity="0.05" />
+          <line
+            x1={cx(decisionIndex)}
+            x2={cx(decisionIndex)}
+            y1={18}
+            y2={PLOT_BOTTOM}
+            stroke={HX.accent}
+            strokeOpacity="0.6"
+            strokeDasharray="2 3"
+          />
         </g>
       )}
 
       {/* Fenêtres de calcul du jour survolé */}
       {f && f.back && (
-        <g style={{ transform: `translateX(${colX(f.back.from)}px)`, transition: "transform 220ms ease" }}>
-          <rect x={1} y={TOP - 6} width={colW * 5 - 2} height={PLOT_BOTTOM - TOP + 6} fill={HX.window} fillOpacity="0.09" rx="3" />
-          <g style={{ transform: `translateY(${y(f.back.mean)}px)`, transition: "transform 220ms ease" }}>
-            <line x1={3} x2={colW * 5 - 3} y1={0} y2={0} stroke={HX.window} strokeWidth="2.5" strokeLinecap="round" />
+        <g style={{ transform: `translateX(${colX(f.back.from)}px)`, transition: "transform 180ms ease" }}>
+          <rect x={0} y={plotTop} width={colW * 5} height={plotH} fill={HX.ink} fillOpacity="0.04" />
+          <g style={{ transform: `translateY(${y(f.back.mean)}px)`, transition: "transform 180ms ease" }}>
+            <line x1={2} x2={colW * 5 - 2} y1={0} y2={0} stroke={HX.ink} strokeOpacity="0.7" />
           </g>
           <Bracket w={colW * 5} label={`5 j avant · moy. ${fmtDeg(f.back.mean)}`} short={fmtDeg(f.back.mean)} />
         </g>
       )}
       {f && f.fwd && (
-        <g style={{ transform: `translateX(${colX(f.fwd.from)}px)`, transition: "transform 220ms ease" }}>
+        <g style={{ transform: `translateX(${colX(f.fwd.from)}px)`, transition: "transform 180ms ease" }}>
           <rect
-            x={1}
-            y={TOP - 6}
-            width={colW * f.fwd.count - 2}
-            height={PLOT_BOTTOM - TOP + 6}
-            fill={HX.window}
-            fillOpacity="0.04"
-            stroke={HX.window}
-            strokeOpacity="0.35"
+            x={0.5}
+            y={plotTop + 0.5}
+            width={colW * f.fwd.count - 1}
+            height={plotH - 1}
+            fill="none"
+            stroke={HX.ink}
+            strokeOpacity="0.3"
             strokeDasharray="3 3"
-            rx="3"
           />
-          <g style={{ transform: `translateY(${y(f.fwd.mean)}px)`, transition: "transform 220ms ease" }}>
-            <line x1={3} x2={colW * f.fwd.count - 3} y1={0} y2={0} stroke={HX.window} strokeWidth="2.5" strokeLinecap="round" />
+          <g style={{ transform: `translateY(${y(f.fwd.mean)}px)`, transition: "transform 180ms ease" }}>
+            <line x1={2} x2={colW * f.fwd.count - 2} y1={0} y2={0} stroke={HX.ink} strokeOpacity="0.7" />
           </g>
           <line
-            x1={3}
-            x2={colW * f.fwd.count - 3}
+            x1={2}
+            x2={colW * f.fwd.count - 2}
             y1={y(fwdThreshold)}
             y2={y(fwdThreshold)}
             stroke={fwdColor}
-            strokeWidth="1.5"
             strokeDasharray="1 3"
-            strokeLinecap="round"
           />
           <Bracket
             w={colW * f.fwd.count}
@@ -274,116 +266,120 @@ function Chart({
       )}
 
       {/* Seuils du profil */}
-      <line x1={GUTTER} x2={W} y1={y(t.start)} y2={y(t.start)} stroke={HX.start} strokeWidth="1.5" strokeDasharray="6 4" />
-      <line x1={GUTTER} x2={W} y1={y(t.stop)} y2={y(t.stop)} stroke={HX.stop} strokeWidth="1.5" strokeDasharray="6 4" />
-      <text x={GUTTER - 8} y={yStartLabel + 3.5} textAnchor="end" fontSize="10.5" fontWeight="600" fill={HX.start} className="font-mono">
+      <line x1={GUTTER} x2={W} y1={y(t.start)} y2={y(t.start)} stroke={HX.start} strokeDasharray="5 3" />
+      <line x1={GUTTER} x2={W} y1={y(t.stop)} y2={y(t.stop)} stroke={HX.stop} strokeDasharray="5 3" />
+      <text x={GUTTER - 8} y={yStartLabel + 3.5} textAnchor="end" fontSize="10" fill={HX.start} className="font-mono">
         allumage {t.start}°
       </text>
-      <text x={GUTTER - 8} y={yStopLabel + 3.5} textAnchor="end" fontSize="10.5" fontWeight="600" fill={HX.stop} className="font-mono">
+      <text x={GUTTER - 8} y={yStopLabel + 3.5} textAnchor="end" fontSize="10" fill={HX.stop} className="font-mono">
         arrêt {t.stop}°
       </text>
 
       {/* Min → max de chaque jour */}
       {days.map((d, i) => {
         const top = y(d.tMax);
-        const h = Math.max(3, y(d.tMin) - top);
-        const e = evals[i];
+        const h = Math.max(2, y(d.tMin) - top);
         return (
           <rect
             key={d.date}
-            className="hx-grow"
-            style={{ animationDelay: `${120 + i * 22}ms` }}
-            x={cx(i) - capW / 2}
+            x={cx(i) - barW / 2}
             y={top}
-            width={capW}
+            width={barW}
             height={h}
-            rx={capW / 2}
-            fill={`url(#thermo${uid})`}
-            opacity={e.past ? 0.45 : e.trend ? 0.6 : 0.92}
+            fill={HX.ink}
+            fillOpacity={evals[i].past || evals[i].trend ? 0.1 : 0.15}
           />
         );
       })}
 
-      {/* Moyenne journalière */}
-      <path
-        d={meanPath}
-        pathLength={1}
-        className="hx-draw"
-        fill="none"
-        stroke={HX.ink}
-        strokeWidth="2"
-        strokeLinejoin="round"
-        strokeLinecap="round"
-      />
+      {/* Moyenne journalière : trait sur chaque barre, reliés finement */}
+      <path d={meanPath} fill="none" stroke={HX.ink} strokeOpacity="0.3" strokeLinejoin="round" />
       {days.map((d, i) => (
-        <circle
+        <line
           key={d.date}
-          className="hx-fade"
-          style={{ animationDelay: `${500 + i * 25}ms` }}
-          cx={cx(i)}
-          cy={y(d.tMean)}
-          r={focus === i ? 5 : 3.2}
-          fill="#fff"
+          x1={cx(i) - barW / 2 - 2}
+          x2={cx(i) + barW / 2 + 2}
+          y1={y(d.tMean)}
+          y2={y(d.tMean)}
           stroke={HX.ink}
-          strokeWidth={focus === i ? 2.5 : 1.6}
+          strokeWidth={focus === i ? 2 : 1.5}
         />
       ))}
 
-      {/* Pulsation sur la date retenue */}
-      {decisionIndex >= 0 && (
-        <circle cx={cx(decisionIndex)} cy={y(days[decisionIndex].tMean)} r="6" fill="none" stroke={decisionColor} strokeWidth="2" className="hx-ping" />
-      )}
-
       {/* Min / max du jour survolé */}
       {f && (
-        <g className="font-mono" fontSize="10.5" fontWeight="600">
-          <text x={cx(f.index)} y={y(f.day.tMax) - 6} textAnchor="middle" fill={HX.ink} stroke="#fff" strokeWidth="3" paintOrder="stroke">
+        <g fontSize="10" className="font-mono">
+          <text x={cx(f.index)} y={y(f.day.tMax) - 5} textAnchor="middle" fill={HX.ink} stroke="#fff" strokeWidth="3" paintOrder="stroke">
             {fmtDeg(f.day.tMax)}
           </text>
-          <text x={cx(f.index)} y={y(f.day.tMin) + 14} textAnchor="middle" fill={HX.ink} stroke="#fff" strokeWidth="3" paintOrder="stroke">
+          <text x={cx(f.index)} y={y(f.day.tMin) + 13} textAnchor="middle" fill={HX.ink} stroke="#fff" strokeWidth="3" paintOrder="stroke">
             {fmtDeg(f.day.tMin)}
           </text>
-          <rect x={colX(f.index) + 1} y={TOP - 6} width={colW - 2} height={PLOT_BOTTOM - TOP + 6} fill="none" stroke={HX.ink} strokeOpacity="0.25" rx="3" />
+          <rect
+            x={colX(f.index) + 0.5}
+            y={plotTop + 0.5}
+            width={colW - 1}
+            height={plotH - 1}
+            fill="none"
+            stroke={HX.ink}
+            strokeOpacity="0.25"
+          />
         </g>
       )}
 
-      {/* Aujourd'hui */}
+      {/* Aujourd'hui et début de la tendance */}
       {todayIndex >= 0 && (
-        <line x1={colX(todayIndex)} x2={colX(todayIndex)} y1={TOP - 10} y2={H - 26} stroke={HX.ink} strokeOpacity="0.55" strokeWidth="1.5" />
+        <line x1={colX(todayIndex)} x2={colX(todayIndex)} y1={plotTop} y2={H - 24} stroke={HX.ink} strokeOpacity="0.5" />
+      )}
+      {trendIndex > 0 && trendIndex < n && (
+        <line
+          x1={colX(trendIndex)}
+          x2={colX(trendIndex)}
+          y1={plotTop}
+          y2={H - 24}
+          stroke={HX.ink}
+          strokeOpacity="0.3"
+          strokeDasharray="3 3"
+        />
       )}
 
       {/* Bandeau bas : zones et vacances */}
-      <g fontSize="10" className="font-mono uppercase" letterSpacing="0.06em">
+      <g fontSize="10" letterSpacing="0.08em" className="font-mono">
         {todayIndex > 0 && (
           <text x={GUTTER + 6} y={H - 26} fill={HX.ink} fillOpacity="0.4">
-            Observé
+            OBSERVÉ
           </text>
         )}
         {todayIndex >= 0 && (
-          <text x={colX(todayIndex) + 6} y={H - 26} fill={HX.ink} fontWeight="700">
-            Aujourd&apos;hui → prévision
+          <text x={colX(todayIndex) + 6} y={H - 26} fill={HX.ink} fillOpacity="0.75">
+            AUJOURD&apos;HUI → PRÉVISION
           </text>
         )}
         {trendIndex > 0 && trendIndex < n && (
-          <text x={colX(trendIndex) + 6} y={H - 26} fill={HX.ink} fillOpacity="0.45">
-            Tendance · moins fiable
+          <text x={colX(trendIndex) + 6} y={H - 26} fill={HX.ink} fillOpacity="0.4">
+            TENDANCE · MOINS FIABLE
           </text>
         )}
       </g>
       {holidayBands.map((b) => (
-        <text key={b.label + b.from} x={colX(b.from) + 4} y={H - 10} fontSize="10.5" fontWeight="600" fill={HX.holiday}>
+        <text key={b.label + b.from} x={colX(b.from) + 4} y={H - 10} fontSize="10" fill={HX.ink} fillOpacity="0.5" className="font-mono">
           {b.label}
         </text>
       ))}
 
       {/* Étiquette de la date retenue */}
-      {pill && (
-        <g className="hx-pop" style={{ animationDelay: "1000ms" }}>
-          <rect x={pill.x} y={4} width={pill.w} height={19} rx="9.5" fill={decisionColor} />
-          <text x={pill.x + pill.w / 2} y={17.5} textAnchor="middle" fontSize="10.5" fontWeight="700" fill="#fff" className="font-mono" letterSpacing="0.04em">
-            {pill.text}
-          </text>
-        </g>
+      {decisionLabel && (
+        <text
+          x={decisionLabel.x}
+          y={13}
+          textAnchor="middle"
+          fontSize="10.5"
+          letterSpacing="0.06em"
+          fill={HX.accent}
+          className="font-mono"
+        >
+          {decisionLabel.text}
+        </text>
       )}
 
       {/* Zones de survol / clic par jour */}
@@ -407,11 +403,11 @@ function Chart({
 /** Accolade au-dessus d'une fenêtre de calcul, avec son étiquette. */
 function Bracket({ w, label, short }: { w: number; label: string; short: string }) {
   // Fenêtre étroite (fin d'horizon) : étiquette courte pour ne pas déborder.
-  const text = label.length * 6.4 + 8 <= w ? label : short;
+  const text = label.length * 6 + 8 <= w ? label : short;
   return (
     <g>
-      <path d={`M3,${TOP - 2} V${TOP - 8} H${w - 3} V${TOP - 2}`} fill="none" stroke={HX.window} strokeWidth="1.5" />
-      <text x={w / 2} y={TOP - 13} textAnchor="middle" fontSize="10.5" fontWeight="600" fill={HX.window} className="font-mono">
+      <path d={`M2.5,${TOP - 2} V${TOP - 7} H${w - 2.5} V${TOP - 2}`} fill="none" stroke={HX.ink} strokeOpacity="0.4" />
+      <text x={w / 2} y={TOP - 11} textAnchor="middle" fontSize="10" fill={HX.ink} fillOpacity="0.6" className="font-mono">
         {text}
       </text>
     </g>
@@ -425,9 +421,9 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
   const cols = `${GUTTER}px repeat(${n}, minmax(0, 1fr))`;
 
   const colBg = (e: DayEval) => {
-    if (focus === e.index) return "bg-violet-500/[0.08]";
-    if (decision && e.day.date === decision.date) return decision.kind === "start" ? "bg-orange-500/[0.08]" : "bg-teal-500/[0.08]";
-    if (e.past) return "bg-slate-900/[0.03]";
+    if (focus === e.index) return "bg-ink/[0.05]";
+    if (decision && e.day.date === decision.date) return "bg-accent/5";
+    if (e.past) return "bg-ink/[0.02]";
     return "";
   };
 
@@ -436,7 +432,7 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
       key={e.day.date}
       onMouseEnter={() => onHover(e.index)}
       onClick={() => onPick(e.index)}
-      className={`flex h-[22px] cursor-pointer items-center justify-center font-mono text-[11px] tabular-nums transition-colors ${colBg(e)} ${
+      className={`flex h-[22px] cursor-pointer items-center justify-center font-mono text-[11px] tabular-nums ${colBg(e)} ${
         e.trend ? "opacity-70" : ""
       } ${extra}`}
     >
@@ -445,12 +441,12 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
   );
 
   const tone = (ok: boolean | undefined, color: "start" | "stop") =>
-    ok ? (color === "start" ? "text-orange-600 font-semibold" : "text-teal-600 font-semibold") : "text-slate-500";
+    ok ? (color === "start" ? "font-semibold text-amber-600" : "font-semibold text-accent") : "text-ink/50";
 
   const rows: { label: string; hint?: string; render: (e: DayEval) => ReactNode }[] = [
-    { label: "Max", render: (e) => cell(e, fmtDeg(e.day.tMax), "text-slate-500") },
-    { label: "Moyenne", render: (e) => cell(e, fmtDeg(e.day.tMean), "font-semibold text-slate-900") },
-    { label: "Min", render: (e) => cell(e, fmtDeg(e.day.tMin), "text-slate-500") },
+    { label: "Max", render: (e) => cell(e, fmtDeg(e.day.tMax), "text-ink/50") },
+    { label: "Moyenne", render: (e) => cell(e, fmtDeg(e.day.tMean), "font-semibold text-ink") },
+    { label: "Min", render: (e) => cell(e, fmtDeg(e.day.tMin), "text-ink/50") },
     {
       label: "Moy. 5 j avant",
       hint: `Moyenne des 5 jours qui précèdent. Allumage si < ${t.start}°, arrêt si ≥ ${t.stop}°.`,
@@ -458,7 +454,7 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
         cell(
           e,
           e.back ? fmtDeg(e.back.mean) : "",
-          e.back ? (e.back.mean < t.start ? tone(true, "start") : e.back.mean >= t.stop ? tone(true, "stop") : "text-slate-500") : ""
+          e.back ? (e.back.mean < t.start ? tone(true, "start") : e.back.mean >= t.stop ? tone(true, "stop") : "text-ink/50") : ""
         ),
     },
     {
@@ -473,20 +469,18 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
     },
     {
       label: "Allumer ?",
-      render: (e) =>
-        cell(e, e.start ? (e.start.ok ? "✓" : "·") : "", e.start?.ok ? "text-orange-600 text-[13px] font-bold" : "text-slate-300"),
+      render: (e) => cell(e, e.start ? (e.start.ok ? "✓" : "·") : "", e.start?.ok ? "font-semibold text-amber-600" : "text-ink/20"),
     },
     {
       label: "Arrêter ?",
-      render: (e) =>
-        cell(e, e.stop ? (e.stop.ok ? "✓" : "·") : "", e.stop?.ok ? "text-teal-600 text-[13px] font-bold" : "text-slate-300"),
+      render: (e) => cell(e, e.stop ? (e.stop.ok ? "✓" : "·") : "", e.stop?.ok ? "font-semibold text-accent" : "text-ink/20"),
     },
   ];
 
   return (
-    <div className="mt-1 border-t border-slate-200 pt-1">
+    <div className="border-t border-ink/10">
       {/* En-tête : jours */}
-      <div className="grid" style={{ gridTemplateColumns: cols }}>
+      <div className="grid border-b border-ink/10" style={{ gridTemplateColumns: cols }}>
         <div />
         {evals.map((e) => {
           const isToday = e.index === todayIndex;
@@ -496,20 +490,16 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
               type="button"
               onMouseEnter={() => onHover(e.index)}
               onClick={() => onPick(e.index)}
-              className={`relative flex flex-col items-center py-1 leading-tight transition-colors ${colBg(e)} ${
-                e.trend ? "opacity-70" : ""
-              }`}
+              className={`relative flex flex-col items-center py-1 font-mono leading-tight ${colBg(e)} ${e.trend ? "opacity-70" : ""}`}
               title="Voir le calcul de ce jour"
             >
               <span
-                className={`rounded px-1 text-[10px] uppercase tracking-wide ${
-                  isToday ? "bg-slate-900 text-white font-semibold" : "text-slate-500"
-                }`}
+                className={`px-1 text-[10px] uppercase tracking-wider ${isToday ? "bg-ink text-paper" : "text-ink/50"}`}
               >
                 {isToday ? "auj." : fmtWeekdayShort(e.day.date)}
               </span>
-              <span className="font-mono text-[10px] tabular-nums text-slate-400">{fmtDM(e.day.date)}</span>
-              {pinned === e.index && <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-violet-600" />}
+              <span className="text-[10px] tabular-nums text-ink/40">{fmtDM(e.day.date)}</span>
+              {pinned === e.index && <span className="absolute bottom-0 h-1 w-1 rounded-full bg-ink" />}
             </button>
           );
         })}
@@ -517,11 +507,11 @@ function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, o
       {rows.map((r, ri) => (
         <div
           key={r.label}
-          className={`grid ${ri === 3 || ri === 6 ? "mt-1 border-t border-dashed border-slate-200 pt-1" : ""}`}
+          className={`grid ${ri === 3 || ri === 6 ? "border-t border-ink/10" : ""}`}
           style={{ gridTemplateColumns: cols }}
         >
-          <div className="flex h-[22px] items-center pr-2 text-[11px] text-slate-500" title={r.hint}>
-            <span className={r.hint ? "cursor-help border-b border-dotted border-slate-300" : ""}>{r.label}</span>
+          <div className="flex h-[22px] items-center pr-2 text-[11px] text-ink/50" title={r.hint}>
+            <span className={r.hint ? "cursor-help border-b border-dotted border-ink/30" : ""}>{r.label}</span>
           </div>
           {evals.map((e) => r.render(e))}
         </div>
