@@ -28,6 +28,9 @@ export async function GET(
     let weather: HeatingWeather | null = null;
     let groups: HeatingGroup[] = [];
     const coords = contractCoordinates(sites);
+    // Point représentatif, repris par l'outil /outils/chauffage.
+    const ref = sites.find((s) => s.city) ?? sites[0];
+    const location = coords && ref ? { city: ref.city, postalCode: ref.postalCode, lat: coords.lat, lon: coords.lon } : null;
     if (coords) {
       try {
         const daily = await fetchDailyTemps(coords.lat, coords.lon);
@@ -72,6 +75,7 @@ export async function GET(
       season: dateToSeason(new Date(todayIso + "T12:00:00")),
       today: todayIso,
       weather,
+      location,
       groups,
       sites: sites.map((s) => ({
         id: s.id,

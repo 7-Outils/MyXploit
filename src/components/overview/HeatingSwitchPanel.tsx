@@ -38,7 +38,10 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
 
   if (!data || data.counts.total === 0) return null;
 
-  const { counts, weather, groups, pendingRequest, season, sites } = data;
+  const { counts, weather, groups, location, pendingRequest, season, sites } = data;
+  const toolHref = location
+    ? `/outils/chauffage?city=${encodeURIComponent(location.city)}&postcode=${location.postalCode ?? ""}&lat=${location.lat}&lon=${location.lon}`
+    : "/outils/chauffage";
   const allOff = counts.enChauffe === 0 && counts.allumagePrevu === 0 && counts.arretPrevu === 0;
   const anyOn = counts.enChauffe > 0;
 
@@ -231,7 +234,10 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
         {forecast.length > 0 && (
           <div className="mt-3 pt-2.5 border-t border-ink/10">
             <HeatingForecast days={forecast} highlight={dated.map((l) => l.date)} />
-            <div className="mt-2 flex justify-end">
+            <div className="mt-2 flex justify-end gap-4">
+              <Link href={toolHref} className="label-tech hover:text-accent">
+                Prévision détaillée
+              </Link>
               <Link href={`/exploitation?tab=saisons&contractId=${contractId}`} className="label-tech hover:text-accent">
                 Saisons de chauffe
               </Link>

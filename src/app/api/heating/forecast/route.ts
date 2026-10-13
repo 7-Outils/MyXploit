@@ -4,7 +4,7 @@ import { computeHeatingSignal } from "@/lib/heating-season";
 import { fetchDailyTemps } from "@/lib/heating-weather";
 import { todayParisIso } from "@/lib/heating-status";
 import { HEATING_PROFILE_THRESHOLDS } from "@/lib/heating-profiles";
-import { adjustForSchoolHolidays, fetchSchoolHolidays, schoolZoneOf } from "@/lib/school-holidays";
+import { adjustForSchoolHolidays, fetchSchoolHolidays, schoolZoneOf, type HolidayPeriod } from "@/lib/school-holidays";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +36,22 @@ export async function GET(request: NextRequest) {
       const weather = computeHeatingSignal(daily, today, thresholds);
       let startNote: string | null = null;
       let stopNote: string | null = null;
+      // Périodes de vacances recoupant l'horizon affiché (outil : bandes sur le graphique).
+      let holidays: HolidayPeriod[] = [];
       if (zone) {
         try {
-          const holidays = await fetchSchoolHolidays(zone, today);
-          if (weather.startDate) ({ date: weather.startDate, note: startNote } = adjustForSchoolHolidays(weather.startDate, "start", holidays));
-          if (weather.stopDate) ({ date: weather.stopDate, note: stopNote } = adjustForSchoolHolidays(weather.stopDate, "stop", holidays));
+          const all = await fetchSchoolHolidays(zone, today);
+          const first = weather.days[0]?.date ?? today;
+          const last = weather.days[weather.days.length - 1]?.date ?? today;
+          holidays = all.filter((h) => h.to >= first && h.from <= last);
+          if (weather.startDate) ({ date: weather.startDate, note: startNote } = adjustForSchoolHolidays(weather.startDate, "start", all));
+          if (weather.stopDate) ({ date: weather.stopDate, note: stopNote } = adjustForSchoolHolidays(weather.stopDate, "stop", all));
           weather.signal = weather.stopDate === today ? "STOP" : weather.startDate === today ? "START" : "NEUTRAL";
         } catch (e) {
           console.warn("[heating-forecast] calendrier scolaire indisponible:", e instanceof Error ? e.message : e);
         }
       }
-      return NextResponse.json({ today, weather, startNote, stopNote, zone });
+      return NextResponse.json({ today, weather, startNote, stopNote, zone, holidays });
     } catch (e) {
       console.warn("[heating-forecast] météo indisponible:", e instanceof Error ? e.message : e);
       return NextResponse.json({ error: "Météo indisponible pour le moment" }, { status: 502 });

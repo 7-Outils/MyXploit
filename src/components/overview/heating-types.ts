@@ -34,6 +34,8 @@ export interface HeatingStatusResponse {
   season: string;
   today: string;
   weather: HeatingWeather | null;
+  /** Point représentatif du contrat (ville + coordonnées), null sans météo. */
+  location: { city: string; postalCode: string | null; lat: number; lon: number } | null;
   /** Dates par famille de bâtiments (vide si météo indisponible). */
   groups: HeatingGroup[];
   sites: HeatingSite[];
