@@ -40,11 +40,8 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
 
   // `?? []` : le cache SWR persiste en localStorage, une réponse d'avant ce
   // champ peut être resservie au premier rendu.
-  const { counts, weather, location, pendingRequest, season, sites } = data;
+  const { counts, weather, pendingRequest, season, sites } = data;
   const groups = data.groups ?? [];
-  const toolHref = location
-    ? `/outils/chauffage?city=${encodeURIComponent(location.city)}&postcode=${location.postalCode ?? ""}&lat=${location.lat}&lon=${location.lon}`
-    : "/outils/chauffage";
   const allOff = counts.enChauffe === 0 && counts.allumagePrevu === 0 && counts.arretPrevu === 0;
   const anyOn = counts.enChauffe > 0;
 
@@ -238,7 +235,7 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
           <div className="mt-3 pt-2.5 border-t border-ink/10">
             <HeatingForecast days={forecast} highlight={dated.map((l) => l.date)} />
             <div className="mt-2 flex justify-end gap-4">
-              <Link href={toolHref} className="label-tech hover:text-accent">
+              <Link href="/outils/chauffage" className="label-tech hover:text-accent">
                 Prévision détaillée
               </Link>
               <Link href={`/exploitation?tab=saisons&contractId=${contractId}`} className="label-tech hover:text-accent">

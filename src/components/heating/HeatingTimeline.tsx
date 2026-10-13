@@ -48,8 +48,11 @@ interface Props {
   todayIndex: number;
   /** Règle mise en avant (saison) : pilote le seuil « 7 jours » tracé. */
   primary: "start" | "stop";
-  decision: { kind: "start" | "stop"; date: string } | null;
+  /** Dates à marquer (une par famille de bâtiments). */
+  decisions: { kind: "start" | "stop"; date: string; label: string }[];
   holidays: HolidayPeriod[];
+  /** Mode « comment c'est calculé » : seuils, fenêtres au survol et tableau. */
+  detail: boolean;
   focus: number | null;
   pinned: number | null;
   onHover: (i: number | null) => void;
@@ -86,10 +89,10 @@ export default function HeatingTimeline(props: Props) {
         {width > 0 && n > 0 ? (
           <>
             <Chart {...props} width={Math.max(width, MIN_WIDTH)} />
-            <DayTable {...props} />
+            {props.detail && <DayTable {...props} />}
           </>
         ) : (
-          <div style={{ height: H + 190 }} />
+          <div style={{ height: props.detail ? H + 190 : H }} />
         )}
       </div>
     </div>
@@ -103,12 +106,13 @@ function Chart({
   thresholds: t,
   todayIndex,
   primary,
-  decision,
+  decisions,
   holidays,
   focus,
   onHover,
   onPick,
   width: W,
+  detail,
 }: Props & { width: number }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const n = evals.length;
@@ -118,7 +122,9 @@ function Chart({
   const cx = (i: number) => GUTTER + colW * (i + 0.5);
 
   // Échelle verticale : données + seuils, arrondie à un pas lisible.
-  const temps = days.flatMap((d) => [d.tMin, d.tMax]).concat([t.start, t.stop, t.startForecastMax, t.stopForecastMin]);
+  const temps = days
+    .flatMap((d) => [d.tMin, d.tMax])
+    .concat(detail ? [t.start, t.stop, t.startForecastMax, t.stopForecastMin] : []);
   let lo = Math.floor(Math.min(...temps) - 1);
   let hi = Math.ceil(Math.max(...temps) + 1);
   if (hi - lo < 12) {
@@ -135,8 +141,13 @@ function Chart({
 
   const barW = Math.max(4, Math.min(10, colW * 0.3));
   const trendIndex = todayIndex >= 0 ? todayIndex + 7 : -1;
-  const decisionIndex = decision ? days.findIndex((d) => d.date === decision.date) : -1;
+  const marks = decisions
+    .map((d) => ({ ...d, index: days.findIndex((x) => x.date === d.date) }))
+    .filter((d) => d.index >= 0)
+    .sort((a, b) => a.index - b.index);
   const f = focus !== null ? evals[focus] : null;
+  // Fenêtres de calcul seulement en mode détail ; min/max du jour survolé toujours.
+  const fw = detail ? f : null;
   const plotTop = TOP - 6;
   const plotH = PLOT_BOTTOM - plotTop;
 
@@ -148,7 +159,7 @@ function Chart({
     yStartLabel = mid + 7;
     yStopLabel = mid - 7;
   }
-  const nearLabel = (yy: number) => Math.abs(yy - yStartLabel) < 11 || Math.abs(yy - yStopLabel) < 11;
+  const nearLabel = (yy: number) => detail && (Math.abs(yy - yStartLabel) < 11 || Math.abs(yy - yStopLabel) < 11);
 
   const meanPath = days.map((d, i) => `${i === 0 ? "M" : "L"}${cx(i).toFixed(1)},${y(d.tMean).toFixed(1)}`).join(" ");
 
@@ -160,12 +171,25 @@ function Chart({
     })
     .filter((b): b is { label: string; from: number; to: number } => b !== null);
 
-  const decisionLabel = (() => {
-    if (decisionIndex < 0 || !decision) return null;
-    const text = `${decision.kind === "start" ? "ALLUMER" : "ARRÊTER"} ${fmtWeekdayShort(decision.date).toUpperCase()} ${fmtDM(decision.date)}`;
-    const w = text.length * 6.2;
-    const x = Math.min(W - w / 2 - 2, Math.max(GUTTER + w / 2, cx(decisionIndex)));
-    return { text, x };
+  // Étiquettes des dates marquées, décalées à droite si elles se chevauchent ;
+  // plusieurs familles le même jour partagent une étiquette.
+  const markLabels = (() => {
+    const byIndex = new Map<number, (typeof marks)[number][]>();
+    for (const m of marks) byIndex.set(m.index, [...(byIndex.get(m.index) ?? []), m]);
+    const out: { text: string; x: number; index: number }[] = [];
+    let lastRight = GUTTER;
+    for (const [index, ms] of [...byIndex.entries()].sort((a, b) => a[0] - b[0])) {
+      const date = ms[0].date;
+      const verb = ms[0].kind === "start" ? "ALLUMER" : "ARRÊTER";
+      const who = ms.length === 1 ? ms[0].label : `${ms.length} familles`;
+      const text = `${verb} ${fmtWeekdayShort(date).toUpperCase()} ${fmtDM(date)} · ${who}`.toUpperCase();
+      const w = text.length * 6.2;
+      let x = Math.min(W - w / 2 - 2, Math.max(GUTTER + w / 2, cx(index)));
+      if (x - w / 2 < lastRight + 8) x = Math.min(W - w / 2 - 2, lastRight + 8 + w / 2);
+      lastRight = x + w / 2;
+      out.push({ text, x, index });
+    }
+    return out;
   })();
 
   const fwdThreshold = primary === "start" ? t.startForecastMax : t.stopForecastMin;
@@ -208,72 +232,68 @@ function Chart({
         </g>
       ))}
 
-      {/* Date retenue : colonne teintée + trait */}
-      {decisionIndex >= 0 && (
-        <g>
-          <rect x={colX(decisionIndex)} y={plotTop} width={colW} height={plotH} fill={HX.accent} fillOpacity="0.05" />
-          <line
-            x1={cx(decisionIndex)}
-            x2={cx(decisionIndex)}
-            y1={18}
-            y2={PLOT_BOTTOM}
-            stroke={HX.accent}
-            strokeOpacity="0.6"
-            strokeDasharray="2 3"
-          />
+      {/* Dates retenues : colonne teintée + trait */}
+      {marks.map((m) => (
+        <g key={m.date + m.label}>
+          <rect x={colX(m.index)} y={plotTop} width={colW} height={plotH} fill={HX.accent} fillOpacity="0.05" />
+          <line x1={cx(m.index)} x2={cx(m.index)} y1={18} y2={PLOT_BOTTOM} stroke={HX.accent} strokeOpacity="0.6" strokeDasharray="2 3" />
         </g>
-      )}
+      ))}
 
       {/* Fenêtres de calcul du jour survolé */}
-      {f && f.back && (
-        <g style={{ transform: `translateX(${colX(f.back.from)}px)`, transition: "transform 180ms ease" }}>
+      {fw && fw.back && (
+        <g style={{ transform: `translateX(${colX(fw.back.from)}px)`, transition: "transform 180ms ease" }}>
           <rect x={0} y={plotTop} width={colW * 5} height={plotH} fill={HX.ink} fillOpacity="0.04" />
-          <g style={{ transform: `translateY(${y(f.back.mean)}px)`, transition: "transform 180ms ease" }}>
+          <g style={{ transform: `translateY(${y(fw.back.mean)}px)`, transition: "transform 180ms ease" }}>
             <line x1={2} x2={colW * 5 - 2} y1={0} y2={0} stroke={HX.ink} strokeOpacity="0.7" />
           </g>
-          <Bracket w={colW * 5} label={`5 j avant · moy. ${fmtDeg(f.back.mean)}`} short={fmtDeg(f.back.mean)} />
+          <Bracket w={colW * 5} label={`5 j avant · moy. ${fmtDeg(fw.back.mean)}`} short={fmtDeg(fw.back.mean)} />
         </g>
       )}
-      {f && f.fwd && (
-        <g style={{ transform: `translateX(${colX(f.fwd.from)}px)`, transition: "transform 180ms ease" }}>
+      {fw && fw.fwd && (
+        <g style={{ transform: `translateX(${colX(fw.fwd.from)}px)`, transition: "transform 180ms ease" }}>
           <rect
             x={0.5}
             y={plotTop + 0.5}
-            width={colW * f.fwd.count - 1}
+            width={colW * fw.fwd.count - 1}
             height={plotH - 1}
             fill="none"
             stroke={HX.ink}
             strokeOpacity="0.3"
             strokeDasharray="3 3"
           />
-          <g style={{ transform: `translateY(${y(f.fwd.mean)}px)`, transition: "transform 180ms ease" }}>
-            <line x1={2} x2={colW * f.fwd.count - 2} y1={0} y2={0} stroke={HX.ink} strokeOpacity="0.7" />
+          <g style={{ transform: `translateY(${y(fw.fwd.mean)}px)`, transition: "transform 180ms ease" }}>
+            <line x1={2} x2={colW * fw.fwd.count - 2} y1={0} y2={0} stroke={HX.ink} strokeOpacity="0.7" />
           </g>
           <line
             x1={2}
-            x2={colW * f.fwd.count - 2}
+            x2={colW * fw.fwd.count - 2}
             y1={y(fwdThreshold)}
             y2={y(fwdThreshold)}
             stroke={fwdColor}
             strokeDasharray="1 3"
           />
           <Bracket
-            w={colW * f.fwd.count}
-            label={`${f.fwd.count} j après · moy. ${fmtDeg(f.fwd.mean)}`}
-            short={fmtDeg(f.fwd.mean)}
+            w={colW * fw.fwd.count}
+            label={`${fw.fwd.count} j après · moy. ${fmtDeg(fw.fwd.mean)}`}
+            short={fmtDeg(fw.fwd.mean)}
           />
         </g>
       )}
 
-      {/* Seuils du profil */}
-      <line x1={GUTTER} x2={W} y1={y(t.start)} y2={y(t.start)} stroke={HX.start} strokeDasharray="5 3" />
-      <line x1={GUTTER} x2={W} y1={y(t.stop)} y2={y(t.stop)} stroke={HX.stop} strokeDasharray="5 3" />
-      <text x={GUTTER - 8} y={yStartLabel + 3.5} textAnchor="end" fontSize="10" fill={HX.start} className="font-mono">
-        allumage {t.start}°
-      </text>
-      <text x={GUTTER - 8} y={yStopLabel + 3.5} textAnchor="end" fontSize="10" fill={HX.stop} className="font-mono">
-        arrêt {t.stop}°
-      </text>
+      {/* Seuils du profil (mode détail) */}
+      {detail && (
+        <g>
+          <line x1={GUTTER} x2={W} y1={y(t.start)} y2={y(t.start)} stroke={HX.start} strokeDasharray="5 3" />
+          <line x1={GUTTER} x2={W} y1={y(t.stop)} y2={y(t.stop)} stroke={HX.stop} strokeDasharray="5 3" />
+          <text x={GUTTER - 8} y={yStartLabel + 3.5} textAnchor="end" fontSize="10" fill={HX.start} className="font-mono">
+            allumage {t.start}°
+          </text>
+          <text x={GUTTER - 8} y={yStopLabel + 3.5} textAnchor="end" fontSize="10" fill={HX.stop} className="font-mono">
+            arrêt {t.stop}°
+          </text>
+        </g>
+      )}
 
       {/* Min → max de chaque jour */}
       {days.map((d, i) => {
@@ -367,20 +387,12 @@ function Chart({
         </text>
       ))}
 
-      {/* Étiquette de la date retenue */}
-      {decisionLabel && (
-        <text
-          x={decisionLabel.x}
-          y={13}
-          textAnchor="middle"
-          fontSize="10.5"
-          letterSpacing="0.06em"
-          fill={HX.accent}
-          className="font-mono"
-        >
-          {decisionLabel.text}
+      {/* Étiquettes des dates retenues */}
+      {markLabels.map((l) => (
+        <text key={l.index} x={l.x} y={13} textAnchor="middle" fontSize="10.5" letterSpacing="0.06em" fill={HX.accent} className="font-mono">
+          {l.text}
         </text>
-      )}
+      ))}
 
       {/* Zones de survol / clic par jour */}
       {days.map((d, i) => (
@@ -416,13 +428,14 @@ function Bracket({ w, label, short }: { w: number; label: string; short: string 
 
 // ─── Tableau aligné sur les colonnes du graphique ──────────────────────────
 
-function DayTable({ evals, thresholds: t, todayIndex, decision, focus, pinned, onHover, onPick }: Props) {
+function DayTable({ evals, thresholds: t, todayIndex, decisions, focus, pinned, onHover, onPick }: Props) {
   const n = evals.length;
+  const marked = new Set(decisions.map((d) => d.date));
   const cols = `${GUTTER}px repeat(${n}, minmax(0, 1fr))`;
 
   const colBg = (e: DayEval) => {
     if (focus === e.index) return "bg-ink/[0.05]";
-    if (decision && e.day.date === decision.date) return "bg-accent/5";
+    if (marked.has(e.day.date)) return "bg-accent/5";
     if (e.past) return "bg-ink/[0.02]";
     return "";
   };

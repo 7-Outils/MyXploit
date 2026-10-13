@@ -5,6 +5,7 @@
 import { computeHeatingSignal, type DailyTemp, type HeatingSignal } from "@/lib/heating-season";
 import {
   HEATING_PROFILE_LABELS,
+  HEATING_SCHOOL_LABEL,
   HEATING_PROFILE_THRESHOLDS,
   PROFILE_ORDER,
   SCHOOL_TYPES,
@@ -32,7 +33,13 @@ interface GroupSite {
   postalCode: string | null;
 }
 
-export async function computeHeatingGroups(sites: GroupSite[], daily: DailyTemp[], todayIso: string): Promise<HeatingGroup[]> {
+export interface HeatingGroupsResult {
+  groups: HeatingGroup[];
+  /** Vacances scolaires (zone des écoles du contrat) recoupant les jours affichés. */
+  holidays: HolidayPeriod[];
+}
+
+export async function computeHeatingGroups(sites: GroupSite[], daily: DailyTemp[], todayIso: string): Promise<HeatingGroupsResult> {
   const byKey = new Map<string, { profile: HeatingProfile; school: boolean; sites: GroupSite[] }>();
   for (const s of sites) {
     const profile = heatingProfileOf(s.type);
@@ -60,7 +67,7 @@ export async function computeHeatingGroups(sites: GroupSite[], daily: DailyTemp[
   const groups: HeatingGroup[] = [];
   for (const [key, g] of byKey) {
     const siteIds = g.sites.map((s) => s.id);
-    const label = g.school ? "Écoles, collèges, lycées" : HEATING_PROFILE_LABELS[g.profile];
+    const label = g.school ? HEATING_SCHOOL_LABEL : HEATING_PROFILE_LABELS[g.profile];
     if (g.profile === "HORS_SIGNAL") {
       groups.push({ key, profile: g.profile, label, siteIds, signal: "NEUTRAL", startDate: null, stopDate: null, startNote: null, stopNote: null });
       continue;
@@ -82,7 +89,19 @@ export async function computeHeatingGroups(sites: GroupSite[], daily: DailyTemp[
     groups.push({ key, profile: g.profile, label, siteIds, signal, startDate, stopDate, startNote, stopNote });
   }
 
-  return groups.sort(
-    (a, b) => PROFILE_ORDER.indexOf(a.profile) - PROFILE_ORDER.indexOf(b.profile) || a.key.localeCompare(b.key)
-  );
+  groups.sort((a, b) => PROFILE_ORDER.indexOf(a.profile) - PROFILE_ORDER.indexOf(b.profile) || a.key.localeCompare(b.key));
+
+  const dates = daily.map((d) => d.date).sort();
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  const holidays = [...holidaysByZone.values()].flat().filter((h) => first && last && h.to >= first && h.from <= last);
+  return { groups, holidays };
 }
+
+/** Familles « type » pour un point sans contrat (outil par ville) : une par profil. */
+export const GENERIC_SITES: GroupSite[] = [
+  { id: "CRECHE", type: "CRECHE", postalCode: null },
+  { id: "ECOLE", type: "ECOLE", postalCode: null },
+  { id: "MAIRIE", type: "MAIRIE", postalCode: null },
+  { id: "GYMNASE", type: "GYMNASE", postalCode: null },
+];

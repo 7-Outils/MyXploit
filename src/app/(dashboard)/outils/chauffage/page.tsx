@@ -1,115 +1,63 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Flame, Loader2, MapPin, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Flame, Loader2, MapPin, Search, X } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
+import { useContract } from "@/contexts/ContractContext";
 import { daysFrom, fmtHeatingDate } from "@/components/heating/HeatingForecast";
 import HeatingTimeline from "@/components/heating/HeatingTimeline";
 import HeatingCalcPanel from "@/components/heating/HeatingCalcPanel";
-import { evaluateDays, firstRuleDate, fmtDeg, fmtDM, fmtLongDate, fmtWeekdayShort } from "@/components/heating/heating-calc";
+import { evaluateDays, fmtDeg } from "@/components/heating/heating-calc";
 import { HEATING_RELIABLE_DAYS, type HeatingWeather } from "@/lib/heating-season";
-import { HEATING_PROFILE_THRESHOLDS } from "@/lib/heating-profiles";
+import { HEATING_PROFILE_THRESHOLDS, type HeatingProfile } from "@/lib/heating-profiles";
+import type { HeatingGroup } from "@/lib/heating-groups";
 import type { HolidayPeriod } from "@/lib/school-holidays";
+import type { HeatingStatusResponse } from "@/components/overview/heating-types";
 import type { GeocodePlace } from "@/app/api/heating/geocode/route";
-
-const STORAGE_KEY = "heating-tool-place";
-const BUILDING_KEY = "heating-tool-building";
-
-// Types de bâtiment proposés : un profil de seuils, et le calendrier scolaire
-// pour les écoles.
-const BUILDINGS = [
-  { key: "CRECHE", label: "Crèche · santé", short: "Crèche", profile: "SENSIBLE", school: false },
-  { key: "ECOLE", label: "École · collège · lycée", short: "École", profile: "STANDARD", school: true },
-  { key: "MAIRIE", label: "Mairie · bureaux", short: "Mairie", profile: "STANDARD", school: false },
-  { key: "GYMNASE", label: "Gymnase", short: "Gymnase", profile: "SPORTIF", school: false },
-] as const;
-type Building = (typeof BUILDINGS)[number];
-type BuildingKey = Building["key"];
 
 interface ForecastResponse {
   today: string;
   weather: HeatingWeather;
-  startNote: string | null;
-  stopNote: string | null;
+  groups: HeatingGroup[];
+  holidays: HolidayPeriod[];
   zone: string | null;
-  holidays?: HolidayPeriod[];
 }
 
-interface Shown {
-  key: string;
-  place: GeocodePlace;
-  building: Building;
-  data: ForecastResponse;
-}
-
-function loadPlace(): GeocodePlace | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as GeocodePlace) : null;
-  } catch {
-    return null;
-  }
-}
-
-function savePlace(p: GeocodePlace) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-  } catch {
-    /* stockage indisponible : on ne retient simplement pas la ville */
-  }
+/** Ce que la page affiche, que la source soit un contrat ou une ville libre. */
+interface View {
+  today: string;
+  weather: HeatingWeather | null;
+  groups: HeatingGroup[];
+  holidays: HolidayPeriod[];
+  /** Ligne « où » : client · ville, ou ville seule. */
+  where: string;
+  /** Événement attendu : allumage si les sites sont à l'arrêt, arrêt s'ils chauffent, saison sinon. */
+  kind: "start" | "stop";
+  /** Effectifs par famille (mode contrat). */
+  withCounts: boolean;
+  unavailable: string | null;
 }
 
 const placeLabel = (p: GeocodePlace) => [p.name, p.postcode ?? p.department].filter(Boolean).join(" · ");
 
+const seasonKind = (today: string): "start" | "stop" => (Number(today.slice(5, 7)) >= 7 ? "start" : "stop");
+
 export default function HeatingToolPage() {
-  const [place, setPlace] = useState<GeocodePlace | null>(null);
-  const [building, setBuilding] = useState<BuildingKey>("ECOLE");
+  const { selectedContract } = useContract();
+  // Ville tapée à la main : prend le pas sur le contrat jusqu'à ce qu'on la retire.
+  const [manual, setManual] = useState<GeocodePlace | null>(null);
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const [shown, setShown] = useState<Shown | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
-
-  // Ouverture depuis un contrat : ?city=&postcode=&lat=&lon= prime sur la ville retenue.
-  const params = useSearchParams();
-  useEffect(() => {
-    const lat = Number(params.get("lat"));
-    const lon = Number(params.get("lon"));
-    const city = params.get("city");
-    if (city && Number.isFinite(lat) && Number.isFinite(lon) && (lat || lon)) {
-      const p: GeocodePlace = { id: -1, name: city, department: null, postcode: params.get("postcode") || null, lat, lon };
-      setPlace(p);
-      savePlace(p);
-      return;
-    }
-    const saved = loadPlace();
-    if (saved) setPlace(saved);
-    try {
-      const b = localStorage.getItem(BUILDING_KEY);
-      if (BUILDINGS.some((x) => x.key === b)) setBuilding(b as BuildingKey);
-    } catch {
-      /* ignore */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function chooseBuilding(b: BuildingKey) {
-    setBuilding(b);
-    try {
-      localStorage.setItem(BUILDING_KEY, b);
-    } catch {
-      /* ignore */
-    }
-  }
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 250);
     return () => clearTimeout(t);
   }, [query]);
-
+  useEffect(() => setActive(0), [debounced]);
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
@@ -124,50 +72,73 @@ export default function HeatingToolPage() {
     { revalidateOnFocus: false }
   );
   const places = geo?.places ?? [];
-  useEffect(() => setActive(0), [debounced]);
 
-  const cfg = BUILDINGS.find((b) => b.key === building)!;
-  const key = place
-    ? `/api/heating/forecast?lat=${place.lat}&lon=${place.lon}&profile=${cfg.profile}` +
-      (cfg.school ? `&school=1&postcode=${place.postcode ?? ""}` : "")
-    : null;
-  const { data, error } = useSWR<ForecastResponse>(key, fetcher, { revalidateOnFocus: false });
+  const contractKey = !manual && selectedContract ? `/api/contracts/${selectedContract.id}/heating-status` : null;
+  const cityKey = manual ? `/api/heating/forecast?lat=${manual.lat}&lon=${manual.lon}&postcode=${manual.postcode ?? ""}` : null;
+  const contractRes = useSWR<HeatingStatusResponse>(contractKey, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  const cityRes = useSWR<ForecastResponse>(cityKey, fetcher, { revalidateOnFocus: false, keepPreviousData: true });
+  const res = manual ? cityRes : contractRes;
+  const loading = res.isLoading || res.isValidating;
 
-  // On garde le dernier résultat affiché pendant le chargement du suivant :
-  // la page ne clignote pas quand on change de ville ou de bâtiment.
-  useEffect(() => {
-    if (data && key && place) setShown({ key, place, building: cfg, data });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, key]);
+  const view: View | null = useMemo(() => {
+    if (manual) {
+      const d = cityRes.data;
+      if (!d) return null;
+      return {
+        today: d.today,
+        weather: d.weather,
+        groups: d.groups ?? [],
+        holidays: d.holidays ?? [],
+        where: placeLabel(manual),
+        kind: seasonKind(d.today),
+        withCounts: false,
+        unavailable: null,
+      };
+    }
+    const d = contractRes.data;
+    if (!d || !selectedContract) return null;
+    const c = d.counts;
+    const allOff = c.enChauffe === 0 && c.allumagePrevu === 0 && c.arretPrevu === 0;
+    const kind: "start" | "stop" =
+      c.total === 0 ? seasonKind(d.today) : allOff ? "start" : c.enChauffe > 0 ? "stop" : seasonKind(d.today);
+    const name = selectedContract.client?.name ?? selectedContract.title;
+    return {
+      today: d.today,
+      weather: d.weather,
+      groups: d.groups ?? [],
+      holidays: d.holidays ?? [],
+      where: d.location ? `${name} · ${d.location.city}` : name,
+      kind,
+      withCounts: true,
+      unavailable:
+        c.total === 0
+          ? "Ce contrat n'a pas encore de site."
+          : d.weather
+            ? null
+            : "Météo indisponible : aucun site de ce contrat n'a d'adresse ni de coordonnées. Tapez une ville ci-dessus.",
+    };
+  }, [manual, cityRes.data, contractRes.data, selectedContract]);
 
   function choose(p: GeocodePlace) {
-    setPlace(p);
-    savePlace(p);
+    setManual(p);
     setQuery("");
     setOpen(false);
   }
 
-  const loading = !!key && !data && !error;
-  const current = shown && shown.key === key ? shown : null;
-  const display = current ?? shown;
+  const error = res.error as { info?: { error?: string } } | undefined;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      {/* En-tête */}
+    <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex items-center gap-2.5">
         <Flame size={18} className="text-accent" />
         <h1 className="text-xl font-semibold text-ink">Allumage du chauffage</h1>
       </div>
 
-      {/* Réglages : ville + type de bâtiment */}
+      {/* Où : le contrat sélectionné en haut de page, ou une ville tapée ici */}
       <div className="flex flex-wrap items-center gap-3">
         <div ref={boxRef} className="relative w-full sm:w-80">
           <div className="flex h-9 items-center gap-2 border border-ink/20 bg-white px-2.5 focus-within:border-accent">
-            {place && !query ? (
-              <MapPin size={14} className="shrink-0 text-ink/40" />
-            ) : (
-              <Search size={14} className="shrink-0 text-ink/40" />
-            )}
+            <Search size={14} className="shrink-0 text-ink/40" />
             <input
               type="text"
               value={query}
@@ -186,10 +157,8 @@ export default function HeatingToolPage() {
                 } else if (e.key === "Enter" && places[active]) choose(places[active]);
                 else if (e.key === "Escape") setOpen(false);
               }}
-              placeholder={place ? placeLabel(place) : "Ville ou code postal"}
-              className={`min-w-0 flex-1 bg-transparent text-sm text-ink outline-none ${
-                place ? "placeholder:text-ink" : "placeholder:text-ink/40"
-              }`}
+              placeholder={selectedContract && !manual ? "Voir une autre ville…" : "Ville ou code postal"}
+              className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink/40"
             />
             {searching && <Loader2 size={14} className="animate-spin text-ink/40" />}
           </div>
@@ -204,9 +173,7 @@ export default function HeatingToolPage() {
                     type="button"
                     onMouseEnter={() => setActive(i)}
                     onClick={() => choose(p)}
-                    className={`flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left ${
-                      i === active ? "bg-ink/[0.04]" : ""
-                    }`}
+                    className={`flex w-full items-baseline justify-between gap-3 px-3 py-1.5 text-left ${i === active ? "bg-ink/[0.04]" : ""}`}
                   >
                     <span className="text-sm text-ink">{p.name}</span>
                     <span className="font-mono text-[11px] tabular-nums text-ink/40">
@@ -219,35 +186,35 @@ export default function HeatingToolPage() {
           )}
         </div>
 
-        <div className="inline-flex border border-ink/20">
-          {BUILDINGS.map((b, i) => (
-            <button
-              key={b.key}
-              type="button"
-              onClick={() => chooseBuilding(b.key)}
-              title={b.label}
-              className={`${i > 0 ? "border-l border-ink/20" : ""} px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
-                b.key === building ? "bg-ink text-paper" : "text-ink/50 hover:text-ink"
-              }`}
-            >
-              {b.short}
-            </button>
-          ))}
-        </div>
+        {manual && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-9 items-center gap-1.5 border border-ink/20 px-2.5 text-sm text-ink">
+              <MapPin size={13} className="text-ink/40" />
+              {placeLabel(manual)}
+            </span>
+            {selectedContract && (
+              <button
+                type="button"
+                onClick={() => setManual(null)}
+                title="Revenir au contrat sélectionné"
+                className="flex h-9 w-9 items-center justify-center border border-ink/20 text-ink/60 transition-colors hover:border-accent hover:text-accent"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {!place ? (
+      {!manual && !selectedContract ? (
         <div className="flex min-h-[200px] items-center justify-center border border-dashed border-ink/15 px-6 text-center text-sm text-ink/40">
-          Tapez une ville : on compare les 7 derniers jours et les 15 prochains aux seuils du bâtiment, et on donne la
-          date d&apos;allumage ou d&apos;arrêt.
+          Sélectionnez un contrat en haut de page, ou tapez une ville.
         </div>
-      ) : error && !data ? (
-        <p className="text-sm text-red-600">
-          {(error as { info?: { error?: string } } | undefined)?.info?.error ?? "Météo indisponible pour le moment."}
-        </p>
-      ) : display ? (
+      ) : error && !res.data ? (
+        <p className="text-sm text-red-600">{error.info?.error ?? "Météo indisponible pour le moment."}</p>
+      ) : view ? (
         <div className={`transition-opacity duration-200 ${loading ? "opacity-60" : ""}`}>
-          <Result key={display.key} shown={display} />
+          <Result view={view} />
         </div>
       ) : (
         <div className="panel flex min-h-[200px] items-center justify-center gap-2 text-sm text-ink/40">
@@ -260,177 +227,175 @@ export default function HeatingToolPage() {
 
 // ─── Résultat ───────────────────────────────────────────────────────────────
 
-function Result({ shown }: { shown: Shown }) {
-  const { place, building, data } = shown;
-  const { today, weather, startNote, stopNote, zone } = data;
-  const holidays = data.holidays ?? [];
-  const { startDate, stopDate } = weather;
-  const t = HEATING_PROFILE_THRESHOLDS[building.profile];
+interface Line {
+  key: string;
+  label: string;
+  count: number;
+  profile: HeatingProfile;
+  date: string | null;
+  note: string | null;
+}
 
-  const evals = useMemo(() => evaluateDays(weather.days, today, t), [weather.days, today, t]);
+function Result({ view }: { view: View }) {
+  const { today, weather, groups, holidays, kind, withCounts } = view;
+
+  // Une ligne par famille présente ; les piscines, chauffées toute l'année, sont hors sujet.
+  const lines: Line[] = groups
+    .filter((g) => g.profile !== "HORS_SIGNAL")
+    .map((g) => ({
+      key: g.key,
+      label: g.label,
+      count: g.siteIds.length,
+      profile: g.profile,
+      date: kind === "start" ? g.startDate : g.stopDate,
+      note: kind === "start" ? g.startNote : g.stopNote,
+    }));
+  const dated = lines.filter((l): l is Line & { date: string } => !!l.date).sort((a, b) => a.date.localeCompare(b.date));
+  const first = dated[0]?.date ?? null;
+  const firstIn = first ? daysFrom(today, first) : null;
+  const spread = dated.length > 1 && dated[dated.length - 1].date !== first;
+  const isTrend = firstIn !== null && firstIn >= HEATING_RELIABLE_DAYS;
+
+  const [detail, setDetail] = useState(false);
+  const [family, setFamily] = useState<string | null>(null);
+  const shownFamily = lines.find((l) => l.key === family) ?? dated[0] ?? lines[0] ?? null;
+  const thresholds = HEATING_PROFILE_THRESHOLDS[(shownFamily?.profile ?? "STANDARD") as Exclude<HeatingProfile, "HORS_SIGNAL">];
+
+  const evals = useMemo(() => evaluateDays(weather?.days ?? [], today, thresholds), [weather?.days, today, thresholds]);
   const todayIndex = evals.findIndex((e) => !e.past);
-
-  // Sans état d'installation, on suit la saison : juillet → décembre on
-  // cherche la date d'allumage, janvier → juin la date d'arrêt (l'autre date
-  // reste visible dans les chiffres clés).
-  const autumn = Number(today.slice(5, 7)) >= 7;
-  const primary: "start" | "stop" = autumn ? "start" : "stop";
-  const nextDate = autumn ? startDate : stopDate;
-  const next = nextDate ? { kind: primary, date: nextDate } : null;
-  const nextIn = next ? daysFrom(today, next.date) : null;
-  const isTrend = nextIn !== null && nextIn >= HEATING_RELIABLE_DAYS;
-  const note = next ? (next.kind === "start" ? startNote : stopNote) : null;
-  const ruleDate = firstRuleDate(evals, primary);
-  const shifted = next && ruleDate && ruleDate !== next.date ? ruleDate : null;
-
-  const decisionIndex = next ? evals.findIndex((e) => e.day.date === next.date) : -1;
-  const [pinned, setPinned] = useState<number>(decisionIndex >= 0 ? decisionIndex : Math.max(0, todayIndex));
+  const [pinned, setPinned] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
-  const focus = evals.length ? Math.min(evals.length - 1, hover ?? pinned) : null;
+  const defaultPin = shownFamily?.date ? evals.findIndex((e) => e.day.date === shownFamily.date) : -1;
+  const focus = evals.length
+    ? Math.min(evals.length - 1, hover ?? pinned ?? (defaultPin >= 0 ? defaultPin : Math.max(0, todayIndex)))
+    : null;
 
-  if (evals.length === 0) {
-    return <div className="panel px-4 py-6 text-center text-sm text-ink/50">Pas de température disponible pour cette ville.</div>;
+  if (view.unavailable || !weather || evals.length === 0) {
+    return (
+      <div className="panel px-4 py-6 text-center text-sm text-ink/50">
+        {view.unavailable ?? "Pas de température disponible pour cet endroit."}
+      </div>
+    );
   }
 
-  const verb = primary === "start" ? "Allumer" : "Arrêter";
+  const verb = kind === "start" ? "Allumer" : "Arrêter";
   let headline: string;
-  if (!next) headline = `Pas ${primary === "start" ? "d'allumage" : "d'arrêt"} à prévoir`;
-  else if (nextIn! <= 0) headline = `${verb} aujourd'hui`;
-  else headline = `${verb} le ${fmtWeekdayShort(next.date)}. ${fmtDM(next.date)}`;
+  if (!first) headline = kind === "start" ? "Pas d'allumage à prévoir" : "Pas d'arrêt à prévoir";
+  else if (firstIn! <= 0) headline = kind === "start" ? "Il est temps d'allumer" : "Il est temps d'arrêter";
+  else headline = `${verb} ${spread ? "à partir du" : "le"} ${fmtHeatingDate(first)}`;
 
   let sub: string;
-  if (!next) {
+  if (!first) {
     sub =
-      primary === "start"
-        ? "Sur 15 jours, il ne fait pas assez froid assez longtemps pour allumer."
-        : "Sur 15 jours, il ne fait pas assez doux assez longtemps pour arrêter.";
-  } else if (nextIn! <= 0) {
-    sub = "Les deux conditions sont réunies dès aujourd'hui.";
-  } else if (isTrend) {
-    sub = `J−${nextIn}, date indicative : au-delà de 7 jours, la prévision n'est qu'une tendance.`;
-  } else {
-    sub = `J−${nextIn}, d'après la prévision.`;
-  }
-  const detail = [sub, shifted ? `La météo seule donnerait le ${fmtLongDate(shifted)}.` : null, note ? `${note}.` : null]
-    .filter(Boolean)
-    .join(" ");
+      kind === "start"
+        ? "Sur les 15 prochains jours, il ne fait pas assez froid assez longtemps."
+        : "Sur les 15 prochains jours, il ne fait pas assez doux assez longtemps.";
+  } else if (firstIn! <= 0) sub = "Les conditions sont réunies dès aujourd'hui.";
+  else if (isTrend) sub = `Dans ${firstIn} jours. Date indicative : au-delà de 7 jours, la prévision n'est qu'une tendance.`;
+  else sub = `Dans ${firstIn} jour${firstIn! > 1 ? "s" : ""}, d'après la météo des derniers jours et la prévision.`;
 
-  const fmtShort = (iso: string | null) => (!iso ? "–" : iso === today ? "Aujourd'hui" : fmtHeatingDate(iso));
-  const kpis = [
-    { label: "Allumage", value: fmtShort(startDate) },
-    { label: "Arrêt", value: fmtShort(stopDate) },
-    { label: "Moy. 5 derniers j", value: fmtDeg(weather.observedMean5d) },
-    { label: "Moy. 7 prochains j", value: fmtDeg(weather.forecastMean7d) },
-  ];
+  const fmtLine = (iso: string | null) => (!iso ? "pas sur 15 jours" : iso === today ? "aujourd'hui" : fmtHeatingDate(iso));
+  const decisions = dated.map((l) => ({ kind, date: l.date, label: l.label }));
 
   return (
     <div className="space-y-4">
-      <div className="grid items-stretch gap-4 lg:grid-cols-2">
-        {/* Décision */}
-        <div className="panel flex flex-col">
-          <div className="px-4 pb-3 pt-2.5">
-            <div className="label-tech truncate">
-              {placeLabel(place)} · {building.label}
-              {building.school && zone && <> · {zone}</>}
-            </div>
-            <div className={`mt-1.5 text-lg font-semibold ${next && !isTrend ? "text-accent" : "text-ink"}`}>{headline}</div>
-            <p className="mt-0.5 text-[12px] leading-snug text-ink/50">{detail}</p>
-          </div>
-          <div className="mt-auto grid grid-cols-2 divide-x divide-ink/10 border-t border-ink/10 sm:grid-cols-4">
-            {kpis.map((k) => (
-              <div key={k.label} className="px-4 py-2.5">
-                <div className="label-tech truncate">{k.label}</div>
-                <div className="mt-0.5 truncate font-mono text-sm font-semibold tabular-nums text-ink first-letter:uppercase">
-                  {k.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Décision */}
+      <div className={`panel border-l-2 ${first && !isTrend ? "border-l-accent" : "border-l-ink"} px-4 py-3`}>
+        <div className="label-tech">{view.where}</div>
+        <div className={`mt-1 text-lg font-semibold ${first && !isTrend ? "text-accent" : "text-ink"}`}>{headline}</div>
+        <p className="mt-0.5 text-[12px] text-ink/50">{sub}</p>
 
-        {/* Calcul du jour sélectionné */}
-        <HeatingCalcPanel e={focus !== null ? evals[focus] : null} days={evals} thresholds={t} primary={primary} todayIso={today} />
+        {lines.length > 0 && (
+          <ul className="mt-3 divide-y divide-ink/[0.06] border-t border-ink/10">
+            {lines.map((l) => (
+              <li key={l.key} className="flex items-baseline gap-3 py-1.5 text-sm">
+                <span className="text-ink">
+                  {l.label}
+                  {withCounts && <span className="ml-1.5 font-mono text-[11px] tabular-nums text-ink/40">×{l.count}</span>}
+                </span>
+                <span className="flex-1 translate-y-[-4px] border-b border-dotted border-ink/15" />
+                <span
+                  className={`font-mono tabular-nums ${
+                    l.date === first ? "font-semibold text-accent" : l.date ? "text-ink" : "text-ink/40"
+                  }`}
+                >
+                  {fmtLine(l.date)}
+                </span>
+                {l.note && <span className="text-[12px] text-ink/40">· {l.note}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
-      {/* Frise 22 jours + tableau aligné */}
+      {/* Météo : 7 jours passés + 15 jours prévus */}
       <div className="panel">
-        <div className="panel-header flex-wrap">
-          <span className="label-tech">7 jours passés · 15 jours de prévision</span>
-          <Legend t={t} holidays={holidays.length > 0} />
+        <div className="panel-header">
+          <span className="label-tech">Températures · 7 derniers jours et 15 prochains</span>
+          <span className="font-mono text-[11px] tabular-nums text-ink/50">
+            moy. 5 derniers j <span className="text-ink">{fmtDeg(weather.observedMean5d)}</span> · 7 prochains j{" "}
+            <span className="text-ink">{fmtDeg(weather.forecastMean7d)}</span>
+          </span>
         </div>
-        <div className="px-4 pb-3 pt-2">
+        <div className="px-2 pb-2">
           <HeatingTimeline
             evals={evals}
-            thresholds={t}
+            thresholds={thresholds}
             todayIndex={todayIndex}
-            primary={primary}
-            decision={next && decisionIndex >= 0 ? next : null}
+            primary={kind}
+            decisions={decisions}
             holidays={holidays}
             focus={focus}
-            pinned={pinned}
+            pinned={detail ? pinned : null}
             onHover={setHover}
-            onPick={(i) => {
-              setPinned(i);
-              setHover(null);
-            }}
+            onPick={(i) => setPinned((p) => (p === i ? null : i))}
+            detail={detail}
           />
-          <p className="mt-2 text-[11px] text-ink/40">Survol : calcul du jour. Clic ou flèches ← → : garder un jour.</p>
         </div>
+        <p className="border-t border-ink/10 px-4 py-2 text-[12px] text-ink/50">
+          Chaque jour : barre du minimum au maximum, trait à la moyenne. Les jours 8 à 15 sont une tendance, moins fiable.
+          Les vacances scolaires sont hachurées.
+        </p>
       </div>
 
-      <p className="text-[12px] leading-relaxed text-ink/50">
-        <span className="font-medium text-ink/70">{building.label}.</span> Allumage le premier jour où la moyenne des 5
-        jours d&apos;avant passe sous {t.start}° et où les 7 jours suivants restent sous {t.startForecastMax}° en moyenne.
-        Arrêt quand la moyenne des 5 jours d&apos;avant atteint {t.stop}° et qu&apos;aucun des 7 jours suivants ne descend
-        sous {t.stopForecastMin}° (en moyenne journalière).
-        {building.school && (
-          <> Une date qui tombe pendant les vacances scolaires est reportée à la veille de la rentrée (allumage) ou avancée au début des vacances (arrêt).</>
-        )}{" "}
-        Prévision Open-Meteo, mise à jour toutes les 6 h.
-      </p>
-    </div>
-  );
-}
-
-function Legend({ t, holidays }: { t: { start: number; stop: number }; holidays: boolean }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-ink/50">
-      <span className="flex items-center gap-1.5">
-        <svg width="12" height="12" aria-hidden>
-          <rect x="3" y="0" width="6" height="12" fill="#0F1E33" fillOpacity="0.15" />
-          <line x1="1" x2="11" y1="6" y2="6" stroke="#0F1E33" strokeWidth="1.5" />
-        </svg>
-        min–max · moyenne
-      </span>
-      <span className="flex items-center gap-1.5">
-        <svg width="18" height="2" aria-hidden>
-          <line x1="0" y1="1" x2="18" y2="1" stroke="#D97706" strokeDasharray="5 3" />
-        </svg>
-        allumage {t.start}°
-      </span>
-      <span className="flex items-center gap-1.5">
-        <svg width="18" height="2" aria-hidden>
-          <line x1="0" y1="1" x2="18" y2="1" stroke="#2563EB" strokeDasharray="5 3" />
-        </svg>
-        arrêt {t.stop}°
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="h-2.5 w-3.5 border border-dashed border-ink/30 bg-ink/[0.04]" />
-        fenêtres du calcul
-      </span>
-      {holidays && (
-        <span className="flex items-center gap-1.5">
-          <svg width="14" height="10" aria-hidden>
-            <defs>
-              <pattern id="legend-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                <line x1="0" y1="0" x2="0" y2="4" stroke="#0F1E33" strokeOpacity="0.3" />
-              </pattern>
-            </defs>
-            <rect width="14" height="10" fill="url(#legend-hatch)" />
-          </svg>
-          vacances
-        </span>
-      )}
+      {/* Comment c'est calculé : replié par défaut */}
+      <div className="panel">
+        <button type="button" onClick={() => setDetail((d) => !d)} className="flex w-full items-center justify-between px-4 py-2.5 text-left">
+          <span className="label-tech">Comment c&apos;est calculé ?</span>
+          {detail ? <ChevronUp size={14} className="text-ink/40" /> : <ChevronDown size={14} className="text-ink/40" />}
+        </button>
+        {detail && (
+          <div className="space-y-3 border-t border-ink/10 px-4 py-3">
+            <p className="text-[13px] leading-relaxed text-ink/70">
+              Pour chaque jour, on regarde la moyenne des <strong className="text-ink">5 jours précédents</strong> et celle des{" "}
+              <strong className="text-ink">7 jours suivants</strong>. On allume le premier jour où les deux passent sous les seuils de
+              la famille de bâtiments ({thresholds.start} °C et {thresholds.startForecastMax} °C pour{" "}
+              {shownFamily?.label.toLowerCase() ?? "cette famille"}) ; on arrête quand la moyenne des 5 jours atteint{" "}
+              {thresholds.stop} °C sans aucun jour prévu sous {thresholds.stopForecastMin} °C. Pour les écoles, une date tombant
+              pendant les vacances est reportée à la veille de la rentrée. Survolez un jour sur le graphique pour voir ses deux
+              fenêtres.
+            </p>
+            {lines.length > 1 && (
+              <div className="inline-flex flex-wrap border border-ink/20">
+                {lines.map((l, i) => (
+                  <button
+                    key={l.key}
+                    type="button"
+                    onClick={() => setFamily(l.key)}
+                    className={`${i > 0 ? "border-l border-ink/20" : ""} px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-colors ${
+                      l.key === shownFamily?.key ? "bg-ink text-paper" : "text-ink/50 hover:text-ink"
+                    }`}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <HeatingCalcPanel e={focus !== null ? evals[focus] : null} days={evals} thresholds={thresholds} primary={kind} todayIso={today} />
+            <p className="text-xs text-ink/40">Prévision Open-Meteo, mise à jour toutes les 6 h. Seuils d&apos;usage, sans norme derrière.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

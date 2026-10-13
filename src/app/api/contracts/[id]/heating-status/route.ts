@@ -3,6 +3,7 @@ import { getContractRecipients } from "@/lib/contract-recipients";
 import { computeHeatingSignal, dateToSeason, type HeatingWeather } from "@/lib/heating-season";
 import { contractCoordinates, fetchDailyTemps } from "@/lib/heating-weather";
 import { computeHeatingGroups, type HeatingGroup } from "@/lib/heating-groups";
+import type { HolidayPeriod } from "@/lib/school-holidays";
 import { authorizeContract, findOpenRequest, loadContractSitesHeating, todayParisIso } from "@/lib/heating-status";
 
 // GET /api/contracts/[id]/heating-status
@@ -27,15 +28,16 @@ export async function GET(
     // Météo : jamais bloquante, null si pas de coordonnées ou API en échec.
     let weather: HeatingWeather | null = null;
     let groups: HeatingGroup[] = [];
+    let holidays: HolidayPeriod[] = [];
     const coords = contractCoordinates(sites);
-    // Point représentatif, repris par l'outil /outils/chauffage.
+    // Ville affichée par l'outil /outils/chauffage.
     const ref = sites.find((s) => s.city) ?? sites[0];
-    const location = coords && ref ? { city: ref.city, postalCode: ref.postalCode, lat: coords.lat, lon: coords.lon } : null;
+    const location = coords && ref ? { city: ref.city, postalCode: ref.postalCode } : null;
     if (coords) {
       try {
         const daily = await fetchDailyTemps(coords.lat, coords.lon);
         weather = computeHeatingSignal(daily, todayIso);
-        groups = await computeHeatingGroups(sites, daily, todayIso);
+        ({ groups, holidays } = await computeHeatingGroups(sites, daily, todayIso));
       } catch (e) {
         console.warn("[heating-status] météo indisponible:", e instanceof Error ? e.message : e);
       }
@@ -77,6 +79,7 @@ export async function GET(
       weather,
       location,
       groups,
+      holidays,
       sites: sites.map((s) => ({
         id: s.id,
         name: s.name,

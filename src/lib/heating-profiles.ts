@@ -7,12 +7,14 @@ import { DEFAULT_THRESHOLDS, type HeatingThresholds } from "@/lib/heating-season
 
 export type HeatingProfile = "SENSIBLE" | "STANDARD" | "SPORTIF" | "HORS_SIGNAL";
 
+// Libellés lus par les clients (non techniciens) : des bâtiments, pas des profils.
 export const HEATING_PROFILE_LABELS: Record<HeatingProfile, string> = {
-  SENSIBLE: "Petite enfance et santé",
-  STANDARD: "Enseignement et administratif",
-  SPORTIF: "Sport",
-  HORS_SIGNAL: "Chauffé toute l'année",
+  SENSIBLE: "Crèches, EHPAD, hôpitaux",
+  STANDARD: "Mairies, médiathèques, autres bâtiments",
+  SPORTIF: "Gymnases",
+  HORS_SIGNAL: "Piscines (chauffées toute l'année)",
 };
+export const HEATING_SCHOOL_LABEL = "Écoles, collèges, lycées";
 
 export const HEATING_PROFILE_THRESHOLDS: Record<Exclude<HeatingProfile, "HORS_SIGNAL">, HeatingThresholds> = {
   // Publics fragiles (crèche, hôpital, EHPAD) : on allume deux degrés plus tôt,
