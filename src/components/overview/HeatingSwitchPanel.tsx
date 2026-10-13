@@ -38,7 +38,10 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
 
   if (!data || data.counts.total === 0) return null;
 
-  const { counts, weather, groups, location, pendingRequest, season, sites } = data;
+  // `?? []` : le cache SWR persiste en localStorage, une réponse d'avant ce
+  // champ peut être resservie au premier rendu.
+  const { counts, weather, location, pendingRequest, season, sites } = data;
+  const groups = data.groups ?? [];
   const toolHref = location
     ? `/outils/chauffage?city=${encodeURIComponent(location.city)}&postcode=${location.postalCode ?? ""}&lat=${location.lat}&lon=${location.lon}`
     : "/outils/chauffage";
@@ -195,7 +198,7 @@ export default function HeatingSwitchPanel({ contractId }: Props) {
     }
   }
 
-  const forecast = weather ? weather.days.filter((d) => d.isForecast) : [];
+  const forecast = weather?.days ? weather.days.filter((d) => d.isForecast) : [];
 
   return (
     <>

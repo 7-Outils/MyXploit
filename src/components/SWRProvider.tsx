@@ -4,10 +4,12 @@ import { useEffect } from "react";
 import { SWRConfig } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 
-// v2 : le payload de /api/equipments/synthesis a changé de forme (29/08) —
-// bump de la clé pour jeter les caches périmés, sinon crash au premier rendu.
-const CACHE_KEY = "swr-cache-v2";
-const STALE_CACHE_KEYS = ["swr-cache"];
+// Le cache survit aux reloads : quand un payload /api change de forme, bumper
+// la clé pour jeter les caches périmés, sinon crash au premier rendu.
+//   v2 : /api/equipments/synthesis (29/08)
+//   v3 : /api/contracts/[id]/heating-status, champs groups/location (13/10)
+const CACHE_KEY = "swr-cache-v3";
+const STALE_CACHE_KEYS = ["swr-cache", "swr-cache-v2"];
 
 // Au-delà de ~200 Ko, une entrée coûte plus cher à sérialiser (thread principal)
 // et à stocker (quota localStorage) qu'à refetcher. On la saute en silence.
