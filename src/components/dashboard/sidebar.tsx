@@ -17,7 +17,7 @@ import {
   FolderKanban,
   ClipboardList,
   Thermometer,
-  Flame,
+  CloudSun,
   X,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
@@ -226,7 +226,7 @@ export function Sidebar() {
         <div className="flex flex-wrap gap-0.5">
           {[
             { href: "/outils/dju", title: "Calculateur DJU", Icon: Thermometer },
-            { href: "/outils/chauffage", title: "Allumage du chauffage", Icon: Flame },
+            { href: "/outils/chauffage", title: "Prévision météo", Icon: CloudSun },
           ].map(({ href, title, Icon }) => (
             <Link
               key={href}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { ChevronDown, ChevronUp, Flame, Loader2, MapPin, Search, X } from "lucide-react";
+import { ChevronDown, ChevronUp, CloudSun, Loader2, MapPin, Search, X } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
 import { daysFrom, fmtHeatingDate } from "@/components/heating/HeatingForecast";
@@ -123,8 +123,8 @@ export default function HeatingToolPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <div className="flex items-center gap-2.5">
-        <Flame size={18} className="text-accent" />
-        <h1 className="text-xl font-semibold text-ink">Allumage du chauffage</h1>
+        <CloudSun size={18} className="text-accent" />
+        <h1 className="text-xl font-semibold text-ink">Prévision météo</h1>
       </div>
 
       {/* Où : le contrat sélectionné en haut de page, ou une ville tapée ici */}
