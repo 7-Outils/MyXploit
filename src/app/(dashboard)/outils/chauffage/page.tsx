@@ -316,10 +316,51 @@ function Result({ view }: { view: View }) {
             detail={detail}
           />
         </div>
-        <p className="border-t border-ink/10 px-4 py-2 text-[12px] text-ink/50">
-          Barre : du minimum au maximum de la journée, trait : moyenne.
-          {holidays.length > 0 && " Hachures : vacances scolaires."}
-        </p>
+        {/* Légende dessinée : les mêmes symboles que sur le graphique */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-ink/10 px-4 py-2 text-[12px] text-ink/50">
+          <span className="inline-flex items-center gap-2">
+            <svg width="14" height="22" aria-hidden="true">
+              <rect x="4" y="2" width="6" height="18" fill="#0F1E33" fillOpacity="0.15" />
+            </svg>
+            Min → max de la journée
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <svg width="14" height="22" aria-hidden="true">
+              <rect x="4" y="2" width="6" height="18" fill="#0F1E33" fillOpacity="0.15" />
+              <line x1="1" x2="13" y1="11" y2="11" stroke="#0F1E33" strokeWidth="1.5" />
+            </svg>
+            Moyenne
+          </span>
+          {date && (
+            <span className="inline-flex items-center gap-2">
+              <svg width="14" height="22" aria-hidden="true">
+                <rect x="0" y="0" width="14" height="22" fill="#2563EB" fillOpacity="0.08" />
+                <line x1="7" x2="7" y1="0" y2="22" stroke="#2563EB" strokeOpacity="0.6" strokeDasharray="2 3" />
+              </svg>
+              {kind === "start" ? "Jour d'allumage" : "Jour d'arrêt"}
+            </span>
+          )}
+          {holidays.length > 0 && (
+            <span className="inline-flex items-center gap-2">
+              <svg width="14" height="22" aria-hidden="true">
+                <defs>
+                  <pattern id="legend-hatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                    <line x1="0" y1="0" x2="0" y2="4" stroke="#0F1E33" strokeOpacity="0.35" />
+                  </pattern>
+                </defs>
+                <rect x="0" y="0" width="14" height="22" fill="url(#legend-hatch)" />
+              </svg>
+              Vacances scolaires
+            </span>
+          )}
+          <span className="inline-flex items-center gap-2">
+            <svg width="14" height="22" aria-hidden="true">
+              <rect x="4" y="2" width="6" height="18" fill="#0F1E33" fillOpacity="0.08" />
+              <line x1="1" x2="13" y1="11" y2="11" stroke="#0F1E33" strokeOpacity="0.5" strokeWidth="1.5" />
+            </svg>
+            Au-delà de 7 jours : tendance, moins fiable
+          </span>
+        </div>
       </div>
 
       {/* Comment c'est calculé : replié par défaut */}
