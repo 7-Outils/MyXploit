@@ -317,8 +317,8 @@ function Result({ view }: { view: View }) {
           />
         </div>
         <p className="border-t border-ink/10 px-4 py-2 text-[12px] text-ink/50">
-          Chaque jour : barre du minimum au maximum, trait à la moyenne. Les jours 8 à 15 sont une tendance, moins fiable.
-          {holidays.length > 0 && " Les vacances scolaires sont hachurées."}
+          Barre : du minimum au maximum de la journée, trait : moyenne.
+          {holidays.length > 0 && " Hachures : vacances scolaires."}
         </p>
       </div>
 
@@ -334,13 +334,9 @@ function Result({ view }: { view: View }) {
               Pour chaque jour, on regarde la moyenne des <strong className="text-ink">5 jours précédents</strong> et celle des{" "}
               <strong className="text-ink">7 jours suivants</strong>. On allume le premier jour où la première passe sous {t.start} °C
               et la seconde sous {t.startForecastMax} °C. On arrête quand la moyenne des 5 jours atteint {t.stop} °C sans aucun jour
-              prévu sous {t.stopForecastMin} °C. Survolez un jour sur le graphique pour voir ses deux fenêtres.
+              prévu sous {t.stopForecastMin} °C.
             </p>
             <HeatingCalcPanel e={focus !== null ? evals[focus] : null} days={evals} thresholds={t} primary={kind} todayIso={today} />
-            <p className="text-xs text-ink/40">
-              Prévision Open-Meteo, mise à jour toutes les 6 h. Vacances : calendrier officiel de l&apos;Éducation nationale. Seuils
-              d&apos;usage, sans norme derrière.
-            </p>
           </div>
         )}
       </div>
