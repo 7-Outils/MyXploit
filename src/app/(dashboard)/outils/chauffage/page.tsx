@@ -36,6 +36,9 @@ interface View {
 
 const placeLabel = (p: GeocodePlace) => [p.name, p.postcode ?? p.department].filter(Boolean).join(" · ");
 
+/** Comparaison sans accents ni casse : « Ville d'Ezanville » contient « Ezanville ». */
+const fold = (v: string) => v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
 const seasonKind = (today: string): "start" | "stop" => (Number(today.slice(5, 7)) >= 7 ? "start" : "stop");
 
 export default function HeatingToolPage() {
@@ -100,7 +103,7 @@ export default function HeatingToolPage() {
       today: d.today,
       weather: d.weather,
       holidays: d.holidays ?? [],
-      where: d.location ? `${name} · ${d.location.city}` : name,
+      where: d.location && !fold(name).includes(fold(d.location.city)) ? `${name} · ${d.location.city}` : name,
       kind,
       sites: kind === "start" ? c.arrete : c.enChauffe,
       unavailable:
