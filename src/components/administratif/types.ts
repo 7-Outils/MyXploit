@@ -96,7 +96,6 @@ export interface Contract {
   yearType: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   yearStartMonth: number;
   yearStartDay: number;
-  billingFrequency: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
   djuContractuel: number | null;
   contractSites: ContractSite[];
   avenants: Avenant[];
@@ -104,4 +103,3 @@ export interface Contract {
 }
 
 export type YearType = "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
-export type BillingFrequency = "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";

@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
         status: body.status || (body.startDate && body.endDate ? "ACTIF" : "EN_ATTENTE"),
         organizationId: effectiveOrgId,
         yearType: body.yearType || "HEATING_SEASON",
-        billingFrequency: body.billingFrequency || "TRIMESTRIEL",
         isPublic: body.isPublic === true,
         clientId: body.clientId || null,
       },

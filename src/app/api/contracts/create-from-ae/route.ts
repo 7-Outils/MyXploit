@@ -113,7 +113,6 @@ interface ContractMetadata {
   startDate?: string;
   endDate?: string;
   yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
-  billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
   stationMeteo?: string;
   djuContractuel?: number;
 }
@@ -205,17 +204,6 @@ function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata |
       } else if (lowerValue.includes("contractuel")) {
         metadata.yearType = "CONTRACTUAL";
       }
-    } else if (key.includes("facturation") || key.includes("billing") || key.includes("fréquence")) {
-      const lowerValue = value.toLowerCase();
-      if (lowerValue.includes("mensuel")) {
-        metadata.billingFrequency = "MENSUEL";
-      } else if (lowerValue.includes("trimestriel")) {
-        metadata.billingFrequency = "TRIMESTRIEL";
-      } else if (lowerValue.includes("semestriel")) {
-        metadata.billingFrequency = "SEMESTRIEL";
-      } else if (lowerValue.includes("annuel")) {
-        metadata.billingFrequency = "ANNUEL";
-      }
     } else if (key.includes("station") || key.includes("météo") || key.includes("meteo")) {
       metadata.stationMeteo = value;
     } else if (key.includes("dju")) {
@@ -231,7 +219,7 @@ function parseContractMetadataSheet(workbook: XLSX.WorkBook): ContractMetadata |
   // Only return if we found at least one field
   const hasAnyField = metadata.reference || metadata.title || metadata.provider ||
                       metadata.startDate || metadata.endDate || metadata.yearType ||
-                      metadata.billingFrequency || metadata.stationMeteo || metadata.djuContractuel;
+                      metadata.stationMeteo || metadata.djuContractuel;
 
   return hasAnyField ? metadata : null;
 }
@@ -423,7 +411,6 @@ export async function POST(request: NextRequest) {
     const startDate = formData.get("startDate") as string;
     const endDate = formData.get("endDate") as string;
     const yearType = (formData.get("yearType") as string) || "HEATING_SEASON";
-    const billingFrequency = (formData.get("billingFrequency") as string) || "TRIMESTRIEL";
     const clientId = (formData.get("clientId") as string) || null;
 
     if (!file) {
@@ -817,7 +804,6 @@ export async function POST(request: NextRequest) {
           startDate: new Date(startDate),
           endDate: new Date(endDate),
           yearType: yearType as "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL",
-          billingFrequency: billingFrequency as "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL",
           yearStartMonth: yearType === "HEATING_SEASON" ? 7 : 1,
           yearStartDay: 1,
           status: "ACTIF",

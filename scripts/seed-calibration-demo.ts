@@ -182,7 +182,6 @@ async function main() {
         yearType: "HEATING_SEASON",
         yearStartMonth: 7,
         yearStartDay: 1,
-        billingFrequency: "TRIMESTRIEL",
         djuContractuel: DJC,
       },
     });

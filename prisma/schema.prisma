@@ -1435,11 +1435,45 @@ enum ContractYearType {
 }
 
 // Fréquence de facturation
-enum BillingFrequency {
-  MENSUEL // 12 échéances par an
-  TRIMESTRIEL // 4 échéances par an (défaut)
-  SEMESTRIEL // 2 échéances par an
-  ANNUEL // 1 échéance par an
+// ─── Échéancier de facturation (une ligne par flux attendu) ───────────────
+enum BillingPoste {
+  P1
+  P2
+  P3
+  INTERESSEMENT
+  AUTRE
+}
+
+enum BillingNature {
+  ACOMPTE_FORFAIT // acompte forfaitaire (P2, P3, P1 forfait MT/MF)
+  REEL // facturation au réel (P1 CP/MC : consommation)
+  DECOMPTE // régularisation de fin de période (décompte P1, intéressement)
+}
+
+enum BillingRhythm {
+  MENSUEL
+  TRIMESTRIEL
+  SEMESTRIEL
+  ANNUEL
+}
+
+model ContractBillingLine {
+  id            String        @id @default(cuid())
+  contractId    String
+  poste         BillingPoste
+  nature        BillingNature
+  rhythm        BillingRhythm
+  expectedMonth Int? // 1-12 : mois attendu de la facture pour une ligne ANNUEL (ex. 9 = décompte en septembre)
+  toleranceDays Int           @default(30) // délai après la fin de période avant « en retard »
+  label         String? // libellé libre, optionnel
+  sortOrder     Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("contract_billing_lines")
 }
 
 model Contract {
@@ -1457,8 +1491,6 @@ model Contract {
   yearStartDay     Int              @default(1) // Jour de début (1-31)
   // DJU contractuels (paramètre global du contrat, importé depuis l'AE)
   djuContractuel   Float?
-  // Fréquence de facturation
-  billingFrequency BillingFrequency @default(TRIMESTRIEL)
   // Secteur : public (collectivité) ou privé. En public, P4 (financement) est interdit.
   // Défaut false (privé) pour ne pas modifier les contrats existants ; le formulaire de création pré-sélectionne Public.
   isPublic         Boolean          @default(false)
@@ -1485,6 +1517,7 @@ model Contract {
   aiUsages         AiUsage[]
   siteAliases      ContractSiteAlias[] // Libellés de facturation → sites
   heatingRequests  HeatingSwitchRequest[]
+  billingLines     ContractBillingLine[] // Échéancier de facturation attendu
 
   @@index([organizationId])
   @@index([clientId])

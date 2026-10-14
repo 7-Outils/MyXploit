@@ -108,7 +108,6 @@ export async function POST(_req: NextRequest) {
           yearType: "HEATING_SEASON",
           yearStartMonth: 7,
           yearStartDay: 1,
-          billingFrequency: "TRIMESTRIEL",
           djuContractuel: DJC,
         },
       });
