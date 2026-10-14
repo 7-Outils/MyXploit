@@ -39,7 +39,7 @@ type NavItem = {
 const adminNavigation: NavItem[] = [
   { name: "Vue d'ensemble", href: "/overview", icon: LayoutDashboard },
   { name: "Missions", href: "/missions", icon: FolderKanban, adminOnly: true },
-  { name: "Clients", href: "/clients", icon: Building2, adminOnly: true },
+  { name: "Clients", href: "/clients", icon: Building2 },
   { name: "Rapports", href: "/rapports", icon: ClipboardList, adminOnly: true },
   { name: "Sites", href: "/buildings", icon: MapPin },
   { name: "Contrats exploitation", href: "/contrat", icon: FileText, module: "ADMINISTRATIF" },
@@ -48,6 +48,7 @@ const adminNavigation: NavItem[] = [
 // Navigation par defaut (Ingenieur, Lecteur)
 const defaultNavigation: NavItem[] = [
   { name: "Tableau de bord", href: "/overview", icon: LayoutDashboard },
+  { name: "Clients", href: "/clients", icon: Building2 },
   { name: "Contrat", href: "/contrat", icon: FileText, module: "ADMINISTRATIF" },
   { name: "Énergie", href: "/energy", icon: BarChart3, module: "ENERGY" },
   { name: "Finances", href: "/financier", icon: Euro, module: "FINANCIER" },

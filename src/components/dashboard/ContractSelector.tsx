@@ -1,212 +1,120 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  ChevronDown,
-  ChevronRight,
-  Check,
-  Plus,
-  Building2,
-  ArrowRight,
-  Search,
-  Loader2,
-} from "lucide-react";
+import { ChevronDown, Check, FileText, Search } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
 import { cn } from "@/lib/utils";
+
+type Contract = ReturnType<typeof useContract>["contracts"][number];
 
 interface ClientGroup {
   id: string;
   name: string;
-  city?: string | null;
-  contracts: Array<ReturnType<typeof useContract>["contracts"][number]>;
+  contracts: Contract[];
 }
 
-interface ClientSummary {
-  id: string;
-  name: string;
-  city?: string | null;
-}
-
+/**
+ * Sélecteur de contexte : uniquement des contrats, rangés sous le nom
+ * de leur client (simple en-tête). La gestion des clients se fait sur
+ * la page Clients.
+ */
 export function ContractSelector() {
-  const router = useRouter();
-  const { contracts, selectedContract, isLoading, selectContract } =
-    useContract();
+  const { contracts, selectedContract, isLoading, selectContract } = useContract();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [clients, setClients] = useState<ClientSummary[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  // Création inline d'un client (un seul champ : le nom)
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const newNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Charge tous les clients pour afficher aussi ceux sans contrat rattaché
-  useEffect(() => {
-    fetch("/api/clients")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: ClientSummary[]) => setClients(data))
-      .catch(() => setClients([]));
-  }, []);
-
-  // À l'ouverture : recherche vide, focus dessus, client courant déplié
   useEffect(() => {
     if (open) {
       setQuery("");
-      setCreating(false);
-      setCreateError(null);
-      setExpandedId(selectedContract?.client?.id ?? null);
-      // Le focus doit attendre le rendu du panneau
       setTimeout(() => searchRef.current?.focus(), 0);
     }
-  }, [open, selectedContract]);
+  }, [open]);
 
-  // Un groupe par client (même à 0 contrat), + "Sans client" pour les orphelins
+  // Un groupe par client ayant au moins un contrat, "Sans client" en dernier
   const groups = useMemo(() => {
-    const list: ClientGroup[] = [];
     const idx = new Map<string, ClientGroup>();
-
-    for (const cl of clients) {
-      const g: ClientGroup = { id: cl.id, name: cl.name, city: cl.city, contracts: [] };
-      idx.set(cl.id, g);
-      list.push(g);
-    }
     for (const c of contracts) {
       const key = c.client?.id || "__none__";
       let g = idx.get(key);
       if (!g) {
-        g = {
-          id: key,
-          name: c.client?.name || "Sans client",
-          city: c.client?.city,
-          contracts: [],
-        };
+        g = { id: key, name: c.client?.name || "Sans client", contracts: [] };
         idx.set(key, g);
-        list.push(g);
       }
       g.contracts.push(c);
     }
+    const list = Array.from(idx.values());
     list.sort((a, b) => {
       if (a.id === "__none__") return 1;
       if (b.id === "__none__") return -1;
       return a.name.localeCompare(b.name, "fr");
     });
+    for (const g of list) {
+      g.contracts.sort((a, b) => (a.reference || a.title || "").localeCompare(b.reference || b.title || "", "fr"));
+    }
     return list;
-  }, [clients, contracts]);
+  }, [contracts]);
 
-  // Filtre de recherche : nom du client, ou référence/titre/exploitant d'un contrat
+  // Filtre : nom du client, référence, titre ou exploitant
   const filteredGroups = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return groups;
-    return groups.filter(
-      (g) =>
-        g.name.toLowerCase().includes(q) ||
-        g.contracts.some((c) =>
-          [c.reference, c.title, c.provider]
-            .filter(Boolean)
-            .some((s) => s!.toLowerCase().includes(q))
-        )
-    );
+    return groups
+      .map((g) => {
+        if (g.name.toLowerCase().includes(q)) return g;
+        const kept = g.contracts.filter((c) =>
+          [c.reference, c.title, c.provider].filter(Boolean).some((s) => s!.toLowerCase().includes(q))
+        );
+        return kept.length ? { ...g, contracts: kept } : null;
+      })
+      .filter((g): g is ClientGroup => g !== null);
   }, [groups, query]);
 
   if (isLoading) {
     return <div className="h-9 w-64 bg-ink/5 animate-pulse" />;
   }
 
-  const currentClient = selectedContract?.client ?? null;
-
-  const pickContract = (contract: ClientGroup["contracts"][number]) => {
+  const pick = (contract: Contract) => {
     selectContract(contract);
     setOpen(false);
   };
 
-  const startCreate = () => {
-    // On reprend la recherche en cours comme nom proposé
-    setNewName(query.trim());
-    setCreateError(null);
-    setCreating(true);
-    setTimeout(() => newNameRef.current?.focus(), 0);
-  };
-
-  const submitCreate = async () => {
-    const name = newName.trim();
-    if (!name || saving) return;
-    setSaving(true);
-    setCreateError(null);
-    try {
-      const res = await fetch("/api/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erreur");
-      setClients((prev) => [...prev, { id: data.id, name: data.name, city: data.city }]);
-      setOpen(false);
-      // La fiche client est le hub pour y rattacher des contrats
-      router.push(`/clients/${data.id}`);
-    } catch (err) {
-      setCreateError(err instanceof Error ? err.message : "Erreur inconnue");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleClientClick = (g: ClientGroup) => {
-    if (g.contracts.length === 1) {
-      // Un seul contrat : le choisir directement, pas d'étape inutile
-      pickContract(g.contracts[0]);
-    } else if (g.contracts.length > 1) {
-      setExpandedId(expandedId === g.id ? null : g.id);
-    } else if (g.id !== "__none__") {
-      // Aucun contrat : la fiche client est l'endroit où en créer un
-      setOpen(false);
-      router.push(`/clients/${g.id}`);
-    }
-  };
+  const label = selectedContract
+    ? [selectedContract.client?.name, selectedContract.reference || selectedContract.title]
+        .filter(Boolean)
+        .join(" · ")
+    : "Sélectionner un contrat";
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border max-w-[420px]",
+          "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border max-w-[460px]",
           open
             ? "border-accent bg-accent/5 text-accent"
             : "border-ink/20 text-ink hover:border-accent hover:text-accent"
         )}
       >
-        <Building2 size={15} className="text-ink/40 flex-shrink-0" />
-        <span className="font-medium truncate">
-          {currentClient?.name || "Sélectionner un client"}
-        </span>
+        <FileText size={15} className="text-ink/40 flex-shrink-0" />
+        <span className="font-medium truncate">{label}</span>
         <ChevronDown
           size={14}
-          className={cn(
-            "text-ink/40 transition-transform ml-auto flex-shrink-0",
-            open && "rotate-180"
-          )}
+          className={cn("text-ink/40 transition-transform ml-auto flex-shrink-0", open && "rotate-180")}
         />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-[380px] bg-white shadow-large border border-ink/15 z-50">
-          {/* Recherche */}
+        <div className="absolute left-0 top-full mt-1 w-[400px] bg-white shadow-large border border-ink/15 z-50">
           <div className="flex items-center gap-2 border-b border-ink/10 px-3 py-2">
             <Search size={14} className="text-ink/30 flex-shrink-0" />
             <input
@@ -214,186 +122,53 @@ export function ContractSelector() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un client, un contrat..."
+              placeholder="Rechercher un contrat, un client, un exploitant..."
               className="w-full bg-transparent text-sm text-ink placeholder:text-ink/30 focus:outline-none"
             />
           </div>
 
-          {/* Lien fiche patrimoine pour le client courant */}
-          {currentClient && !query && (
-            <Link
-              href={`/clients/${currentClient.id}`}
-              onClick={() => setOpen(false)}
-              className="mx-2 mt-2 flex items-center justify-between gap-2 border-l-2 border-accent bg-accent/5 px-3 py-2 hover:bg-accent/10 text-accent text-sm font-medium transition-colors"
-            >
-              <span className="flex items-center gap-2 truncate">
-                <Building2 size={14} className="flex-shrink-0" />
-                Patrimoine de {currentClient.name}
-              </span>
-              <ArrowRight size={14} className="flex-shrink-0" />
-            </Link>
-          )}
-
-          {/* Clients */}
-          <div className="max-h-80 overflow-y-auto py-1.5">
+          <div className="max-h-96 overflow-y-auto py-1">
             {filteredGroups.length === 0 && (
               <div className="px-3 py-6 text-center text-sm text-ink/40">
-                {groups.length === 0
-                  ? "Aucun client. Commence par en créer un."
-                  : "Aucun résultat"}
+                {groups.length === 0 ? "Aucun contrat. Créez-en un depuis la fiche d'un client." : "Aucun résultat"}
               </div>
             )}
-            {filteredGroups.map((g) => {
-              const isCurrent = currentClient?.id === g.id ||
-                (g.id === "__none__" && selectedContract && !selectedContract.client);
-              const multi = g.contracts.length > 1;
-              const expanded = multi && (expandedId === g.id || !!query.trim());
-              return (
-                <div key={g.id}>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleClientClick(g)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleClientClick(g); }}
-                    className={cn(
-                      "group/r mx-1.5 flex cursor-pointer items-center gap-2 px-2 py-2 transition-colors hover:bg-ink/[0.03]",
-                      isCurrent && !multi && "bg-accent/5"
-                    )}
-                  >
-                    {multi ? (
-                      <ChevronRight
-                        size={13}
-                        className={cn(
-                          "flex-shrink-0 text-ink/30 transition-transform",
-                          expanded && "rotate-90"
-                        )}
-                      />
-                    ) : (
-                      <span className="w-[13px] flex-shrink-0" />
-                    )}
-                    <span
+            {filteredGroups.map((g) => (
+              <div key={g.id} className="py-1">
+                <div
+                  className={cn(
+                    "label-tech px-3 pt-1.5 pb-1 truncate",
+                    g.id === "__none__" ? "text-ink/30" : "text-ink/50"
+                  )}
+                >
+                  {g.name}
+                </div>
+                {g.contracts.map((contract) => {
+                  const isSelected = selectedContract?.id === contract.id;
+                  return (
+                    <button
+                      key={contract.id}
+                      onClick={() => pick(contract)}
                       className={cn(
-                        "flex-1 truncate text-sm font-medium",
-                        g.id === "__none__" ? "text-ink/40" : "text-ink",
-                        isCurrent && !multi && "text-accent"
+                        "flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-ink/[0.03]",
+                        isSelected && "bg-accent/5"
                       )}
                     >
-                      {g.name}
-                    </span>
-                    {multi && (
-                      <span className="font-mono text-[10px] tabular-nums text-ink/40 flex-shrink-0">
-                        {g.contracts.length} contrats
+                      <span className={cn("min-w-0 flex-1 truncate text-[13px]", isSelected ? "text-accent" : "text-ink/80")}>
+                        {contract.reference && (
+                          <span className={cn("font-mono font-medium", isSelected ? "text-accent" : "text-ink")}>
+                            {contract.reference}
+                            {" · "}
+                          </span>
+                        )}
+                        {contract.provider || contract.title}
                       </span>
-                    )}
-                    {g.contracts.length === 0 && (
-                      <span className="text-[10px] text-ink/30 flex-shrink-0">
-                        aucun contrat
-                      </span>
-                    )}
-                    {isCurrent && !multi && (
-                      <Check size={13} className="text-accent flex-shrink-0" />
-                    )}
-                    {g.id !== "__none__" && (
-                      <Link
-                        href={`/clients/${g.id}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpen(false);
-                        }}
-                        title="Fiche client"
-                        className="flex h-6 w-6 flex-shrink-0 items-center justify-center text-ink/0 transition-colors group-hover/r:text-ink/30 hover:!text-accent"
-                      >
-                        <ArrowRight size={13} />
-                      </Link>
-                    )}
-                  </div>
-
-                  {/* Contrats du client, seulement si plusieurs */}
-                  {expanded && (
-                    <div className="ml-[26px] mr-2 mb-1 border-l border-ink/10 pl-2">
-                      {g.contracts.map((contract) => {
-                        const isSelected = selectedContract?.id === contract.id;
-                        return (
-                          <button
-                            key={contract.id}
-                            onClick={() => pickContract(contract)}
-                            className={cn(
-                              "flex w-full items-center gap-2 px-2 py-1.5 text-left transition-colors hover:bg-ink/[0.02]",
-                              isSelected && "bg-accent/5 text-accent"
-                            )}
-                          >
-                            <span className="min-w-0 flex-1 truncate text-[13px] text-ink/70">
-                              {contract.reference && (
-                                <span className="font-mono font-medium text-ink">
-                                  {contract.reference} ·{" "}
-                                </span>
-                              )}
-                              {contract.provider}
-                            </span>
-                            {isSelected && (
-                              <Check size={13} className="flex-shrink-0 text-accent" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Création inline : un seul champ, puis la fiche client (hub des contrats) */}
-          <div className="border-t border-ink/10 p-1.5">
-            {creating ? (
-              <div className="px-1 py-0.5">
-                <div className="flex items-center gap-2 border border-accent px-2 py-1.5">
-                  <Plus size={14} className="flex-shrink-0 text-accent" />
-                  <input
-                    ref={newNameRef}
-                    type="text"
-                    value={newName}
-                    disabled={saving}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        submitCreate();
-                      } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        setCreating(false);
-                      }
-                    }}
-                    placeholder="Nom du client, puis Entrée"
-                    className="w-full bg-transparent text-[13px] text-ink placeholder:text-ink/30 focus:outline-none"
-                  />
-                  {saving ? (
-                    <Loader2 size={14} className="flex-shrink-0 animate-spin text-accent" />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={submitCreate}
-                      disabled={!newName.trim()}
-                      title="Créer le client"
-                      className="flex-shrink-0 text-accent disabled:opacity-30"
-                    >
-                      <ArrowRight size={14} />
+                      {isSelected && <Check size={13} className="flex-shrink-0 text-accent" />}
                     </button>
-                  )}
-                </div>
-                {createError && (
-                  <p className="mt-1 px-2 text-[12px] text-red-700">{createError}</p>
-                )}
+                  );
+                })}
               </div>
-            ) : (
-              <button
-                onClick={startCreate}
-                className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
-              >
-                <Plus size={14} />
-                Nouveau client
-              </button>
-            )}
+            ))}
           </div>
         </div>
       )}
