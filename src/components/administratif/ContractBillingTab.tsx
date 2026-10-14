@@ -152,7 +152,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   }, [lines, suggestions]);
 
   return (
-    <div className="max-w-5xl space-y-4">
+    <div className="space-y-4">
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">
@@ -241,16 +241,16 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
   // Le poste n'est rappelé que s'il n'ouvre pas déjà le libellé (« P2 acomptes » suffit)
   const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
-    <div className="group grid items-center gap-x-6 gap-y-2 px-5 py-3 transition-colors hover:bg-ink/[0.015] md:grid-cols-[14rem_5.5rem_auto_minmax(8rem,1fr)_4.5rem]">
+    <div className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors hover:bg-ink/[0.015] lg:grid-cols-[minmax(9rem,15rem)_5rem_minmax(0,1fr)_auto_4.5rem] lg:gap-x-6">
       <div className="flex min-w-0 items-baseline gap-2.5">
         <span className="truncate text-sm font-medium text-ink">{lineName(line)}</span>
         {showPoste && <span className="font-mono text-[11px] tracking-wider text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
       </div>
-      <span className="whitespace-nowrap font-mono text-sm tabular-nums text-ink">
+      <span className="whitespace-nowrap font-mono text-sm tabular-nums text-ink lg:order-none">
         {line.countPerYear} <span className="text-xs text-ink/40">par an</span>
       </span>
-      {/* Frise de l'année contractuelle : un trait d'accent par période (deux intensités alternées), filet fin entre périodes */}
-      <div className="flex" title={periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
+      {/* Frise de l'année contractuelle, pleine largeur : un bloc teinté par période */}
+      <div className="col-span-2 flex w-full lg:col-span-1" title={periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
         {order.map((m, idx) => {
           const pi = periodIndex.get(m);
           const isStart = pi !== undefined && periods[pi][0] === m;
@@ -258,7 +258,7 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
             <span
               key={m}
               className={cn(
-                "flex h-7 w-7 items-center justify-center font-mono text-[10px] font-medium",
+                "flex h-7 min-w-0 flex-1 items-center justify-center font-mono text-[10px] font-medium",
                 pi === undefined
                   ? "bg-transparent text-ink/20"
                   : pi % 2 === 0
@@ -272,7 +272,7 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
           );
         })}
       </div>
-      <span className="whitespace-nowrap font-mono text-xs tabular-nums text-ink/60 md:text-right" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
+      <span className="whitespace-nowrap font-mono text-xs tabular-nums text-ink/60 lg:text-right" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
         {hasPct ? (
           <>
             {line.percents.join(" · ")} <span className="text-ink/35">%</span>
