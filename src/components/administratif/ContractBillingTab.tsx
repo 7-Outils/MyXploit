@@ -128,8 +128,8 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
         label,
         poste: draft.poste || null,
         countPerYear: draft.count,
-        // Découpage égal par défaut = on n'enregistre rien ; sinon les périodes saisies
-        periods: draft.periods.join(",") === equalPairs(yearStart, draft.count).join(",") ? [] : draft.periods,
+        // Toujours explicites : une ligne ne doit jamais dépendre du point de départ de la frise
+        periods: draft.periods,
         percents: draft.percents.every((p) => p.trim() !== "") ? draft.percents.map((p) => Number(p)) : [],
       };
       const saved = editing === "new"
@@ -196,7 +196,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
               editing === l.id ? (
                 <LineEditor key={l.id} draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew={false} yearStart={yearStart} />
               ) : (
-                <LineRow key={l.id} line={l} yearStart={yearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
+                <LineRow key={l.id} line={l} yearStart={yearStart} contractYearStart={contractYearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
               )
             )}
 
@@ -249,10 +249,10 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
 // ─── Ligne affichée ─────────────────────────────────────────────────────────
 
-function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
+function LineRow({ line, yearStart, contractYearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; contractYearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
   const hasPct = line.percents.length === line.countPerYear;
   const order = yearMonths(yearStart);
-  const periods = linePeriods(line, yearStart);
+  const periods = linePeriods(line, contractYearStart);
   const periodIndex = new Map<number, number>();
   periods.forEach((ms, i) => ms.forEach((m) => { if (!periodIndex.has(m)) periodIndex.set(m, i); }));
   // Le poste n'est rappelé que s'il n'ouvre pas déjà le libellé (« P2 acomptes » suffit)
