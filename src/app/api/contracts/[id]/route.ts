@@ -203,7 +203,7 @@ export async function DELETE(
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
-    if (user.role !== "ADMIN") {
+    if (user.role === "READER") {
       return NextResponse.json(
         { error: "Vous n'avez pas les droits pour supprimer un contrat" },
         { status: 403 }
@@ -226,6 +226,16 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Contrat non trouvé" },
         { status: 404 }
+      );
+    }
+
+    // Un contrat sans site se supprime par quiconque peut en créer ;
+    // un contrat avec des sites (et leurs données), seulement par le dirigeant.
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+    if (existingContract.contractSites.length > 0 && !isAdmin) {
+      return NextResponse.json(
+        { error: "Seul le dirigeant peut supprimer un contrat ayant des sites rattachés" },
+        { status: 403 }
       );
     }
 
