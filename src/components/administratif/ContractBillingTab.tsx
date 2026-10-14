@@ -173,7 +173,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">
-            Factures attendues <span className="tabular-nums">({lines.length})</span>
+            Factures attendues chaque année{lines.length > 0 && <span className="tabular-nums"> · {lines.length}</span>}
           </span>
           {canEdit && editing === null && (
             <button type="button" onClick={() => startNew()} title="Ajouter une facture attendue" className="flex h-9 w-9 items-center justify-center border border-ink/15 text-ink/55 transition-colors hover:border-accent hover:text-accent">
@@ -190,7 +190,15 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
           <div className="divide-y divide-ink/10">
             {lines.length > 0 && <MonthHeader yearStart={yearStart} />}
             {lines.length === 0 && editing !== "new" && (
-              <div className="px-5 py-12 text-center text-sm text-ink/40">Aucune facture attendue.</div>
+              <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
+                <p className="max-w-md text-sm text-ink/60">Indiquez les factures que l&apos;exploitant envoie chaque année : lesquelles, combien de fois, sur quelles périodes.</p>
+                {canEdit && (
+                  <button type="button" onClick={() => startNew()} className="flex h-9 items-center gap-2 border border-accent px-4 text-sm font-medium text-accent transition-colors hover:bg-accent hover:text-paper">
+                    <Plus size={14} />
+                    Ajouter une facture
+                  </button>
+                )}
+              </div>
             )}
 
             {lines.map((l) =>
