@@ -83,9 +83,6 @@ export const STATUS_LABELS: Record<ExpectedStatus, string> = {
   A_VENIR: "À venir",
 };
 
-/** Ordre d'affichage des compteurs. */
-export const STATUS_ORDER: ExpectedStatus[] = ["RECUE", "ATTENDUE", "EN_RETARD", "A_VENIR"];
-
 /** Hachures (motif, pas un dégradé décoratif) pour les attendus en cours. */
 export const HATCH = {
   backgroundImage:
