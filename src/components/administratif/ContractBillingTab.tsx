@@ -145,11 +145,6 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-ink">Modalités de facturation</h2>
-        <p className="text-sm text-ink/50">Ce que l&apos;exploitant facture, et combien de fois par an. Valable pour toute la durée du marché.</p>
-      </div>
-
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">
@@ -169,18 +164,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
         ) : (
           <div className="divide-y divide-ink/10">
             {lines.length === 0 && editing !== "new" && (
-              <div className="px-4 py-8 text-center text-sm text-ink/50">
-                Aucune facture attendue pour l&apos;instant.
-                {canEdit && (
-                  <>
-                    {" "}
-                    <button type="button" onClick={() => startNew()} className="text-accent hover:underline">
-                      Ajouter la première
-                    </button>
-                    .
-                  </>
-                )}
-              </div>
+              <div className="px-4 py-8 text-center text-sm text-ink/40">Aucune facture attendue.</div>
             )}
 
             {lines.map((l) =>
