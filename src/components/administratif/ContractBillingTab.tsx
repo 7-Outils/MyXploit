@@ -174,9 +174,9 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">
-            Modalités de facturation du marché{lines.length > 0 && <span className="tabular-nums"> · {totalPerYear} facture{totalPerYear > 1 ? "s" : ""} par an</span>}
+            Modalités de facturation du marché
           </span>
-          {canEdit && editing === null && (
+          {canEdit && (
             <button type="button" onClick={() => startNew()} title="Ajouter une modalité de facturation" className="flex h-9 w-9 items-center justify-center border border-ink/15 text-ink/55 transition-colors hover:border-accent hover:text-accent">
               <Plus size={16} />
             </button>
@@ -189,7 +189,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
           </div>
         ) : (
           <div className="divide-y divide-ink/10">
-            {lines.length === 0 && editing !== "new" && (
+            {lines.length === 0 && (
               <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
                 <p className="max-w-md text-sm text-ink/60">Définissez comment l&apos;exploitant facture ce marché : quelles factures, combien de fois par an, sur quelles périodes.</p>
                 {canEdit && (
@@ -201,22 +201,22 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
               </div>
             )}
 
-            {lines.map((l) =>
-              editing === l.id ? (
-                <LineEditor key={l.id} draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew={false} yearStart={yearStart} />
-              ) : (
-                <LineRow key={l.id} line={l} yearStart={yearStart} contractYearStart={contractYearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
-              )
-            )}
+            {lines.map((l) => (
+              <LineRow key={l.id} line={l} yearStart={yearStart} contractYearStart={contractYearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
+            ))}
 
-            {editing === "new" && (
-              <LineEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew yearStart={yearStart} suggestions={unusedSuggestions} onPick={(s) => setDraft(draftFrom(s, yearStart))} />
+            {lines.length > 0 && (
+              <div className="px-5 py-2.5">
+                <span className="label-tech">
+                  <span className="tabular-nums">{totalPerYear}</span> facture{totalPerYear > 1 ? "s" : ""} par an
+                </span>
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {canEdit && editing === null && unusedSuggestions.length > 0 && (
+      {canEdit && unusedSuggestions.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-1">
           <span className="label-tech mr-1">Déjà utilisé sur vos autres marchés</span>
           {unusedSuggestions.slice(0, 8).map((s) => (
@@ -231,6 +231,26 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
             </button>
           ))}
         </div>
+      )}
+
+      {editing !== null && (
+        <Modal
+          title={editing === "new" ? "Nouvelle modalité de facturation" : "Modifier la modalité"}
+          size="lg"
+          onClose={cancel}
+        >
+          <LineEditor
+            draft={draft}
+            setDraft={setDraft}
+            onSave={save}
+            onCancel={cancel}
+            saving={saving}
+            isNew={editing === "new"}
+            yearStart={yearStart}
+            suggestions={editing === "new" ? unusedSuggestions : []}
+            onPick={(s) => setDraft(draftFrom(s, yearStart))}
+          />
+        </Modal>
       )}
 
       {deleting && (
