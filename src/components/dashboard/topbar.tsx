@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, ChevronDown, Menu, Settings } from "lucide-react";
+import { Bell, Building2, LogOut, ChevronDown, Menu, Settings } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -191,6 +191,14 @@ export function Topbar() {
                 </p>
               </div>
               <div className="py-1">
+                <Link
+                  href="/clients"
+                  onClick={() => setShowUserMenu(false)}
+                  className="w-full px-4 py-2 text-left text-sm text-ink hover:bg-ink/[0.02] flex items-center gap-2"
+                >
+                  <Building2 size={16} className="text-ink/40" />
+                  Clients
+                </Link>
                 <Link
                   href="/settings"
                   onClick={() => setShowUserMenu(false)}
