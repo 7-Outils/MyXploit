@@ -17,7 +17,6 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
   const [updating, setUpdating] = useState(false);
   const [formData, setFormData] = useState({
     reference: contractDetail.reference ?? "",
-    title: contractDetail.title ?? "",
     provider: contractDetail.provider ?? "",
     providerEmail: contractDetail.providerEmail || "",
     description: contractDetail.description || "",
@@ -38,7 +37,6 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reference: formData.reference,
-          title: formData.title,
           provider: formData.provider,
           providerEmail: formData.providerEmail.trim() || null,
           description: formData.description || null,
@@ -72,10 +70,6 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           <div>
             <label className="label-tech mb-1 block">Référence du marché</label>
             <input type="text" value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
-          </div>
-          <div>
-            <label className="label-tech mb-1 block">Titre du contrat</label>
-            <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
           </div>
           <div>
             <label className="label-tech mb-1 block">Titulaire (exploitant)</label>

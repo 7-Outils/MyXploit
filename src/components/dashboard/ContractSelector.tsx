@@ -88,10 +88,22 @@ export function ContractSelector() {
     setOpen(false);
   };
 
+  // Nombre de contrats par client : au-delà d'un, on ajoute un indice (référence ou exploitant)
+  const perClient = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of contracts) {
+      const k = c.client?.id || "__none__";
+      m.set(k, (m.get(k) || 0) + 1);
+    }
+    return m;
+  }, [contracts]);
+  const hint = (c: Contract) => c.reference || c.provider || null;
+  const needsHint = (c: Contract) => (perClient.get(c.client?.id || "__none__") || 0) > 1;
+
   const label = selectedContract
-    ? [selectedContract.client?.name, selectedContract.provider || selectedContract.title || selectedContract.reference]
+    ? [selectedContract.client?.name || "Sans client", needsHint(selectedContract) ? hint(selectedContract) : null]
         .filter(Boolean)
-        .join(" · ") || "Contrat à compléter"
+        .join(" · ")
     : "Sélectionner un contrat";
 
   return (
@@ -133,48 +145,36 @@ export function ContractSelector() {
                 {groups.length === 0 ? "Aucun contrat. Créez-en un depuis la fiche d'un client." : "Aucun résultat"}
               </div>
             )}
-            {filteredGroups.map((g) => (
-              <div key={g.id} className="py-1">
-                <div
-                  className={cn(
-                    "label-tech px-3 pt-1.5 pb-1 truncate",
-                    g.id === "__none__" ? "text-ink/30" : "text-ink/50"
-                  )}
-                >
-                  {g.name}
-                </div>
-                {g.contracts.map((contract) => {
-                  const isSelected = selectedContract?.id === contract.id;
-                  return (
-                    <button
-                      key={contract.id}
-                      onClick={() => pick(contract)}
+            {filteredGroups.flatMap((g) =>
+              g.contracts.map((contract) => {
+                const isSelected = selectedContract?.id === contract.id;
+                const h = needsHint(contract) ? hint(contract) : null;
+                return (
+                  <button
+                    key={contract.id}
+                    onClick={() => pick(contract)}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-ink/[0.03]",
+                      isSelected && "bg-accent/5"
+                    )}
+                  >
+                    <span
                       className={cn(
-                        "flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors hover:bg-ink/[0.03]",
-                        isSelected && "bg-accent/5"
+                        "min-w-0 flex-1 truncate text-sm font-medium",
+                        g.id === "__none__" ? "text-ink/40" : isSelected ? "text-accent" : "text-ink"
                       )}
                     >
-                      {contract.provider || contract.title ? (
-                        <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isSelected ? "text-accent" : "text-ink")}>
-                          {contract.provider || contract.title}
-                        </span>
-                      ) : (
-                        <span className={cn("min-w-0 flex-1 truncate text-[13px] italic", isSelected ? "text-accent" : "text-ink/40")}>
-                          À compléter
-                        </span>
-                      )}
-                      {contract.reference && (
-                        <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/40">{contract.reference}</span>
-                      )}
-                      {contract.status === "EN_ATTENTE" && (
-                        <span className="label-tech flex-shrink-0 text-ink/40">en attente</span>
-                      )}
-                      {isSelected && <Check size={13} className="flex-shrink-0 text-accent" />}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+                      {g.name}
+                    </span>
+                    {h && <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/40">{h}</span>}
+                    {contract.status === "EN_ATTENTE" && (
+                      <span className="label-tech flex-shrink-0 text-ink/40">en attente</span>
+                    )}
+                    {isSelected && <Check size={13} className="flex-shrink-0 text-accent" />}
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       )}
