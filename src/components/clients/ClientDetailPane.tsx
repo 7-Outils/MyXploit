@@ -29,6 +29,8 @@ import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { api, getErrorMessage } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import EditContractModal from "@/components/administratif/modals/EditContractModal";
+import type { Contract as FullContract } from "@/components/administratif/types";
 import AEImportModal from "@/components/administratif/modals/AEImportModal";
 import CreateContractModal from "@/components/administratif/modals/CreateContractModal";
 import { STATUS_LABELS, STATUS_TEXT, type ClientContractSummary, type ClientDetail } from "./types";
@@ -67,6 +69,8 @@ export default function ClientDetailPane({
   // Modales
   const [confirmDeleteClient, setConfirmDeleteClient] = useState(false);
   const [detaching, setDetaching] = useState<ClientContractSummary | null>(null);
+  const [deletingContract, setDeletingContract] = useState<ClientContractSummary | null>(null);
+  const [editingContract, setEditingContract] = useState<FullContract | null>(null);
   const [busy, setBusy] = useState(false);
   const [showCreateContract, setShowCreateContract] = useState(false);
   const [showCreateAE, setShowCreateAE] = useState(false);
@@ -133,6 +137,30 @@ export default function ClientDetailPane({
       return;
     }
     router.push(`/contrat?contract=${c.id}`);
+  };
+
+  const editContract = async (id: string) => {
+    try {
+      setEditingContract(await api.get<FullContract>(`/api/contracts/${id}`));
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    }
+  };
+
+  const deleteContract = async () => {
+    if (!deletingContract) return;
+    setBusy(true);
+    try {
+      await api.del(`/api/contracts/${deletingContract.id}`);
+      toast.success("Contrat supprimé");
+      setDeletingContract(null);
+      await refreshAll();
+    } catch (err) {
+      // Le serveur explique le refus (droits, sites rattachés) : on l'affiche tel quel.
+      toast.error(getErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const detachContract = async () => {
@@ -272,8 +300,18 @@ export default function ClientDetailPane({
                       <ArrowUpRight size={16} />
                     </button>
                     {canEdit && (
-                      <button onClick={() => setDetaching(c)} title="Détacher du client" className={cn(iconBtn, "border-transparent")}>
-                        <Unlink size={16} />
+                      <>
+                        <button onClick={() => editContract(c.id)} title="Modifier le contrat" className={cn(iconBtn, "border-transparent")}>
+                          <Pencil size={16} />
+                        </button>
+                        <button onClick={() => setDetaching(c)} title="Détacher du client" className={cn(iconBtn, "border-transparent")}>
+                          <Unlink size={16} />
+                        </button>
+                      </>
+                    )}
+                    {canDelete && (
+                      <button onClick={() => setDeletingContract(c)} title="Supprimer le contrat" className={cn(dangerBtn, "border-transparent")}>
+                        <Trash2 size={16} />
                       </button>
                     )}
                   </div>
@@ -327,6 +365,38 @@ export default function ClientDetailPane({
             Le contrat et ses sites ne seront plus rattachés à ce client. Ils restent intacts et pourront être rattachés ailleurs.
           </p>
         </Modal>
+      )}
+
+      {deletingContract && (
+        <Modal
+          title="Supprimer le contrat"
+          subtitle={[deletingContract.provider || deletingContract.title, deletingContract.reference].filter(Boolean).join(" · ") || "Contrat sans titre"}
+          size="sm"
+          onClose={() => setDeletingContract(null)}
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setDeletingContract(null)}>Annuler</Button>
+              <Button size="sm" onClick={deleteContract} disabled={busy} className="bg-red-700 hover:bg-red-800">
+                {busy && <Loader2 size={14} className="mr-2 animate-spin" />}
+                Supprimer
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-ink/70">
+            Les sites partagés avec d&apos;autres contrats sont conservés. Les sites propres à ce contrat et toutes leurs données
+            sont supprimés. Action irréversible.
+          </p>
+        </Modal>
+      )}
+
+      {editingContract && (
+        <EditContractModal
+          contractId={editingContract.id}
+          contractDetail={editingContract}
+          onClose={() => setEditingContract(null)}
+          onUpdated={refreshAll}
+        />
       )}
 
       {showAttach && (
