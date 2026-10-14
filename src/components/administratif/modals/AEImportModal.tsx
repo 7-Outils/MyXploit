@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Loader2, X, FileSpreadsheet, AlertCircle, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { parseFrenchDate } from "@/components/administratif/constants";
-import type { YearType, BillingFrequency } from "@/components/administratif/types";
+import type { YearType } from "@/components/administratif/types";
 
 interface AEImportPreview {
   total: number;
@@ -15,7 +15,6 @@ interface AEImportPreview {
     reference?: string; title?: string; provider?: string;
     startDate?: string; endDate?: string;
     yearType?: YearType;
-    billingFrequency?: BillingFrequency;
   };
   results: Array<{
     row: number; siteName: string; contractType: string; isNew: boolean;
@@ -40,7 +39,6 @@ export default function AEImportModal({ onClose, contractId, clientId }: AEImpor
   const [contractForm, setContractForm] = useState({
     reference: "", title: "", provider: "", startDate: "", endDate: "",
     yearType: "HEATING_SEASON" as YearType,
-    billingFrequency: "TRIMESTRIEL" as BillingFrequency,
   });
 
   const handleClose = () => {
@@ -74,7 +72,6 @@ export default function AEImportModal({ onClose, contractId, clientId }: AEImpor
           reference: meta.reference || prev.reference, title: meta.title || prev.title,
           provider: meta.provider || prev.provider, startDate: meta.startDate || prev.startDate,
           endDate: meta.endDate || prev.endDate, yearType: meta.yearType || prev.yearType,
-          billingFrequency: meta.billingFrequency || prev.billingFrequency,
         }));
       }
     } catch (err) {
@@ -105,7 +102,6 @@ export default function AEImportModal({ onClose, contractId, clientId }: AEImpor
         formData.append("startDate", parseFrenchDate(contractForm.startDate) ?? "");
         formData.append("endDate", parseFrenchDate(contractForm.endDate) ?? "");
         formData.append("yearType", contractForm.yearType);
-        formData.append("billingFrequency", contractForm.billingFrequency);
         if (clientId) formData.append("clientId", clientId);
       }
       const url = isUpdate ? "/api/contracts/import-ae" : "/api/contracts/create-from-ae";
@@ -201,15 +197,6 @@ export default function AEImportModal({ onClose, contractId, clientId }: AEImpor
                       <option value="HEATING_SEASON">Saison de chauffe</option>
                       <option value="CIVIL">Année civile</option>
                       <option value="CONTRACTUAL">Année contractuelle</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label-tech mb-1 block">Facturation</label>
-                    <select value={contractForm.billingFrequency} onChange={(e) => setContractForm({ ...contractForm, billingFrequency: e.target.value as BillingFrequency })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none">
-                      <option value="MENSUEL">Mensuel</option>
-                      <option value="TRIMESTRIEL">Trimestriel</option>
-                      <option value="SEMESTRIEL">Semestriel</option>
-                      <option value="ANNUEL">Annuel</option>
                     </select>
                   </div>
                 </div>

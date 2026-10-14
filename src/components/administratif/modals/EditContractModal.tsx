@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Contract, YearType, BillingFrequency } from "@/components/administratif/types";
+import type { Contract, YearType } from "@/components/administratif/types";
 
 interface EditContractModalProps {
   contractId: string;
@@ -21,7 +21,6 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
     endDate: contractDetail.endDate?.slice(0, 10) ?? "",
     status: contractDetail.status as string,
     yearType: (contractDetail.yearType || "HEATING_SEASON") as YearType,
-    billingFrequency: (contractDetail.billingFrequency || "TRIMESTRIEL") as BillingFrequency,
     djuContractuel: contractDetail.djuContractuel?.toString() || "",
   });
 
@@ -39,7 +38,6 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           endDate: formData.endDate || null,
           status: formData.status,
           yearType: formData.yearType,
-          billingFrequency: formData.billingFrequency,
           djuContractuel: formData.djuContractuel ? parseFloat(formData.djuContractuel) : null,
         }),
       });
@@ -87,15 +85,6 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
                 <option value="HEATING_SEASON">Saison de chauffe (juil. → juin)</option>
                 <option value="CIVIL">Année civile (janv. → déc.)</option>
                 <option value="CONTRACTUAL">Année contractuelle</option>
-              </select>
-            </div>
-            <div>
-              <label className="label-tech mb-1 block">Fréquence de facturation</label>
-              <select value={formData.billingFrequency} onChange={(e) => setFormData({ ...formData, billingFrequency: e.target.value as BillingFrequency })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none">
-                <option value="MENSUEL">Mensuel (12 éch./an)</option>
-                <option value="TRIMESTRIEL">Trimestriel (4 éch./an)</option>
-                <option value="SEMESTRIEL">Semestriel (2 éch./an)</option>
-                <option value="ANNUEL">Annuel (1 éch./an)</option>
               </select>
             </div>
           </div>
