@@ -17,13 +17,15 @@ export async function getContractRecipients(contractId: string): Promise<Contrac
 
   const contacts = await prisma.contractContact.findMany({
     where: { contractId },
-    orderBy: [{ side: "asc" }, { name: "asc" }],
+    orderBy: [{ side: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
   });
 
-  return contacts.map((c) => ({
-    name: c.name,
-    email: c.email,
-    role: c.role,
-    side: c.side,
-  }));
+  return contacts
+    .filter((c): c is typeof c & { email: string } => !!c.email)
+    .map((c) => ({
+      name: [c.firstName, c.lastName].filter(Boolean).join(" ") || c.email,
+      email: c.email,
+      role: c.role,
+      side: c.side,
+    }));
 }

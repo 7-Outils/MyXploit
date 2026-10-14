@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SIDES = ["EXPLOITANT", "CLIENT"] as const;
+import { parseContact } from "../route";
 
 // Le contact doit appartenir à un contrat de l'organisation courante.
 async function findScopedContact(
@@ -39,32 +38,10 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const data: { name?: string; email?: string; role?: string | null; side?: "EXPLOITANT" | "CLIENT" } = {};
-
-    if (body.name !== undefined) {
-      const name = typeof body.name === "string" ? body.name.trim() : "";
-      if (!name) return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
-      data.name = name;
-    }
-    if (body.email !== undefined) {
-      const email = typeof body.email === "string" ? body.email.trim() : "";
-      if (!EMAIL_RE.test(email)) {
-        return NextResponse.json({ error: "Adresse email invalide" }, { status: 400 });
-      }
-      data.email = email;
-    }
-    if (body.role !== undefined) {
-      data.role = typeof body.role === "string" && body.role.trim() ? body.role.trim() : null;
-    }
-    if (body.side !== undefined) {
-      if (!SIDES.includes(body.side)) {
-        return NextResponse.json(
-          { error: "Côté invalide (EXPLOITANT ou CLIENT)" },
-          { status: 400 }
-        );
-      }
-      data.side = body.side;
-    }
+    const existing = await prisma.contractContact.findUnique({ where: { id: contactId } });
+    const parsed = parseContact({ ...existing, ...body });
+    if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    const data = parsed.data;
 
     const contact = await prisma.contractContact.update({
       where: { id: contactId },

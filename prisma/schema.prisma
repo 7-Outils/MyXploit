@@ -1535,10 +1535,13 @@ enum ContactSide {
 // devis acceptés envoyés par email
 model ContractContact {
   id         String      @id @default(cuid())
-  name       String
-  email      String
+  // Aucun champ obligatoire : on note ce qu'on sait de la personne
+  firstName  String?
+  lastName   String?
+  email      String? // sans email, le contact n'est pas proposé en destinataire
+  phone      String?
   role       String? // Fonction : "Responsable exploitation", "DGS"...
-  side       ContactSide
+  side       ContactSide @default(EXPLOITANT)
   contractId String
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt

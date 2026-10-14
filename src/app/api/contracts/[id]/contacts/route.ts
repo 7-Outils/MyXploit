@@ -3,7 +3,21 @@ import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const SIDES = ["EXPLOITANT", "CLIENT"] as const;
+
+const text = (v: unknown, max = 120) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+
+/** Tous les champs sont facultatifs ; il faut juste quelque chose qui identifie la personne. */
+export function parseContact(body: Record<string, unknown>) {
+  const firstName = text(body.firstName);
+  const lastName = text(body.lastName);
+  const email = text(body.email, 200);
+  const phone = text(body.phone, 40);
+  const role = text(body.role);
+  const side = body.side === "CLIENT" ? "CLIENT" : "EXPLOITANT";
+  if (email && !EMAIL_RE.test(email)) return { error: "Adresse email invalide" } as const;
+  if (!firstName && !lastName && !email) return { error: "Indiquez au moins un prénom, un nom ou un email" } as const;
+  return { data: { firstName, lastName, email, phone, role, side } } as const;
+}
 
 async function requireContract(id: string, organizationId: string) {
   return prisma.contract.findFirst({
@@ -28,7 +42,7 @@ export async function GET(
 
     const contacts = await prisma.contractContact.findMany({
       where: { contractId: id },
-      orderBy: [{ side: "asc" }, { name: "asc" }],
+      orderBy: [{ side: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
     });
     return NextResponse.json(contacts);
   } catch (error) {
@@ -62,26 +76,11 @@ export async function POST(
     }
 
     const body = await request.json();
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    const email = typeof body.email === "string" ? body.email.trim() : "";
-    const role = typeof body.role === "string" ? body.role.trim() : "";
-    const side = body.side;
-
-    if (!name) {
-      return NextResponse.json({ error: "Le nom est requis" }, { status: 400 });
-    }
-    if (!EMAIL_RE.test(email)) {
-      return NextResponse.json({ error: "Adresse email invalide" }, { status: 400 });
-    }
-    if (!SIDES.includes(side)) {
-      return NextResponse.json(
-        { error: "Côté invalide (EXPLOITANT ou CLIENT)" },
-        { status: 400 }
-      );
-    }
+    const parsed = parseContact(body);
+    if ("error" in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
     const contact = await prisma.contractContact.create({
-      data: { contractId: id, name, email, role: role || null, side },
+      data: { contractId: id, ...parsed.data },
     });
     return NextResponse.json(contact, { status: 201 });
   } catch (error) {
