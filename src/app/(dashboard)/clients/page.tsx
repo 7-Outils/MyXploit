@@ -7,11 +7,6 @@ import { Building2, Plus, Loader2, Search, X } from "lucide-react";
 interface Client {
   id: string;
   name: string;
-  siret: string | null;
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  city: string | null;
   _count: {
     sites: number;
     contracts: number;
@@ -68,12 +63,7 @@ export default function ClientsPage() {
   };
 
   const q = search.trim().toLowerCase();
-  const filtered = clients.filter(
-    (c) =>
-      c.name.toLowerCase().includes(q) ||
-      (c.city || "").toLowerCase().includes(q) ||
-      (c.contactName || "").toLowerCase().includes(q)
-  );
+  const filtered = clients.filter((c) => c.name.toLowerCase().includes(q));
 
   if (loading) {
     return (
@@ -127,9 +117,6 @@ export default function ClientsPage() {
               <thead>
                 <tr className="border-b border-ink/10 text-left">
                   <th className="label-tech px-4 py-2.5">Client</th>
-                  <th className="label-tech px-4 py-2.5">Ville</th>
-                  <th className="label-tech px-4 py-2.5">Contact</th>
-                  <th className="label-tech px-4 py-2.5">SIRET</th>
                   <th className="label-tech px-4 py-2.5 text-right">Contrats</th>
                   <th className="label-tech px-4 py-2.5 text-right">Sites</th>
                 </tr>
@@ -142,26 +129,6 @@ export default function ClientsPage() {
                     className="cursor-pointer transition-colors hover:bg-ink/[0.02]"
                   >
                     <td className="px-4 py-2 text-sm font-medium text-ink">{client.name}</td>
-                    <td className="px-4 py-2 text-sm text-ink/60">
-                      {client.city || <span className="text-ink/25">—</span>}
-                    </td>
-                    <td className="px-4 py-2 text-sm text-ink/60">
-                      {client.contactName ? (
-                        <>
-                          {client.contactName}
-                          {client.contactPhone && (
-                            <span className="ml-2 font-mono text-xs tabular-nums text-ink/40">
-                              {client.contactPhone}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="text-ink/25">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs tabular-nums text-ink/50">
-                      {client.siret || <span className="text-ink/25">—</span>}
-                    </td>
                     <td className={`px-4 py-2 text-right font-mono text-sm tabular-nums ${client._count.contracts > 0 ? "text-ink" : "text-ink/25"}`}>
                       {client._count.contracts}
                     </td>

@@ -12,8 +12,6 @@ import {
   Trash2,
   X,
   Check,
-  Phone,
-  Mail,
   Plus,
   Link2,
   Unlink,
@@ -50,13 +48,6 @@ interface Contract {
 interface ClientDetail {
   id: string;
   name: string;
-  siret: string | null;
-  contactName: string | null;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  address: string | null;
-  city: string | null;
-  postalCode: string | null;
   sites: Site[];
   contracts: Contract[];
   _count: { sites: number; contracts: number };
@@ -85,7 +76,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"contracts" | "sites">("contracts");
   const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState({ name: "", siret: "", contactName: "", contactEmail: "", contactPhone: "", city: "" });
+  const [editData, setEditData] = useState({ name: "" });
 
   // Rattachement de contrats orphelins
   const [showAttach, setShowAttach] = useState(false);
@@ -107,14 +98,7 @@ export default function ClientDetailPage() {
       if (res.ok) {
         const data = await res.json();
         setClient(data);
-        setEditData({
-          name: data.name,
-          siret: data.siret || "",
-          contactName: data.contactName || "",
-          contactEmail: data.contactEmail || "",
-          contactPhone: data.contactPhone || "",
-          city: data.city || "",
-        });
+        setEditData({ name: data.name });
       } else {
         router.push("/clients");
       }
@@ -280,13 +264,6 @@ export default function ClientDetailPage() {
               <>
                 <p className="label-tech">Client</p>
                 <h1 className="text-xl font-semibold text-ink truncate mt-1">{client.name}</h1>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-ink/50">
-                  {client.city && <span className="flex items-center gap-1"><MapPin size={13} className="text-ink/40" /> {client.city}</span>}
-                  {client.siret && <span className="label-tech">SIRET <span className="tabular-nums">{client.siret}</span></span>}
-                  {client.contactName && <span className="text-ink/70 font-medium">{client.contactName}</span>}
-                  {client.contactEmail && <a href={`mailto:${client.contactEmail}`} className="flex items-center gap-1 hover:text-accent"><Mail size={13} /> {client.contactEmail}</a>}
-                  {client.contactPhone && <span className="flex items-center gap-1 font-mono tabular-nums"><Phone size={13} className="text-ink/40" /> {client.contactPhone}</span>}
-                </div>
                 <div className="flex items-center gap-6 mt-2 text-sm">
                   <span className="flex items-center gap-1.5 text-ink/60"><FileText size={14} className="text-ink/40" /><strong className="font-mono tabular-nums font-semibold text-ink">{client._count.contracts}</strong> contrat{client._count.contracts > 1 ? "s" : ""}</span>
                   <span className="flex items-center gap-1.5 text-ink/60"><MapPin size={14} className="text-ink/40" /><strong className="font-mono tabular-nums font-semibold text-ink">{client._count.sites}</strong> site{client._count.sites > 1 ? "s" : ""}</span>
