@@ -332,7 +332,7 @@ function LineEditor({
       className="space-y-3 border-l-2 border-accent bg-accent/[0.03] px-4 py-3"
       onKeyDown={(e) => {
         if (e.key === "Escape") onCancel();
-        if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement)) {
+        if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLSelectElement)) {
           e.preventDefault();
           if (canSave) onSave();
         }
