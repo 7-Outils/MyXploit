@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
-import { parseContact } from "../route";
+import { parseContact } from "@/lib/contract-contacts";
 
 // Le contact doit appartenir à un contrat de l'organisation courante.
 async function findScopedContact(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { authorizeContract } from "@/lib/heating-status";
-import { parseLine } from "../route";
+import { parseLine } from "@/lib/billing-lines";
 
 type P = { params: Promise<{ id: string; lineId: string }> };
 
