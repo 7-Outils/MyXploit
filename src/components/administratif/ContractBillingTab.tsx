@@ -18,7 +18,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/contexts/PermissionContext";
-import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, normalizeLine, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
+import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, monthsRangeLabel, normalizeLine, periodMonths, yearMonths, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
 
 const iconBtn =
   "flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:pointer-events-none disabled:opacity-30";
@@ -68,6 +68,9 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   const linesUrl = `/api/contracts/${contractId}/billing-lines`;
   const { data, isLoading, mutate } = useSWR<BillingLine[]>(linesUrl, fetcher);
   const { data: sugg } = useSWR<{ suggestions: SuggestedLine[] }>(`${linesUrl}/suggest`, fetcher);
+  // Début de l'année contractuelle (ex. 7 = juillet) : les périodes des acomptes en découlent
+  const { data: contract } = useSWR<{ yearStartMonth?: number }>(`/api/contracts/${contractId}`, fetcher);
+  const yearStart = typeof contract?.yearStartMonth === "number" ? contract.yearStartMonth : 7;
   // Cache SWR possiblement d'une version précédente : on normalise chaque ligne
   const lines = useMemo(() => (Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data]);
   const suggestions = useMemo(
@@ -169,14 +172,14 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
             {lines.map((l) =>
               editing === l.id ? (
-                <LineEditor key={l.id} draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew={false} />
+                <LineEditor key={l.id} draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew={false} yearStart={yearStart} />
               ) : (
-                <LineRow key={l.id} line={l} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
+                <LineRow key={l.id} line={l} yearStart={yearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
               )
             )}
 
             {editing === "new" && (
-              <LineEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew suggestions={unusedSuggestions} onPick={(s) => setDraft(draftFromSuggestion(s))} />
+              <LineEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew yearStart={yearStart} suggestions={unusedSuggestions} onPick={(s) => setDraft(draftFromSuggestion(s))} />
             )}
           </div>
         )}
@@ -224,10 +227,18 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
 // ─── Ligne affichée ─────────────────────────────────────────────────────────
 
-function LineRow({ line, canEdit, onEdit, onDelete }: { line: BillingLine; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
+function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
   const hasMonths = line.months.length === line.countPerYear;
   const hasPct = line.percents.length === line.countPerYear;
-  const months = new Set(line.months);
+  const order = yearMonths(yearStart);
+  const picked = new Set(line.months);
+  // Sans mois précis : N périodes égales à partir du début d'année contractuelle
+  const periods = hasMonths ? [] : periodMonths(yearStart, line.countPerYear);
+  const periodIndex = new Map<number, number>();
+  periods.forEach((ms, i) => ms.forEach((m) => periodIndex.set(m, i)));
+  const title = hasMonths
+    ? `Factures en ${line.months.map((m) => MONTHS_SHORT[m - 1]).join(", ")}`
+    : periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ");
   return (
     <div className="group grid items-center gap-4 px-4 py-2.5 md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
       <div className="flex min-w-0 items-center gap-3">
@@ -239,19 +250,26 @@ function LineRow({ line, canEdit, onEdit, onDelete }: { line: BillingLine; canEd
       <span className="font-mono text-sm tabular-nums text-ink">
         {line.countPerYear} <span className="text-ink/50">par an</span>
       </span>
-      {/* Les 12 mois, les mois de facture en noir */}
-      <div className="flex gap-px" title={hasMonths ? line.months.map((m) => MONTHS_SHORT[m - 1]).join(", ") : "Réparti sur l'année"}>
-        {MONTHS_TINY.map((t, i) => (
-          <span
-            key={i}
-            className={cn(
-              "flex h-5 w-5 items-center justify-center font-mono text-[9px]",
-              hasMonths ? (months.has(i + 1) ? "bg-ink text-paper" : "bg-ink/[0.04] text-ink/25") : "bg-ink/[0.04] text-ink/20"
-            )}
-          >
-            {t}
-          </span>
-        ))}
+      {/* Année contractuelle, mois par mois : périodes couvertes (blocs alternés) ou mois de facture (noir) */}
+      <div className="flex gap-px" title={title}>
+        {order.map((m) => {
+          const pi = periodIndex.get(m);
+          const isPeriodStart = pi !== undefined && periods[pi][0] === m;
+          return (
+            <span
+              key={m}
+              className={cn(
+                "flex h-5 w-5 items-center justify-center font-mono text-[9px]",
+                hasMonths
+                  ? picked.has(m) ? "bg-ink text-paper" : "bg-ink/[0.04] text-ink/25"
+                  : pi !== undefined && pi % 2 === 0 ? "bg-ink/[0.14] text-ink/70" : "bg-ink/[0.05] text-ink/50",
+                !hasMonths && isPeriodStart && "border-l border-ink/40"
+              )}
+            >
+              {MONTHS_TINY[m - 1]}
+            </span>
+          );
+        })}
       </div>
       <span className="min-w-[80px] whitespace-nowrap font-mono text-xs tabular-nums text-ink/60" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
         {hasPct ? `${line.percents.join(" · ")} %` : <span className="text-ink/25">—</span>}
@@ -273,6 +291,7 @@ function LineEditor({
   onCancel,
   saving,
   isNew,
+  yearStart,
   suggestions = [],
   onPick,
 }: {
@@ -282,9 +301,13 @@ function LineEditor({
   onCancel: () => void;
   saving: boolean;
   isNew: boolean;
+  yearStart: number;
   suggestions?: SuggestedLine[];
   onPick?: (s: SuggestedLine) => void;
 }) {
+  // Par défaut une facture couvre une période de l'année contractuelle ; on ne
+  // choisit des mois précis que pour les factures émises à date fixe (décompte…)
+  const [preciseMonths, setPreciseMonths] = useState(draft.months.length > 0);
   const labelRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     labelRef.current?.focus();
@@ -396,39 +419,73 @@ function LineEditor({
         </div>
       )}
 
-      {/* Mois */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="label-tech mb-1 block">
-            Quels mois{" "}
-            <span className="normal-case tracking-normal text-ink/40">
-              {monthsDone ? "" : draft.months.length === 0 ? "· facultatif, sinon réparti sur l'année" : `· encore ${draft.count - draft.months.length}`}
-            </span>
-          </label>
-          <div className="flex">
-            {MONTHS_SHORT.map((m, i) => {
-              const on = draft.months.includes(i + 1);
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => toggleMonth(i + 1)}
-                  className={cn(
-                    "h-9 w-11 border border-ink/20 font-mono text-[11px] transition-colors -ml-px first:ml-0",
-                    on ? "bg-ink text-paper border-ink" : "bg-white text-ink/50 hover:text-ink"
-                  )}
-                >
-                  {m.replace(".", "")}
-                </button>
-              );
-            })}
-            {draft.months.length > 0 && (
-              <button type="button" onClick={() => setDraft({ ...draft, months: [] })} title="Effacer les mois" className={cn(iconBtn, "ml-1")}>
-                <X size={14} />
+      {/* Quand : périodes (défaut) ou mois précis */}
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex pt-5">
+          {(["periods", "months"] as const).map((mode) => {
+            const on = mode === "months" ? preciseMonths : !preciseMonths;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => {
+                  setPreciseMonths(mode === "months");
+                  if (mode === "periods") setDraft({ ...draft, months: [] });
+                }}
+                className={cn(
+                  "h-9 border border-ink/20 px-3 text-xs transition-colors -ml-px first:ml-0",
+                  on ? "bg-ink text-paper border-ink" : "bg-white text-ink/60 hover:text-ink"
+                )}
+              >
+                {mode === "periods" ? "Par période" : "Mois précis"}
               </button>
-            )}
-          </div>
+            );
+          })}
         </div>
+        {!preciseMonths ? (
+          <div>
+            <label className="label-tech mb-1 block">Périodes couvertes</label>
+            <div className="flex flex-wrap gap-1">
+              {periodMonths(yearStart, draft.count).map((ms, i) => (
+                <span key={i} className="border border-ink/15 px-2 py-1.5 font-mono text-xs text-ink/70">
+                  {monthsRangeLabel(ms)}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <label className="label-tech mb-1 block">
+              Mois de facture{" "}
+              <span className="normal-case tracking-normal text-ink/40">
+                {monthsDone ? "" : draft.months.length === 0 ? `· choisir ${draft.count}` : `· encore ${draft.count - draft.months.length}`}
+              </span>
+            </label>
+            <div className="flex">
+              {yearMonths(yearStart).map((m) => {
+                const on = draft.months.includes(m);
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => toggleMonth(m)}
+                    className={cn(
+                      "h-9 w-11 border border-ink/20 font-mono text-[11px] transition-colors -ml-px first:ml-0",
+                      on ? "bg-ink text-paper border-ink" : "bg-white text-ink/50 hover:text-ink"
+                    )}
+                  >
+                    {MONTHS_SHORT[m - 1].replace(".", "")}
+                  </button>
+                );
+              })}
+              {draft.months.length > 0 && (
+                <button type="button" onClick={() => setDraft({ ...draft, months: [] })} title="Effacer les mois" className={cn(iconBtn, "ml-1")}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Parts en % */}

@@ -128,6 +128,31 @@ function monthInSeason(m: number, start: Date, end: Date): Date {
   return d > end ? new Date(y - 1, m - 1, 1) : d;
 }
 
+/**
+ * N périodes égales sur [start, end] : en mois entiers quand 12 est divisible
+ * par n (4 acomptes = 4 trimestres à partir du début d'année contractuelle),
+ * sinon en jours.
+ */
+export function equalPeriods(start: Date, end: Date, n: number): Array<{ pStart: Date; pEnd: Date }> {
+  const items: Array<{ pStart: Date; pEnd: Date }> = [];
+  if (12 % n === 0) {
+    const months = 12 / n;
+    for (let i = 0; i < n; i++) {
+      const pStart = addMonths(start, i * months);
+      const pEnd = i === n - 1 ? end : new Date(addMonths(start, (i + 1) * months).getTime() - DAY);
+      items.push({ pStart, pEnd });
+    }
+    return items;
+  }
+  const total = end.getTime() + DAY - start.getTime();
+  for (let i = 0; i < n; i++) {
+    const pStart = new Date(start.getTime() + Math.round((total * i) / n));
+    const pEnd = i === n - 1 ? end : new Date(start.getTime() + Math.round((total * (i + 1)) / n) - DAY);
+    items.push({ pStart, pEnd });
+  }
+  return items;
+}
+
 /** Les factures attendues d'une ligne sur une saison [start, end]. */
 export function expectedForLine(line: BillingLineInput, start: Date, end: Date): Omit<ExpectedInvoice, "status" | "invoices" | "amount">[] {
   const n = Math.max(1, Math.min(12, line.countPerYear || 1));
@@ -144,12 +169,7 @@ export function expectedForLine(line: BillingLineInput, start: Date, end: Date):
       items.push({ pStart, pEnd });
     }
   } else {
-    const months = 12 / n;
-    for (let i = 0; i < n; i++) {
-      const pStart = addMonths(start, i * months);
-      const pEnd = i === n - 1 ? end : new Date(addMonths(start, (i + 1) * months).getTime() - DAY);
-      items.push({ pStart, pEnd });
-    }
+    items.push(...equalPeriods(start, end, n));
   }
   // Les parts suivent l'ordre de saisie des mois ; on les réaligne sur l'ordre chronologique
   const order = useMonths

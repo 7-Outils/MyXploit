@@ -95,6 +95,35 @@ export function normalizeLine(raw: Partial<BillingLine> & { id: string }): Billi
   };
 }
 
+/** Les 12 mois (1-12) dans l'ordre de l'année contractuelle (ex. 7 → juil…juin). */
+export function yearMonths(yearStartMonth: number): number[] {
+  const s = Math.min(12, Math.max(1, yearStartMonth || 1));
+  return Array.from({ length: 12 }, (_, i) => ((s - 1 + i) % 12) + 1);
+}
+
+/**
+ * Périodes égales en mois d'année contractuelle, pour l'affichage :
+ * [[7,8,9],[10,11,12],[1,2,3],[4,5,6]] pour 4 acomptes à partir de juillet.
+ * Quand 12 n'est pas divisible par n, les mois sont répartis au plus juste.
+ */
+export function periodMonths(yearStartMonth: number, n: number): number[][] {
+  const months = yearMonths(yearStartMonth);
+  const out: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const a = Math.round((12 * i) / n);
+    const b = Math.round((12 * (i + 1)) / n);
+    out.push(months.slice(a, b));
+  }
+  return out;
+}
+
+/** « juil → sept » ou « sept » pour une liste de mois contigus. */
+export function monthsRangeLabel(ms: number[]): string {
+  if (ms.length === 0) return "";
+  const f = (m: number) => (MONTHS_SHORT[m - 1] ?? "").replace(".", "");
+  return ms.length === 1 ? f(ms[0]) : `${f(ms[0])} → ${f(ms[ms.length - 1])}`;
+}
+
 /** Phrase d'une ligne : « 3 par an · oct · janv · avr · 30 · 30 · 30 % ». */
 export function lineSentence(raw: Pick<BillingLine, "countPerYear" | "months" | "percents">): string {
   const months = Array.isArray(raw.months) ? raw.months : [];
