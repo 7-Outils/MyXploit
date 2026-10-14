@@ -152,7 +152,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   }, [lines, suggestions]);
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-5xl space-y-4">
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">
@@ -241,7 +241,7 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
   // Le poste n'est rappelé que s'il n'ouvre pas déjà le libellé (« P2 acomptes » suffit)
   const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
-    <div className="group grid items-center gap-x-8 gap-y-2 px-5 py-4 transition-colors hover:bg-ink/[0.015] md:grid-cols-[minmax(0,1fr)_6rem_auto_10rem_4.5rem] md:py-3.5">
+    <div className="group grid items-center gap-x-6 gap-y-2 px-5 py-3 transition-colors hover:bg-ink/[0.015] md:grid-cols-[14rem_5.5rem_auto_minmax(8rem,1fr)_4.5rem]">
       <div className="flex min-w-0 items-baseline gap-2.5">
         <span className="truncate text-sm font-medium text-ink">{lineName(line)}</span>
         {showPoste && <span className="font-mono text-[11px] tracking-wider text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
@@ -258,13 +258,13 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
             <span
               key={m}
               className={cn(
-                "flex h-7 w-6 items-center justify-center border-b-2 font-mono text-[10px]",
+                "flex h-7 w-7 items-center justify-center font-mono text-[10px] font-medium",
                 pi === undefined
-                  ? "border-ink/10 text-ink/20"
+                  ? "bg-transparent text-ink/20"
                   : pi % 2 === 0
-                    ? "border-accent bg-accent/[0.04] text-ink/55"
-                    : "border-accent/35 text-ink/55",
-                isStart && idx > 0 && "border-l border-l-ink/15"
+                    ? "bg-accent/15 text-ink"
+                    : "bg-accent/[0.06] text-ink/70",
+                isStart && idx > 0 && "ml-0.5"
               )}
             >
               {MONTHS_TINY[m - 1]}
@@ -281,7 +281,7 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
           <span className="text-ink/25">—</span>
         )}
       </span>
-      <div className={cn("flex items-center justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100", !canEdit && "invisible")}>
+      <div className={cn("flex items-center justify-end", !canEdit && "invisible")}>
         <button type="button" onClick={onEdit} title="Modifier" className={iconBtn}><Pencil size={14} /></button>
         <button type="button" onClick={onDelete} title="Supprimer" className={cn(iconBtn, "hover:text-red-600")}><Trash2 size={14} /></button>
       </div>
