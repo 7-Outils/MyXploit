@@ -28,8 +28,7 @@ interface Draft {
   poste: BillingPoste | "";
   count: number;
   periods: number[]; // paires [début, fin] en mois, longueur = 2 × count (toujours renseignées dans l'éditeur)
-  percents: string[]; // saisie libre, longueur = count
-  usePercents: boolean;
+  percents: string[]; // saisie libre, longueur = count ; toutes remplies = parts précisées
 }
 
 /** Paires début/fin d'un découpage égal depuis le début d'année contractuelle. */
@@ -37,7 +36,7 @@ function equalPairs(yearStart: number, count: number): number[] {
   return periodMonths(yearStart, count).flatMap((ms) => [ms[0], ms[ms.length - 1]]);
 }
 
-const emptyDraft = (yearStart: number): Draft => ({ label: "", poste: "", count: 4, periods: equalPairs(yearStart, 4), percents: ["", "", "", ""], usePercents: false });
+const emptyDraft = (yearStart: number): Draft => ({ label: "", poste: "", count: 4, periods: equalPairs(yearStart, 4), percents: ["", "", "", ""] });
 
 function draftFrom(l: Pick<BillingLine, "label" | "poste" | "countPerYear" | "periods" | "percents">, yearStart: number): Draft {
   const n = l.countPerYear;
@@ -47,7 +46,6 @@ function draftFrom(l: Pick<BillingLine, "label" | "poste" | "countPerYear" | "pe
     count: n,
     periods: Array.isArray(l.periods) && l.periods.length === n * 2 ? [...l.periods] : equalPairs(yearStart, n),
     percents: l.percents.length === n ? l.percents.map(String) : Array(n).fill(""),
-    usePercents: l.percents.length === n,
   };
 }
 
@@ -107,7 +105,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
         countPerYear: draft.count,
         // Découpage égal par défaut = on n'enregistre rien ; sinon les périodes saisies
         periods: draft.periods.join(",") === equalPairs(yearStart, draft.count).join(",") ? [] : draft.periods,
-        percents: draft.usePercents && draft.percents.every((p) => p.trim() !== "") ? draft.percents.map((p) => Number(p)) : [],
+        percents: draft.percents.every((p) => p.trim() !== "") ? draft.percents.map((p) => Number(p)) : [],
       };
       if (editing === "new") await api.post(linesUrl, body);
       else await api.put(`${linesUrl}/${editing}`, body);
@@ -310,16 +308,53 @@ function LineEditor({
     });
   };
 
+  /** Mois suivant / précédent sur le cycle 1-12. */
+  const nextM = (m: number) => (m % 12) + 1;
+  const prevM = (m: number) => ((m + 10) % 12) + 1;
+  /** Longueur d'une période [s, e] en mois (1-12). */
+  const lengthOf = (sm: number, em: number) => ((em - sm + 12) % 12) + 1;
+
+  /**
+   * Modifier une borne fait suivre le reste : la période suivante démarre le
+   * mois d'après, chacune garde sa longueur, la dernière se referme avant la
+   * première. Modifier le début d'une période recule la fin de la précédente.
+   */
   const setPeriod = (i: number, which: 0 | 1, month: number) => {
-    const next = [...draft.periods];
-    next[i * 2 + which] = month;
-    setDraft({ ...draft, periods: next });
+    const n = draft.count;
+    const pr = [...draft.periods];
+    const lens = Array.from({ length: n }, (_, k) => lengthOf(pr[k * 2], pr[k * 2 + 1]));
+    if (which === 0) {
+      if (i === 0) {
+        // Début de la première : tout le découpage se décale
+        let sm = month;
+        for (let k = 0; k < n; k++) {
+          pr[k * 2] = sm;
+          pr[k * 2 + 1] = ((sm + lens[k] - 2) % 12) + 1;
+          sm = nextM(pr[k * 2 + 1]);
+        }
+      } else {
+        pr[i * 2] = month;
+        pr[(i - 1) * 2 + 1] = prevM(month);
+        pr[i * 2 + 1] = ((month + lens[i] - 2) % 12) + 1;
+      }
+    } else {
+      pr[i * 2 + 1] = month;
+    }
+    // Cascade vers l'avant depuis la période modifiée
+    for (let k = i + 1; k < n; k++) {
+      pr[k * 2] = nextM(pr[(k - 1) * 2 + 1]);
+      pr[k * 2 + 1] = ((pr[k * 2] + lens[k] - 2) % 12) + 1;
+    }
+    // La dernière se referme juste avant la première (année complète)
+    if (n > 1) pr[(n - 1) * 2 + 1] = prevM(pr[0]);
+    setDraft({ ...draft, periods: pr });
   };
   const isEqual = draft.periods.join(",") === equalPairs(yearStart, draft.count).join(",");
 
   const pctTotal = draft.percents.reduce((s, p) => s + (Number(p) || 0), 0);
   const pctOver = pctTotal > 100;
-  const canSave = draft.label.trim() !== "" && !saving && !(draft.usePercents && pctOver);
+  const pctAny = draft.percents.some((p) => p.trim() !== "");
+  const canSave = draft.label.trim() !== "" && !saving && !pctOver;
 
   const matching = useMemo(() => {
     const q = draft.label.trim().toLowerCase();
@@ -401,69 +436,59 @@ function LineEditor({
         </div>
       )}
 
-      {/* Périodes couvertes : saisies ligne par ligne, découpage égal proposé */}
+      {/* Une ligne par facture : période couverte, part en % */}
       <div>
         <div className="mb-1 flex items-center gap-3">
-          <span className="label-tech">Périodes couvertes</span>
+          <span className="label-tech">Factures</span>
           {!isEqual && (
             <button type="button" onClick={() => setDraft({ ...draft, periods: equalPairs(yearStart, draft.count) })} className="text-xs text-ink/50 hover:text-accent">
               répartir également
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="divide-y divide-ink/10 border border-ink/15 bg-white">
           {Array.from({ length: draft.count }, (_, i) => (
-            <span key={i} className="flex items-center border border-ink/20 bg-white">
-              <span className="w-7 text-center font-mono text-[11px] text-ink/40">{i + 1}</span>
+            <div key={i} className="flex items-center gap-2 px-2 py-1">
+              <span className="w-10 font-mono text-xs tabular-nums text-ink/40">{i + 1}</span>
               <MonthSelect value={draft.periods[i * 2]} onChange={(m) => setPeriod(i, 0, m)} order={yearMonths(yearStart)} />
-              <span className="px-1 text-xs text-ink/40">→</span>
+              <span className="text-xs text-ink/40">→</span>
               <MonthSelect value={draft.periods[i * 2 + 1]} onChange={(m) => setPeriod(i, 1, m)} order={yearMonths(yearStart)} />
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Parts en % */}
-      <div>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-ink/70">
-          <input type="checkbox" checked={draft.usePercents} onChange={(e) => setDraft({ ...draft, usePercents: e.target.checked })} className="h-3.5 w-3.5 accent-ink" />
-          Préciser la part de chaque facture en %
-          <span className="text-ink/40">(ex. 30 · 30 · 30, le reste au décompte)</span>
-        </label>
-        {draft.usePercents && (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {draft.percents.map((p, i) => (
-              <span key={i} className="flex items-center">
+              <span className="ml-auto flex items-center">
                 <input
                   type="number"
                   min={0}
                   max={100}
-                  value={p}
+                  value={draft.percents[i] ?? ""}
                   onChange={(e) => {
                     const next = [...draft.percents];
                     next[i] = e.target.value;
                     setDraft({ ...draft, percents: next });
                   }}
                   placeholder="—"
-                  className="h-9 w-14 border border-ink/20 bg-white text-center font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
+                  title="Part de cette facture en % (facultatif)"
+                  className="h-8 w-14 border border-ink/15 text-center font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
                 />
-                <span className="ml-0.5 text-xs text-ink/40">%</span>
+                <span className="ml-1 w-4 text-xs text-ink/40">%</span>
               </span>
-            ))}
-            <span className={cn("ml-2 font-mono text-sm tabular-nums", pctOver ? "text-red-700" : "text-ink/60")}>
-              = {pctTotal} %{pctTotal < 100 && !pctOver && <span className="text-ink/40"> · reste {100 - pctTotal} %</span>}
-            </span>
-            {draft.count > 1 && (
-              <button
-                type="button"
-                onClick={() => setDraft({ ...draft, percents: Array(draft.count).fill(String(Math.floor(100 / draft.count))) })}
-                className="border border-ink/15 px-2 py-1 text-xs text-ink/60 hover:border-accent hover:text-accent"
-              >
-                parts égales
-              </button>
-            )}
-          </div>
-        )}
+            </div>
+          ))}
+          {pctAny && (
+            <div className="flex items-center justify-end gap-3 px-2 py-1.5">
+              {draft.count > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setDraft({ ...draft, percents: Array(draft.count).fill(String(Math.floor(100 / draft.count))) })}
+                  className="text-xs text-ink/50 hover:text-accent"
+                >
+                  parts égales
+                </button>
+              )}
+              <span className={cn("font-mono text-sm tabular-nums", pctOver ? "text-red-700" : "text-ink/60")}>
+                = {pctTotal} %{pctTotal < 100 && !pctOver && <span className="text-ink/40"> · reste {100 - pctTotal} %</span>}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 pt-1">
