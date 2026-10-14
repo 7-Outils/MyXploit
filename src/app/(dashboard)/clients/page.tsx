@@ -18,16 +18,7 @@ interface Client {
   };
 }
 
-const emptyForm = {
-  name: "",
-  siret: "",
-  contactName: "",
-  contactEmail: "",
-  contactPhone: "",
-  address: "",
-  city: "",
-  postalCode: "",
-};
+const emptyForm = { name: "" };
 
 export default function ClientsPage() {
   const router = useRouter();
@@ -210,12 +201,13 @@ export default function ClientsPage() {
               </button>
             </div>
             <form onSubmit={handleCreate} className="space-y-3 p-4">
+              <p className="text-sm text-ink/60">Les coordonnées et contacts se complètent ensuite sur la fiche du client.</p>
               {error && (
                 <div className="border border-red-600/20 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
               )}
 
               <div>
-                <label className="label-tech mb-1 block">Nom du client *</label>
+                <label className="label-tech mb-1 block">Nom du client</label>
                 <input
                   type="text"
                   required
@@ -223,81 +215,7 @@ export default function ClientsPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                  placeholder="Ex: Ville de Lyon"
-                />
-              </div>
-
-              <div>
-                <label className="label-tech mb-1 block">Adresse</label>
-                <input
-                  type="text"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                  placeholder="1 place de la Mairie"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="label-tech mb-1 block">Code postal</label>
-                  <input
-                    type="text"
-                    value={formData.postalCode}
-                    onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                    className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="label-tech mb-1 block">Ville</label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label-tech mb-1 block">SIRET</label>
-                <input
-                  type="text"
-                  value={formData.siret}
-                  onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
-                  className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label-tech mb-1 block">Nom du contact</label>
-                  <input
-                    type="text"
-                    value={formData.contactName}
-                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                    className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="label-tech mb-1 block">Téléphone</label>
-                  <input
-                    type="tel"
-                    value={formData.contactPhone}
-                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                    className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label-tech mb-1 block">Email contact</label>
-                <input
-                  type="email"
-                  value={formData.contactEmail}
-                  onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                  className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none"
-                  placeholder="Mis en copie des devis acceptés"
+                  placeholder="Ex: Commune de Saint-Priest"
                 />
               </div>
 
