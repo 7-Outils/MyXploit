@@ -55,6 +55,13 @@ function AdministratifContent() {
   const [activeTab, setActiveTab] = useState<ContratTab>(
     CONTRAT_TABS.find((t) => t.id === requestedTab)?.id ?? CONTRAT_TABS[0].id
   );
+  // L'onglet reste dans l'URL : un rechargement rouvre le même
+  const changeTab = (tab: ContratTab) => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", tab);
+    window.history.replaceState(null, "", `/contrat?${params.toString()}`);
+  };
   if (loadingContracts) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -90,7 +97,7 @@ function AdministratifContent() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => changeTab(tab.id)}
               onMouseEnter={() => {
                 if (!selectedContract) return;
                 if (tab.id === "cibles") {
