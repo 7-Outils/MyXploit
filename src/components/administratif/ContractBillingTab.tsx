@@ -188,6 +188,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
           </div>
         ) : (
           <div className="divide-y divide-ink/10">
+            {lines.length > 0 && <MonthHeader yearStart={yearStart} />}
             {lines.length === 0 && editing !== "new" && (
               <div className="px-5 py-12 text-center text-sm text-ink/40">Aucune facture attendue.</div>
             )}
@@ -249,58 +250,84 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
 // ─── Ligne affichée ─────────────────────────────────────────────────────────
 
+/** Grille partagée par l'en-tête et les lignes : nom | 12 mois | actions. */
+const PLAN_COLS = "lg:grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_4.5rem]";
+
+function MonthHeader({ yearStart }: { yearStart: number }) {
+  return (
+    <div className={cn("hidden items-end gap-x-6 px-5 lg:grid", PLAN_COLS)}>
+      <div />
+      <div className="grid grid-cols-12">
+        {yearMonths(yearStart).map((m, i) => (
+          <span key={m} className={cn("label-tech !tracking-[0.12em] py-2 text-center", i > 0 && "border-l border-ink/[0.06]")}>
+            {MONTHS_SHORT[m - 1].replace(".", "")}
+          </span>
+        ))}
+      </div>
+      <div />
+    </div>
+  );
+}
+
+/** Colonnes (1-12, bornes incluses) occupées par une période dans la frise, en 1 ou 2 segments si elle passe le début. */
+function periodSegments(ms: number[], order: number[]): Array<[number, number]> {
+  const cols = ms.map((m) => order.indexOf(m) + 1).filter((c) => c > 0).sort((a, b) => a - b);
+  const segs: Array<[number, number]> = [];
+  for (const c of cols) {
+    const last = segs[segs.length - 1];
+    if (last && c === last[1] + 1) last[1] = c;
+    else segs.push([c, c]);
+  }
+  return segs;
+}
+
 function LineRow({ line, yearStart, contractYearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; contractYearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
   const hasPct = line.percents.length === line.countPerYear;
   const order = yearMonths(yearStart);
   const periods = linePeriods(line, contractYearStart);
-  const periodIndex = new Map<number, number>();
-  periods.forEach((ms, i) => ms.forEach((m) => { if (!periodIndex.has(m)) periodIndex.set(m, i); }));
-  // Le poste n'est rappelé que s'il n'ouvre pas déjà le libellé (« P2 acomptes » suffit)
   const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
-    <div className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-3 transition-colors hover:bg-ink/[0.015] lg:grid-cols-[minmax(9rem,15rem)_5rem_minmax(0,1fr)_auto_4.5rem] lg:gap-x-6">
+    <div className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-2.5 transition-colors hover:bg-ink/[0.015] lg:gap-x-6", PLAN_COLS)}>
       <div className="flex min-w-0 items-baseline gap-2.5">
         <span className="truncate text-sm font-medium text-ink">{lineName(line)}</span>
         {showPoste && <span className="font-mono text-[11px] tracking-wider text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
+        <span className="font-mono text-[11px] tabular-nums text-ink/40 lg:hidden">· {line.countPerYear}/an</span>
       </div>
-      <span className="whitespace-nowrap font-mono text-sm tabular-nums text-ink lg:order-none">
-        {line.countPerYear} <span className="text-xs text-ink/40">par an</span>
-      </span>
-      {/* Frise de l'année contractuelle, pleine largeur : un bloc teinté par période */}
-      <div className="col-span-2 flex w-full lg:col-span-1" title={periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
-        {order.map((m, idx) => {
-          const pi = periodIndex.get(m);
-          const isStart = pi !== undefined && periods[pi][0] === m;
-          return (
-            <span
-              key={m}
-              className={cn(
-                "flex h-7 min-w-0 flex-1 items-center justify-center font-mono text-[10px] font-medium",
-                pi === undefined
-                  ? "bg-transparent text-ink/20"
-                  : pi % 2 === 0
-                    ? "bg-accent/15 text-ink"
-                    : "bg-accent/[0.06] text-ink/70",
-                isStart && idx > 0 && "ml-0.5"
-              )}
-            >
-              {MONTHS_TINY[m - 1]}
-            </span>
-          );
-        })}
-      </div>
-      <span className="whitespace-nowrap font-mono text-xs tabular-nums text-ink/60 lg:text-right" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
-        {hasPct ? (
-          <>
-            {line.percents.join(" · ")} <span className="text-ink/35">%</span>
-          </>
-        ) : (
-          <span className="text-ink/25">—</span>
-        )}
-      </span>
-      <div className={cn("flex items-center justify-end", !canEdit && "invisible")}>
+      {/* Actions : à droite sur grand écran, sur la première ligne sur petit */}
+      <div className={cn("order-first col-start-2 flex items-center justify-end lg:order-none lg:col-start-3", !canEdit && "invisible")}>
         <button type="button" onClick={onEdit} title="Modifier" className={iconBtn}><Pencil size={14} /></button>
         <button type="button" onClick={onDelete} title="Supprimer" className={cn(iconBtn, "hover:text-red-600")}><Trash2 size={14} /></button>
+      </div>
+      {/* Frise : une barre par facture, « Facture n » et sa part */}
+      <div className="col-span-2 grid grid-cols-12 lg:col-span-1 lg:col-start-2 lg:row-start-1" title={periods.map((ms, i) => `Facture ${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
+        {Array.from({ length: 12 }, (_, i) => (
+          <span key={i} className={cn("row-start-1 h-11", i > 0 && "border-l border-ink/[0.06]")} style={{ gridColumn: i + 1 }} />
+        ))}
+        {periods.flatMap((ms, i) =>
+          periodSegments(ms, order).map(([c1, c2], k) => {
+            const first = k === 0;
+            return (
+              <div
+                key={`${i}-${k}`}
+                className={cn(
+                  "row-start-1 my-1.5 flex min-w-0 flex-col justify-center overflow-hidden border-l-2 border-accent px-2 leading-tight",
+                  i % 2 === 0 ? "bg-accent/15" : "bg-accent/[0.07]",
+                  !first && "border-l-0"
+                )}
+                style={{ gridColumn: `${c1} / ${c2 + 1}`, marginLeft: 2, marginRight: 2 }}
+              >
+                {first && (
+                  <>
+                    <span className="truncate text-[11px] font-medium text-ink">Facture {i + 1}</span>
+                    <span className="truncate font-mono text-[11px] tabular-nums text-ink/60">
+                      {hasPct ? `${line.percents[i]} %` : monthsRangeLabel(ms)}
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
