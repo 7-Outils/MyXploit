@@ -22,12 +22,12 @@ export function parseLine(body: Record<string, unknown>) {
 
   const ints = (v: unknown): number[] | null => (Array.isArray(v) ? v.map((x) => Number(x)) : null);
 
-  let months: number[] = [];
-  const m = ints(body.months);
-  if (m && m.length > 0) {
-    if (m.length !== count) return { error: `Indiquez ${count} mois (un par facture) ou aucun` } as const;
-    if (m.some((x) => !Number.isInteger(x) || x < 1 || x > 12)) return { error: "Mois invalide (1-12)" } as const;
-    months = m;
+  let periods: number[] = [];
+  const pr = ints(body.periods);
+  if (pr && pr.length > 0) {
+    if (pr.length !== count * 2) return { error: `Indiquez ${count} périodes (début et fin) ou aucune` } as const;
+    if (pr.some((x) => !Number.isInteger(x) || x < 1 || x > 12)) return { error: "Mois invalide (1-12)" } as const;
+    periods = pr;
   }
 
   let percents: number[] = [];
@@ -42,5 +42,5 @@ export function parseLine(body: Record<string, unknown>) {
   const tol = body.toleranceDays == null || body.toleranceDays === "" ? 30 : Number(body.toleranceDays);
   if (!Number.isInteger(tol) || tol < 0 || tol > 365) return { error: "Tolérance invalide (0-365 jours)" } as const;
 
-  return { data: { label, poste, countPerYear: count, months, percents, toleranceDays: tol } } as const;
+  return { data: { label, poste, countPerYear: count, periods, percents, toleranceDays: tol } } as const;
 }

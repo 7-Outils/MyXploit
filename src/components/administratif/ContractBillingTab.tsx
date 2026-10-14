@@ -18,7 +18,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/contexts/PermissionContext";
-import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, monthsRangeLabel, normalizeLine, periodMonths, yearMonths, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
+import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, linePeriods, monthsRangeLabel, normalizeLine, periodMonths, yearMonths, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
 
 const iconBtn =
   "flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:pointer-events-none disabled:opacity-30";
@@ -27,32 +27,27 @@ interface Draft {
   label: string;
   poste: BillingPoste | "";
   count: number;
-  months: number[]; // mois choisis (1-12), ordre de clic
+  periods: number[]; // paires [début, fin] en mois, longueur = 2 × count (toujours renseignées dans l'éditeur)
   percents: string[]; // saisie libre, longueur = count
   usePercents: boolean;
 }
 
-const emptyDraft = (): Draft => ({ label: "", poste: "", count: 4, months: [], percents: ["", "", "", ""], usePercents: false });
+/** Paires début/fin d'un découpage égal depuis le début d'année contractuelle. */
+function equalPairs(yearStart: number, count: number): number[] {
+  return periodMonths(yearStart, count).flatMap((ms) => [ms[0], ms[ms.length - 1]]);
+}
 
-function draftFromLine(l: BillingLine): Draft {
+const emptyDraft = (yearStart: number): Draft => ({ label: "", poste: "", count: 4, periods: equalPairs(yearStart, 4), percents: ["", "", "", ""], usePercents: false });
+
+function draftFrom(l: Pick<BillingLine, "label" | "poste" | "countPerYear" | "periods" | "percents">, yearStart: number): Draft {
+  const n = l.countPerYear;
   return {
     label: l.label,
     poste: l.poste ?? "",
-    count: l.countPerYear,
-    months: l.months.length === l.countPerYear ? [...l.months] : [],
-    percents: l.percents.length === l.countPerYear ? l.percents.map(String) : Array(l.countPerYear).fill(""),
-    usePercents: l.percents.length === l.countPerYear,
-  };
-}
-
-function draftFromSuggestion(s: SuggestedLine): Draft {
-  return {
-    label: s.label,
-    poste: s.poste ?? "",
-    count: s.countPerYear,
-    months: s.months.length === s.countPerYear ? [...s.months] : [],
-    percents: s.percents.length === s.countPerYear ? s.percents.map(String) : Array(s.countPerYear).fill(""),
-    usePercents: s.percents.length === s.countPerYear,
+    count: n,
+    periods: Array.isArray(l.periods) && l.periods.length === n * 2 ? [...l.periods] : equalPairs(yearStart, n),
+    percents: l.percents.length === n ? l.percents.map(String) : Array(n).fill(""),
+    usePercents: l.percents.length === n,
   };
 }
 
@@ -74,12 +69,12 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   // Cache SWR possiblement d'une version précédente : on normalise chaque ligne
   const lines = useMemo(() => (Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data]);
   const suggestions = useMemo(
-    () => (Array.isArray(sugg?.suggestions) ? sugg.suggestions.filter((s) => s && typeof s.label === "string").map((s) => ({ ...s, months: Array.isArray(s.months) ? s.months : [], percents: Array.isArray(s.percents) ? s.percents : [] })) : []),
+    () => (Array.isArray(sugg?.suggestions) ? sugg.suggestions.filter((s) => s && typeof s.label === "string").map((s) => ({ ...s, periods: Array.isArray(s.periods) ? s.periods : [], percents: Array.isArray(s.percents) ? s.percents : [] })) : []),
     [sugg]
   );
 
   const [editing, setEditing] = useState<"new" | string | null>(null);
-  const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [draft, setDraft] = useState<Draft>(emptyDraft(7));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<BillingLine | null>(null);
   const [busy, setBusy] = useState(false);
@@ -92,11 +87,11 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   };
 
   const startNew = (from?: SuggestedLine) => {
-    setDraft(from ? draftFromSuggestion(from) : emptyDraft());
+    setDraft(from ? draftFrom(from, yearStart) : emptyDraft(yearStart));
     setEditing("new");
   };
   const startEdit = (l: BillingLine) => {
-    setDraft(draftFromLine(l));
+    setDraft(draftFrom(l, yearStart));
     setEditing(l.id);
   };
   const cancel = () => setEditing(null);
@@ -110,7 +105,8 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
         label,
         poste: draft.poste || null,
         countPerYear: draft.count,
-        months: draft.months.length === draft.count ? draft.months : [],
+        // Découpage égal par défaut = on n'enregistre rien ; sinon les périodes saisies
+        periods: draft.periods.join(",") === equalPairs(yearStart, draft.count).join(",") ? [] : draft.periods,
         percents: draft.usePercents && draft.percents.every((p) => p.trim() !== "") ? draft.percents.map((p) => Number(p)) : [],
       };
       if (editing === "new") await api.post(linesUrl, body);
@@ -179,7 +175,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
             )}
 
             {editing === "new" && (
-              <LineEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew yearStart={yearStart} suggestions={unusedSuggestions} onPick={(s) => setDraft(draftFromSuggestion(s))} />
+              <LineEditor draft={draft} setDraft={setDraft} onSave={save} onCancel={cancel} saving={saving} isNew yearStart={yearStart} suggestions={unusedSuggestions} onPick={(s) => setDraft(draftFrom(s, yearStart))} />
             )}
           </div>
         )}
@@ -228,17 +224,12 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 // ─── Ligne affichée ─────────────────────────────────────────────────────────
 
 function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
-  const hasMonths = line.months.length === line.countPerYear;
   const hasPct = line.percents.length === line.countPerYear;
   const order = yearMonths(yearStart);
-  const picked = new Set(line.months);
-  // Sans mois précis : N périodes égales à partir du début d'année contractuelle
-  const periods = hasMonths ? [] : periodMonths(yearStart, line.countPerYear);
+  const periods = linePeriods(line, yearStart);
   const periodIndex = new Map<number, number>();
-  periods.forEach((ms, i) => ms.forEach((m) => periodIndex.set(m, i)));
-  const title = hasMonths
-    ? `Factures en ${line.months.map((m) => MONTHS_SHORT[m - 1]).join(", ")}`
-    : periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ");
+  periods.forEach((ms, i) => ms.forEach((m) => { if (!periodIndex.has(m)) periodIndex.set(m, i); }));
+  const title = periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ");
   return (
     <div className="group grid items-center gap-4 px-4 py-2.5 md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
       <div className="flex min-w-0 items-center gap-3">
@@ -250,20 +241,18 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
       <span className="font-mono text-sm tabular-nums text-ink">
         {line.countPerYear} <span className="text-ink/50">par an</span>
       </span>
-      {/* Année contractuelle, mois par mois : périodes couvertes (blocs alternés) ou mois de facture (noir) */}
+      {/* Année contractuelle, mois par mois : chaque période en bloc alterné */}
       <div className="flex gap-px" title={title}>
         {order.map((m) => {
           const pi = periodIndex.get(m);
-          const isPeriodStart = pi !== undefined && periods[pi][0] === m;
+          const isStart = pi !== undefined && periods[pi][0] === m;
           return (
             <span
               key={m}
               className={cn(
                 "flex h-5 w-5 items-center justify-center font-mono text-[9px]",
-                hasMonths
-                  ? picked.has(m) ? "bg-ink text-paper" : "bg-ink/[0.04] text-ink/25"
-                  : pi !== undefined && pi % 2 === 0 ? "bg-ink/[0.14] text-ink/70" : "bg-ink/[0.05] text-ink/50",
-                !hasMonths && isPeriodStart && "border-l border-ink/40"
+                pi === undefined ? "bg-ink/[0.03] text-ink/20" : pi % 2 === 0 ? "bg-ink text-paper" : "bg-ink/[0.35] text-paper",
+                isStart && "ml-0.5"
               )}
             >
               {MONTHS_TINY[m - 1]}
@@ -305,9 +294,7 @@ function LineEditor({
   suggestions?: SuggestedLine[];
   onPick?: (s: SuggestedLine) => void;
 }) {
-  // Par défaut une facture couvre une période de l'année contractuelle ; on ne
-  // choisit des mois précis que pour les factures émises à date fixe (décompte…)
-  const [preciseMonths, setPreciseMonths] = useState(draft.months.length > 0);
+
   const labelRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     labelRef.current?.focus();
@@ -318,25 +305,20 @@ function LineEditor({
     setDraft({
       ...draft,
       count,
-      months: draft.months.slice(0, count),
+      periods: equalPairs(yearStart, count),
       percents: Array.from({ length: count }, (_, i) => draft.percents[i] ?? ""),
     });
   };
 
-  const toggleMonth = (m: number) => {
-    if (draft.months.includes(m)) {
-      setDraft({ ...draft, months: draft.months.filter((x) => x !== m) });
-    } else if (draft.months.length < draft.count) {
-      setDraft({ ...draft, months: [...draft.months, m] });
-    } else {
-      // Déjà N mois : le nouveau remplace le plus ancien
-      setDraft({ ...draft, months: [...draft.months.slice(1), m] });
-    }
+  const setPeriod = (i: number, which: 0 | 1, month: number) => {
+    const next = [...draft.periods];
+    next[i * 2 + which] = month;
+    setDraft({ ...draft, periods: next });
   };
+  const isEqual = draft.periods.join(",") === equalPairs(yearStart, draft.count).join(",");
 
   const pctTotal = draft.percents.reduce((s, p) => s + (Number(p) || 0), 0);
   const pctOver = pctTotal > 100;
-  const monthsDone = draft.months.length === draft.count;
   const canSave = draft.label.trim() !== "" && !saving && !(draft.usePercents && pctOver);
 
   const matching = useMemo(() => {
@@ -419,73 +401,26 @@ function LineEditor({
         </div>
       )}
 
-      {/* Quand : périodes (défaut) ou mois précis */}
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex pt-5">
-          {(["periods", "months"] as const).map((mode) => {
-            const on = mode === "months" ? preciseMonths : !preciseMonths;
-            return (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => {
-                  setPreciseMonths(mode === "months");
-                  if (mode === "periods") setDraft({ ...draft, months: [] });
-                }}
-                className={cn(
-                  "h-9 border border-ink/20 px-3 text-xs transition-colors -ml-px first:ml-0",
-                  on ? "bg-ink text-paper border-ink" : "bg-white text-ink/60 hover:text-ink"
-                )}
-              >
-                {mode === "periods" ? "Par période" : "Mois précis"}
-              </button>
-            );
-          })}
+      {/* Périodes couvertes : saisies ligne par ligne, découpage égal proposé */}
+      <div>
+        <div className="mb-1 flex items-center gap-3">
+          <span className="label-tech">Périodes couvertes</span>
+          {!isEqual && (
+            <button type="button" onClick={() => setDraft({ ...draft, periods: equalPairs(yearStart, draft.count) })} className="text-xs text-ink/50 hover:text-accent">
+              répartir également
+            </button>
+          )}
         </div>
-        {!preciseMonths ? (
-          <div>
-            <label className="label-tech mb-1 block">Périodes couvertes</label>
-            <div className="flex flex-wrap gap-1">
-              {periodMonths(yearStart, draft.count).map((ms, i) => (
-                <span key={i} className="border border-ink/15 px-2 py-1.5 font-mono text-xs text-ink/70">
-                  {monthsRangeLabel(ms)}
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <label className="label-tech mb-1 block">
-              Mois de facture{" "}
-              <span className="normal-case tracking-normal text-ink/40">
-                {monthsDone ? "" : draft.months.length === 0 ? `· choisir ${draft.count}` : `· encore ${draft.count - draft.months.length}`}
-              </span>
-            </label>
-            <div className="flex">
-              {yearMonths(yearStart).map((m) => {
-                const on = draft.months.includes(m);
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => toggleMonth(m)}
-                    className={cn(
-                      "h-9 w-11 border border-ink/20 font-mono text-[11px] transition-colors -ml-px first:ml-0",
-                      on ? "bg-ink text-paper border-ink" : "bg-white text-ink/50 hover:text-ink"
-                    )}
-                  >
-                    {MONTHS_SHORT[m - 1].replace(".", "")}
-                  </button>
-                );
-              })}
-              {draft.months.length > 0 && (
-                <button type="button" onClick={() => setDraft({ ...draft, months: [] })} title="Effacer les mois" className={cn(iconBtn, "ml-1")}>
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: draft.count }, (_, i) => (
+            <span key={i} className="flex items-center border border-ink/20 bg-white">
+              <span className="w-7 text-center font-mono text-[11px] text-ink/40">{i + 1}</span>
+              <MonthSelect value={draft.periods[i * 2]} onChange={(m) => setPeriod(i, 0, m)} order={yearMonths(yearStart)} />
+              <span className="px-1 text-xs text-ink/40">→</span>
+              <MonthSelect value={draft.periods[i * 2 + 1]} onChange={(m) => setPeriod(i, 1, m)} order={yearMonths(yearStart)} />
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Parts en % */}
@@ -539,5 +474,21 @@ function LineEditor({
         <button type="button" onClick={onCancel} className="h-9 px-3 text-sm text-ink/60 hover:text-ink">Annuler</button>
       </div>
     </div>
+  );
+}
+
+function MonthSelect({ value, onChange, order }: { value: number; onChange: (m: number) => void; order: number[] }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="h-9 cursor-pointer appearance-none bg-transparent px-2 font-mono text-xs text-ink focus:outline-none"
+    >
+      {order.map((m) => (
+        <option key={m} value={m}>
+          {MONTHS_SHORT[m - 1].replace(".", "")}
+        </option>
+      ))}
+    </select>
   );
 }

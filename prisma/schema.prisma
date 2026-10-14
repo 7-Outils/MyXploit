@@ -1449,7 +1449,7 @@ model ContractBillingLine {
   label         String // libre : « P1 chauffage acomptes », « P3 GE », « Intéressement »…
   poste         BillingPoste? // étiquette pour rapprocher avec les factures reçues (type de facture)
   countPerYear  Int // combien de factures par an (1-12)
-  months        Int[]         @default([]) // mois de chaque facture (1-12), longueur = countPerYear ; vide = réparti sur l'année
+  periods       Int[]         @default([]) // périodes couvertes : paires [début, fin] en mois (1-12), longueur = 2 × countPerYear ; vide = N périodes égales depuis le début d'année contractuelle
   percents      Int[]         @default([]) // part de chaque facture en %, longueur = countPerYear ; vide = non précisé
   toleranceDays Int           @default(30) // délai après le mois / la période avant « en retard »
   sortOrder     Int           @default(0)

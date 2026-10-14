@@ -23,7 +23,7 @@ export interface BillingLineInput {
   label: string;
   poste: BillingPoste | null;
   countPerYear: number;
-  months: number[];
+  periods: number[]; // paires [début, fin] en mois ; vide = périodes égales
   percents: number[];
   toleranceDays: number;
 }
@@ -156,41 +156,38 @@ export function equalPeriods(start: Date, end: Date, n: number): Array<{ pStart:
 /** Les factures attendues d'une ligne sur une saison [start, end]. */
 export function expectedForLine(line: BillingLineInput, start: Date, end: Date): Omit<ExpectedInvoice, "status" | "invoices" | "amount">[] {
   const n = Math.max(1, Math.min(12, line.countPerYear || 1));
-  const out: Omit<ExpectedInvoice, "status" | "invoices" | "amount">[] = [];
-  const useMonths = line.months.length === n;
   const items: Array<{ pStart: Date; pEnd: Date }> = [];
-  if (useMonths) {
-    const sorted = [...line.months].sort((a, b) => {
-      return monthInSeason(a, start, end).getTime() - monthInSeason(b, start, end).getTime();
-    });
-    for (const m of sorted) {
-      const pStart = monthInSeason(m, start, end);
-      const pEnd = new Date(pStart.getFullYear(), pStart.getMonth() + 1, 0);
+  if (line.periods.length === n * 2) {
+    for (let i = 0; i < n; i++) {
+      const sm = line.periods[i * 2];
+      const em = line.periods[i * 2 + 1];
+      const pStart = monthInSeason(sm, start, end);
+      let endMonthStart = new Date(pStart.getFullYear(), em - 1, 1);
+      if (endMonthStart < pStart) endMonthStart = new Date(pStart.getFullYear() + 1, em - 1, 1);
+      const pEnd = new Date(endMonthStart.getFullYear(), endMonthStart.getMonth() + 1, 0);
       items.push({ pStart, pEnd });
     }
+    items.sort((a, b) => a.pStart.getTime() - b.pStart.getTime());
   } else {
     items.push(...equalPeriods(start, end, n));
   }
-  // Les parts suivent l'ordre de saisie des mois ; on les réaligne sur l'ordre chronologique
-  const order = useMonths
-    ? [...line.months.keys()].sort((a, b) => monthInSeason(line.months[a], start, end).getTime() - monthInSeason(line.months[b], start, end).getTime())
-    : [...Array(n).keys()];
-  items.forEach(({ pStart, pEnd }, i) => {
-    const srcIndex = order[i] ?? i;
-    out.push({
-      key: `${line.id}:${i + 1}`,
-      lineId: line.id,
-      label: line.label,
-      poste: line.poste,
-      index: i + 1,
-      count: n,
-      periodStart: pStart.toISOString(),
-      periodEnd: pEnd.toISOString(),
-      dueDate: new Date(pEnd.getTime() + line.toleranceDays * DAY).toISOString(),
-      percent: line.percents.length === n ? line.percents[srcIndex] : null,
-    });
-  });
-  return out;
+  // Les parts suivent l'ordre de saisie des périodes ; on les réaligne sur l'ordre chronologique
+  const order =
+    line.periods.length === n * 2
+      ? [...Array(n).keys()].sort((a, b) => monthInSeason(line.periods[a * 2], start, end).getTime() - monthInSeason(line.periods[b * 2], start, end).getTime())
+      : [...Array(n).keys()];
+  return items.map(({ pStart, pEnd }, i) => ({
+    key: `${line.id}:${i + 1}`,
+    lineId: line.id,
+    label: line.label,
+    poste: line.poste,
+    index: i + 1,
+    count: n,
+    periodStart: pStart.toISOString(),
+    periodEnd: pEnd.toISOString(),
+    dueDate: new Date(pEnd.getTime() + line.toleranceDays * DAY).toISOString(),
+    percent: line.percents.length === n ? line.percents[order[i] ?? i] : null,
+  }));
 }
 
 // ─── Rapprochement ──────────────────────────────────────────────────────────

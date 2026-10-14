@@ -16,7 +16,7 @@ export interface BillingLine {
   label: string;
   poste: BillingPoste | null;
   countPerYear: number;
-  months: number[];
+  periods: number[]; // paires [début, fin] en mois (1-12) ; vide = périodes égales
   percents: number[];
   toleranceDays: number;
   sortOrder?: number;
@@ -45,7 +45,7 @@ export interface SuggestedLine {
   label: string;
   poste: BillingPoste | null;
   countPerYear: number;
-  months: number[];
+  periods: number[];
   percents: number[];
   uses: number;
 }
@@ -88,7 +88,7 @@ export function normalizeLine(raw: Partial<BillingLine> & { id: string }): Billi
     label: typeof raw.label === "string" ? raw.label : "",
     poste: raw.poste ?? null,
     countPerYear: Number.isInteger(count) && count >= 1 ? count : 1,
-    months: Array.isArray(raw.months) ? raw.months : [],
+    periods: Array.isArray(raw.periods) ? raw.periods : [],
     percents: Array.isArray(raw.percents) ? raw.percents : [],
     toleranceDays: typeof raw.toleranceDays === "number" ? raw.toleranceDays : 30,
     sortOrder: raw.sortOrder,
@@ -124,18 +124,34 @@ export function monthsRangeLabel(ms: number[]): string {
   return ms.length === 1 ? f(ms[0]) : `${f(ms[0])} → ${f(ms[ms.length - 1])}`;
 }
 
-/** Phrase d'une ligne : « 3 par an · oct · janv · avr · 30 · 30 · 30 % ». */
-export function lineSentence(raw: Pick<BillingLine, "countPerYear" | "months" | "percents">): string {
-  const months = Array.isArray(raw.months) ? raw.months : [];
+/** Périodes effectives d'une ligne, en mois d'année contractuelle : saisies, ou égales par défaut. */
+export function linePeriods(l: Pick<BillingLine, "countPerYear" | "periods">, yearStartMonth: number): number[][] {
+  const n = l.countPerYear;
+  const pr = Array.isArray(l.periods) ? l.periods : [];
+  if (pr.length !== n * 2) return periodMonths(yearStartMonth, n);
+  const out: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const s = pr[i * 2];
+    const e = pr[i * 2 + 1];
+    const ms: number[] = [];
+    let m = s;
+    for (let k = 0; k < 12; k++) {
+      ms.push(m);
+      if (m === e) break;
+      m = (m % 12) + 1;
+    }
+    out.push(ms);
+  }
+  return out;
+}
+
+/** Phrase d'une ligne : « 3 par an · juil → oct · nov → févr · mars → juin · 30 · 30 · 30 % ». */
+export function lineSentence(raw: Pick<BillingLine, "countPerYear" | "periods" | "percents">, yearStartMonth = 7): string {
   const percents = Array.isArray(raw.percents) ? raw.percents : [];
   const n = raw.countPerYear;
   const parts = [`${n} par an`];
-  if (months.length === n && n <= 6) {
-    parts.push(months.map((m) => (MONTHS_SHORT[m - 1] ?? "").replace(".", "")).join(" · "));
-  }
-  if (percents.length === n && n <= 6) {
-    parts.push(`${percents.join(" · ")} %`);
-  }
+  if (n <= 6) parts.push(linePeriods(raw, yearStartMonth).map(monthsRangeLabel).join(" · "));
+  if (percents.length === n && n <= 6) parts.push(`${percents.join(" · ")} %`);
   return parts.join("   ");
 }
 

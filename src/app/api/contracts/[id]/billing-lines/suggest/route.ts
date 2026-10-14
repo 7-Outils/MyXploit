@@ -15,10 +15,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const lines = await prisma.contractBillingLine.findMany({
     where: { contract: { organizationId: auth.effectiveOrgId }, contractId: { not: id } },
-    select: { label: true, poste: true, countPerYear: true, months: true, percents: true },
+    select: { label: true, poste: true, countPerYear: true, periods: true, percents: true },
   });
 
-  const byLabel = new Map<string, { label: string; poste: string | null; countPerYear: number; months: number[]; percents: number[]; uses: number }>();
+  const byLabel = new Map<string, { label: string; poste: string | null; countPerYear: number; periods: number[]; percents: number[]; uses: number }>();
   for (const l of lines) {
     const key = l.label.trim().toLowerCase();
     const cur = byLabel.get(key);
