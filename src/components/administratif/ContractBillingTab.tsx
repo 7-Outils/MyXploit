@@ -241,7 +241,7 @@ function LineRow({ line, canEdit, onEdit, onDelete }: { line: BillingLine; canEd
   const hasPct = line.percents.length === line.countPerYear;
   const months = new Set(line.months);
   return (
-    <div className="group grid items-center gap-4 px-4 py-2.5 md:grid-cols-[minmax(0,1.4fr)_auto_auto_minmax(0,1fr)_auto]">
+    <div className="group grid items-center gap-4 px-4 py-2.5 md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
       <div className="flex min-w-0 items-center gap-3">
         <span className={cn("w-9 flex-shrink-0 font-mono text-xs font-semibold", line.poste ? "text-ink" : "text-ink/30")}>
           {line.poste ? POSTE_LABELS[line.poste] : "—"}
@@ -265,8 +265,8 @@ function LineRow({ line, canEdit, onEdit, onDelete }: { line: BillingLine; canEd
           </span>
         ))}
       </div>
-      <span className="truncate font-mono text-xs tabular-nums text-ink/60">
-        {hasPct ? `${line.percents.join(" · ")} %` : <span className="text-ink/30">parts non précisées</span>}
+      <span className="min-w-[80px] whitespace-nowrap font-mono text-xs tabular-nums text-ink/60" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
+        {hasPct ? `${line.percents.join(" · ")} %` : <span className="text-ink/25">—</span>}
       </span>
       <div className={cn("flex items-center justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100", !canEdit && "invisible")}>
         <button type="button" onClick={onEdit} title="Modifier" className={iconBtn}><Pencil size={14} /></button>
