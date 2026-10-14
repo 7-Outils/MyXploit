@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Check, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
 import { api, getErrorMessage } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
