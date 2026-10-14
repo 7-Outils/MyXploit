@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, siret, contactName, contactEmail, contactPhone, address, city, postalCode } = body;
+    const { name } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -56,14 +56,7 @@ export async function POST(request: NextRequest) {
 
     const client = await prisma.client.create({
       data: {
-        name,
-        siret: siret || null,
-        contactName: contactName || null,
-        contactEmail: contactEmail || null,
-        contactPhone: contactPhone || null,
-        address: address || null,
-        city: city || null,
-        postalCode: postalCode || null,
+        name: String(name).trim(),
         organizationId: effectiveOrgId,
       },
       include: {

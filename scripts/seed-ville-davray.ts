@@ -74,8 +74,6 @@ async function main() {
     client = await prisma.client.create({
       data: {
         name: "Ville d'Avray",
-        city: "Ville-d'Avray",
-        postalCode: "92410",
         organizationId: sage.id,
       },
     });

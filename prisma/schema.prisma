@@ -107,14 +107,7 @@ model AiUsage {
 
 model Client {
   id             String   @id @default(cuid())
-  name           String // "Ville de Lyon", "Région Auvergne"
-  siret          String?
-  contactName    String?
-  contactEmail   String?
-  contactPhone   String?
-  address        String?
-  city           String?
-  postalCode     String?
+  name           String // "Commune de Saint-Priest", "Région Auvergne"
   organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

@@ -96,14 +96,7 @@ export async function PUT(
     const client = await prisma.client.update({
       where: { id },
       data: {
-        name: body.name ?? existing.name,
-        siret: body.siret !== undefined ? body.siret : existing.siret,
-        contactName: body.contactName !== undefined ? body.contactName : existing.contactName,
-        contactEmail: body.contactEmail !== undefined ? body.contactEmail : existing.contactEmail,
-        contactPhone: body.contactPhone !== undefined ? body.contactPhone : existing.contactPhone,
-        address: body.address !== undefined ? body.address : existing.address,
-        city: body.city !== undefined ? body.city : existing.city,
-        postalCode: body.postalCode !== undefined ? body.postalCode : existing.postalCode,
+        name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : existing.name,
       },
     });
 

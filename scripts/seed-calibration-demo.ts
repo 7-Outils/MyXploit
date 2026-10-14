@@ -158,7 +158,7 @@ async function main() {
   });
   if (!client) {
     client = await prisma.client.create({
-      data: { name: CLIENT_NAME, city: CITY, postalCode: POSTAL, organizationId: sage.id },
+      data: { name: CLIENT_NAME, organizationId: sage.id },
     });
     console.log(`+ Client: ${client.name}`);
   } else {

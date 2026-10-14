@@ -56,7 +56,7 @@ interface MissionDetail {
   endDate: string | null;
   amountHT: number | null;
   billingModality: string | null;
-  client: { id: string; name: string; city: string | null };
+  client: { id: string; name: string };
   missionType: { id: string; name: string };
   deliverables: Deliverable[];
   engineers: Engineer[];
@@ -400,7 +400,6 @@ export default function MissionDetailPage() {
                   <Link href={`/clients/${mission.client.id}`} className="text-accent hover:underline">
                     {mission.client.name}
                   </Link>
-                  {mission.client.city && <span className="text-ink/50"> • {mission.client.city}</span>}
                 </p>
               </div>
               <div>

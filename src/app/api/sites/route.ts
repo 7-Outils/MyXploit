@@ -40,10 +40,6 @@ export async function GET() {
           select: {
             id: true,
             name: true,
-            contactName: true,
-            contactEmail: true,
-            contactPhone: true,
-            postalCode: true,
           },
         },
         contractSites: {

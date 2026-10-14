@@ -9,8 +9,8 @@ export interface ContractRecipient {
 
 /**
  * Candidats à l'envoi d'un email pour un contrat : carnet de contacts du
- * contrat, complété par les champs historiques (email exploitant du contrat,
- * email de la fiche client), dédoublonnés par adresse.
+ * contrat, complété par le champ historique email exploitant du contrat,
+ * dédoublonnés par adresse.
  */
 export async function getContractRecipients(contractId: string): Promise<ContractRecipient[]> {
   const contract = await prisma.contract.findUnique({
@@ -18,7 +18,6 @@ export async function getContractRecipients(contractId: string): Promise<Contrac
     select: {
       provider: true,
       providerEmail: true,
-      client: { select: { name: true, contactEmail: true } },
     },
   });
   if (!contract) return [];
@@ -44,16 +43,6 @@ export async function getContractRecipients(contractId: string): Promise<Contrac
       email: legacyProvider,
       role: "Contrat",
       side: "EXPLOITANT",
-    });
-  }
-  const legacyClient = contract.client?.contactEmail;
-  if (legacyClient && !seen.has(legacyClient.toLowerCase())) {
-    seen.add(legacyClient.toLowerCase());
-    recipients.push({
-      name: contract.client?.name || "Client",
-      email: legacyClient,
-      role: "Fiche client",
-      side: "CLIENT",
     });
   }
   return recipients;

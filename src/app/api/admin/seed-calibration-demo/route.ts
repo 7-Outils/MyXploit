@@ -84,7 +84,7 @@ export async function POST(_req: NextRequest) {
     });
     if (!client) {
       client = await prisma.client.create({
-        data: { name: CLIENT_NAME, city: CITY, postalCode: POSTAL, organizationId: orgId },
+        data: { name: CLIENT_NAME, organizationId: orgId },
       });
       logs.push(`+ Client créé : ${client.name}`);
     } else {

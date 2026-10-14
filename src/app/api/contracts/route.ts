@@ -21,7 +21,7 @@ export async function GET() {
       where,
       include: {
         client: {
-          select: { id: true, name: true, city: true },
+          select: { id: true, name: true },
         },
         contractSites: {
           include: {
