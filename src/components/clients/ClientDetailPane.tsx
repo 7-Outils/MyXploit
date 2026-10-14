@@ -335,8 +335,8 @@ export default function ClientDetailPane({
           }
         >
           <p className="text-sm text-ink/70">
-            Les sites partagés avec d&apos;autres contrats sont conservés. Les sites propres à ce contrat et toutes leurs données
-            sont supprimés. Action irréversible.
+            Le contrat, ses sites et toutes leurs données (consommations, équipements, devis, factures) sont supprimés.
+            Action irréversible.
           </p>
         </Modal>
       )}

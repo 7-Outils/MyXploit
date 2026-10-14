@@ -228,41 +228,13 @@ export async function DELETE(
       );
     }
 
-    // Un contrat sans site se supprime par quiconque peut en créer ;
-    // un contrat avec des sites (et leurs données), seulement par le dirigeant.
-    const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
-    if (existingContract.contractSites.length > 0 && !isAdmin) {
-      return NextResponse.json(
-        { error: "Seul le dirigeant peut supprimer un contrat ayant des sites rattachés" },
-        { status: 403 }
-      );
-    }
 
-    // Get site IDs linked to this contract
-    const siteIds = existingContract.contractSites.map(cs => cs.siteId);
+    // Le contrat et tous ses sites (avec leurs données) sont supprimés.
+    const sitesToDelete = existingContract.contractSites.map((cs) => cs.siteId);
 
-    // Find sites that are ONLY linked to this contract (not shared with others)
-    const sitesToDelete: string[] = [];
-    for (const siteId of siteIds) {
-      const otherLinks = await prisma.contractSite.count({
-        where: {
-          siteId,
-          contractId: { not: id }
-        }
-      });
-      if (otherLinks === 0) {
-        sitesToDelete.push(siteId);
-      }
-    }
-
-    // Delete contract (cascade will delete contractSites)
     await prisma.contract.delete({ where: { id } });
-
-    // Delete orphan sites (only linked to this contract)
     if (sitesToDelete.length > 0) {
-      await prisma.site.deleteMany({
-        where: { id: { in: sitesToDelete } }
-      });
+      await prisma.site.deleteMany({ where: { id: { in: sitesToDelete } } });
     }
 
     return NextResponse.json({
