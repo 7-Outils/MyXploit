@@ -302,18 +302,18 @@ function LineRow({ line, yearStart, contractYearStart, canEdit, onEdit, onDelete
   const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
     <div className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-2.5 transition-colors hover:bg-ink/[0.015] lg:gap-x-6", PLAN_COLS)}>
-      <div className="flex min-w-0 items-baseline gap-2.5">
+      <div className="col-start-1 row-start-1 flex min-w-0 items-baseline gap-2.5">
         <span className="truncate text-sm font-medium text-ink">{lineName(line)}</span>
         {showPoste && <span className="font-mono text-[11px] tracking-wider text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
         <span className="font-mono text-[11px] tabular-nums text-ink/40 lg:hidden">· {line.countPerYear}/an</span>
       </div>
       {/* Actions : à droite sur grand écran, sur la première ligne sur petit */}
-      <div className={cn("order-first col-start-2 flex items-center justify-end lg:order-none lg:col-start-3", !canEdit && "invisible")}>
+      <div className={cn("col-start-2 row-start-1 flex items-center justify-end lg:col-start-3", !canEdit && "invisible")}>
         <button type="button" onClick={onEdit} title="Modifier" className={iconBtn}><Pencil size={14} /></button>
         <button type="button" onClick={onDelete} title="Supprimer" className={cn(iconBtn, "hover:text-red-600")}><Trash2 size={14} /></button>
       </div>
       {/* Frise : une barre par facture, « Facture n » et sa part */}
-      <div className="col-span-2 grid grid-cols-12 lg:col-span-1 lg:col-start-2 lg:row-start-1" title={periods.map((ms, i) => `Facture ${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
+      <div className="col-span-2 col-start-1 row-start-2 grid grid-cols-12 lg:col-span-1 lg:col-start-2 lg:row-start-1" title={periods.map((ms, i) => `Facture ${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
         {Array.from({ length: 12 }, (_, i) => (
           <span key={i} className={cn("row-start-1 h-11", i > 0 && "border-l border-ink/[0.06]")} style={{ gridColumn: i + 1 }} />
         ))}
