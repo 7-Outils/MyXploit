@@ -18,7 +18,6 @@ async function loadQuote(id: string, organizationId: string) {
           id: true,
           reference: true,
           provider: true,
-          providerEmail: true,
           client: { select: { name: true } },
         },
       },

@@ -136,7 +136,6 @@ export async function PUT(
     if (body.reference !== undefined) updateData.reference = text(body.reference);
     if (body.title !== undefined) updateData.title = text(body.title);
     if (body.provider !== undefined) updateData.provider = text(body.provider);
-    if (body.providerEmail !== undefined) updateData.providerEmail = body.providerEmail || null;
     if (body.startDate !== undefined) updateData.startDate = date(body.startDate);
     if (body.endDate !== undefined) updateData.endDate = date(body.endDate);
     if (body.status) updateData.status = body.status;
