@@ -305,7 +305,15 @@ export default function ClientDetailPane({
           }
         >
           <p className="text-sm text-ink/70">
-            Ses <span className="font-mono tabular-nums">{contracts.length}</span> contrat(s) et leurs sites seront détachés, pas supprimés.
+            {contracts.length > 0 ? (
+              <>
+                Ses <span className="font-mono tabular-nums">{contracts.length}</span> contrat{contracts.length > 1 ? "s" : ""}, leurs sites et
+                toutes leurs données (consommations, équipements, devis, factures) seront supprimés définitivement.
+              </>
+            ) : (
+              "Ce client n'a aucun contrat."
+            )}{" "}
+            Action irréversible.
           </p>
         </Modal>
       )}

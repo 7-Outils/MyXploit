@@ -109,7 +109,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/clients/[id] - Supprimer un client (detache sites/contrats)
+// DELETE /api/clients/[id] - Supprimer un client ET ses contrats, leurs sites et leurs données (cascade)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -160,14 +160,40 @@ export async function DELETE(
       );
     }
 
-    // Detacher sites et contrats avant suppression
+    // Cascade : contrats du client → sites rattachés à ces contrats (sauf ceux
+    // partagés avec un contrat d'un autre client) → sites directs du client → client.
+    const contracts = await prisma.contract.findMany({
+      where: { clientId: id },
+      select: { id: true, contractSites: { select: { siteId: true } } },
+    });
+    const contractIds = contracts.map((c) => c.id);
+    const linkedSiteIds = Array.from(new Set(contracts.flatMap((c) => c.contractSites.map((cs) => cs.siteId))));
+
+    // Sites encore utilisés par un contrat hors de ce client : conservés
+    const sharedLinks = linkedSiteIds.length
+      ? await prisma.contractSite.findMany({
+          where: { siteId: { in: linkedSiteIds }, contractId: { notIn: contractIds } },
+          select: { siteId: true },
+        })
+      : [];
+    const shared = new Set(sharedLinks.map((l) => l.siteId));
+    const sitesToDelete = linkedSiteIds.filter((sid) => !shared.has(sid));
+
     await prisma.$transaction([
+      ...(contractIds.length ? [prisma.contract.deleteMany({ where: { id: { in: contractIds } } })] : []),
+      ...(sitesToDelete.length ? [prisma.site.deleteMany({ where: { id: { in: sitesToDelete } } })] : []),
+      // Sites rattachés directement au client et à aucun autre contrat
+      prisma.site.deleteMany({ where: { clientId: id, contractSites: { none: {} } } }),
+      // Un site direct encore lié à un contrat d'un autre client : on le détache seulement
       prisma.site.updateMany({ where: { clientId: id }, data: { clientId: null } }),
-      prisma.contract.updateMany({ where: { clientId: id }, data: { clientId: null } }),
       prisma.client.delete({ where: { id } }),
     ]);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      deletedContracts: contractIds.length,
+      deletedSites: sitesToDelete.length,
+    });
   } catch (error) {
     console.error("Error deleting client:", error);
     return NextResponse.json(
