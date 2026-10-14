@@ -20,6 +20,7 @@ import {
   day,
   expectedTooltip,
   groupByLine,
+  normalizeLine,
   swrErrorMessage,
   type BillingScheduleResponse,
   type ExpectedInvoice,
@@ -70,11 +71,11 @@ export default function BillingFollowUp({ contractId }: { contractId: string }) 
 
   const season = data?.season ?? null;
   const seasons = Array.isArray(data?.seasons) ? data.seasons : [];
-  const lines = useMemo(() => (Array.isArray(data?.lines) ? data.lines : []), [data?.lines]);
-  const expected = useMemo(() => (Array.isArray(data?.expected) ? data.expected : []), [data?.expected]);
+  const lines = useMemo(() => (Array.isArray(data?.lines) ? data.lines.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data?.lines]);
+  const expected = useMemo(() => (Array.isArray(data?.expected) ? data.expected.filter((e) => e && typeof e.key === "string") : []), [data?.expected]);
 
   const strip = useMemo(
-    () => [...expected].sort((a, b) => day(a.periodStart).getTime() - day(b.periodStart).getTime() || a.label.localeCompare(b.label, "fr") || a.index - b.index),
+    () => [...expected].sort((a, b) => day(a.periodStart).getTime() - day(b.periodStart).getTime() || (a.label ?? "").localeCompare(b.label ?? "", "fr") || a.index - b.index),
     [expected]
   );
 

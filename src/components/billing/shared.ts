@@ -76,14 +76,36 @@ export const MONTHS_LONG = ["janvier", "février", "mars", "avril", "mai", "juin
 /** Mois en 3 lettres pour les rangées de cases. */
 export const MONTHS_TINY = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
+/**
+ * Une ligne telle que le cache SWR (localStorage) peut la resservir : forme
+ * actuelle, ou forme d'une version précédente sans `months`/`percents`/`label`.
+ * On normalise à la lecture pour ne jamais planter sur un cache obsolète.
+ */
+export function normalizeLine(raw: Partial<BillingLine> & { id: string }): BillingLine {
+  const count = Number(raw.countPerYear);
+  return {
+    id: raw.id,
+    label: typeof raw.label === "string" ? raw.label : "",
+    poste: raw.poste ?? null,
+    countPerYear: Number.isInteger(count) && count >= 1 ? count : 1,
+    months: Array.isArray(raw.months) ? raw.months : [],
+    percents: Array.isArray(raw.percents) ? raw.percents : [],
+    toleranceDays: typeof raw.toleranceDays === "number" ? raw.toleranceDays : 30,
+    sortOrder: raw.sortOrder,
+  };
+}
+
 /** Phrase d'une ligne : « 3 par an · oct · janv · avr · 30 · 30 · 30 % ». */
-export function lineSentence(l: Pick<BillingLine, "countPerYear" | "months" | "percents">): string {
-  const parts = [`${l.countPerYear} par an`];
-  if (l.months.length === l.countPerYear && l.countPerYear <= 6) {
-    parts.push([...l.months].map((m) => MONTHS_SHORT[m - 1].replace(".", "")).join(" · "));
+export function lineSentence(raw: Pick<BillingLine, "countPerYear" | "months" | "percents">): string {
+  const months = Array.isArray(raw.months) ? raw.months : [];
+  const percents = Array.isArray(raw.percents) ? raw.percents : [];
+  const n = raw.countPerYear;
+  const parts = [`${n} par an`];
+  if (months.length === n && n <= 6) {
+    parts.push(months.map((m) => (MONTHS_SHORT[m - 1] ?? "").replace(".", "")).join(" · "));
   }
-  if (l.percents.length === l.countPerYear && l.countPerYear <= 6) {
-    parts.push(`${l.percents.join(" · ")} %`);
+  if (percents.length === n && n <= 6) {
+    parts.push(`${percents.join(" · ")} %`);
   }
   return parts.join("   ");
 }
@@ -131,7 +153,8 @@ export function formatPeriod(startIso: string, endIso: string): string {
 
 /** Libellé court d'un attendu : « P3 GE 3/4 ». */
 export function expectedShortLabel(e: Pick<ExpectedInvoice, "label" | "index" | "count">): string {
-  return e.count > 1 ? `${e.label} ${e.index}/${e.count}` : e.label;
+  const label = e.label ?? "Facture";
+  return e.count > 1 ? `${label} ${e.index}/${e.count}` : label;
 }
 
 /** Info-bulle d'un attendu : « P3 GE 3/4 · oct. 2025 · 12 450 € ». */

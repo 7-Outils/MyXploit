@@ -18,7 +18,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/contexts/PermissionContext";
-import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
+import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, normalizeLine, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
 
 const iconBtn =
   "flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:pointer-events-none disabled:opacity-30";
@@ -68,8 +68,12 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   const linesUrl = `/api/contracts/${contractId}/billing-lines`;
   const { data, isLoading, mutate } = useSWR<BillingLine[]>(linesUrl, fetcher);
   const { data: sugg } = useSWR<{ suggestions: SuggestedLine[] }>(`${linesUrl}/suggest`, fetcher);
-  const lines = useMemo(() => (Array.isArray(data) ? data : []), [data]);
-  const suggestions = useMemo(() => (Array.isArray(sugg?.suggestions) ? sugg.suggestions : []), [sugg]);
+  // Cache SWR possiblement d'une version précédente : on normalise chaque ligne
+  const lines = useMemo(() => (Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data]);
+  const suggestions = useMemo(
+    () => (Array.isArray(sugg?.suggestions) ? sugg.suggestions.filter((s) => s && typeof s.label === "string").map((s) => ({ ...s, months: Array.isArray(s.months) ? s.months : [], percents: Array.isArray(s.percents) ? s.percents : [] })) : []),
+    [sugg]
+  );
 
   const [editing, setEditing] = useState<"new" | string | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
