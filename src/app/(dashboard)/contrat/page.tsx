@@ -7,15 +7,8 @@ import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
 import {
   Loader2,
-  Pencil,
-  Trash2,
 } from "lucide-react";
 import { sortTabsAlpha } from "@/lib/utils";
-import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast";
-import { usePermissions } from "@/contexts/PermissionContext";
-import { api, getErrorMessage } from "@/lib/api-client";
 
 import ContractSitesTab from "@/components/administratif/ContractSitesTab";
 import ContractContactsTab from "@/components/administratif/ContractContactsTab";
@@ -24,7 +17,6 @@ import ContractRevisionTab from "@/components/administratif/ContractRevisionTab"
 import ContractMontantsTab from "@/components/administratif/ContractMontantsTab";
 import ContractRenewalPlanTab from "@/components/administratif/ContractRenewalPlanTab";
 import ContractBillingTab from "@/components/administratif/ContractBillingTab";
-import EditContractModal from "@/components/administratif/modals/EditContractModal";
 import type { Contract } from "@/components/administratif/types";
 import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
 import type { Site } from "@/components/energy/types";
@@ -43,9 +35,7 @@ const CONTRAT_TABS = sortTabsAlpha([
 ]);
 
 function AdministratifContent() {
-  const { selectedContract, isLoading: loadingContracts, clearContract } = useContract();
-  const { canDelete } = usePermissions();
-  const toast = useToast();
+  const { selectedContract, isLoading: loadingContracts } = useContract();
   const contractKey = selectedContract?.id;
 
   const { data: contractDetailData, isLoading: loadingDetail, mutate: mutateDetail } = useSWR<Contract>(
@@ -65,26 +55,6 @@ function AdministratifContent() {
   const [activeTab, setActiveTab] = useState<ContratTab>(
     CONTRAT_TABS.find((t) => t.id === requestedTab)?.id ?? CONTRAT_TABS[0].id
   );
-  const [showEditContractModal, setShowEditContractModal] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  const deleteContract = async () => {
-    if (!selectedContract) return;
-    setDeleting(true);
-    try {
-      await api.del(`/api/contracts/${selectedContract.id}`);
-      const clientId = selectedContract.client?.id;
-      clearContract();
-      // Retour à la fiche du client (ou à la liste) : le contexte de contrat n'existe plus
-      window.location.assign(clientId ? `/clients/${clientId}` : "/clients");
-    } catch (err) {
-      toast.error(getErrorMessage(err));
-      setDeleting(false);
-      setConfirmDelete(false);
-    }
-  };
-
   if (loadingContracts) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -144,47 +114,7 @@ function AdministratifContent() {
           );
         })}
       </div>
-        <div className="flex items-center gap-2 pb-2">
-          <button
-            type="button"
-            onClick={() => setShowEditContractModal(true)}
-            title="Modifier le contrat"
-            className="h-9 w-9 flex items-center justify-center border border-ink/20 text-ink hover:border-accent hover:text-accent transition-colors"
-          >
-            <Pencil size={16} />
-          </button>
-          {canDelete && (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              title="Supprimer le contrat"
-              className="h-9 w-9 flex items-center justify-center border border-ink/20 text-ink/60 hover:border-red-600/40 hover:text-red-600 transition-colors"
-            >
-              <Trash2 size={16} />
-            </button>
-          )}
-        </div>
       </div>
-
-      {confirmDelete && selectedContract && (
-        <Modal
-          title="Supprimer le contrat"
-          subtitle={[selectedContract.client?.name, selectedContract.provider, selectedContract.reference].filter(Boolean).join(" · ")}
-          size="sm"
-          onClose={() => setConfirmDelete(false)}
-          footer={
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>Annuler</Button>
-              <Button size="sm" onClick={deleteContract} disabled={deleting} className="bg-red-700 hover:bg-red-800">
-                {deleting && <Loader2 size={14} className="mr-2 animate-spin" />}
-                Supprimer
-              </Button>
-            </>
-          }
-        >
-          <p className="text-sm text-ink/70">Le contrat et ses sites seront supprimés. Action irréversible.</p>
-        </Modal>
-      )}
 
       {/* Tab Content */}
       {loadingDetail && !contractDetail ? (
@@ -255,16 +185,6 @@ function AdministratifContent() {
         </>
       )}
 
-      {/* Modals */}
-
-      {showEditContractModal && contractDetail && (
-        <EditContractModal
-          contractId={selectedContract.id}
-          contractDetail={contractDetail}
-          onClose={() => setShowEditContractModal(false)}
-          onUpdated={fetchDetail}
-        />
-      )}
     </div>
   );
 }
