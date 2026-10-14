@@ -79,15 +79,6 @@ export function ContractSelector() {
       .filter((g): g is ClientGroup => g !== null);
   }, [groups, query]);
 
-  if (isLoading) {
-    return <div className="h-9 w-64 bg-ink/5 animate-pulse" />;
-  }
-
-  const pick = (contract: Contract) => {
-    selectContract(contract);
-    setOpen(false);
-  };
-
   // Nombre de contrats par client : au-delà d'un, on ajoute un indice (référence ou exploitant)
   const perClient = useMemo(() => {
     const m = new Map<string, number>();
@@ -97,6 +88,16 @@ export function ContractSelector() {
     }
     return m;
   }, [contracts]);
+
+  if (isLoading) {
+    return <div className="h-9 w-64 bg-ink/5 animate-pulse" />;
+  }
+
+  const pick = (contract: Contract) => {
+    selectContract(contract);
+    setOpen(false);
+  };
+
   const hint = (c: Contract) => c.reference || c.provider || null;
   const needsHint = (c: Contract) => (perClient.get(c.client?.id || "__none__") || 0) > 1;
 
