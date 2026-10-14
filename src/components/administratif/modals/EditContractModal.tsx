@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parseFrenchDate, formatToFrench } from "@/components/administratif/constants";
 import type { Contract, YearType, BillingFrequency } from "@/components/administratif/types";
 
 interface EditContractModalProps {
@@ -20,8 +19,8 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
     provider: contractDetail.provider ?? "",
     providerEmail: contractDetail.providerEmail || "",
     description: contractDetail.description || "",
-    startDate: formatToFrench(contractDetail.startDate),
-    endDate: formatToFrench(contractDetail.endDate),
+    startDate: contractDetail.startDate?.slice(0, 10) ?? "",
+    endDate: contractDetail.endDate?.slice(0, 10) ?? "",
     status: contractDetail.status as string,
     yearType: (contractDetail.yearType || "HEATING_SEASON") as YearType,
     billingFrequency: (contractDetail.billingFrequency || "TRIMESTRIEL") as BillingFrequency,
@@ -40,8 +39,8 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           provider: formData.provider,
           providerEmail: formData.providerEmail.trim() || null,
           description: formData.description || null,
-          startDate: parseFrenchDate(formData.startDate),
-          endDate: parseFrenchDate(formData.endDate),
+          startDate: formData.startDate || null,
+          endDate: formData.endDate || null,
           status: formData.status,
           yearType: formData.yearType,
           billingFrequency: formData.billingFrequency,
@@ -86,12 +85,12 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label-tech mb-1 block">Date de début *</label>
-              <input type="text" required placeholder="01/01/2024" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+              <label className="label-tech mb-1 block">Date de début</label>
+              <input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
             </div>
             <div>
-              <label className="label-tech mb-1 block">Date de fin *</label>
-              <input type="text" required placeholder="31/12/2035" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+              <label className="label-tech mb-1 block">Date de fin</label>
+              <input type="date" min={formData.startDate || undefined} value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

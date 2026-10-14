@@ -273,21 +273,17 @@ export default function ClientDetailPane({
           <THead>
             <Th>Référence</Th>
             <Th>Exploitant</Th>
-            <Th>Intitulé</Th>
             <Th>Statut</Th>
             <Th align="right"> </Th>
           </THead>
           <TBody>
             {contracts.length === 0 && (
-              <TableEmpty colSpan={5} message="Aucun contrat. Créez-en un, importez un AE ou rattachez un contrat existant." />
+              <TableEmpty colSpan={4} message="Aucun contrat. Créez-en un, importez un AE ou rattachez un contrat existant." />
             )}
             {contracts.map((c) => (
               <Tr key={c.id}>
                 <Td className="py-2 font-mono font-medium text-ink">{c.reference || "—"}</Td>
                 <Td className="py-2">{c.provider || "—"}</Td>
-                <Td className="max-w-[320px] truncate py-2 text-ink/60">
-                  <span title={c.title ?? undefined}>{c.title || "—"}</span>
-                </Td>
                 <Td className={cn("py-2", STATUS_TEXT[c.status] ?? "text-ink/50")}>{STATUS_LABELS[c.status] ?? c.status}</Td>
                 <Td align="right" className="py-1">
                   <div className="flex items-center justify-end gap-1">
@@ -519,7 +515,6 @@ function AttachContractsModal({
                     <span className="font-mono font-medium text-ink">{c.reference}</span>
                     <span className="text-ink/50"> · {c.provider}</span>
                   </p>
-                  <p className="truncate text-xs text-ink/40">{c.title}</p>
                 </div>
                 <span className="font-mono text-xs tabular-nums text-ink/50">
                   {c._count?.contractSites ?? 0} site{(c._count?.contractSites ?? 0) > 1 ? "s" : ""}

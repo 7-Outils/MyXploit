@@ -111,8 +111,9 @@ export function ContractSelector() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
+        title={label}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 text-sm transition-colors border max-w-[460px]",
+          "flex w-80 items-center gap-2 px-3 py-1.5 text-sm transition-colors border",
           open
             ? "border-accent bg-accent/5 text-accent"
             : "border-ink/20 text-ink hover:border-accent hover:text-accent"
