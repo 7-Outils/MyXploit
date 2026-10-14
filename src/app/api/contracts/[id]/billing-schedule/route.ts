@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   ]);
 
   const expected = buildSchedule(lines, invoices as InvoiceLite[], bounds.start, bounds.end);
-  const counts = { RECUE: 0, A_VENIR: 0, ATTENDUE: 0, EN_RETARD: 0 };
+  const counts: Record<"RECUE" | "A_VENIR" | "ATTENDUE" | "EN_RETARD", number> = { RECUE: 0, A_VENIR: 0, ATTENDUE: 0, EN_RETARD: 0 };
   for (const e of expected) counts[e.status]++;
 
   // Factures de la saison non rapprochées (hors échéancier)

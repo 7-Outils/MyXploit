@@ -1,29 +1,24 @@
 /**
- * Types et helpers d'affichage de l'échéancier de facturation, partagés par
+ * Types et helpers d'affichage des modalités de facturation, partagés par
  * l'onglet Contrat › Facturation et le bandeau de suivi de Finances.
  * Les formes suivent les routes /api/contracts/[id]/billing-*.
  */
 import type { ExpectedInvoice, ExpectedStatus, SeasonInfo } from "@/lib/billing-schedule";
 
 export type { ExpectedInvoice, ExpectedStatus, SeasonInfo };
-export { POSTE_LABELS, NATURE_LABELS, RHYTHM_LABELS } from "@/lib/billing-schedule";
 
-export type BillingPoste = "P1" | "P2" | "P3" | "INTERESSEMENT" | "AUTRE";
-export type BillingNature = "ACOMPTE_FORFAIT" | "REEL" | "DECOMPTE";
-export type BillingRhythm = "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
-
-export const POSTES: BillingPoste[] = ["P1", "P2", "P3", "INTERESSEMENT", "AUTRE"];
-export const NATURES: BillingNature[] = ["ACOMPTE_FORFAIT", "REEL", "DECOMPTE"];
-export const RHYTHMS: BillingRhythm[] = ["MENSUEL", "TRIMESTRIEL", "SEMESTRIEL", "ANNUEL"];
+export type BillingPoste = "P1" | "P2" | "P3" | "AUTRE";
+export const POSTES: BillingPoste[] = ["P1", "P2", "P3", "AUTRE"];
+export const POSTE_LABELS: Record<BillingPoste, string> = { P1: "P1", P2: "P2", P3: "P3", AUTRE: "Autre" };
 
 export interface BillingLine {
   id: string;
-  poste: BillingPoste;
-  nature: BillingNature;
-  rhythm: BillingRhythm;
-  expectedMonth: number | null;
+  label: string;
+  poste: BillingPoste | null;
+  countPerYear: number;
+  months: number[];
+  percents: number[];
   toleranceDays: number;
-  label: string | null;
   sortOrder?: number;
 }
 
@@ -47,34 +42,13 @@ export interface BillingScheduleResponse {
 }
 
 export interface SuggestedLine {
-  poste: BillingPoste;
-  nature: BillingNature;
-  rhythm: BillingRhythm;
-  expectedMonth: number | null;
-  reason: string;
+  label: string;
+  poste: BillingPoste | null;
+  countPerYear: number;
+  months: number[];
+  percents: number[];
+  uses: number;
 }
-
-/** Libellé court du poste (colonne étroite). */
-export const POSTE_SHORT: Record<BillingPoste, string> = {
-  P1: "P1",
-  P2: "P2",
-  P3: "P3",
-  INTERESSEMENT: "Int.",
-  AUTRE: "Autre",
-};
-
-export const NATURE_SHORT: Record<BillingNature, string> = {
-  ACOMPTE_FORFAIT: "Acompte",
-  REEL: "Réel",
-  DECOMPTE: "Décompte",
-};
-
-export const PERIODS_PER_SEASON: Record<BillingRhythm, number> = {
-  MENSUEL: 12,
-  TRIMESTRIEL: 4,
-  SEMESTRIEL: 2,
-  ANNUEL: 1,
-};
 
 export const STATUS_LABELS: Record<ExpectedStatus, string> = {
   RECUE: "Reçue",
@@ -99,11 +73,23 @@ export const STATUS_BLOCK: Record<ExpectedStatus, string> = {
 
 export const MONTHS_SHORT = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 export const MONTHS_LONG = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+/** Mois en 3 lettres pour les rangées de cases. */
+export const MONTHS_TINY = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
+
+/** Phrase d'une ligne : « 3 par an · oct · janv · avr · 30 · 30 · 30 % ». */
+export function lineSentence(l: Pick<BillingLine, "countPerYear" | "months" | "percents">): string {
+  const parts = [`${l.countPerYear} par an`];
+  if (l.months.length === l.countPerYear && l.countPerYear <= 6) {
+    parts.push([...l.months].map((m) => MONTHS_SHORT[m - 1].replace(".", "")).join(" · "));
+  }
+  if (l.percents.length === l.countPerYear && l.countPerYear <= 6) {
+    parts.push(`${l.percents.join(" · ")} %`);
+  }
+  return parts.join("   ");
+}
 
 /**
  * Date ISO renvoyée par l'API → minuit local du même jour calendaire.
- * Les bornes sont calculées côté serveur à minuit (UTC sur Vercel) : on ne
- * garde que la partie date pour ne pas glisser d'un jour selon le fuseau.
  */
 export function day(iso: string | null | undefined): Date {
   if (!iso) return new Date(NaN);
@@ -143,16 +129,15 @@ export function formatPeriod(startIso: string, endIso: string): string {
   return `${sm} ${s.getFullYear()}–${em} ${e.getFullYear()}`;
 }
 
-/** Libellé court d'un attendu : « P2 · Acompte 3/4 ». */
-export function expectedShortLabel(e: Pick<ExpectedInvoice, "poste" | "nature" | "index" | "count">): string {
-  const poste = POSTE_SHORT[e.poste as BillingPoste] ?? e.poste;
-  const nature = NATURE_SHORT[e.nature as BillingNature] ?? e.nature;
-  return e.count > 1 ? `${poste} · ${nature} ${e.index}/${e.count}` : `${poste} · ${nature}`;
+/** Libellé court d'un attendu : « P3 GE 3/4 ». */
+export function expectedShortLabel(e: Pick<ExpectedInvoice, "label" | "index" | "count">): string {
+  return e.count > 1 ? `${e.label} ${e.index}/${e.count}` : e.label;
 }
 
-/** Info-bulle d'un attendu : « P2 · Acompte 3/4 · oct.–déc. 2025 · 12 450 € ». */
+/** Info-bulle d'un attendu : « P3 GE 3/4 · oct. 2025 · 12 450 € ». */
 export function expectedTooltip(e: ExpectedInvoice): string {
   const parts = [expectedShortLabel(e), formatPeriod(e.periodStart, e.periodEnd)];
+  if (e.percent != null) parts.push(`${e.percent} %`);
   if (e.status === "RECUE") {
     parts.push(formatEuro(e.amount));
     const refs = (e.invoices ?? []).map((i) => i.reference).filter(Boolean);
@@ -171,6 +156,17 @@ export function expectedTooltip(e: ExpectedInvoice): string {
 export function daysLate(dueIso: string, today = new Date()): number {
   const due = day(dueIso);
   return Math.floor((today.getTime() - due.getTime()) / 86_400_000);
+}
+
+/** Regroupe les attendus du serveur par ligne. */
+export function groupByLine(expected: ExpectedInvoice[]): Map<string, ExpectedInvoice[]> {
+  const byLine = new Map<string, ExpectedInvoice[]>();
+  for (const e of expected) {
+    const arr = byLine.get(e.lineId) ?? [];
+    arr.push(e);
+    byLine.set(e.lineId, arr);
+  }
+  return byLine;
 }
 
 /** Erreur SWR → message du serveur ({ error }) s'il y en a un. */

@@ -1,28 +1,46 @@
-/** Validation d'une ligne d'échéancier de facturation (API billing-lines). */
-const POSTES = ["P1", "P2", "P3", "INTERESSEMENT", "AUTRE"] as const;
-const NATURES = ["ACOMPTE_FORFAIT", "REEL", "DECOMPTE"] as const;
-const RHYTHMS = ["MENSUEL", "TRIMESTRIEL", "SEMESTRIEL", "ANNUEL"] as const;
+/** Validation d'une ligne de modalités de facturation (API billing-lines). */
+const POSTES = ["P1", "P2", "P3", "AUTRE"] as const;
+export type BillingPosteValue = (typeof POSTES)[number];
+
+/** Déduit le poste d'un libellé commençant par P1/P2/P3 (« P3 GE » → P3). */
+export function posteFromLabel(label: string): BillingPosteValue | null {
+  const m = label.trim().toUpperCase().match(/^P([123])\b/);
+  return m ? (`P${m[1]}` as BillingPosteValue) : null;
+}
 
 export function parseLine(body: Record<string, unknown>) {
-  const poste = body.poste as (typeof POSTES)[number];
-  const nature = body.nature as (typeof NATURES)[number];
-  const rhythm = body.rhythm as (typeof RHYTHMS)[number];
-  if (!POSTES.includes(poste)) return { error: "Poste invalide" };
-  if (!NATURES.includes(nature)) return { error: "Nature invalide" };
-  if (!RHYTHMS.includes(rhythm)) return { error: "Rythme invalide" };
-  const em = body.expectedMonth == null || body.expectedMonth === "" ? null : Number(body.expectedMonth);
-  if (em !== null && (!Number.isInteger(em) || em < 1 || em > 12)) return { error: "Mois attendu invalide (1-12)" };
-  const tol = body.toleranceDays == null || body.toleranceDays === "" ? 30 : Number(body.toleranceDays);
-  if (!Number.isInteger(tol) || tol < 0 || tol > 365) return { error: "Tolérance invalide (0-365 jours)" };
-  const label = typeof body.label === "string" && body.label.trim() ? body.label.trim().slice(0, 120) : null;
-  const periods = { MENSUEL: 12, TRIMESTRIEL: 4, SEMESTRIEL: 2, ANNUEL: 1 }[rhythm];
-  let splitPercents: number[] = [];
-  if (Array.isArray(body.splitPercents) && body.splitPercents.length > 0) {
-    splitPercents = body.splitPercents.map((v) => Number(v));
-    if (splitPercents.length !== periods) return { error: `La répartition doit avoir ${periods} valeurs` };
-    if (splitPercents.some((v) => !Number.isInteger(v) || v < 0 || v > 100)) return { error: "Répartition invalide (entiers de 0 à 100)" };
-    if (splitPercents.reduce((a, b) => a + b, 0) !== 100) return { error: "La répartition doit totaliser 100 %" };
-    if (splitPercents.every((v) => v === splitPercents[0])) splitPercents = []; // parts égales = pas besoin de stocker
+  const label = typeof body.label === "string" ? body.label.trim().slice(0, 80) : "";
+  if (!label) return { error: "Le libellé est requis" } as const;
+
+  const count = Number(body.countPerYear);
+  if (!Number.isInteger(count) || count < 1 || count > 12) return { error: "Le nombre de factures par an doit être entre 1 et 12" } as const;
+
+  let poste: BillingPosteValue | null = null;
+  if (body.poste === null || body.poste === "" || body.poste === undefined) poste = posteFromLabel(label);
+  else if (POSTES.includes(body.poste as BillingPosteValue)) poste = body.poste as BillingPosteValue;
+  else return { error: "Poste invalide" } as const;
+
+  const ints = (v: unknown): number[] | null => (Array.isArray(v) ? v.map((x) => Number(x)) : null);
+
+  let months: number[] = [];
+  const m = ints(body.months);
+  if (m && m.length > 0) {
+    if (m.length !== count) return { error: `Indiquez ${count} mois (un par facture) ou aucun` } as const;
+    if (m.some((x) => !Number.isInteger(x) || x < 1 || x > 12)) return { error: "Mois invalide (1-12)" } as const;
+    months = m;
   }
-  return { data: { poste, nature, rhythm, expectedMonth: rhythm === "ANNUEL" ? em : null, toleranceDays: tol, label, splitPercents } };
+
+  let percents: number[] = [];
+  const pc = ints(body.percents);
+  if (pc && pc.length > 0) {
+    if (pc.length !== count) return { error: `Indiquez ${count} parts (une par facture) ou aucune` } as const;
+    if (pc.some((x) => !Number.isInteger(x) || x < 0 || x > 100)) return { error: "Part invalide (entiers de 0 à 100)" } as const;
+    if (pc.reduce((a, b) => a + b, 0) > 100) return { error: "Le total des parts dépasse 100 %" } as const;
+    percents = pc;
+  }
+
+  const tol = body.toleranceDays == null || body.toleranceDays === "" ? 30 : Number(body.toleranceDays);
+  if (!Number.isInteger(tol) || tol < 0 || tol > 365) return { error: "Tolérance invalide (0-365 jours)" } as const;
+
+  return { data: { label, poste, countPerYear: count, months, percents, toleranceDays: tol } } as const;
 }

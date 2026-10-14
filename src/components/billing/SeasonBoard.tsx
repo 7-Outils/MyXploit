@@ -13,17 +13,12 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { expectedForLine } from "@/lib/billing-schedule";
 import {
   HATCH,
   MONTHS_LONG,
   MONTHS_SHORT,
-  NATURE_LABELS,
-  POSTE_SHORT,
-  RHYTHM_LABELS,
   STATUS_BLOCK,
   STATUS_LABELS,
-  PERIODS_PER_SEASON,
   day,
   daysLate,
   expectedShortLabel,
@@ -31,6 +26,7 @@ import {
   formatEuro,
   formatEuroCompact,
   formatPeriod,
+  lineSentence,
   type BillingLine,
   type ExpectedInvoice,
   type ExpectedStatus,
@@ -63,66 +59,6 @@ export function todayPos(season: SeasonInfo, today = new Date()): number | null 
   return p >= 0 && p <= 12 ? p : null;
 }
 
-/**
- * Attendus calculés côté client pour une ligne pas encore (ou plus) connue du
- * serveur : affichage immédiat après un ajout / une modification, sans
- * rapprochement (le refetch remplace ensuite par les vrais statuts).
- */
-export function provisionalExpected(line: BillingLine, season: SeasonInfo, today = new Date()): ExpectedInvoice[] {
-  const start = day(season.start);
-  const end = day(season.end);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-  // expectedForLine renvoie des minuits locaux en ISO (UTC) : on les ramène
-  // au jour calendaire pour que day() les relise sans décalage.
-  const asDay = (iso: string) => {
-    const d = new Date(iso);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${d.getFullYear()}-${mm}-${dd}T00:00:00.000Z`;
-  };
-  return expectedForLine(line, start, end).map((e) => {
-    const pS = new Date(e.periodStart);
-    const due = new Date(e.dueDate);
-    const status: ExpectedStatus = today < pS ? "A_VENIR" : today <= due ? "ATTENDUE" : "EN_RETARD";
-    return {
-      ...e,
-      periodStart: asDay(e.periodStart),
-      periodEnd: asDay(e.periodEnd),
-      dueDate: asDay(e.dueDate),
-      status,
-      invoices: [],
-      amount: 0,
-    };
-  });
-}
-
-/**
- * Regroupe les attendus du serveur par ligne ; pour une ligne absente (ajout
- * optimiste) ou dont le rythme a changé (modification), calcule un provisoire.
- */
-export function mergeExpected(
-  lines: BillingLine[],
-  expected: ExpectedInvoice[],
-  season: SeasonInfo | null | undefined
-): Map<string, ExpectedInvoice[]> {
-  const byLine = new Map<string, ExpectedInvoice[]>();
-  for (const e of expected) {
-    const arr = byLine.get(e.lineId) ?? [];
-    arr.push(e);
-    byLine.set(e.lineId, arr);
-  }
-  const out = new Map<string, ExpectedInvoice[]>();
-  for (const l of lines) {
-    const server = byLine.get(l.id) ?? [];
-    const n = PERIODS_PER_SEASON[l.rhythm] ?? 0;
-    const stale =
-      server.length !== n ||
-      (server[0] && (server[0].poste !== l.poste || server[0].nature !== l.nature));
-    out.set(l.id, stale && season ? provisionalExpected(l, season) : server);
-  }
-  return out;
-}
-
 // ─── Info-bulle ─────────────────────────────────────────────────────────────
 
 interface Tip {
@@ -133,7 +69,7 @@ interface Tip {
 }
 
 function TipCard({ tip }: { tip: Tip }) {
-  const { e, line } = tip;
+  const { e } = tip;
   const late = e.status === "EN_RETARD" ? daysLate(e.dueDate) : 0;
   const statusColor =
     e.status === "EN_RETARD" ? "text-red-700" : e.status === "RECUE" ? "text-ink" : "text-ink/50";
@@ -147,7 +83,6 @@ function TipCard({ tip }: { tip: Tip }) {
         <span className="font-mono font-semibold text-ink">{expectedShortLabel(e)}</span>
         <span className={cn("label-tech !tracking-wider", statusColor)}>{STATUS_LABELS[e.status]}</span>
       </div>
-      {line?.label && <div className="mt-0.5 truncate text-ink/60">{line.label}</div>}
       <div className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-ink/60">
         <span>Période</span>
         <span className="text-right font-mono tabular-nums text-ink">{formatPeriod(e.periodStart, e.periodEnd)}</span>
@@ -208,7 +143,6 @@ interface TrackProps {
 export function Track({ season, expected, line, onTip, preview, delayBase = 0, height = "h-11" }: TrackProps) {
   const start = day(season.start);
   const today = todayPos(season);
-  const annualMonth = line?.rhythm === "ANNUEL" && line.expectedMonth ? line.expectedMonth : null;
 
   return (
     <div className={cn("relative", height)}>
@@ -220,19 +154,11 @@ export function Track({ season, expected, line, onTip, preview, delayBase = 0, h
       </div>
 
       {expected.map((e, i) => {
-        let left: number;
-        let right: number;
         const pS = day(e.periodStart);
         const pE = day(e.periodEnd);
         const pEnd1 = new Date(pE.getFullYear(), pE.getMonth(), pE.getDate() + 1);
-        // Ligne annuelle avec mois attendu : la période couverte en filet, le bloc dans le mois attendu
-        if (annualMonth) {
-          left = (annualMonth - 1 - start.getMonth() + 12) % 12;
-          right = left + 1;
-        } else {
-          left = monthPos(pS, start);
-          right = monthPos(pEnd1, start);
-        }
+        const left = monthPos(pS, start);
+        const right = monthPos(pEnd1, start);
         const widthMonths = right - left;
         const wide = widthMonths >= 2;
         const content = preview ? "" : blockContent(e, wide);
@@ -263,16 +189,6 @@ export function Track({ season, expected, line, onTip, preview, delayBase = 0, h
           : {};
         return (
           <div key={e.key}>
-            {annualMonth && !preview && (
-              // Filet de la période couverte par la ligne annuelle
-              <div
-                className="pointer-events-none absolute top-1/2 h-px bg-ink/15"
-                style={{ left: pct(monthPos(pS, start)), width: pct(monthPos(pEnd1, start) - monthPos(pS, start)) }}
-              >
-                <span className="absolute -top-1 left-0 h-2 w-px bg-ink/25" />
-                <span className="absolute -top-1 right-0 h-2 w-px bg-ink/25" />
-              </div>
-            )}
             {e.status === "RECUE" && !preview ? (
               <Link
                 href="/financier?tab=facturation"
@@ -344,19 +260,10 @@ export function MonthHeader({ season }: { season: SeasonInfo }) {
 // ─── Planche ────────────────────────────────────────────────────────────────
 
 export function LineLabel({ line }: { line: BillingLine }) {
-  const rhythm = RHYTHM_LABELS[line.rhythm] ?? line.rhythm;
-  const month = line.rhythm === "ANNUEL" && line.expectedMonth ? ` · ${MONTHS_LONG[line.expectedMonth - 1]}` : "";
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className="w-10 flex-shrink-0 font-mono text-sm font-semibold text-ink">{POSTE_SHORT[line.poste] ?? line.poste}</span>
-      <div className="min-w-0">
-        <div className="truncate text-sm text-ink">{line.label || NATURE_LABELS[line.nature] || line.nature}</div>
-        <div className="truncate font-mono text-[10px] uppercase tracking-wider text-ink/45">
-          {line.label ? `${NATURE_LABELS[line.nature] ?? line.nature} · ` : ""}
-          {rhythm}
-          {month} · tol. {line.toleranceDays ?? 30} j
-        </div>
-      </div>
+    <div className="min-w-0">
+      <div className="truncate text-sm font-medium text-ink">{line.label}</div>
+      <div className="truncate font-mono text-[10px] uppercase tracking-wider text-ink/45">{lineSentence(line)}</div>
     </div>
   );
 }

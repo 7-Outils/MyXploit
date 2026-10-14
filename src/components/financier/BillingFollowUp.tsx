@@ -13,13 +13,13 @@ import useSWR from "swr";
 import { ArrowUpRight, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
 import { cn } from "@/lib/utils";
-import { BoardLegend, SeasonBoard, mergeExpected } from "@/components/billing/SeasonBoard";
+import { BoardLegend, SeasonBoard } from "@/components/billing/SeasonBoard";
 import {
   HATCH,
-  POSTES,
   STATUS_BLOCK,
   day,
   expectedTooltip,
+  groupByLine,
   swrErrorMessage,
   type BillingScheduleResponse,
   type ExpectedInvoice,
@@ -73,17 +73,12 @@ export default function BillingFollowUp({ contractId }: { contractId: string }) 
   const lines = useMemo(() => (Array.isArray(data?.lines) ? data.lines : []), [data?.lines]);
   const expected = useMemo(() => (Array.isArray(data?.expected) ? data.expected : []), [data?.expected]);
 
-  const strip = useMemo(() => {
-    const order = (p: string) => POSTES.indexOf(p as (typeof POSTES)[number]);
-    return [...expected].sort(
-      (a, b) =>
-        day(a.periodStart).getTime() - day(b.periodStart).getTime() ||
-        order(a.poste) - order(b.poste) ||
-        a.index - b.index
-    );
-  }, [expected]);
+  const strip = useMemo(
+    () => [...expected].sort((a, b) => day(a.periodStart).getTime() - day(b.periodStart).getTime() || a.label.localeCompare(b.label, "fr") || a.index - b.index),
+    [expected]
+  );
 
-  const expectedByLine = useMemo(() => mergeExpected(lines, expected, season), [lines, expected, season]);
+  const expectedByLine = useMemo(() => groupByLine(expected), [expected]);
 
   if (isLoading && !data) {
     return (
@@ -110,9 +105,9 @@ export default function BillingFollowUp({ contractId }: { contractId: string }) 
       <div className="panel flex items-center justify-between gap-3 px-4 py-2">
         <div className="flex items-center gap-3">
           <span className="label-tech">Échéancier</span>
-          <span className="text-sm text-ink/60">Aucun échéancier pour ce contrat</span>
+          <span className="text-sm text-ink/60">Aucune modalité de facturation pour ce contrat</span>
         </div>
-        <Link href="/contrat?tab=facturation" className={iconBtn} title="Définir l'échéancier (Contrat › Facturation)">
+        <Link href="/contrat?tab=facturation" className={iconBtn} title="Définir les modalités (Contrat › Facturation)">
           <ArrowUpRight size={16} />
         </Link>
       </div>
@@ -178,7 +173,7 @@ export default function BillingFollowUp({ contractId }: { contractId: string }) 
         </div>
 
         <div className="ml-auto flex items-center">
-          <Link href="/contrat?tab=facturation" className={iconBtn} title="Modifier l'échéancier (Contrat › Facturation)">
+          <Link href="/contrat?tab=facturation" className={iconBtn} title="Modifier les modalités (Contrat › Facturation)">
             <ArrowUpRight size={16} />
           </Link>
           <button
