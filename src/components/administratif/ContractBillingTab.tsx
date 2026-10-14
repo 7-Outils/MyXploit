@@ -65,7 +65,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   const { data: contract } = useSWR<{ yearType?: string; yearStartMonth?: number; startDate?: string | null }>(`/api/contracts/${contractId}`, fetcher);
   // Même règle que le moteur côté serveur (contractSeasons) :
   // année civile → janvier ; année contractuelle → mois de la date de début ; saison de chauffe → mois de début de saison
-  const yearStart = (() => {
+  const contractYearStart = (() => {
     if (contract?.yearType === "CIVIL") return 1;
     if (contract?.yearType === "CONTRACTUAL" && contract.startDate) {
       const m = new Date(contract.startDate).getMonth() + 1;
@@ -75,6 +75,14 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   })();
   // Cache SWR possiblement d'une version précédente : on normalise chaque ligne
   const lines = useMemo(() => (Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data]);
+  // La frise démarre au premier mois facturé : la première période saisie
+  // (sur la première ligne qui en a), sinon le début d'année du contrat.
+  // Ainsi aucune période n'est coupée en deux bouts à l'écran.
+  const yearStart = (() => {
+    const first = lines.find((l) => Array.isArray(l.periods) && l.periods.length === l.countPerYear * 2);
+    const m = first?.periods[0];
+    return typeof m === "number" && m >= 1 && m <= 12 ? m : contractYearStart;
+  })();
   const suggestions = useMemo(
     () => (Array.isArray(sugg?.suggestions) ? sugg.suggestions.filter((s) => s && typeof s.label === "string").map((s) => ({ ...s, periods: Array.isArray(s.periods) ? s.periods : [], percents: Array.isArray(s.percents) ? s.percents : [] })) : []),
     [sugg]
