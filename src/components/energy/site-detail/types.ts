@@ -22,8 +22,8 @@ export interface SiteDetailData {
   contractSites: Array<{
     contract: {
       id: string;
-      reference: string;
-      title: string;
+      reference: string | null;
+      provider: string | null;
     };
   }>;
   consumptions: Array<{

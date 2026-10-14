@@ -24,9 +24,8 @@ interface UserSummary {
 
 interface ContractSummary {
   id: string;
-  reference: string;
-  title: string;
-  provider: string;
+  reference: string | null;
+  provider: string | null;
   status: string;
   _count: { contractSites: number };
 }
@@ -361,7 +360,7 @@ export default function PortfolioAdminPage() {
                             <FileText size={18} className="text-ink/40" />
                           </div>
                           <div>
-                            <p className="font-medium text-ink">{c.title}</p>
+                            <p className="font-medium text-ink">{c.provider || c.reference || "Contrat"}</p>
                             <p className="text-xs text-ink/50">
                               {c.reference} - {c.provider} - {c._count.contractSites} site{c._count.contractSites > 1 ? "s" : ""}
                             </p>
@@ -421,7 +420,7 @@ export default function PortfolioAdminPage() {
               <p className="text-xs font-medium text-ink/50 mb-2">Contrats concernés :</p>
               {assignments.map((a) => (
                 <p key={a.id} className="text-sm text-ink">
-                  {a.contract.reference} - {a.contract.provider || a.contract.reference || "Contrat"}
+                  {[a.contract.reference, a.contract.provider].filter(Boolean).join(" - ") || "Contrat"}
                 </p>
               ))}
             </div>

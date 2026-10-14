@@ -33,9 +33,8 @@ export interface SiteDetail {
     hasP3: boolean;
     contract: {
       id: string;
-      reference: string;
-      title: string;
-      provider: string;
+      reference: string | null;
+      provider: string | null;
     };
   }>;
 }

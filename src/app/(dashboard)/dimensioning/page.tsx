@@ -176,7 +176,7 @@ function DimensioningPageContent() {
   const exportPDF = async () => {
     if (!result) return;
     const contractTitle = selectedContract
-      ? contracts.find((c) => c.id === selectedContract)?.title
+      ? contracts.find((c) => c.id === selectedContract)?.provider
       : undefined;
     // jspdf ne sert qu'ici : chargé au clic, pas au montage de la page.
     const { generateDimensioningPDF } = await import("@/lib/pdf/dimensioning-report");

@@ -26,8 +26,8 @@ export interface Site {
 
 export interface Contract {
   id: string;
-  title: string;
-  provider: string;
+  reference: string | null;
+  provider: string | null;
   endDate: string;
   status: string;
   contractSites: ContractSite[];
