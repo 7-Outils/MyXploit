@@ -2,7 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 
-// GET /api/clients - Liste des clients de l'organisation
+// Résumé des marchés d'un client, lu par le portefeuille /clients
+// (exploitant, statut, échéance) sans charger la fiche complète.
+const contractSummarySelect = {
+  id: true,
+  reference: true,
+  title: true,
+  provider: true,
+  status: true,
+  startDate: true,
+  endDate: true,
+  _count: { select: { contractSites: true } },
+} as const;
+
+// GET /api/clients - Liste des clients de l'organisation, avec leurs marchés
 export async function GET() {
   try {
     const user = await requireAuth();
@@ -11,6 +24,10 @@ export async function GET() {
     const clients = await prisma.client.findMany({
       where: { organizationId: effectiveOrgId },
       include: {
+        contracts: {
+          select: contractSummarySelect,
+          orderBy: { endDate: "asc" },
+        },
         _count: {
           select: {
             sites: true,
@@ -60,6 +77,7 @@ export async function POST(request: NextRequest) {
         organizationId: effectiveOrgId,
       },
       include: {
+        contracts: { select: contractSummarySelect },
         _count: {
           select: { sites: true, contracts: true },
         },
