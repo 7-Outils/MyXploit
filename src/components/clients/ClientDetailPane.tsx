@@ -2,8 +2,8 @@
 
 /**
  * Volet droit de la page Clients : le client (renommer / supprimer) et la
- * liste de ses contrats, avec le lien client → contrat (créer, créer depuis
- * un AE, rattacher, détacher). Le contrat lui-même se gère dans /contrat.
+ * liste de ses contrats (créer, créer depuis un AE, modifier, supprimer).
+ * Le contrat lui-même se gère dans /contrat.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -14,12 +14,10 @@ import {
   ArrowUpRight,
   Check,
   FileSpreadsheet,
-  Link2,
   Loader2,
   Pencil,
   Plus,
   Trash2,
-  Unlink,
   X,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
@@ -34,10 +32,6 @@ import type { Contract as FullContract } from "@/components/administratif/types"
 import AEImportModal from "@/components/administratif/modals/AEImportModal";
 import CreateContractModal from "@/components/administratif/modals/CreateContractModal";
 import { STATUS_LABELS, STATUS_TEXT, type ClientContractSummary, type ClientDetail } from "./types";
-
-interface OrphanContract extends ClientContractSummary {
-  client?: { id: string; name: string } | null;
-}
 
 const iconBtn =
   "flex h-9 w-9 flex-shrink-0 items-center justify-center border border-ink/20 text-ink/60 transition-colors hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-30";
@@ -68,13 +62,11 @@ export default function ClientDetailPane({
 
   // Modales
   const [confirmDeleteClient, setConfirmDeleteClient] = useState(false);
-  const [detaching, setDetaching] = useState<ClientContractSummary | null>(null);
   const [deletingContract, setDeletingContract] = useState<ClientContractSummary | null>(null);
   const [editingContract, setEditingContract] = useState<FullContract | null>(null);
   const [busy, setBusy] = useState(false);
   const [showCreateContract, setShowCreateContract] = useState(false);
   const [showCreateAE, setShowCreateAE] = useState(false);
-  const [showAttach, setShowAttach] = useState(false);
 
   const contracts = useMemo(() => {
     const list = Array.isArray(client?.contracts) ? [...client.contracts] : [];
@@ -157,21 +149,6 @@ export default function ClientDetailPane({
       await refreshAll();
     } catch (err) {
       // Le serveur explique le refus (droits, sites rattachés) : on l'affiche tel quel.
-      toast.error(getErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const detachContract = async () => {
-    if (!detaching) return;
-    setBusy(true);
-    try {
-      await api.put(`/api/contracts/${detaching.id}`, { clientId: null });
-      toast.success(`Contrat ${detaching.reference} détaché`);
-      setDetaching(null);
-      await refreshAll();
-    } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
       setBusy(false);
@@ -261,9 +238,6 @@ export default function ClientDetailPane({
             <button onClick={() => setShowCreateAE(true)} title="Créer un contrat depuis un fichier AE" className={iconBtn}>
               <FileSpreadsheet size={16} />
             </button>
-            <button onClick={() => setShowAttach(true)} title="Rattacher un contrat existant sans client" className={iconBtn}>
-              <Link2 size={16} />
-            </button>
           </div>
         )}
       </div>
@@ -278,7 +252,7 @@ export default function ClientDetailPane({
           </THead>
           <TBody>
             {contracts.length === 0 && (
-              <TableEmpty colSpan={4} message="Aucun contrat. Créez-en un, importez un AE ou rattachez un contrat existant." />
+              <TableEmpty colSpan={4} message="Aucun contrat. Créez-en un ou importez un AE." />
             )}
             {contracts.map((c) => (
               <Tr key={c.id}>
@@ -299,9 +273,6 @@ export default function ClientDetailPane({
                       <>
                         <button onClick={() => editContract(c.id)} title="Modifier le contrat" className={cn(iconBtn, "border-transparent")}>
                           <Pencil size={16} />
-                        </button>
-                        <button onClick={() => setDetaching(c)} title="Détacher du client" className={cn(iconBtn, "border-transparent")}>
-                          <Unlink size={16} />
                         </button>
                       </>
                     )}
@@ -341,28 +312,6 @@ export default function ClientDetailPane({
         </Modal>
       )}
 
-      {detaching && (
-        <Modal
-          title="Détacher du client"
-          subtitle={`${detaching.reference} · ${detaching.provider}`}
-          size="sm"
-          onClose={() => setDetaching(null)}
-          footer={
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setDetaching(null)}>Annuler</Button>
-              <Button size="sm" onClick={detachContract} disabled={busy}>
-                {busy && <Loader2 size={14} className="mr-2 animate-spin" />}
-                Détacher
-              </Button>
-            </>
-          }
-        >
-          <p className="text-sm text-ink/70">
-            Le contrat et ses sites ne seront plus rattachés à ce client. Ils restent intacts et pourront être rattachés ailleurs.
-          </p>
-        </Modal>
-      )}
-
       {deletingContract && (
         <Modal
           title="Supprimer le contrat"
@@ -395,15 +344,6 @@ export default function ClientDetailPane({
         />
       )}
 
-      {showAttach && (
-        <AttachContractsModal
-          clientId={clientId}
-          clientName={client.name}
-          onClose={() => setShowAttach(false)}
-          onAttached={refreshAll}
-        />
-      )}
-
       {/* Ces deux modales rechargent la page au succès ; l'URL /clients/[id] garde la sélection. */}
       {showCreateContract && (
         <CreateContractModal clientId={clientId} onClose={() => setShowCreateContract(false)} />
@@ -412,118 +352,5 @@ export default function ClientDetailPane({
         <AEImportModal clientId={clientId} onClose={() => setShowCreateAE(false)} />
       )}
     </div>
-  );
-}
-
-function AttachContractsModal({
-  clientId,
-  clientName,
-  onClose,
-  onAttached,
-}: {
-  clientId: string;
-  clientName: string;
-  onClose: () => void;
-  onAttached: () => Promise<void>;
-}) {
-  const toast = useToast();
-  const [orphans, setOrphans] = useState<OrphanContract[] | null>(null);
-  const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .get<OrphanContract[]>("/api/contracts")
-      .then((all) => {
-        if (!cancelled) setOrphans((Array.isArray(all) ? all : []).filter((c) => !c.client));
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setOrphans([]);
-          toast.error(getErrorMessage(err));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const attach = async () => {
-    if (picked.size === 0) return;
-    setSaving(true);
-    const results = await Promise.allSettled(
-      Array.from(picked).map((id) => api.put(`/api/contracts/${id}`, { clientId }))
-    );
-    const failed = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-    const ok = results.length - failed.length;
-    if (ok > 0) toast.success(`${ok} contrat${ok > 1 ? "s" : ""} rattaché${ok > 1 ? "s" : ""} à ${clientName}`);
-    if (failed.length > 0) toast.error(getErrorMessage(failed[0].reason));
-    setSaving(false);
-    await onAttached();
-    onClose();
-  };
-
-  const toggle = (id: string) => {
-    const next = new Set(picked);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setPicked(next);
-  };
-
-  return (
-    <Modal
-      title="Rattacher des contrats"
-      subtitle={`Contrats sans client → ${clientName}`}
-      onClose={onClose}
-      footer={
-        <>
-          <Button variant="secondary" size="sm" onClick={onClose}>Annuler</Button>
-          <Button size="sm" onClick={attach} disabled={saving || picked.size === 0}>
-            {saving && <Loader2 size={14} className="mr-2 animate-spin" />}
-            Rattacher{picked.size > 0 ? ` (${picked.size})` : ""}
-          </Button>
-        </>
-      }
-    >
-      {orphans === null ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="h-5 w-5 animate-spin text-ink/30" />
-        </div>
-      ) : orphans.length === 0 ? (
-        <p className="py-8 text-center text-sm text-ink/50">Aucun contrat sans client : tous sont déjà rattachés.</p>
-      ) : (
-        <div className="-mx-5 -my-4 divide-y divide-ink/10">
-          {orphans.map((c) => {
-            const on = picked.has(c.id);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggle(c.id)}
-                className={cn(
-                  "flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors",
-                  on ? "bg-accent/5" : "hover:bg-ink/[0.02]"
-                )}
-              >
-                <span className={cn("flex h-4 w-4 flex-shrink-0 items-center justify-center border", on ? "border-accent bg-accent text-paper" : "border-ink/25")}>
-                  {on && <Check size={11} />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">
-                    <span className="font-mono font-medium text-ink">{c.reference}</span>
-                    <span className="text-ink/50"> · {c.provider}</span>
-                  </p>
-                </div>
-                <span className="font-mono text-xs tabular-nums text-ink/50">
-                  {c._count?.contractSites ?? 0} site{(c._count?.contractSites ?? 0) > 1 ? "s" : ""}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </Modal>
   );
 }
