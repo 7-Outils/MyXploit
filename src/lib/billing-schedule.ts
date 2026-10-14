@@ -179,7 +179,7 @@ export function expectedForLine(line: BillingLineInput, start: Date, end: Date):
   return items.map(({ pStart, pEnd }, i) => ({
     key: `${line.id}:${i + 1}`,
     lineId: line.id,
-    label: line.label,
+    label: line.label || line.poste || "Facture",
     poste: line.poste,
     index: i + 1,
     count: n,

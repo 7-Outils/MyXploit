@@ -20,7 +20,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const byLabel = new Map<string, { label: string; poste: string | null; countPerYear: number; periods: number[]; percents: number[]; uses: number }>();
   for (const l of lines) {
-    const key = l.label.trim().toLowerCase();
+    const key = (l.label.trim() || l.poste || "").toLowerCase();
+    if (!key) continue;
     const cur = byLabel.get(key);
     if (cur) cur.uses += 1;
     else byLabel.set(key, { ...l, uses: 1 });

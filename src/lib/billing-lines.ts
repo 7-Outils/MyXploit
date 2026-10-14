@@ -10,7 +10,6 @@ export function posteFromLabel(label: string): BillingPosteValue | null {
 
 export function parseLine(body: Record<string, unknown>) {
   const label = typeof body.label === "string" ? body.label.trim().slice(0, 80) : "";
-  if (!label) return { error: "Le libellé est requis" } as const;
 
   const count = Number(body.countPerYear);
   if (!Number.isInteger(count) || count < 1 || count > 12) return { error: "Le nombre de factures par an doit être entre 1 et 12" } as const;
@@ -19,6 +18,7 @@ export function parseLine(body: Record<string, unknown>) {
   if (body.poste === null || body.poste === "" || body.poste === undefined) poste = posteFromLabel(label);
   else if (POSTES.includes(body.poste as BillingPosteValue)) poste = body.poste as BillingPosteValue;
   else return { error: "Poste invalide" } as const;
+  if (!label && !poste) return { error: "Indiquez un poste ou un intitulé" } as const;
 
   const ints = (v: unknown): number[] | null => (Array.isArray(v) ? v.map((x) => Number(x)) : null);
 

@@ -95,6 +95,11 @@ export function normalizeLine(raw: Partial<BillingLine> & { id: string }): Billi
   };
 }
 
+/** Nom affiché d'une ligne : intitulé, sinon le poste. */
+export function lineName(l: Pick<BillingLine, "label" | "poste">): string {
+  return l.label?.trim() || (l.poste ? POSTE_LABELS[l.poste] : "") || "Facture";
+}
+
 /** Les 12 mois (1-12) dans l'ordre de l'année contractuelle (ex. 7 → juil…juin). */
 export function yearMonths(yearStartMonth: number): number[] {
   const s = Math.min(12, Math.max(1, yearStartMonth || 1));

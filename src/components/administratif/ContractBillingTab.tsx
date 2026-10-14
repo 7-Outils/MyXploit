@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Check, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
 import { api, getErrorMessage } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -18,7 +18,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/contexts/PermissionContext";
-import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, linePeriods, monthsRangeLabel, normalizeLine, periodMonths, yearMonths, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
+import { MONTHS_SHORT, MONTHS_TINY, POSTES, POSTE_LABELS, lineName, linePeriods, monthsRangeLabel, normalizeLine, periodMonths, yearMonths, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
 
 const iconBtn =
   "flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:pointer-events-none disabled:opacity-30";
@@ -104,7 +104,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
   const save = async () => {
     const label = draft.label.trim();
-    if (!label) return;
+    if (!label && !draft.poste) return;
     setSaving(true);
     try {
       const body = {
@@ -159,7 +159,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
             Factures attendues <span className="tabular-nums">({lines.length})</span>
           </span>
           {canEdit && editing === null && (
-            <button type="button" onClick={() => startNew()} title="Ajouter une facture attendue" className="flex h-9 w-9 items-center justify-center border border-ink/20 text-ink/70 transition-colors hover:border-accent hover:text-accent">
+            <button type="button" onClick={() => startNew()} title="Ajouter une facture attendue" className="flex h-9 w-9 items-center justify-center border border-ink/15 text-ink/55 transition-colors hover:border-accent hover:text-accent">
               <Plus size={16} />
             </button>
           )}
@@ -172,7 +172,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
         ) : (
           <div className="divide-y divide-ink/10">
             {lines.length === 0 && editing !== "new" && (
-              <div className="px-4 py-8 text-center text-sm text-ink/40">Aucune facture attendue.</div>
+              <div className="px-5 py-12 text-center text-sm text-ink/40">Aucune facture attendue.</div>
             )}
 
             {lines.map((l) =>
@@ -191,17 +191,17 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
       </div>
 
       {canEdit && editing === null && unusedSuggestions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="label-tech">Déjà utilisé sur vos autres marchés</span>
+        <div className="flex flex-wrap items-center gap-2 px-1">
+          <span className="label-tech mr-1">Déjà utilisé sur vos autres marchés</span>
           {unusedSuggestions.slice(0, 8).map((s) => (
             <button
-              key={s.label}
+              key={s.label || s.poste || ""}
               type="button"
               onClick={() => startNew(s)}
               title={`${s.countPerYear} par an · utilisé sur ${s.uses} marché${s.uses > 1 ? "s" : ""}`}
-              className="border border-ink/15 px-2.5 py-1 text-xs text-ink/70 transition-colors hover:border-accent hover:text-accent"
+              className="border border-ink/10 bg-white px-2.5 py-1 text-xs text-ink/65 transition-colors hover:border-accent hover:text-accent"
             >
-              + {s.label}
+              <span className="text-ink/35">+</span> {lineName(s)}
             </button>
           ))}
         </div>
@@ -210,7 +210,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
       {deleting && (
         <Modal
           title="Supprimer la ligne"
-          subtitle={deleting.label}
+          subtitle={lineName(deleting)}
           size="sm"
           onClose={() => setDeleting(null)}
           footer={
@@ -239,17 +239,17 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
   const periodIndex = new Map<number, number>();
   periods.forEach((ms, i) => ms.forEach((m) => { if (!periodIndex.has(m)) periodIndex.set(m, i); }));
   // Le poste n'est rappelé que s'il n'ouvre pas déjà le libellé (« P2 acomptes » suffit)
-  const showPoste = line.poste && !line.label.trim().toUpperCase().startsWith(line.poste);
+  const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
-    <div className="group grid items-center gap-5 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
-      <div className="flex min-w-0 items-baseline gap-2">
-        <span className="truncate text-sm font-medium text-ink">{line.label}</span>
-        {showPoste && <span className="font-mono text-[11px] text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
+    <div className="group grid items-center gap-x-8 gap-y-2 px-5 py-4 transition-colors hover:bg-ink/[0.015] md:grid-cols-[minmax(0,1fr)_6rem_auto_10rem_4.5rem] md:py-3.5">
+      <div className="flex min-w-0 items-baseline gap-2.5">
+        <span className="truncate text-sm font-medium text-ink">{lineName(line)}</span>
+        {showPoste && <span className="font-mono text-[11px] tracking-wider text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
       </div>
-      <span className="font-mono text-sm tabular-nums text-ink/70">
-        {line.countPerYear} <span className="text-ink/40">par an</span>
+      <span className="whitespace-nowrap font-mono text-sm tabular-nums text-ink">
+        {line.countPerYear} <span className="text-xs text-ink/40">par an</span>
       </span>
-      {/* Frise de l'année contractuelle : une teinte légère par période, séparées par un filet */}
+      {/* Frise de l'année contractuelle : un trait d'accent par période (deux intensités alternées), filet fin entre périodes */}
       <div className="flex" title={periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
         {order.map((m, idx) => {
           const pi = periodIndex.get(m);
@@ -258,9 +258,13 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
             <span
               key={m}
               className={cn(
-                "flex h-6 w-6 items-center justify-center font-mono text-[10px] text-ink/55",
-                pi === undefined ? "bg-transparent text-ink/20" : pi % 2 === 0 ? "bg-accent/10" : "bg-ink/[0.05]",
-                isStart && idx > 0 && "border-l border-ink/30"
+                "flex h-7 w-6 items-center justify-center border-b-2 font-mono text-[10px]",
+                pi === undefined
+                  ? "border-ink/10 text-ink/20"
+                  : pi % 2 === 0
+                    ? "border-accent bg-accent/[0.04] text-ink/55"
+                    : "border-accent/35 text-ink/55",
+                isStart && idx > 0 && "border-l border-l-ink/15"
               )}
             >
               {MONTHS_TINY[m - 1]}
@@ -268,8 +272,14 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
           );
         })}
       </div>
-      <span className="min-w-[80px] whitespace-nowrap font-mono text-xs tabular-nums text-ink/60" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
-        {hasPct ? `${line.percents.join(" · ")} %` : <span className="text-ink/25">—</span>}
+      <span className="whitespace-nowrap font-mono text-xs tabular-nums text-ink/60 md:text-right" title={hasPct ? "Part de chaque facture" : "Parts non précisées"}>
+        {hasPct ? (
+          <>
+            {line.percents.join(" · ")} <span className="text-ink/35">%</span>
+          </>
+        ) : (
+          <span className="text-ink/25">—</span>
+        )}
       </span>
       <div className={cn("flex items-center justify-end opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100", !canEdit && "invisible")}>
         <button type="button" onClick={onEdit} title="Modifier" className={iconBtn}><Pencil size={14} /></button>
@@ -364,7 +374,7 @@ function LineEditor({
   const pctTotal = draft.percents.reduce((s, p) => s + (Number(p) || 0), 0);
   const pctOver = pctTotal > 100;
   const pctAny = draft.percents.some((p) => p.trim() !== "");
-  const canSave = draft.label.trim() !== "" && !saving && !pctOver;
+  const canSave = (draft.label.trim() !== "" || draft.poste !== "") && !saving && !pctOver;
 
   const matching = useMemo(() => {
     const q = draft.label.trim().toLowerCase();
@@ -374,7 +384,7 @@ function LineEditor({
 
   return (
     <div
-      className="space-y-3 border-l-2 border-accent bg-paper px-4 py-3"
+      className="bg-ink/[0.02] px-4 py-4 md:px-5"
       onKeyDown={(e) => {
         if (e.key === "Escape") onCancel();
         if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLSelectElement)) {
@@ -383,130 +393,138 @@ function LineEditor({
         }
       }}
     >
-      {/* Libellé + poste + nombre */}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[260px] flex-1">
-          <label className="label-tech mb-1 block">Facture</label>
-          <input
-            ref={labelRef}
-            type="text"
-            value={draft.label}
-            onChange={(e) => {
-              const label = e.target.value;
-              const guessed = guessPoste(label);
-              setDraft({ ...draft, label, poste: guessed || (guessPoste(draft.label) ? "" : draft.poste) });
-            }}
-            placeholder="Ex : P1 chauffage acomptes, P3 GE, Intéressement…"
-            className="h-9 w-full border border-ink/20 bg-white px-3 text-sm focus:border-accent focus:outline-none"
-          />
+      <div className="space-y-5 border border-ink/10 border-l-2 border-l-accent bg-paper p-4 md:p-5">
+        {/* Libellé + poste + nombre */}
+        <div className="grid gap-x-6 gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+          <div className="min-w-0">
+            <label className="label-tech mb-1.5 block">Facture</label>
+            <input
+              ref={labelRef}
+              type="text"
+              value={draft.label}
+              onChange={(e) => {
+                const label = e.target.value;
+                const guessed = guessPoste(label);
+                setDraft({ ...draft, label, poste: guessed || (guessPoste(draft.label) ? "" : draft.poste) });
+              }}
+              placeholder="Intitulé (facultatif) : P1 chauffage, P3 GE, Intéressement…"
+              className="h-9 w-full border border-ink/15 bg-white px-3 text-sm text-ink placeholder:text-ink/30 focus:border-accent focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="label-tech mb-1.5 block">Poste</label>
+            <div className="inline-flex border border-ink/15">
+              {POSTES.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setDraft({ ...draft, poste: draft.poste === p ? "" : p })}
+                  className={cn(
+                    "h-[34px] min-w-[2.75rem] border-l border-ink/10 px-2.5 font-mono text-xs transition-colors first:border-l-0",
+                    draft.poste === p ? "bg-accent/[0.08] text-accent font-medium" : "text-ink/55 hover:bg-ink/[0.03] hover:text-ink"
+                  )}
+                >
+                  {POSTE_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="label-tech mb-1.5 block">Par an</label>
+            <div className="inline-flex border border-ink/15">
+              <button type="button" onClick={() => setCount(draft.count - 1)} disabled={draft.count <= 1} title="Une de moins" className="h-[34px] w-9 text-ink/50 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:opacity-30">−</button>
+              <input
+                type="number"
+                min={1}
+                max={12}
+                value={draft.count}
+                onChange={(e) => setCount(Number(e.target.value) || 1)}
+                className="h-[34px] w-12 border-x border-ink/10 bg-white text-center font-mono text-sm tabular-nums text-ink [appearance:textfield] focus:bg-accent/[0.04] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <button type="button" onClick={() => setCount(draft.count + 1)} disabled={draft.count >= 12} title="Une de plus" className="h-[34px] w-9 text-ink/50 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:opacity-30">+</button>
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="label-tech mb-1 block">Poste</label>
-          <div className="flex">
-            {POSTES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setDraft({ ...draft, poste: draft.poste === p ? "" : p })}
-                className={cn(
-                  "h-9 border border-ink/20 px-2.5 font-mono text-xs transition-colors -ml-px first:ml-0",
-                  draft.poste === p ? "border-accent bg-accent/10 text-accent" : "bg-white text-ink/60 hover:text-ink"
-                )}
-              >
-                {POSTE_LABELS[p]}
+
+        {/* Suggestions sous le libellé (vocabulaire des autres marchés) */}
+        {isNew && matching.length > 0 && onPick && (
+          <div className="-mt-2 flex flex-wrap items-center gap-1.5">
+            {matching.map((s) => (
+              <button key={s.label || s.poste || ""} type="button" onClick={() => onPick(s)} className="border border-ink/10 px-2 py-1 text-xs text-ink/60 transition-colors hover:border-accent hover:text-accent">
+                {s.label} <span className="font-mono text-ink/35">· {s.countPerYear}/an</span>
               </button>
             ))}
           </div>
-        </div>
-        <div>
-          <label className="label-tech mb-1 block">Par an</label>
-          <div className="flex items-center">
-            <button type="button" onClick={() => setCount(draft.count - 1)} disabled={draft.count <= 1} className="h-9 w-9 border border-ink/20 bg-white text-ink/60 hover:text-ink disabled:opacity-30">−</button>
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={draft.count}
-              onChange={(e) => setCount(Number(e.target.value) || 1)}
-              className="h-9 w-14 border-y border-ink/20 bg-white text-center font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
-            />
-            <button type="button" onClick={() => setCount(draft.count + 1)} disabled={draft.count >= 12} className="h-9 w-9 border border-ink/20 bg-white text-ink/60 hover:text-ink disabled:opacity-30">+</button>
+        )}
+
+        {/* Une ligne par facture : période couverte, part en % */}
+        <div className="max-w-xl">
+          <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_6rem] items-center border-b border-ink/15 pb-1.5">
+            <span className="label-tech">#</span>
+            <span className="flex items-center gap-3">
+              <span className="label-tech">Période</span>
+              {!isEqual && (
+                <button type="button" onClick={() => setDraft({ ...draft, periods: equalPairs(yearStart, draft.count) })} className="text-xs text-ink/45 underline decoration-ink/20 underline-offset-2 transition-colors hover:text-accent hover:decoration-accent">
+                  répartir également
+                </button>
+              )}
+            </span>
+            <span className="label-tech text-right">Part</span>
           </div>
-        </div>
-      </div>
-
-      {/* Suggestions sous le libellé (vocabulaire des autres marchés) */}
-      {isNew && matching.length > 0 && onPick && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {matching.map((s) => (
-            <button key={s.label} type="button" onClick={() => onPick(s)} className="border border-ink/15 px-2 py-0.5 text-xs text-ink/60 hover:border-accent hover:text-accent">
-              {s.label} <span className="font-mono text-ink/40">· {s.countPerYear}/an</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Une ligne par facture : période couverte, part en % */}
-      <div>
-        <div className="mb-1 flex items-center gap-3">
-          <span className="label-tech">Factures</span>
-          {!isEqual && (
-            <button type="button" onClick={() => setDraft({ ...draft, periods: equalPairs(yearStart, draft.count) })} className="text-xs text-ink/50 hover:text-accent">
-              répartir également
-            </button>
-          )}
-        </div>
-        <div className="divide-y divide-ink/10 border border-ink/15 bg-white">
-          {Array.from({ length: draft.count }, (_, i) => (
-            <div key={i} className="flex items-center gap-2 px-2 py-1">
-              <span className="w-10 font-mono text-xs tabular-nums text-ink/40">{i + 1}</span>
-              <MonthSelect value={draft.periods[i * 2]} onChange={(m) => setPeriod(i, 0, m)} order={yearMonths(yearStart)} />
-              <span className="text-xs text-ink/40">→</span>
-              <MonthSelect value={draft.periods[i * 2 + 1]} onChange={(m) => setPeriod(i, 1, m)} order={yearMonths(yearStart)} />
-              <span className="ml-auto flex items-center">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={draft.percents[i] ?? ""}
-                  onChange={(e) => {
-                    const next = [...draft.percents];
-                    next[i] = e.target.value;
-                    setDraft({ ...draft, percents: next });
-                  }}
-                  placeholder="—"
-                  title="Part de cette facture en % (facultatif)"
-                  className="h-8 w-14 border border-ink/15 text-center font-mono text-sm tabular-nums focus:border-accent focus:outline-none"
-                />
-                <span className="ml-1 w-4 text-xs text-ink/40">%</span>
-              </span>
-            </div>
-          ))}
+          <div className="divide-y divide-ink/[0.07]">
+            {Array.from({ length: draft.count }, (_, i) => (
+              <div key={i} className="grid grid-cols-[2.5rem_minmax(0,1fr)_6rem] items-center py-1">
+                <span className="font-mono text-xs tabular-nums text-ink/35">{String(i + 1).padStart(2, "0")}</span>
+                <span className="flex items-center gap-2">
+                  <MonthSelect value={draft.periods[i * 2]} onChange={(m) => setPeriod(i, 0, m)} order={yearMonths(yearStart)} />
+                  <span className="text-xs text-ink/30">→</span>
+                  <MonthSelect value={draft.periods[i * 2 + 1]} onChange={(m) => setPeriod(i, 1, m)} order={yearMonths(yearStart)} />
+                </span>
+                <span className="flex items-center justify-end gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={draft.percents[i] ?? ""}
+                    onChange={(e) => {
+                      const next = [...draft.percents];
+                      next[i] = e.target.value;
+                      setDraft({ ...draft, percents: next });
+                    }}
+                    placeholder="—"
+                    title="Part de cette facture en % (facultatif)"
+                    className="h-8 w-14 border-b border-ink/15 bg-transparent px-1 text-right font-mono text-sm tabular-nums text-ink [appearance:textfield] placeholder:text-ink/25 focus:border-accent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <span className="w-3 font-mono text-xs text-ink/35">%</span>
+                </span>
+              </div>
+            ))}
+          </div>
           {pctAny && (
-            <div className="flex items-center justify-end gap-3 px-2 py-1.5">
+            <div className="flex items-center justify-end gap-4 border-t border-ink/15 pt-2">
               {draft.count > 1 && (
                 <button
                   type="button"
                   onClick={() => setDraft({ ...draft, percents: Array(draft.count).fill(String(Math.floor(100 / draft.count))) })}
-                  className="text-xs text-ink/50 hover:text-accent"
+                  className="text-xs text-ink/45 underline decoration-ink/20 underline-offset-2 transition-colors hover:text-accent hover:decoration-accent"
                 >
                   parts égales
                 </button>
               )}
-              <span className={cn("font-mono text-sm tabular-nums", pctOver ? "text-red-700" : "text-ink/60")}>
+              <span className={cn("font-mono text-sm tabular-nums", pctOver ? "text-red-700" : "text-ink")}>
                 = {pctTotal} %{pctTotal < 100 && !pctOver && <span className="text-ink/40"> · reste {100 - pctTotal} %</span>}
               </span>
             </div>
           )}
         </div>
-      </div>
 
-      <div className="flex items-center gap-2 pt-1">
-        <button type="button" onClick={onSave} disabled={!canSave} className="flex h-9 items-center gap-2 border border-accent bg-accent/10 px-4 text-sm font-medium text-accent transition-colors hover:bg-accent hover:text-paper disabled:opacity-40">
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-          {isNew ? "Ajouter" : "Enregistrer"}
-        </button>
-        <button type="button" onClick={onCancel} className="h-9 px-3 text-sm text-ink/60 hover:text-ink">Annuler</button>
+        <div className="flex items-center gap-1 border-t border-ink/10 pt-4">
+          <button type="button" onClick={onSave} disabled={!canSave} className="flex h-9 items-center gap-2 border border-accent px-4 text-sm font-medium text-accent transition-colors hover:bg-accent/[0.06] disabled:pointer-events-none disabled:border-ink/15 disabled:text-ink/30">
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {isNew ? "Ajouter" : "Enregistrer"}
+          </button>
+          <button type="button" onClick={onCancel} className="h-9 px-3 text-sm text-ink/50 transition-colors hover:text-ink">Annuler</button>
+        </div>
       </div>
     </div>
   );
@@ -514,16 +532,19 @@ function LineEditor({
 
 function MonthSelect({ value, onChange, order }: { value: number; onChange: (m: number) => void; order: number[] }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="h-9 cursor-pointer appearance-none bg-transparent px-2 font-mono text-xs text-ink focus:outline-none"
-    >
-      {order.map((m) => (
-        <option key={m} value={m}>
-          {MONTHS_SHORT[m - 1].replace(".", "")}
-        </option>
-      ))}
-    </select>
+    <span className="relative inline-flex">
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="h-8 w-[4.5rem] cursor-pointer appearance-none border-b border-ink/15 bg-transparent pl-1 pr-5 font-mono text-xs text-ink transition-colors hover:border-ink/40 focus:border-accent focus:outline-none"
+      >
+        {order.map((m) => (
+          <option key={m} value={m}>
+            {MONTHS_SHORT[m - 1].replace(".", "")}
+          </option>
+        ))}
+      </select>
+      <ChevronDown size={12} className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-ink/35" />
+    </span>
   );
 }
