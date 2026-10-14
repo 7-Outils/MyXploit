@@ -11,7 +11,6 @@ import {
   Wrench,
   ChevronLeft,
   Shield,
-  Building2,
   Users,
   MapPin,
   FolderKanban,
