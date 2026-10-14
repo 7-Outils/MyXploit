@@ -6,7 +6,7 @@
  * Le contrat lui-même se gère dans /contrat.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import {
@@ -270,11 +270,9 @@ export default function ClientDetailPane({
                       <ArrowUpRight size={16} />
                     </button>
                     {canEdit && (
-                      <>
-                        <button onClick={() => editContract(c.id)} title="Modifier le contrat" className={cn(iconBtn, "border-transparent")}>
-                          <Pencil size={16} />
-                        </button>
-                      </>
+                      <button onClick={() => editContract(c.id)} title="Modifier le contrat" className={cn(iconBtn, "border-transparent")}>
+                        <Pencil size={16} />
+                      </button>
                     )}
                     {canDelete && (
                       <button onClick={() => setDeletingContract(c)} title="Supprimer le contrat" className={cn(dangerBtn, "border-transparent")}>
