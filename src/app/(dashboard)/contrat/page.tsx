@@ -171,10 +171,7 @@ function AdministratifContent() {
             </>
           }
         >
-          <p className="text-sm text-ink/70">
-            Le contrat, ses sites et toutes leurs données (consommations, équipements, devis, factures) sont supprimés.
-            Action irréversible.
-          </p>
+          <p className="text-sm text-ink/70">Le contrat et ses sites seront supprimés. Action irréversible.</p>
         </Modal>
       )}
 

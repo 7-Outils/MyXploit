@@ -304,17 +304,7 @@ export default function ClientDetailPane({
             </>
           }
         >
-          <p className="text-sm text-ink/70">
-            {contracts.length > 0 ? (
-              <>
-                Ses <span className="font-mono tabular-nums">{contracts.length}</span> contrat{contracts.length > 1 ? "s" : ""}, leurs sites et
-                toutes leurs données (consommations, équipements, devis, factures) seront supprimés définitivement.
-              </>
-            ) : (
-              "Ce client n'a aucun contrat."
-            )}{" "}
-            Action irréversible.
-          </p>
+          <p className="text-sm text-ink/70">Le client et ses contrats seront supprimés. Action irréversible.</p>
         </Modal>
       )}
 
@@ -334,10 +324,7 @@ export default function ClientDetailPane({
             </>
           }
         >
-          <p className="text-sm text-ink/70">
-            Le contrat, ses sites et toutes leurs données (consommations, équipements, devis, factures) sont supprimés.
-            Action irréversible.
-          </p>
+          <p className="text-sm text-ink/70">Le contrat et ses sites seront supprimés. Action irréversible.</p>
         </Modal>
       )}
 
