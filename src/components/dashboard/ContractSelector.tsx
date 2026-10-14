@@ -11,6 +11,7 @@ import {
   Building2,
   ArrowRight,
   Search,
+  Loader2,
 } from "lucide-react";
 import { useContract } from "@/contexts/ContractContext";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,12 @@ export function ContractSelector() {
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  // Création inline d'un client (un seul champ : le nom)
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const newNameRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -61,6 +68,8 @@ export function ContractSelector() {
   useEffect(() => {
     if (open) {
       setQuery("");
+      setCreating(false);
+      setCreateError(null);
       setExpandedId(selectedContract?.client?.id ?? null);
       // Le focus doit attendre le rendu du panneau
       setTimeout(() => searchRef.current?.focus(), 0);
@@ -124,6 +133,38 @@ export function ContractSelector() {
   const pickContract = (contract: ClientGroup["contracts"][number]) => {
     selectContract(contract);
     setOpen(false);
+  };
+
+  const startCreate = () => {
+    // On reprend la recherche en cours comme nom proposé
+    setNewName(query.trim());
+    setCreateError(null);
+    setCreating(true);
+    setTimeout(() => newNameRef.current?.focus(), 0);
+  };
+
+  const submitCreate = async () => {
+    const name = newName.trim();
+    if (!name || saving) return;
+    setSaving(true);
+    setCreateError(null);
+    try {
+      const res = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erreur");
+      setClients((prev) => [...prev, { id: data.id, name: data.name, city: data.city }]);
+      setOpen(false);
+      // La fiche client est le hub pour y rattacher des contrats
+      router.push(`/clients/${data.id}`);
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Erreur inconnue");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleClientClick = (g: ClientGroup) => {
@@ -302,18 +343,57 @@ export function ContractSelector() {
             })}
           </div>
 
-          {/* Création : la fiche client reste le hub pour les contrats */}
+          {/* Création inline : un seul champ, puis la fiche client (hub des contrats) */}
           <div className="border-t border-ink/10 p-1.5">
-            <button
-              onClick={() => {
-                setOpen(false);
-                router.push("/clients?new=1");
-              }}
-              className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
-            >
-              <Plus size={14} />
-              Nouveau client
-            </button>
+            {creating ? (
+              <div className="px-1 py-0.5">
+                <div className="flex items-center gap-2 border border-accent px-2 py-1.5">
+                  <Plus size={14} className="flex-shrink-0 text-accent" />
+                  <input
+                    ref={newNameRef}
+                    type="text"
+                    value={newName}
+                    disabled={saving}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        submitCreate();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setCreating(false);
+                      }
+                    }}
+                    placeholder="Nom du client, puis Entrée"
+                    className="w-full bg-transparent text-[13px] text-ink placeholder:text-ink/30 focus:outline-none"
+                  />
+                  {saving ? (
+                    <Loader2 size={14} className="flex-shrink-0 animate-spin text-accent" />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={submitCreate}
+                      disabled={!newName.trim()}
+                      title="Créer le client"
+                      className="flex-shrink-0 text-accent disabled:opacity-30"
+                    >
+                      <ArrowRight size={14} />
+                    </button>
+                  )}
+                </div>
+                {createError && (
+                  <p className="mt-1 px-2 text-[12px] text-red-700">{createError}</p>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={startCreate}
+                className="flex w-full items-center justify-center gap-1.5 px-2 py-1.5 text-[13px] font-medium text-accent hover:bg-accent/5 transition-colors"
+              >
+                <Plus size={14} />
+                Nouveau client
+              </button>
+            )}
           </div>
         </div>
       )}

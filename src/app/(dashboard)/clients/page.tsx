@@ -43,11 +43,6 @@ export default function ClientsPage() {
 
   useEffect(() => {
     fetchClients();
-    // ?new=1 : arrivée depuis "+ Nouveau client" du sélecteur, on ouvre
-    // directement le formulaire de création.
-    if (new URLSearchParams(window.location.search).get("new") === "1") {
-      setShowModal(true);
-    }
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
