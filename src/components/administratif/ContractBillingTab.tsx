@@ -77,9 +77,17 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   const [deleting, setDeleting] = useState<BillingLine | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refreshAll = async () => {
-    await mutate();
-    // Le suivi de Finances lit la même donnée : on invalide ses clés
+  /**
+   * Met la liste à jour à l'écran tout de suite (la relecture serveur peut
+   * prendre quelques secondes), puis relit, et invalide le suivi de Finances
+   * qui lit la même donnée.
+   */
+  const refreshAll = async (optimistic?: (current: BillingLine[]) => BillingLine[]) => {
+    if (optimistic) {
+      await mutate((current) => optimistic(Array.isArray(current) ? current : []), { revalidate: true });
+    } else {
+      await mutate();
+    }
     const { mutate: g } = await import("swr");
     await g((key) => typeof key === "string" && key.startsWith(`/api/contracts/${contractId}/billing-schedule`), undefined, { revalidate: true });
   };
@@ -107,11 +115,13 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
         periods: draft.periods.join(",") === equalPairs(yearStart, draft.count).join(",") ? [] : draft.periods,
         percents: draft.percents.every((p) => p.trim() !== "") ? draft.percents.map((p) => Number(p)) : [],
       };
-      if (editing === "new") await api.post(linesUrl, body);
-      else await api.put(`${linesUrl}/${editing}`, body);
-      toast.success(editing === "new" ? "Ligne ajoutée" : "Ligne enregistrée");
+      const saved = editing === "new"
+        ? await api.post<BillingLine>(linesUrl, body)
+        : await api.put<BillingLine>(`${linesUrl}/${editing}`, body);
+      const wasNew = editing === "new";
       setEditing(null);
-      await refreshAll();
+      toast.success(wasNew ? "Ligne ajoutée" : "Ligne enregistrée");
+      await refreshAll((current) => (wasNew ? [...current, saved] : current.map((l) => (l.id === saved.id ? saved : l))));
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
@@ -123,10 +133,11 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
     if (!deleting) return;
     setBusy(true);
     try {
-      await api.del(`${linesUrl}/${deleting.id}`);
-      toast.success("Ligne supprimée");
+      const id = deleting.id;
+      await api.del(`${linesUrl}/${id}`);
       setDeleting(null);
-      await refreshAll();
+      toast.success("Ligne supprimée");
+      await refreshAll((current) => current.filter((l) => l.id !== id));
     } catch (err) {
       toast.error(getErrorMessage(err));
     } finally {
