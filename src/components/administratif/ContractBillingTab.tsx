@@ -451,7 +451,7 @@ function LineEditor({
         }
       }}
     >
-      <div className="space-y-5 border border-ink/10 border-l-2 border-l-accent bg-paper p-4 md:p-5">
+      <div className="space-y-5">
         {/* Libellé + poste + nombre */}
         <div className="grid gap-x-6 gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
           <div className="min-w-0">
