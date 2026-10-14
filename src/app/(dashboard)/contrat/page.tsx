@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR, { preload } from "swr";
 import { fetcher } from "@/lib/swr-fetcher";
 import { useContract } from "@/contexts/ContractContext";
@@ -22,18 +23,20 @@ import ContractAvenantsTab from "@/components/administratif/ContractAvenantsTab"
 import ContractRevisionTab from "@/components/administratif/ContractRevisionTab";
 import ContractMontantsTab from "@/components/administratif/ContractMontantsTab";
 import ContractRenewalPlanTab from "@/components/administratif/ContractRenewalPlanTab";
+import ContractBillingTab from "@/components/administratif/ContractBillingTab";
 import EditContractModal from "@/components/administratif/modals/EditContractModal";
 import type { Contract } from "@/components/administratif/types";
 import { CiblesContent } from "@/components/contrat/tabs/CiblesTab";
 import type { Site } from "@/components/energy/types";
 
-type ContratTab = "sites" | "cibles" | "contacts" | "avenants" | "revision" | "montants" | "renouvellement";
+type ContratTab = "sites" | "cibles" | "contacts" | "avenants" | "facturation" | "revision" | "montants" | "renouvellement";
 
 const CONTRAT_TABS = sortTabsAlpha([
   { id: "sites" as ContratTab, label: "Sites" },
   { id: "cibles" as ContratTab, label: "Cibles" },
   { id: "contacts" as ContratTab, label: "Contacts" },
   { id: "avenants" as ContratTab, label: "Avenants" },
+  { id: "facturation" as ContratTab, label: "Facturation" },
   { id: "revision" as ContratTab, label: "Révision" },
   { id: "montants" as ContratTab, label: "Montants" },
   { id: "renouvellement" as ContratTab, label: "Renouvellement" },
@@ -56,7 +59,12 @@ function AdministratifContent() {
   const energySites = energySitesData ?? [];
   const fetchDetail = async () => { await Promise.all([mutateDetail(), mutateSites()]); };
 
-  const [activeTab, setActiveTab] = useState<ContratTab>(CONTRAT_TABS[0].id);
+  // ?tab=facturation (lien depuis Finances) ouvre directement l'onglet demandé
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<ContratTab>(
+    CONTRAT_TABS.find((t) => t.id === requestedTab)?.id ?? CONTRAT_TABS[0].id
+  );
   const [showEditContractModal, setShowEditContractModal] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,6 +130,9 @@ function AdministratifContent() {
                   preload(`/api/contracts/${selectedContract.id}/revision-timeline`, fetcher);
                 } else if (tab.id === "montants") {
                   preload(`/api/contracts/${selectedContract.id}/amounts-timeline`, fetcher);
+                } else if (tab.id === "facturation") {
+                  preload(`/api/contracts/${selectedContract.id}/billing-lines`, fetcher);
+                  preload(`/api/contracts/${selectedContract.id}/billing-schedule`, fetcher);
                 }
               }}
               className={`px-4 py-2 font-mono text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap ${
@@ -201,6 +212,11 @@ function AdministratifContent() {
           {/* Contacts Tab */}
           {activeTab === "contacts" && selectedContract && (
             <ContractContactsTab contractId={selectedContract.id} />
+          )}
+
+          {/* Facturation Tab */}
+          {activeTab === "facturation" && selectedContract && (
+            <ContractBillingTab key={selectedContract.id} contractId={selectedContract.id} />
           )}
 
           {/* Renouvellement Tab */}

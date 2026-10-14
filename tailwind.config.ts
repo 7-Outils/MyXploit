@@ -73,10 +73,26 @@ const config: Config = {
         "slide-in-right": "slideInRight 0.3s ease-out",
         "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         draw: "draw 2.2s cubic-bezier(0.4, 0, 0.2, 1) 0.4s forwards",
+        // Échéancier : les blocs se « posent » de gauche à droite, une ligne ajoutée s'allume
+        "grow-x": "growX 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        "pop-in": "popIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        "row-flash": "rowFlash 1.6s ease-out both",
       },
       keyframes: {
         draw: {
           to: { strokeDashoffset: "0" },
+        },
+        growX: {
+          "0%": { opacity: "0", transform: "scaleX(0)" },
+          "100%": { opacity: "1", transform: "scaleX(1)" },
+        },
+        popIn: {
+          "0%": { opacity: "0", transform: "scale(0.4)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        rowFlash: {
+          "0%": { backgroundColor: "rgba(37, 99, 235, 0.12)" },
+          "100%": { backgroundColor: "rgba(37, 99, 235, 0)" },
         },
         fadeIn: {
           "0%": { opacity: "0" },

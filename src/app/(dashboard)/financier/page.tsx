@@ -30,6 +30,7 @@ import type {
 
 // Tabs
 import { FacturationTab } from "@/components/financier/tabs/FacturationTab";
+import BillingFollowUp from "@/components/financier/BillingFollowUp";
 import { DecompteP3Tab } from "@/components/financier/tabs/DecompteP3Tab";
 import DevisP3Content from "@/components/exploitation/DevisP3Content";
 
@@ -633,6 +634,11 @@ function FinancierPageContent() {
       </div>
 
       {/* Tab Content */}
+      {/* Suivi de l'échéancier de la saison (Contrat › Facturation) */}
+      {activeTab === "facturation" && selectedContract && (
+        <BillingFollowUp contractId={selectedContract.id} />
+      )}
+
       {activeTab === "facturation" && (
         <FacturationTab
           // Spinner seulement quand on n'a encore rien ; un changement de filtre
