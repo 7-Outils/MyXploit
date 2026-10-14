@@ -1465,6 +1465,7 @@ model ContractBillingLine {
   rhythm        BillingRhythm
   expectedMonth Int? // 1-12 : mois attendu de la facture pour une ligne ANNUEL (ex. 9 = décompte en septembre)
   toleranceDays Int           @default(30) // délai après la fin de période avant « en retard »
+  splitPercents Int[]         @default([]) // répartition des acomptes en % (ex. [30,30,20,20]) ; vide = parts égales
   label         String? // libellé libre, optionnel
   sortOrder     Int           @default(0)
   createdAt     DateTime      @default(now())

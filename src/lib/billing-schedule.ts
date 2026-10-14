@@ -26,6 +26,7 @@ export interface BillingLineInput {
   expectedMonth: number | null;
   toleranceDays: number;
   label: string | null;
+  splitPercents?: number[]; // vide = parts égales
 }
 
 export interface InvoiceLite {
@@ -53,6 +54,7 @@ export interface ExpectedInvoice {
   periodStart: string; // ISO
   periodEnd: string; // ISO
   dueDate: string; // ISO : fin de période + tolérance
+  percent: number; // part de l'annuel attendue sur cette facture (100 pour une facture unique)
   status: ExpectedStatus;
   invoices: Array<{ id: string; reference: string; amount: number; status: InvoiceLite["status"]; issueDate: string }>;
   amount: number; // somme des factures rapprochées (validées + en attente)
@@ -151,6 +153,7 @@ function lineLabel(l: BillingLineInput): string {
 export function expectedForLine(line: BillingLineInput, start: Date, end: Date): Omit<ExpectedInvoice, "status" | "invoices" | "amount">[] {
   const n = PERIODS[line.rhythm];
   const months = 12 / n;
+  const split = line.splitPercents && line.splitPercents.length === n ? line.splitPercents : null;
   const out: Omit<ExpectedInvoice, "status" | "invoices" | "amount">[] = [];
   for (let i = 0; i < n; i++) {
     const pStart = addMonths(start, i * months);
@@ -175,6 +178,7 @@ export function expectedForLine(line: BillingLineInput, start: Date, end: Date):
       periodStart: pStart.toISOString(),
       periodEnd: pEnd.toISOString(),
       dueDate: due.toISOString(),
+      percent: split ? split[i] : Math.round((100 / n) * 100) / 100,
     });
   }
   return out;
