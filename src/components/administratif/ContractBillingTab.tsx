@@ -188,7 +188,6 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
           </div>
         ) : (
           <div className="divide-y divide-ink/10">
-            {lines.length > 0 && <MonthHeader yearStart={yearStart} />}
             {lines.length === 0 && editing !== "new" && (
               <div className="flex flex-col items-center gap-4 px-5 py-12 text-center">
                 <p className="max-w-md text-sm text-ink/60">Définissez comment l&apos;exploitant facture ce marché : quelles factures, combien de fois par an, sur quelles périodes.</p>
@@ -261,22 +260,6 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 /** Grille partagée par l'en-tête et les lignes : nom | 12 mois | actions. */
 const PLAN_COLS = "lg:grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_4.5rem]";
 
-function MonthHeader({ yearStart }: { yearStart: number }) {
-  return (
-    <div className={cn("hidden items-end gap-x-6 px-5 lg:grid", PLAN_COLS)}>
-      <div />
-      <div className="grid grid-cols-12">
-        {yearMonths(yearStart).map((m, i) => (
-          <span key={m} className={cn("label-tech !tracking-[0.12em] py-2 text-center", i > 0 && "border-l border-ink/[0.06]")}>
-            {MONTHS_SHORT[m - 1].replace(".", "")}
-          </span>
-        ))}
-      </div>
-      <div />
-    </div>
-  );
-}
-
 /** Colonnes (1-12, bornes incluses) occupées par une période dans la frise, en 1 ou 2 segments si elle passe le début. */
 function periodSegments(ms: number[], order: number[]): Array<[number, number]> {
   const cols = ms.map((m) => order.indexOf(m) + 1).filter((c) => c > 0).sort((a, b) => a - b);
@@ -291,8 +274,10 @@ function periodSegments(ms: number[], order: number[]): Array<[number, number]> 
 
 function LineRow({ line, yearStart, contractYearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; contractYearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
   const hasPct = line.percents.length === line.countPerYear;
-  const order = yearMonths(yearStart);
   const periods = linePeriods(line, contractYearStart);
+  // Chaque ligne a sa propre frise, qui démarre à son premier mois facturé
+  const own = periods[0]?.[0];
+  const order = yearMonths(typeof own === "number" ? own : yearStart);
   const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
     <div className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-2.5 transition-colors hover:bg-ink/[0.015] lg:gap-x-6", PLAN_COLS)}>
@@ -326,10 +311,10 @@ function LineRow({ line, yearStart, contractYearStart, canEdit, onEdit, onDelete
               >
                 {first && (
                   <>
-                    <span className="truncate text-[11px] font-medium text-ink">Facture {i + 1}</span>
-                    <span className="truncate font-mono text-[11px] tabular-nums text-ink/60">
-                      {hasPct ? `${line.percents[i]} %` : monthsRangeLabel(ms)}
+                    <span className="truncate text-[11px] font-medium text-ink">
+                      Facture {i + 1} <span className="font-mono font-normal text-ink/50">· {monthsRangeLabel(ms)}</span>
                     </span>
+                    <span className="truncate font-mono text-[11px] tabular-nums text-ink/60">{hasPct ? `${line.percents[i]} %` : "—"}</span>
                   </>
                 )}
               </div>
