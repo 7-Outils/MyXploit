@@ -25,8 +25,7 @@ export async function GET(
             postalCode: true,
             energyType: true,
             surface: true,
-            // Alertes non lues uniquement : c'est ce que le portefeuille affiche
-            _count: { select: { equipments: true, alerts: { where: { isRead: false } } } },
+            _count: { select: { equipments: true, alerts: true } },
           },
           orderBy: { name: "asc" },
         },
