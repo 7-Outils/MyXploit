@@ -127,21 +127,44 @@ export async function DELETE(
     const effectiveOrgId = await getEffectiveOrganizationId(user.id, user.organizationId);
     const { id } = await params;
 
-    if (user.role !== "ADMIN" && user.role !== "SUPER_ADMIN") {
+    if (user.role === "READER") {
       return NextResponse.json(
-        { error: "Seul le dirigeant peut supprimer un client" },
+        { error: "Vous n'avez pas les droits pour supprimer un client" },
         { status: 403 }
       );
     }
 
     const existing = await prisma.client.findFirst({
       where: { id, organizationId: effectiveOrgId },
+      include: { _count: { select: { sites: true, contracts: true, missions: true } } },
     });
 
     if (!existing) {
       return NextResponse.json(
         { error: "Client non trouve" },
         { status: 404 }
+      );
+    }
+
+    const isAdmin = user.role === "ADMIN" || user.role === "SUPER_ADMIN";
+    const hasData = existing._count.sites > 0 || existing._count.contracts > 0;
+
+    // Un client vide peut etre supprime par quiconque peut en creer ;
+    // un client avec des sites/contrats rattaches, seulement par le dirigeant.
+    if (hasData && !isAdmin) {
+      return NextResponse.json(
+        { error: "Seul le dirigeant peut supprimer un client ayant des sites ou des contrats" },
+        { status: 403 }
+      );
+    }
+
+    // Les missions AMO referencent obligatoirement un client (pas de SetNull)
+    if (existing._count.missions > 0) {
+      return NextResponse.json(
+        {
+          error: `Ce client a ${existing._count.missions} mission(s). Supprimez ou reaffectez-les avant de supprimer le client.`,
+        },
+        { status: 409 }
       );
     }
 

@@ -233,8 +233,12 @@ export default function ClientDetailPage() {
     if (!confirm(`Supprimer le client "${client?.name}" ? Les sites et contrats seront detaches mais pas supprimes.`)) return;
     try {
       const res = await fetch(`/api/clients/${clientId}`, { method: "DELETE" });
-      if (res.ok) router.push("/clients");
-      else alert("Erreur lors de la suppression");
+      if (res.ok) {
+        router.push("/clients");
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Erreur lors de la suppression");
+      }
     } catch {
       alert("Erreur lors de la suppression");
     }
