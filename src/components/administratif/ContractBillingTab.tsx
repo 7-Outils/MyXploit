@@ -159,7 +159,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
             Factures attendues <span className="tabular-nums">({lines.length})</span>
           </span>
           {canEdit && editing === null && (
-            <button type="button" onClick={() => startNew()} title="Ajouter une facture attendue" className="flex h-9 w-9 items-center justify-center bg-ink text-paper transition-colors hover:bg-accent">
+            <button type="button" onClick={() => startNew()} title="Ajouter une facture attendue" className="flex h-9 w-9 items-center justify-center border border-ink/20 text-ink/70 transition-colors hover:border-accent hover:text-accent">
               <Plus size={16} />
             </button>
           )}
@@ -238,30 +238,29 @@ function LineRow({ line, yearStart, canEdit, onEdit, onDelete }: { line: Billing
   const periods = linePeriods(line, yearStart);
   const periodIndex = new Map<number, number>();
   periods.forEach((ms, i) => ms.forEach((m) => { if (!periodIndex.has(m)) periodIndex.set(m, i); }));
-  const title = periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ");
+  // Le poste n'est rappelé que s'il n'ouvre pas déjà le libellé (« P2 acomptes » suffit)
+  const showPoste = line.poste && !line.label.trim().toUpperCase().startsWith(line.poste);
   return (
-    <div className="group grid items-center gap-4 px-4 py-2.5 md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={cn("w-9 flex-shrink-0 font-mono text-xs font-semibold", line.poste ? "text-ink" : "text-ink/30")}>
-          {line.poste ? POSTE_LABELS[line.poste] : "—"}
-        </span>
+    <div className="group grid items-center gap-5 px-4 py-3 md:grid-cols-[minmax(0,1fr)_auto_auto_auto_auto]">
+      <div className="flex min-w-0 items-baseline gap-2">
         <span className="truncate text-sm font-medium text-ink">{line.label}</span>
+        {showPoste && <span className="font-mono text-[11px] text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
       </div>
-      <span className="font-mono text-sm tabular-nums text-ink">
-        {line.countPerYear} <span className="text-ink/50">par an</span>
+      <span className="font-mono text-sm tabular-nums text-ink/70">
+        {line.countPerYear} <span className="text-ink/40">par an</span>
       </span>
-      {/* Année contractuelle, mois par mois : chaque période en bloc alterné */}
-      <div className="flex gap-px" title={title}>
-        {order.map((m) => {
+      {/* Frise de l'année contractuelle : une teinte légère par période, séparées par un filet */}
+      <div className="flex" title={periods.map((ms, i) => `${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
+        {order.map((m, idx) => {
           const pi = periodIndex.get(m);
           const isStart = pi !== undefined && periods[pi][0] === m;
           return (
             <span
               key={m}
               className={cn(
-                "flex h-5 w-5 items-center justify-center font-mono text-[9px]",
-                pi === undefined ? "bg-ink/[0.03] text-ink/20" : pi % 2 === 0 ? "bg-ink text-paper" : "bg-ink/[0.35] text-paper",
-                isStart && "ml-0.5"
+                "flex h-6 w-6 items-center justify-center font-mono text-[10px] text-ink/55",
+                pi === undefined ? "bg-transparent text-ink/20" : pi % 2 === 0 ? "bg-accent/10" : "bg-ink/[0.05]",
+                isStart && idx > 0 && "border-l border-ink/30"
               )}
             >
               {MONTHS_TINY[m - 1]}
@@ -375,7 +374,7 @@ function LineEditor({
 
   return (
     <div
-      className="space-y-3 border-l-2 border-accent bg-accent/[0.03] px-4 py-3"
+      className="space-y-3 border-l-2 border-accent bg-paper px-4 py-3"
       onKeyDown={(e) => {
         if (e.key === "Escape") onCancel();
         if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLSelectElement)) {
@@ -411,7 +410,7 @@ function LineEditor({
                 onClick={() => setDraft({ ...draft, poste: draft.poste === p ? "" : p })}
                 className={cn(
                   "h-9 border border-ink/20 px-2.5 font-mono text-xs transition-colors -ml-px first:ml-0",
-                  draft.poste === p ? "bg-ink text-paper border-ink" : "bg-white text-ink/60 hover:text-ink"
+                  draft.poste === p ? "border-accent bg-accent/10 text-accent" : "bg-white text-ink/60 hover:text-ink"
                 )}
               >
                 {POSTE_LABELS[p]}
@@ -503,7 +502,7 @@ function LineEditor({
       </div>
 
       <div className="flex items-center gap-2 pt-1">
-        <button type="button" onClick={onSave} disabled={!canSave} className="flex h-9 items-center gap-2 bg-ink px-4 text-sm font-medium text-paper transition-colors hover:bg-accent disabled:opacity-40">
+        <button type="button" onClick={onSave} disabled={!canSave} className="flex h-9 items-center gap-2 border border-accent bg-accent/10 px-4 text-sm font-medium text-accent transition-colors hover:bg-accent hover:text-paper disabled:opacity-40">
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
           {isNew ? "Ajouter" : "Enregistrer"}
         </button>
