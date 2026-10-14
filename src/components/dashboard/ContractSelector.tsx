@@ -89,9 +89,9 @@ export function ContractSelector() {
   };
 
   const label = selectedContract
-    ? [selectedContract.client?.name, selectedContract.provider || selectedContract.title || selectedContract.reference || "Contrat sans titre"]
+    ? [selectedContract.client?.name, selectedContract.provider || selectedContract.title || selectedContract.reference]
         .filter(Boolean)
-        .join(" · ")
+        .join(" · ") || "Contrat à compléter"
     : "Sélectionner un contrat";
 
   return (
@@ -154,9 +154,15 @@ export function ContractSelector() {
                         isSelected && "bg-accent/5"
                       )}
                     >
-                      <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isSelected ? "text-accent" : "text-ink")}>
-                        {contract.provider || contract.title || "Contrat sans titre"}
-                      </span>
+                      {contract.provider || contract.title ? (
+                        <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", isSelected ? "text-accent" : "text-ink")}>
+                          {contract.provider || contract.title}
+                        </span>
+                      ) : (
+                        <span className={cn("min-w-0 flex-1 truncate text-[13px] italic", isSelected ? "text-accent" : "text-ink/40")}>
+                          À compléter
+                        </span>
+                      )}
                       {contract.reference && (
                         <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/40">{contract.reference}</span>
                       )}
