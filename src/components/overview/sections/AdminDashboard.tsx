@@ -248,7 +248,7 @@ export function AdminDashboard({
                   <div className="flex items-center gap-3 min-w-0">
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dot}`} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-ink truncate">{contract.title}</p>
+                      <p className="text-sm font-medium text-ink truncate">{contract.provider || contract.reference || "Contrat"}</p>
                       <p className="text-xs text-ink/50">{contract.reference} • {contract.provider} • {contract.siteCount} site(s)</p>
                     </div>
                   </div>

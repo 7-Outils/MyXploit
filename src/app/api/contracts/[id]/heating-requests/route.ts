@@ -106,7 +106,7 @@ export async function POST(
 
     const senderName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
     const verb = type === "ALLUMAGE" ? "allumage" : "arrêt";
-    const collectivite = contract.client?.name ?? contract.title ?? "Contrat";
+    const collectivite = contract.client?.name ?? contract.provider ?? "Contrat";
     const rows = eligible
       .map(
         (s) =>
@@ -121,7 +121,7 @@ export async function POST(
         <strong>à partir du ${fmtDate(requestedDate)}</strong>.</p>
         <table style="border-collapse: collapse; font-size: 14px; margin: 8px 0;">
           <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Collectivité</td><td style="padding: 4px 0;"><strong>${escapeHtml(collectivite)}</strong></td></tr>
-          <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Contrat</td><td style="padding: 4px 0;">${escapeHtml([contract.reference, contract.title].filter(Boolean).join(" — ") || "Contrat")}</td></tr>
+          <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Contrat</td><td style="padding: 4px 0;">${escapeHtml([contract.reference, contract.provider].filter(Boolean).join(" — ") || "Contrat")}</td></tr>
           <tr><td style="padding: 4px 16px 4px 0; color: #6b6b6b;">Sites</td><td style="padding: 4px 0;">${eligible.length}</td></tr>
         </table>
         <table style="border-collapse: collapse; font-size: 14px; width: 100%;">${rows}</table>

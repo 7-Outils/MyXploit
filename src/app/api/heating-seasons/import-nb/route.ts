@@ -62,7 +62,6 @@ export async function POST(request: NextRequest) {
       where: { id: contractId, organizationId: effectiveOrgId },
       select: {
         id: true,
-        title: true,
         startDate: true,
         endDate: true,
         yearType: true,
@@ -362,7 +361,6 @@ export async function POST(request: NextRequest) {
         mode: "preview",
         contract: {
           id: contract.id,
-          title: contract.title,
           startDate: contractStartDate.toISOString(),
           endDate: contractEndDate.toISOString(),
         },

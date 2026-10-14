@@ -77,13 +77,11 @@ export async function POST(request: NextRequest) {
     const contract = await prisma.contract.create({
       data: {
         reference: optionalText(body.reference),
-        title: optionalText(body.title),
         provider: optionalText(body.provider),
         startDate: optionalDate(body.startDate),
         endDate: optionalDate(body.endDate),
         // Sans ses deux dates, le contrat reste « en attente »
         status: body.status || (body.startDate && body.endDate ? "ACTIF" : "EN_ATTENTE"),
-        description: body.description,
         organizationId: effectiveOrgId,
         yearType: body.yearType || "HEATING_SEASON",
         billingFrequency: body.billingFrequency || "TRIMESTRIEL",

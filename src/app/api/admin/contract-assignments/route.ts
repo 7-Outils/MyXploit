@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, role: true } },
-        contract: { select: { id: true, reference: true, title: true, provider: true, status: true, _count: { select: { contractSites: true } } } },
+        contract: { select: { id: true, reference: true, provider: true, status: true, _count: { select: { contractSites: true } } } },
       },
       orderBy: { assignedAt: "desc" },
     });

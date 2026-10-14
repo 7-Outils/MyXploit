@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Récupérer les assignations du source
     const sourceAssignments = await prisma.userContractAssignment.findMany({
       where: { userId: fromUserId, organizationId: effectiveOrgId },
-      include: { contract: { select: { id: true, title: true } } },
+      include: { contract: { select: { id: true, reference: true, provider: true } } },
     });
 
     if (sourceAssignments.length === 0) {

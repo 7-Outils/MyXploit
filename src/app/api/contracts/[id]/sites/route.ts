@@ -83,7 +83,6 @@ export async function GET(
         contract: {
           id: contract.id,
           reference: contract.reference,
-          title: contract.title,
           provider: contract.provider,
           status: contract.status,
         },

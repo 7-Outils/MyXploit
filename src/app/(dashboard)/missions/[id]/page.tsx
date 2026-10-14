@@ -517,7 +517,7 @@ export default function MissionDetailPage() {
                   <div key={mc.id} className="flex items-center gap-3 px-4 py-2.5">
                     <FileText size={16} className="text-ink/40 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-ink">{mc.contract.title}</p>
+                      <p className="text-sm font-medium text-ink">{mc.contract.provider || mc.contract.reference || "Contrat"}</p>
                       <p className="text-xs text-ink/50">{mc.contract.reference} • {mc.contract.provider}</p>
                     </div>
                     <span className={`ml-auto px-2 py-0.5 text-xs font-medium ${

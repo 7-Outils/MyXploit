@@ -45,7 +45,7 @@ export async function GET() {
         contractSites: {
           include: {
             contract: {
-              select: { id: true, reference: true, title: true, provider: true, status: true },
+              select: { id: true, reference: true, provider: true, status: true },
             },
           },
         },

@@ -158,7 +158,7 @@ function AdministratifContent() {
       {confirmDelete && selectedContract && (
         <Modal
           title="Supprimer le contrat"
-          subtitle={[selectedContract.client?.name, selectedContract.provider || selectedContract.title, selectedContract.reference].filter(Boolean).join(" · ")}
+          subtitle={[selectedContract.client?.name, selectedContract.provider, selectedContract.reference].filter(Boolean).join(" · ")}
           size="sm"
           onClose={() => setConfirmDelete(false)}
           footer={

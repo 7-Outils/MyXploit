@@ -813,7 +813,6 @@ export async function POST(request: NextRequest) {
         data: {
           organizationId: effectiveOrgId,
           reference,
-          title,
           provider,
           startDate: new Date(startDate),
           endDate: new Date(endDate),
@@ -1142,7 +1141,6 @@ export async function POST(request: NextRequest) {
       contract: {
         id: result.contract.id,
         reference: result.contract.reference,
-        title: result.contract.title,
       },
       createdSites: result.createdSites,
       linkedSites: result.linkedSites,

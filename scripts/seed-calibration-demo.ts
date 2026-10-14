@@ -173,12 +173,10 @@ async function main() {
     contract = await prisma.contract.create({
       data: {
         reference: CONTRACT_REF,
-        title: "[DEMO] Calibration des cibles NB",
         provider: "Démo Exploitant",
         startDate: new Date("2020-07-01"),
         endDate: new Date("2026-06-30"),
         status: "ACTIF",
-        description: "Contrat de démonstration pour le rapport de calibration.",
         organizationId: sage.id,
         clientId: client.id,
         yearType: "HEATING_SEASON",

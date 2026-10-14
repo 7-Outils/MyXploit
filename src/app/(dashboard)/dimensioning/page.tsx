@@ -291,7 +291,7 @@ function DimensioningPageContent() {
               <option value="">-- Ou sélectionner des sites --</option>
               {contracts.map((contract) => (
                 <option key={contract.id} value={contract.id}>
-                  {contract.reference} - {contract.title}
+                  {[contract.reference, contract.provider].filter(Boolean).join(" - ") || "Contrat"}
                 </option>
               ))}
             </select>

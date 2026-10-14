@@ -154,7 +154,7 @@ export function GeneralTab({
                       {cs.contract.reference}
                     </p>
                     <p className="text-xs text-ink/50 mt-0.5">
-                      {cs.contract.title} - {cs.contract.provider}
+                      {[cs.contract.reference, cs.contract.provider].filter(Boolean).join(" - ") || "Contrat"}
                     </p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">

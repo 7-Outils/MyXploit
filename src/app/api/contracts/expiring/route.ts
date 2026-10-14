@@ -92,7 +92,6 @@ export async function GET(request: NextRequest) {
       return {
         id: contract.id,
         reference: contract.reference,
-        title: contract.title,
         provider: contract.provider,
         startDate: contract.startDate,
         endDate: contract.endDate,

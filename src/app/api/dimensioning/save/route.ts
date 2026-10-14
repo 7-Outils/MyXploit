@@ -51,12 +51,10 @@ export async function POST(request: NextRequest) {
     const contract = await prisma.contract.create({
       data: {
         reference: `DIM-${startYear}-${Date.now().toString(36).toUpperCase()}`,
-        title: projectName,
         provider: "À définir",
         startDate: new Date(startYear, 0, 1),
         endDate: new Date(startYear + duration, 0, 1),
         status: "EN_ATTENTE",
-        description: `Dimensionnement créé le ${new Date().toLocaleDateString("fr-FR")}\n\nBudget estimé:\n- P2 Annuel: ${dimensioning.totalP2Annual.toLocaleString("fr-FR")} €\n- P3 GE Annuel: ${dimensioning.totalP3GEAnnual.toLocaleString("fr-FR")} €\n- P3 R Annuel: ${dimensioning.totalP3RAnnual.toLocaleString("fr-FR")} €\n- Total Annuel: ${dimensioning.totalAnnual.toLocaleString("fr-FR")} €\n- Total Marché (${duration} ans): ${dimensioning.totalContract.toLocaleString("fr-FR")} €\n\nHeures P2: ${dimensioning.totalHoursP2}h/an\nRenouvellements prévus: ${dimensioning.renewalsCount}`,
         organizationId: effectiveOrgId,
         // Store dimensioning data as JSON in metadata if available
       },

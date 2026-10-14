@@ -22,7 +22,7 @@ export async function GET(
       where: { id: meetingId, organizationId: effectiveOrgId },
       include: {
         site: { select: { name: true } },
-        contract: { select: { reference: true, title: true } },
+        contract: { select: { reference: true, provider: true } },
         agendaItems: {
           include: {
             ticket: {
@@ -72,7 +72,7 @@ export async function GET(
     md += `**Date** : ${dateStr}\n`;
     if (meeting.location) md += `**Lieu** : ${meeting.location}\n`;
     if (meeting.contract)
-      md += `**Contrat** : ${meeting.contract.reference} - ${meeting.contract.title}\n`;
+      md += `**Contrat** : ${[meeting.contract.reference, meeting.contract.provider].filter(Boolean).join(" - ") || "Contrat"}\n`;
     if (meeting.site) md += `**Site** : ${meeting.site.name}\n`;
     if (meeting.attendees.length > 0)
       md += `**Participants** : ${meeting.attendees.join(", ")}\n`;
@@ -123,7 +123,7 @@ export async function GET(
         date: meeting.date,
         location: meeting.location,
         contract: meeting.contract
-          ? `${meeting.contract.reference} — ${meeting.contract.title}`
+          ? [meeting.contract.reference, meeting.contract.provider].filter(Boolean).join(" — ") || "Contrat"
           : null,
         site: meeting.site?.name || null,
         attendees: meeting.attendees,

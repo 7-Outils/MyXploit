@@ -401,7 +401,7 @@ export default function SiteEnergyPage({
                     key={cs.contract.id}
                     className="border border-ink/10 px-2 py-0.5 text-xs text-ink/70"
                   >
-                    {cs.contract.reference} — {cs.contract.title}
+                    {[cs.contract.reference, cs.contract.provider].filter(Boolean).join(" — ") || "Contrat"}
                   </span>
                 ))}
               </div>

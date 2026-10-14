@@ -130,12 +130,10 @@ async function main() {
     contract = await prisma.contract.create({
       data: {
         reference: contractRef,
-        title: "Marché d'exploitation CVC — Ville d'Avray",
         provider: "À définir",
         startDate: new Date("2026-01-01"),
         endDate: new Date("2030-12-31"),
         status: "ACTIF",
-        description: "Contrat d'exploitation des installations CVC de la Ville d'Avray",
         organizationId: sage.id,
         clientId: client.id,
       },

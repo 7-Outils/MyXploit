@@ -40,7 +40,7 @@ async function main() {
 
   console.log("\n📋 Contracts:");
   contracts.forEach(c => {
-    console.log(`  - ${c.reference}: ${c.title} (${c.organization.name})`);
+    console.log(`  - ${c.reference ?? "sans réf"}: ${c.provider ?? ""} (${c.organization.name})`);
   });
 
   await prisma.$disconnect();

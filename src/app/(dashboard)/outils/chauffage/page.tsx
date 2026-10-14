@@ -98,7 +98,7 @@ export default function HeatingToolPage() {
     const allOff = c.enChauffe === 0 && c.allumagePrevu === 0 && c.arretPrevu === 0;
     const kind: "start" | "stop" =
       c.total === 0 ? seasonKind(d.today) : allOff ? "start" : c.enChauffe > 0 ? "stop" : seasonKind(d.today);
-    const name = selectedContract.client?.name ?? selectedContract.title ?? "Contrat";
+    const name = selectedContract.client?.name ?? selectedContract.provider ?? "Contrat";
     return {
       today: d.today,
       weather: d.weather,

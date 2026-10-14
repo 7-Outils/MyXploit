@@ -123,12 +123,10 @@ export async function POST(request: NextRequest) {
     const contract = await prisma.contract.create({
       data: {
         reference: `AO-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`,
-        title: projectName,
         provider: "À définir",
         startDate: new Date(),
         endDate: new Date(new Date().setFullYear(new Date().getFullYear() + (duration || 8))),
         status: "EN_ATTENTE",
-        description: `Projet d'appel d'offres créé le ${new Date().toLocaleDateString("fr-FR")}`,
         organizationId: effectiveOrgId,
       },
     });

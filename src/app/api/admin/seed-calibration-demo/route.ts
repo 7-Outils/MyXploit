@@ -99,12 +99,10 @@ export async function POST(_req: NextRequest) {
       contract = await prisma.contract.create({
         data: {
           reference: CONTRACT_REF,
-          title: "[DEMO] Calibration des cibles NB",
           provider: "Démo Exploitant",
           startDate: new Date("2020-07-01"),
           endDate: new Date("2026-06-30"),
           status: "ACTIF",
-          description: "Contrat de démonstration — 5 scénarios de calibration signature énergétique.",
           organizationId: orgId,
           clientId: client.id,
           yearType: "HEATING_SEASON",

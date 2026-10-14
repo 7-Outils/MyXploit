@@ -22,7 +22,7 @@ export async function GET(
       include: {
         site: { select: { id: true, name: true, city: true, address: true } },
         contract: {
-          select: { id: true, reference: true, title: true, provider: true },
+          select: { id: true, reference: true, provider: true },
         },
         createdBy: {
           select: { id: true, firstName: true, lastName: true },
@@ -120,7 +120,7 @@ export async function PATCH(
       include: {
         site: { select: { id: true, name: true, city: true } },
         contract: {
-          select: { id: true, reference: true, title: true, provider: true },
+          select: { id: true, reference: true, provider: true },
         },
       },
     });

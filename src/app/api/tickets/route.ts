@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       include: {
         site: { select: { id: true, name: true, city: true } },
         contract: {
-          select: { id: true, reference: true, title: true, provider: true },
+          select: { id: true, reference: true, provider: true },
         },
         _count: { select: { agendaItems: true } },
       },
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       include: {
         site: { select: { id: true, name: true, city: true } },
         contract: {
-          select: { id: true, reference: true, title: true, provider: true },
+          select: { id: true, reference: true, provider: true },
         },
       },
     });

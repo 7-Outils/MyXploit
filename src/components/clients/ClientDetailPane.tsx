@@ -366,7 +366,7 @@ export default function ClientDetailPane({
       {deletingContract && (
         <Modal
           title="Supprimer le contrat"
-          subtitle={[deletingContract.provider || deletingContract.title, deletingContract.reference].filter(Boolean).join(" · ") || "Contrat sans titre"}
+          subtitle={[deletingContract.provider, deletingContract.reference].filter(Boolean).join(" · ") || "Contrat à compléter"}
           size="sm"
           onClose={() => setDeletingContract(null)}
           footer={

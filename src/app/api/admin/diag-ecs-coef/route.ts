@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       siteId: true,
       coefficientQ: true,
       coefficientPCS: true,
-      contract: { select: { id: true, title: true } },
+      contract: { select: { id: true, reference: true } },
       site: {
         select: {
           id: true,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     total: contractSites.length,
     sites: contractSites.map((cs) => ({
       siteName: cs.site.name,
-      contract: cs.contract.title,
+      contract: cs.contract.reference,
       contractSite: {
         coefficientQ: cs.coefficientQ,
         coefficientPCS: cs.coefficientPCS,

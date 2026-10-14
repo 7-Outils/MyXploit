@@ -324,7 +324,7 @@ export default function PortfolioAdminPage() {
                             <FileText size={18} className="text-green-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-ink">{a.contract.title}</p>
+                            <p className="font-medium text-ink">{a.contract.provider || a.contract.reference || "Contrat"}</p>
                             <p className="text-xs text-ink/50">
                               {a.contract.reference} - {a.contract.provider} - {a.contract._count.contractSites} site{a.contract._count.contractSites > 1 ? "s" : ""}
                             </p>
@@ -421,7 +421,7 @@ export default function PortfolioAdminPage() {
               <p className="text-xs font-medium text-ink/50 mb-2">Contrats concernés :</p>
               {assignments.map((a) => (
                 <p key={a.id} className="text-sm text-ink">
-                  {a.contract.reference} - {a.contract.title}
+                  {a.contract.reference} - {a.contract.provider || a.contract.reference || "Contrat"}
                 </p>
               ))}
             </div>

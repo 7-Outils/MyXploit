@@ -381,7 +381,6 @@ export async function GET(
       contract: {
         id: contract.id,
         reference: contract.reference,
-        title: contract.title,
         startDate: contractStartDate,
         endDate: contractEndDate,
         yearType: contract.yearType,

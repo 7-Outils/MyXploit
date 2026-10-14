@@ -32,7 +32,7 @@ export async function GET(
         },
         contracts: {
           include: {
-            contract: { select: { id: true, reference: true, title: true, provider: true, status: true } },
+            contract: { select: { id: true, reference: true, provider: true, status: true } },
           },
         },
       },

@@ -570,12 +570,10 @@ async function saveToDatabase(
   const contract = await prisma.contract.create({
     data: {
       reference: `AO-${new Date().getFullYear()}-${Date.now().toString(36).toUpperCase()}`,
-      title: projectName,
       provider: user.organization?.name || "À définir",
       startDate: new Date(),
       endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 8)), // 8 ans par défaut
       status: "EN_ATTENTE",
-      description: `Projet d'appel d'offres importé le ${new Date().toLocaleDateString("fr-FR")}`,
       organizationId: effectiveOrgId,
     },
   });
