@@ -75,6 +75,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   })();
   // Cache SWR possiblement d'une version précédente : on normalise chaque ligne
   const lines = useMemo(() => (Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data]);
+  const totalPerYear = lines.reduce((n, l) => n + l.countPerYear, 0);
   // La frise démarre au premier mois facturé : la première période saisie
   // (sur la première ligne qui en a), sinon le début d'année du contrat.
   // Ainsi aucune période n'est coupée en deux bouts à l'écran.
@@ -173,7 +174,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">
-            Modalités de facturation du marché{lines.length > 0 && <span className="tabular-nums"> · {lines.length} facture{lines.length > 1 ? "s" : ""} par an</span>}
+            Modalités de facturation du marché{lines.length > 0 && <span className="tabular-nums"> · {totalPerYear} facture{totalPerYear > 1 ? "s" : ""} par an</span>}
           </span>
           {canEdit && editing === null && (
             <button type="button" onClick={() => startNew()} title="Ajouter une modalité de facturation" className="flex h-9 w-9 items-center justify-center border border-ink/15 text-ink/55 transition-colors hover:border-accent hover:text-accent">
