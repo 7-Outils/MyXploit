@@ -62,8 +62,17 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
   const { data, isLoading, mutate } = useSWR<BillingLine[]>(linesUrl, fetcher);
   const { data: sugg } = useSWR<{ suggestions: SuggestedLine[] }>(`${linesUrl}/suggest`, fetcher);
   // Début de l'année contractuelle (ex. 7 = juillet) : les périodes des acomptes en découlent
-  const { data: contract } = useSWR<{ yearStartMonth?: number }>(`/api/contracts/${contractId}`, fetcher);
-  const yearStart = typeof contract?.yearStartMonth === "number" ? contract.yearStartMonth : 7;
+  const { data: contract } = useSWR<{ yearType?: string; yearStartMonth?: number; startDate?: string | null }>(`/api/contracts/${contractId}`, fetcher);
+  // Même règle que le moteur côté serveur (contractSeasons) :
+  // année civile → janvier ; année contractuelle → mois de la date de début ; saison de chauffe → mois de début de saison
+  const yearStart = (() => {
+    if (contract?.yearType === "CIVIL") return 1;
+    if (contract?.yearType === "CONTRACTUAL" && contract.startDate) {
+      const m = new Date(contract.startDate).getMonth() + 1;
+      if (m >= 1 && m <= 12) return m;
+    }
+    return typeof contract?.yearStartMonth === "number" ? contract.yearStartMonth : 7;
+  })();
   // Cache SWR possiblement d'une version précédente : on normalise chaque ligne
   const lines = useMemo(() => (Array.isArray(data) ? data.filter((l) => l && typeof l.id === "string").map(normalizeLine) : []), [data]);
   const suggestions = useMemo(
