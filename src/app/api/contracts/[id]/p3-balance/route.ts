@@ -32,7 +32,7 @@ interface P3YearData {
 
 interface P3BalanceResponse {
   contractId: string;
-  contractReference: string;
+  contractReference: string | null;
   startDate: string;
   endDate: string;
   years: P3YearData[];
@@ -76,6 +76,14 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (!contract.startDate || !contract.endDate) {
+      return NextResponse.json(
+        { error: "Les dates de début et de fin du contrat ne sont pas renseignées" },
+        { status: 422 }
+      );
+    }
+    const contractStartDate = contract.startDate;
+    const contractEndDate = contract.endDate;
 
     // Recettes P3 = factures P3 VALIDÉES uniquement.
     // RÈGLE MÉTIER : une facture en attente ou refusée n'alimente pas le pot.
@@ -143,8 +151,8 @@ export async function GET(
 
     // Pre-populate all contract years/seasons so empty ones still appear
     const yearsMap = new Map<string, P3YearData>();
-    const contractStart = new Date(contract.startDate);
-    const contractEnd = new Date(contract.endDate);
+    const contractStart = new Date(contractStartDate);
+    const contractEnd = new Date(contractEndDate);
 
     if (contract.yearType === "HEATING_SEASON") {
       // Generate all heating seasons from startDate to endDate
@@ -245,8 +253,8 @@ export async function GET(
     const response: P3BalanceResponse = {
       contractId: contract.id,
       contractReference: contract.reference,
-      startDate: contract.startDate.toISOString(),
-      endDate: contract.endDate.toISOString(),
+      startDate: contractStartDate.toISOString(),
+      endDate: contractEndDate.toISOString(),
       years: sortedYears,
       totals: {
         totalInvoices,

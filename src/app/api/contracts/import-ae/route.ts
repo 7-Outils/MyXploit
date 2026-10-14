@@ -106,6 +106,13 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+    if (!contract.startDate || !contract.endDate) {
+      return NextResponse.json(
+        { error: "Les dates de début et de fin du contrat ne sont pas renseignées" },
+        { status: 422 }
+      );
+    }
+    const contractStartDate = contract.startDate;
 
     // Read Excel file
     const buffer = await file.arrayBuffer();
@@ -260,7 +267,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate season for contract year
     const getSeasonForYear = (contractYear: number): string => {
-      const startYear = contract.startDate.getFullYear();
+      const startYear = contractStartDate.getFullYear();
       const startMonth = contract.yearStartMonth;
 
       if (startMonth >= 7) {

@@ -16,9 +16,9 @@ interface EditContractModalProps {
 export default function EditContractModal({ contractId, contractDetail, onClose, onUpdated }: EditContractModalProps) {
   const [updating, setUpdating] = useState(false);
   const [formData, setFormData] = useState({
-    reference: contractDetail.reference,
-    title: contractDetail.title,
-    provider: contractDetail.provider,
+    reference: contractDetail.reference ?? "",
+    title: contractDetail.title ?? "",
+    provider: contractDetail.provider ?? "",
     providerEmail: contractDetail.providerEmail || "",
     description: contractDetail.description || "",
     startDate: formatToFrench(contractDetail.startDate),
@@ -70,16 +70,16 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div>
-            <label className="label-tech mb-1 block">Référence *</label>
-            <input type="text" required value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+            <label className="label-tech mb-1 block">Référence du marché</label>
+            <input type="text" value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
           </div>
           <div>
-            <label className="label-tech mb-1 block">Titre du contrat *</label>
-            <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+            <label className="label-tech mb-1 block">Titre du contrat</label>
+            <input type="text" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
           </div>
           <div>
-            <label className="label-tech mb-1 block">Titulaire (exploitant) *</label>
-            <input type="text" required value={formData.provider} onChange={(e) => setFormData({ ...formData, provider: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
+            <label className="label-tech mb-1 block">Titulaire (exploitant)</label>
+            <input type="text" value={formData.provider} onChange={(e) => setFormData({ ...formData, provider: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none" />
           </div>
           <div>
             <label className="label-tech mb-1 block">Email exploitant</label>

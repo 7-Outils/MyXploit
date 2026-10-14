@@ -51,10 +51,18 @@ export default function CalibrationCibles() {
     );
   }
 
-  return <CalibrationInner contract={selectedContract} />;
+  if (!selectedContract.startDate) {
+    return (
+      <div className="panel p-8 text-center text-sm text-ink/50">
+        Renseigne les dates du contrat pour voir le diagnostic de calibration.
+      </div>
+    );
+  }
+
+  return <CalibrationInner contract={{ id: selectedContract.id, reference: selectedContract.reference, startDate: selectedContract.startDate }} />;
 }
 
-function CalibrationInner({ contract }: { contract: { id: string; reference: string; startDate: string } }) {
+function CalibrationInner({ contract }: { contract: { id: string; reference: string | null; startDate: string } }) {
   const cid = contract.id;
   const currentY = currentHeatingSeasonYear();
   const contractStartYear = new Date(contract.startDate).getFullYear();
@@ -169,7 +177,7 @@ function CalibrationInner({ contract }: { contract: { id: string; reference: str
             Calibration des cibles NB
           </h1>
           <span className="label-tech">
-            {contract.reference} · {diagnoses.length} sites
+            {contract.reference ?? "Sans référence"} · {diagnoses.length} sites
           </span>
         </div>
         <div className="flex items-center border border-ink/15 divide-x divide-ink/15">

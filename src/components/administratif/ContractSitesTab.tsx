@@ -82,7 +82,7 @@ interface ContractSite {
 
 interface Contract {
   id: string;
-  reference: string;
+  reference: string | null;
   status: string;
   isPublic?: boolean; // Secteur public -> P4 (financement) interdit
   contractSites: ContractSite[];

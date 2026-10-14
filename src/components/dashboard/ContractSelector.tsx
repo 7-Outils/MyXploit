@@ -89,7 +89,7 @@ export function ContractSelector() {
   };
 
   const label = selectedContract
-    ? [selectedContract.client?.name, selectedContract.reference || selectedContract.title]
+    ? [selectedContract.client?.name, selectedContract.reference || selectedContract.title || selectedContract.provider || "Contrat sans référence"]
         .filter(Boolean)
         .join(" · ")
     : "Sélectionner un contrat";
@@ -161,8 +161,11 @@ export function ContractSelector() {
                             {" · "}
                           </span>
                         )}
-                        {contract.provider || contract.title}
+                        {contract.provider || contract.title || (contract.reference ? "" : "Contrat sans référence")}
                       </span>
+                      {contract.status === "EN_ATTENTE" && (
+                        <span className="label-tech flex-shrink-0 text-ink/40">en attente</span>
+                      )}
                       {isSelected && <Check size={13} className="flex-shrink-0 text-accent" />}
                     </button>
                   );

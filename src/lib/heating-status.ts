@@ -101,7 +101,7 @@ export async function findOpenRequest(contractId: string) {
  * Renvoie soit le contexte, soit le code d'erreur HTTP à retourner.
  */
 export async function authorizeContract(contractId: string): Promise<
-  | { ok: true; user: Awaited<ReturnType<typeof requireAuth>>; effectiveOrgId: string; contract: { id: string; title: string; reference: string; provider: string; client: { name: string } | null } }
+  | { ok: true; user: Awaited<ReturnType<typeof requireAuth>>; effectiveOrgId: string; contract: { id: string; title: string | null; reference: string | null; provider: string | null; client: { name: string } | null } }
   | { ok: false; status: number; error: string }
 > {
   const user = await requireAuth();

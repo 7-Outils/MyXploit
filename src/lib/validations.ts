@@ -63,13 +63,13 @@ export const siteUpdateSchema = siteCreateSchema.partial();
 
 // Contract validation
 export const contractCreateSchema = z.object({
-  reference: z.string().min(1, "La référence est requise").max(100),
-  title: z.string().min(1, "Le titre est requis").max(MAX_STRING_LENGTH),
-  provider: z.string().min(1, "Le fournisseur est requis").max(MAX_STRING_LENGTH),
+  reference: z.string().max(100).nullish(),
+  title: z.string().max(MAX_STRING_LENGTH).nullish(),
+  provider: z.string().max(MAX_STRING_LENGTH).nullish(),
   type: z.enum(["P1", "P2", "P3", "P1P2", "P1P2P3", "MT", "CP", "AUTRE"]),
   status: z.enum(["ACTIF", "TERMINE", "EN_ATTENTE", "RESILIE"]).optional(),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide").nullish(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide").nullish(),
   annualAmount: z.coerce.number().min(0).max(100000000).optional(),
   description: z.string().max(MAX_TEXT_LENGTH).optional(),
 });

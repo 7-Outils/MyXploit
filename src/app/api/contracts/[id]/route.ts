@@ -126,13 +126,26 @@ export async function PUT(
     // Build update data
     const updateData: Record<string, unknown> = {};
 
-    if (body.reference) updateData.reference = body.reference;
-    if (body.title) updateData.title = body.title;
-    if (body.provider) updateData.provider = body.provider;
+    // Champs facultatifs : undefined = inchangé, "" ou null = effacé
+    const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+    const date = (v: unknown) => {
+      if (typeof v !== "string" || !v.trim()) return null;
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+    if (body.reference !== undefined) updateData.reference = text(body.reference);
+    if (body.title !== undefined) updateData.title = text(body.title);
+    if (body.provider !== undefined) updateData.provider = text(body.provider);
     if (body.providerEmail !== undefined) updateData.providerEmail = body.providerEmail || null;
-    if (body.startDate) updateData.startDate = new Date(body.startDate);
-    if (body.endDate) updateData.endDate = new Date(body.endDate);
+    if (body.startDate !== undefined) updateData.startDate = date(body.startDate);
+    if (body.endDate !== undefined) updateData.endDate = date(body.endDate);
     if (body.status) updateData.status = body.status;
+    else if (existingContract.status === "EN_ATTENTE") {
+      // Un contrat en attente devient actif dès qu'il a ses deux dates
+      const start = updateData.startDate !== undefined ? updateData.startDate : existingContract.startDate;
+      const end = updateData.endDate !== undefined ? updateData.endDate : existingContract.endDate;
+      if (start && end) updateData.status = "ACTIF";
+    }
     if (body.description !== undefined) updateData.description = body.description;
     // Year type and billing configuration
     if (body.yearType) updateData.yearType = body.yearType;

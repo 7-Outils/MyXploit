@@ -63,7 +63,7 @@ interface ContractSite {
 
 interface Contract {
   id: string;
-  reference: string;
+  reference: string | null;
   status: string;
   contractSites: ContractSite[];
   avenants: Avenant[];

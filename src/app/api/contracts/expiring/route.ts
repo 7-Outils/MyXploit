@@ -64,7 +64,8 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculer les infos de renouvellement
-    const contractsWithRenewalInfo = contracts.map((contract) => {
+    const contractsWithRenewalInfo = contracts.flatMap((contract) => {
+      if (!contract.endDate) return []; // exclu par le where, garde pour le typage
       const endDate = new Date(contract.endDate);
       const daysUntilExpiry = Math.ceil(
         (endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)

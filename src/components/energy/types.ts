@@ -8,9 +8,9 @@
 
 export interface Contract {
   id: string;
-  reference: string;
-  title: string;
-  provider: string;
+  reference: string | null;
+  title: string | null;
+  provider: string | null;
   status: string;
   startDate: string;
   endDate: string;

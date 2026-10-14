@@ -47,6 +47,18 @@ export async function GET() {
   }
 }
 
+// Chaîne vide / espaces → null ; une date invalide → null.
+function optionalText(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t : null;
+}
+function optionalDate(v: unknown): Date | null {
+  if (typeof v !== "string" || !v.trim()) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 // POST /api/contracts - Create a new contract
 export async function POST(request: NextRequest) {
   try {
@@ -64,12 +76,13 @@ export async function POST(request: NextRequest) {
 
     const contract = await prisma.contract.create({
       data: {
-        reference: body.reference,
-        title: body.title,
-        provider: body.provider,
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
-        status: body.status || "ACTIF",
+        reference: optionalText(body.reference),
+        title: optionalText(body.title),
+        provider: optionalText(body.provider),
+        startDate: optionalDate(body.startDate),
+        endDate: optionalDate(body.endDate),
+        // Sans ses deux dates, le contrat reste « en attente »
+        status: body.status || (body.startDate && body.endDate ? "ACTIF" : "EN_ATTENTE"),
         description: body.description,
         organizationId: effectiveOrgId,
         yearType: body.yearType || "HEATING_SEASON",

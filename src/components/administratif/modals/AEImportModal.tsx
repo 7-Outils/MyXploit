@@ -102,8 +102,8 @@ export default function AEImportModal({ onClose, contractId, clientId }: AEImpor
         formData.append("reference", contractForm.reference);
         formData.append("title", contractForm.title);
         formData.append("provider", contractForm.provider);
-        formData.append("startDate", parseFrenchDate(contractForm.startDate));
-        formData.append("endDate", parseFrenchDate(contractForm.endDate));
+        formData.append("startDate", parseFrenchDate(contractForm.startDate) ?? "");
+        formData.append("endDate", parseFrenchDate(contractForm.endDate) ?? "");
         formData.append("yearType", contractForm.yearType);
         formData.append("billingFrequency", contractForm.billingFrequency);
         if (clientId) formData.append("clientId", clientId);

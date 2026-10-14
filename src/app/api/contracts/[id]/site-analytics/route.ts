@@ -19,7 +19,7 @@ interface SiteP3Internal extends SiteP3Analytics {
 
 interface SiteP3AnalyticsResponse {
   contractId: string;
-  contractReference: string;
+  contractReference: string | null;
   sites: SiteP3Analytics[];
   totals: {
     p3Invoices: number;

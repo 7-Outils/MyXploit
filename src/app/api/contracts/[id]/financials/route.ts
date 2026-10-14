@@ -86,6 +86,14 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (!contract.startDate || !contract.endDate) {
+      return NextResponse.json(
+        { error: "Les dates de début et de fin du contrat ne sont pas renseignées" },
+        { status: 422 }
+      );
+    }
+    const contractStartDate = contract.startDate;
+    const contractEndDate = contract.endDate;
 
     const today = new Date();
     const seasons: SeasonData[] = [];
@@ -94,8 +102,8 @@ export async function GET(
     // CIVIL: 01/01 - 31/12
     // HEATING_SEASON: configurable (défaut 01/07 - 30/06)
     // CONTRACTUAL: date anniversaire du contrat
-    const contractStartMonth = contract.startDate.getMonth(); // 0-11
-    const contractStartDay = contract.startDate.getDate();
+    const contractStartMonth = contractStartDate.getMonth(); // 0-11
+    const contractStartDay = contractStartDate.getDate();
 
     const getYearStart = (date: Date): Date => {
       const year = date.getFullYear();
@@ -201,10 +209,10 @@ export async function GET(
         // Check integration/exit dates
         const siteStart = contractSite.integrationDate
           ? new Date(contractSite.integrationDate)
-          : contract.startDate;
+          : contractStartDate;
         const siteEnd = contractSite.exitDate
           ? new Date(contractSite.exitDate)
-          : contract.endDate;
+          : contractEndDate;
 
         // Skip if site not active during this season
         if (siteStart > seasonEnd || siteEnd < seasonStart) continue;
@@ -282,13 +290,13 @@ export async function GET(
     const currentYearStart = getYearStart(today);
 
     // Find first year/season that includes contract start
-    let periodStart = getYearStart(contract.startDate);
+    let periodStart = getYearStart(contractStartDate);
 
-    while (periodStart <= contract.endDate) {
+    while (periodStart <= contractEndDate) {
       const periodEnd = getYearEnd(periodStart);
 
       // Skip if period ends before contract starts
-      if (periodEnd < contract.startDate) {
+      if (periodEnd < contractStartDate) {
         // Move to next period
         if (yearType === "CIVIL") {
           periodStart = new Date(periodStart.getFullYear() + 1, 0, 1);
@@ -374,8 +382,8 @@ export async function GET(
         id: contract.id,
         reference: contract.reference,
         title: contract.title,
-        startDate: contract.startDate,
-        endDate: contract.endDate,
+        startDate: contractStartDate,
+        endDate: contractEndDate,
         yearType: contract.yearType,
         billingFrequency: contract.billingFrequency,
       },

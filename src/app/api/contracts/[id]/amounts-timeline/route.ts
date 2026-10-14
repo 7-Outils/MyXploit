@@ -21,9 +21,17 @@ export async function GET(
     if (!contract) {
       return NextResponse.json({ error: "Contrat introuvable" }, { status: 404 });
     }
+    if (!contract.startDate || !contract.endDate) {
+      return NextResponse.json(
+        { error: "Les dates de début et de fin du contrat ne sont pas renseignées" },
+        { status: 422 }
+      );
+    }
+    const contractStartDate = contract.startDate;
+    const contractEndDate = contract.endDate;
 
-    const startYear = new Date(contract.startDate).getFullYear();
-    const endYear = new Date(contract.endDate).getFullYear();
+    const startYear = new Date(contractStartDate).getFullYear();
+    const endYear = new Date(contractEndDate).getFullYear();
     const years: number[] = [];
     for (let y = startYear; y <= endYear; y++) years.push(y);
 

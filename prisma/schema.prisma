@@ -1444,12 +1444,13 @@ enum BillingFrequency {
 
 model Contract {
   id               String           @id @default(cuid())
-  reference        String
-  title            String
-  provider         String // Exploitant (ENGIE, Dalkia, etc.)
+  // Un contrat se crée vide (dossier ouvert avant l'AE) : tout est facultatif.
+  reference        String? // Numéro du marché (acte d'engagement)
+  title            String?
+  provider         String? // Exploitant (ENGIE, Dalkia, etc.)
   providerEmail    String? // Email de contact de l'exploitant (envoi des devis acceptés)
-  startDate        DateTime
-  endDate          DateTime
+  startDate        DateTime?
+  endDate          DateTime?
   status           ContractStatus   @default(ACTIF)
   description      String?
   documentUrl      String?

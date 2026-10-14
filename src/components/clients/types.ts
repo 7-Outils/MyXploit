@@ -5,12 +5,12 @@
 
 export interface ClientContractSummary {
   id: string;
-  reference: string;
-  title: string;
-  provider: string;
+  reference: string | null;
+  title: string | null;
+  provider: string | null;
   status: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   _count?: { contractSites: number };
 }
 

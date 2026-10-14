@@ -11,12 +11,12 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 interface ContractSummary {
   id: string;
-  reference: string;
-  title: string;
-  provider: string;
+  reference: string | null;
+  title: string | null;
+  provider: string | null;
   status: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   yearType?: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   billingFrequency?: "MENSUEL" | "TRIMESTRIEL" | "SEMESTRIEL" | "ANNUEL";
   client?: { id: string; name: string } | null;
@@ -50,8 +50,9 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/contracts");
       if (res.ok) {
         const data = await res.json();
+        // Actifs + en attente (contrat créé vide, à compléter) ; expirés/résiliés exclus
         const active = data.filter(
-          (c: ContractSummary) => c.status === "ACTIF"
+          (c: ContractSummary) => c.status === "ACTIF" || c.status === "EN_ATTENTE"
         );
         setContracts(active);
         return active;

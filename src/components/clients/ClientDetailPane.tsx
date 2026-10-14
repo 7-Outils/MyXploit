@@ -128,8 +128,8 @@ export default function ClientDetailPane({
 
   // ── Actions contrats ────────────────────────────────────────
   const openContract = (c: ClientContractSummary) => {
-    if (c.status !== "ACTIF") {
-      toast.info("Seuls les contrats actifs s'ouvrent dans l'espace contrat.");
+    if (c.status !== "ACTIF" && c.status !== "EN_ATTENTE") {
+      toast.info("Les contrats expirés ou résiliés ne s'ouvrent pas dans l'espace contrat.");
       return;
     }
     router.push(`/contrat?contract=${c.id}`);
@@ -258,14 +258,14 @@ export default function ClientDetailPane({
                 <Td className="py-2 font-mono font-medium text-ink">{c.reference || "—"}</Td>
                 <Td className="py-2">{c.provider || "—"}</Td>
                 <Td className="max-w-[320px] truncate py-2 text-ink/60">
-                  <span title={c.title}>{c.title || "—"}</span>
+                  <span title={c.title ?? undefined}>{c.title || "—"}</span>
                 </Td>
                 <Td className={cn("py-2", STATUS_TEXT[c.status] ?? "text-ink/50")}>{STATUS_LABELS[c.status] ?? c.status}</Td>
                 <Td align="right" className="py-1">
                   <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => openContract(c)}
-                      disabled={c.status !== "ACTIF"}
+                      disabled={c.status !== "ACTIF" && c.status !== "EN_ATTENTE"}
                       title="Ouvrir dans l'espace contrat"
                       className={cn(iconBtn, "border-transparent")}
                     >

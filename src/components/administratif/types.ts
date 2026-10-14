@@ -86,13 +86,13 @@ export interface Avenant {
 
 export interface Contract {
   id: string;
-  reference: string;
-  title: string;
-  provider: string;
+  reference: string | null;
+  title: string | null;
+  provider: string | null;
   providerEmail: string | null;
   description: string | null;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
   status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
   yearType: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   yearStartMonth: number;

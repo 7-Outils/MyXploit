@@ -128,9 +128,14 @@ function AdministratifContent() {
         <>
           {/* General Tab */}
           {/* Cibles Tab */}
-          {activeTab === "cibles" && selectedContract && (
+          {activeTab === "cibles" && selectedContract && (!selectedContract.startDate || !selectedContract.endDate) && (
+            <div className="panel p-8 text-center text-sm text-ink/50">
+              Renseigne les dates de début et de fin du contrat pour définir les cibles.
+            </div>
+          )}
+          {activeTab === "cibles" && selectedContract && selectedContract.startDate && selectedContract.endDate && (
             <CiblesContent
-              contract={selectedContract}
+              contract={{ ...selectedContract, startDate: selectedContract.startDate, endDate: selectedContract.endDate }}
               selectedYear={new Date().getFullYear()}
               sites={energySites}
               onNbUpdate={fetchDetail}

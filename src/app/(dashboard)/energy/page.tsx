@@ -214,7 +214,7 @@ function EnergyPageContent() {
                   const { exportSynthesisPdf } = await import("@/components/energy/pdf/SynthesisPdf");
                   await exportSynthesisPdf({
                     organizationName: user?.organization?.name ?? "",
-                    contractRef: selectedContract.reference,
+                    contractRef: selectedContract.reference ?? "Sans référence",
                     year: selectedYear,
                     yearLabel: isCivil
                       ? `Année ${selectedYear}`

@@ -80,6 +80,14 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+    if (!contract.startDate || !contract.endDate) {
+      return NextResponse.json(
+        { error: "Les dates de début et de fin du contrat ne sont pas renseignées" },
+        { status: 422 }
+      );
+    }
+    const contractStartDate = contract.startDate;
+    const contractEndDate = contract.endDate;
 
     // Read Excel file
     const buffer = await file.arrayBuffer();
@@ -169,7 +177,7 @@ export async function POST(request: NextRequest) {
       // Match direct season format: 2024-2025
       const seasonMatch = h.match(/(\d{4})-(\d{4})/);
       if (seasonMatch) {
-        yearColumns.push({ index, year: parseInt(seasonMatch[1]) - contract.startDate.getFullYear() + 1 });
+        yearColumns.push({ index, year: parseInt(seasonMatch[1]) - contractStartDate.getFullYear() + 1 });
       }
     });
 
@@ -229,8 +237,8 @@ export async function POST(request: NextRequest) {
     // Calculate season for each contract year
     // Uses same logic as energy page display to ensure consistency
     const getSeasonForYear = (contractYear: number): string => {
-      const startYear = contract.startDate.getFullYear();
-      const startMonth = contract.startDate.getMonth(); // 0-indexed (July = 6)
+      const startYear = contractStartDate.getFullYear();
+      const startMonth = contractStartDate.getMonth(); // 0-indexed (July = 6)
 
       // First season: if contract starts July or later (month >= 6),
       // season starts same year (e.g., July 2025 -> season 2025-2026)
@@ -355,8 +363,8 @@ export async function POST(request: NextRequest) {
         contract: {
           id: contract.id,
           title: contract.title,
-          startDate: contract.startDate.toISOString(),
-          endDate: contract.endDate.toISOString(),
+          startDate: contractStartDate.toISOString(),
+          endDate: contractEndDate.toISOString(),
         },
         yearColumns: yearColumns.map((yc) => ({
           year: yc.year,

@@ -30,6 +30,14 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (!contract.startDate || !contract.endDate) {
+      return NextResponse.json(
+        { error: "Les dates de début et de fin du contrat ne sont pas renseignées" },
+        { status: 422 }
+      );
+    }
+    const contractStartDate = contract.startDate;
+    const contractEndDate = contract.endDate;
 
     // Get contract site with price changes
     const contractSite = await prisma.contractSite.findUnique({
@@ -58,8 +66,8 @@ export async function GET(
 
     // Calculate contract years
     const contractYears = getContractYears(
-      contract.startDate,
-      contract.endDate,
+      contractStartDate,
+      contractEndDate,
       contract.yearType as "CIVIL" | "HEATING_SEASON",
       contract.yearStartMonth,
       contract.yearStartDay
