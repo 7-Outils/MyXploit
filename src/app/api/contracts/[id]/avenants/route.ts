@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isClosed } from "@/lib/contract-status";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { AvenantItemType } from "@/generated/prisma/enums";
@@ -125,7 +126,7 @@ export async function POST(
     }
 
     // Prevent modifications on terminated or expired contracts
-    if (contract.status === "RESILIE" || contract.status === "EXPIRE") {
+    if (isClosed(contract)) {
       return NextResponse.json(
         { error: "Impossible de modifier un contrat résilié ou expiré" },
         { status: 400 }

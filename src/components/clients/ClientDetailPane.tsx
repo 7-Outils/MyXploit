@@ -124,7 +124,7 @@ export default function ClientDetailPane({
 
   // ── Actions contrats ────────────────────────────────────────
   const openContract = (c: ClientContractSummary) => {
-    if (c.status !== "ACTIF" && c.status !== "EN_ATTENTE") {
+    if (c.status !== "ACTIF") {
       toast.info("Les contrats expirés ou résiliés ne s'ouvrent pas dans l'espace contrat.");
       return;
     }
@@ -263,7 +263,7 @@ export default function ClientDetailPane({
                   <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => openContract(c)}
-                      disabled={c.status !== "ACTIF" && c.status !== "EN_ATTENTE"}
+                      disabled={c.status !== "ACTIF"}
                       title="Ouvrir dans l'espace contrat"
                       className={cn(iconBtn, "border-transparent")}
                     >

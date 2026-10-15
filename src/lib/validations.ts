@@ -67,7 +67,7 @@ export const contractCreateSchema = z.object({
   title: z.string().max(MAX_STRING_LENGTH).nullish(),
   provider: z.string().max(MAX_STRING_LENGTH).nullish(),
   type: z.enum(["P1", "P2", "P3", "P1P2", "P1P2P3", "MT", "CP", "AUTRE"]),
-  status: z.enum(["ACTIF", "TERMINE", "EN_ATTENTE", "RESILIE"]).optional(),
+  terminatedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide").nullish(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide").nullish(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide").nullish(),
   annualAmount: z.coerce.number().min(0).max(100000000).optional(),

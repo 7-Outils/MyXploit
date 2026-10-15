@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { withDerivedStatus } from "@/lib/contract-status";
 
 // GET /api/clients/[id] - Detail d'un client avec sites et contrats
 export async function GET(
@@ -36,7 +37,7 @@ export async function GET(
             provider: true,
             startDate: true,
             endDate: true,
-            status: true,
+            terminatedAt: true,
             _count: { select: { contractSites: true } },
           },
           orderBy: { endDate: "asc" },
@@ -52,7 +53,7 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(client);
+    return NextResponse.json({ ...client, contracts: client.contracts.map(withDerivedStatus) });
   } catch (error) {
     console.error("Error fetching client:", error);
     return NextResponse.json(

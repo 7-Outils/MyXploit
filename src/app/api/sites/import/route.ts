@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isClosed } from "@/lib/contract-status";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import * as XLSX from "xlsx";
@@ -203,7 +204,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (contract.status === "RESILIE" || contract.status === "EXPIRE") {
+      if (isClosed(contract)) {
         return NextResponse.json(
           { error: "Impossible d'ajouter des sites à un contrat résilié ou expiré" },
           { status: 400 }

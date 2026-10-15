@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { withDerivedStatus } from "@/lib/contract-status";
 
 // GET /api/contracts/[id] - Get a single contract
 export async function GET(
@@ -63,7 +64,7 @@ export async function GET(
 
     // Add totals to each avenant
     const contractWithTotals = {
-      ...contract,
+      ...withDerivedStatus(contract),
       avenants: contract.avenants.map((avenant) => {
         const totalDeltaP1 = avenant.items.reduce((sum, item) => sum + (item.deltaP1 || 0), 0);
         const totalDeltaP2 = avenant.items.reduce((sum, item) => sum + (item.deltaP2 || 0), 0);
@@ -138,13 +139,8 @@ export async function PUT(
     if (body.provider !== undefined) updateData.provider = text(body.provider);
     if (body.startDate !== undefined) updateData.startDate = date(body.startDate);
     if (body.endDate !== undefined) updateData.endDate = date(body.endDate);
-    if (body.status) updateData.status = body.status;
-    else if (existingContract.status === "EN_ATTENTE") {
-      // Un contrat en attente devient actif dès qu'il a ses deux dates
-      const start = updateData.startDate !== undefined ? updateData.startDate : existingContract.startDate;
-      const end = updateData.endDate !== undefined ? updateData.endDate : existingContract.endDate;
-      if (start && end) updateData.status = "ACTIF";
-    }
+    // Résiliation anticipée : la seule saisie de statut ; "" ou null = annuler la résiliation
+    if (body.terminatedAt !== undefined) updateData.terminatedAt = date(body.terminatedAt);
     if (body.description !== undefined) updateData.description = body.description;
     // Year type and billing configuration
     if (body.yearType) updateData.yearType = body.yearType;

@@ -1469,7 +1469,8 @@ model Contract {
   provider         String? // Exploitant (ENGIE, Dalkia, etc.)
   startDate        DateTime?
   endDate          DateTime?
-  status           ContractStatus   @default(ACTIF)
+  status           ContractStatus   @default(ACTIF) // Déduit à la lecture (lib/contract-status) : actif, expiré (date de fin passée) ou résilié
+  terminatedAt     DateTime? // Résiliation anticipée : seule information de statut saisie à la main
   documentUrl      String?
   // Type d'année contractuelle (saison de chauffe par défaut: 01/07 - 30/06)
   yearType         ContractYearType @default(HEATING_SEASON)

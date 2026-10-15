@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       where: {
         organizationId: effectiveOrgId,
         endDate: dateConditions,
-        status: "ACTIF", // Seulement les contrats actifs
+        terminatedAt: null, // un contrat résilié n'a plus d'échéance à surveiller
       },
       include: {
         contractSites: {

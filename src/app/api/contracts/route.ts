@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
+import { withDerivedStatus } from "@/lib/contract-status";
 import { getUserAssignedContractIds } from "@/lib/portfolio";
 
 // GET /api/contracts - List all contracts
@@ -37,7 +38,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(contracts);
+    return NextResponse.json(contracts.map(withDerivedStatus));
   } catch (error) {
     console.error("Error fetching contracts:", error);
     return NextResponse.json(
@@ -80,8 +81,7 @@ export async function POST(request: NextRequest) {
         provider: optionalText(body.provider),
         startDate: optionalDate(body.startDate),
         endDate: optionalDate(body.endDate),
-        // Sans ses deux dates, le contrat reste « en attente »
-        status: body.status || (body.startDate && body.endDate ? "ACTIF" : "EN_ATTENTE"),
+        status: "ACTIF",
         organizationId: effectiveOrgId,
         yearType: body.yearType || "HEATING_SEASON",
         isPublic: body.isPublic === true,

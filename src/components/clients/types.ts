@@ -29,7 +29,6 @@ export interface ClientDetail {
 
 export const STATUS_LABELS: Record<string, string> = {
   ACTIF: "Actif",
-  EN_ATTENTE: "En attente",
   EXPIRE: "Expiré",
   RESILIE: "Résilié",
 };
@@ -37,7 +36,6 @@ export const STATUS_LABELS: Record<string, string> = {
 // Texte seul, pas de pastille : seule la couleur porte le statut.
 export const STATUS_TEXT: Record<string, string> = {
   ACTIF: "text-ink",
-  EN_ATTENTE: "text-ink/50",
   EXPIRE: "text-red-700",
   RESILIE: "text-ink/40",
 };

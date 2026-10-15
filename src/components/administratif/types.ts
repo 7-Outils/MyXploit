@@ -92,7 +92,8 @@ export interface Contract {
   description: string | null;
   startDate: string | null;
   endDate: string | null;
-  status: "ACTIF" | "EXPIRE" | "EN_ATTENTE" | "RESILIE";
+  status: "ACTIF" | "EXPIRE" | "RESILIE";
+  terminatedAt: string | null;
   yearType: "CIVIL" | "HEATING_SEASON" | "CONTRACTUAL";
   yearStartMonth: number;
   yearStartDay: number;

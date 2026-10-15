@@ -1,7 +1,6 @@
 export const statusLabels = {
   ACTIF: "Actif",
   EXPIRE: "Expiré",
-  EN_ATTENTE: "En attente",
   RESILIE: "Résilié",
 };
 

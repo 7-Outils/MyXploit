@@ -19,7 +19,7 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
     provider: contractDetail.provider ?? "",
     startDate: contractDetail.startDate?.slice(0, 10) ?? "",
     endDate: contractDetail.endDate?.slice(0, 10) ?? "",
-    status: contractDetail.status as string,
+    terminatedAt: contractDetail.terminatedAt?.slice(0, 10) ?? "",
     yearType: (contractDetail.yearType || "HEATING_SEASON") as YearType,
     djuContractuel: contractDetail.djuContractuel?.toString() || "",
   });
@@ -36,7 +36,7 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
           provider: formData.provider,
           startDate: formData.startDate || null,
           endDate: formData.endDate || null,
-          status: formData.status,
+          terminatedAt: formData.terminatedAt || null,
           yearType: formData.yearType,
           djuContractuel: formData.djuContractuel ? parseFloat(formData.djuContractuel) : null,
         }),
@@ -89,13 +89,8 @@ export default function EditContractModal({ contractId, contractDetail, onClose,
             </div>
           </div>
           <div>
-            <label className="label-tech mb-1 block">Statut</label>
-            <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 text-sm focus:border-accent focus:outline-none">
-              <option value="ACTIF">Actif</option>
-              <option value="EN_ATTENTE">En attente</option>
-              <option value="EXPIRE">Expiré</option>
-              <option value="RESILIE">Résilié</option>
-            </select>
+            <label className="label-tech mb-1 block">Résilié le</label>
+            <input type="date" value={formData.terminatedAt} onChange={(e) => setFormData({ ...formData, terminatedAt: e.target.value })} className="w-full border border-ink/20 bg-white px-3 py-2 font-mono text-sm tabular-nums focus:border-accent focus:outline-none" />
           </div>
           <div>
             <label className="label-tech mb-1 block">DJU Contractuels (DJC)</label>

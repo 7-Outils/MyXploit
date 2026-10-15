@@ -49,10 +49,8 @@ export function ContractProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/contracts");
       if (res.ok) {
         const data = await res.json();
-        // Actifs + en attente (contrat créé vide, à compléter) ; expirés/résiliés exclus
-        const active = data.filter(
-          (c: ContractSummary) => c.status === "ACTIF" || c.status === "EN_ATTENTE"
-        );
+        // Seuls les contrats actifs ; expirés et résiliés sont archivés (fiche client)
+        const active = data.filter((c: ContractSummary) => c.status === "ACTIF");
         setContracts(active);
         return active;
       }

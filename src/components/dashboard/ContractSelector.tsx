@@ -169,9 +169,6 @@ export function ContractSelector() {
                       {g.name}
                     </span>
                     {h && <span className="flex-shrink-0 font-mono text-[11px] tabular-nums text-ink/40">{h}</span>}
-                    {contract.status === "EN_ATTENTE" && (
-                      <span className="label-tech flex-shrink-0 text-ink/40">en attente</span>
-                    )}
                     {isSelected && <Check size={13} className="flex-shrink-0 text-accent" />}
                   </button>
                 );
