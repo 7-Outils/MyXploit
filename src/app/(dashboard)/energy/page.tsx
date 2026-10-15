@@ -40,7 +40,7 @@ import type {
 
 const ENERGY_TABS = sortTabsAlpha([
   { id: "coefficients" as Tab, label: "Coefficients", icon: Gauge },
-  { id: "historique" as Tab, label: "Historique des consommations", icon: History },
+  { id: "historique" as Tab, label: "Historique", icon: History },
   { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
   { id: "sites" as Tab, label: "Relevés", icon: Building2 },
   { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
