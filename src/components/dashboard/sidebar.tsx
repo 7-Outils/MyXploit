@@ -18,6 +18,7 @@ import {
   Thermometer,
   CloudSun,
   Scale,
+  Gauge,
   X,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
@@ -227,6 +228,7 @@ export function Sidebar() {
             { href: "/outils/dju", title: "Calculateur DJU", Icon: Thermometer },
             { href: "/outils/chauffage", title: "Prévision météo", Icon: CloudSun },
             { href: "/outils/releves", title: "Contrôle des relevés", Icon: Scale },
+            { href: "/consommations", title: "Consommations", Icon: Gauge },
           ].map(({ href, title, Icon }) => (
             <Link
               key={href}
