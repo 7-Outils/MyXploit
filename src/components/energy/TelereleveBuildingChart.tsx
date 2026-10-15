@@ -58,16 +58,17 @@ const ENERGY_LABELS: Record<string, string> = {
 // Teintes énergie discrètes — une teinte par énergie, cohérentes avec la
 // palette encre / accent du thème « bureau d'études ».
 const ENERGY_COLORS: Record<string, string> = {
-  GAZ: "#B45309",
-  ELECTRICITE: "#2563EB",
-  FIOUL: "#57534E",
-  BOIS: "#4D7C0F",
-  RESEAU_CHALEUR: "#B91C1C",
+  GAZ: "#f59e0b",
+  ELECTRICITE: "#3b82f6",
+  FIOUL: "#78716c",
+  BOIS: "#84cc16",
+  RESEAU_CHALEUR: "#ef4444",
 };
 
 // Palette encre du thème — réutilisée dans les options ECharts
 const INK = "#0F1E33";
-const ACCENT = "#2563EB";
+// Courbe DJU / N'B : indigo, distinct des énergies
+const ACCENT = "#6366f1";
 const GRID_LINE = "rgba(15,30,51,0.08)";
 const AXIS_TEXT = "rgba(15,30,51,0.45)";
 const MONO_FONT =

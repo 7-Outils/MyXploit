@@ -57,19 +57,19 @@ const CANONICAL_FLUID: Record<string, string> = {
   FIOUL: "Fioul",
 };
 
-// Palette énergie « bureau d'études » : teintes sobres dérivées de ink/accent,
-// suffisamment distinctes pour rester lisibles empilées.
+// Palette énergie : une couleur franche par fluide (gaz ambre, élec jaune,
+// ECS bleu, eau froide cyan, chaleur rouge, fioul violet) — lisible d'un coup d'œil.
 const FLUID_COLORS: Record<string, string> = {
-  GAZ: "#0F1E33",
-  ELECTRICITE: "#2563EB",
-  EAU_CHAUDE: "#60A5FA",
-  EAU_FROIDE: "#94A3B8",
-  CHALEUR: "#B45309",
-  FIOUL: "#475569",
+  GAZ: "#f59e0b",
+  ELECTRICITE: "#eab308",
+  EAU_CHAUDE: "#3b82f6",
+  EAU_FROIDE: "#06b6d4",
+  CHALEUR: "#ef4444",
+  FIOUL: "#8b5cf6",
 };
 
 // Couleur de la courbe signature énergétique (ratio conso/DJU)
-const RATIO_COLOR = "#2563EB";
+const RATIO_COLOR = "#6366f1";
 const GRID_COLOR = "rgba(15,30,51,0.08)";
 const AXIS_COLOR = "rgba(15,30,51,0.5)";
 

@@ -70,16 +70,16 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
           const isCurrent = y.year === current;
           return (
             <g key={y.year}>
-              <rect x={x(i) - bw / 2} y={yM(y.total / 1000)} width={bw} height={padT + innerH - yM(y.total / 1000)} fill={isCurrent ? "rgba(37,99,235,.35)" : "#2563eb"} />
+              <rect x={x(i) - bw / 2} y={yM(y.total / 1000)} width={bw} height={padT + innerH - yM(y.total / 1000)} fill={isCurrent ? "rgba(245,158,11,.4)" : "#f59e0b"} />
               <text x={x(i)} y={yM(y.total / 1000) - 5} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="#0f1e33">{mwh(y.total)}</text>
               <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">{fmt(y.year)}</text>
             </g>
           );
         })}
-        {line && <polyline points={line} fill="none" stroke="#0f1e33" strokeWidth="1.5" strokeDasharray="4 3" />}
-        {ratios.map((r, i) => r === null ? null : <circle key={i} cx={x(i)} cy={yR(r)} r="3" fill="#0f1e33" />)}
+        {line && <polyline points={line} fill="none" stroke="#6366f1" strokeWidth="2" />}
+        {ratios.map((r, i) => r === null ? null : <circle key={i} cx={x(i)} cy={yR(r)} r="3.5" fill="#6366f1" />)}
         <text x={padL - 6} y={padT + 10} textAnchor="end" fontSize="10" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">MWh</text>
-        <text x={W - padR + 6} y={padT + 10} textAnchor="start" fontSize="10" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">kWh/DJU</text>
+        <text x={W - padR + 6} y={padT + 10} textAnchor="start" fontSize="10" fontFamily="ui-monospace, monospace" fill="#6366f1">kWh/DJU</text>
       </svg>
     );
   })();
@@ -90,7 +90,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
       <div className="panel">
         <div className="panel-header">
           <span className="label-tech">Consommation par {by === "civil" ? "année" : "saison"} · MWh</span>
-          <span className="label-tech">— — kWh / DJU</span>
+          <span className="label-tech" style={{ color: "#6366f1" }}>— kWh / DJU</span>
         </div>
         <div className="px-4 py-3">{chart}</div>
       </div>
