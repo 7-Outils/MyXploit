@@ -703,7 +703,11 @@ function Timeline({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => v
   const order = yearMonths(origin);
   const mo = (x: number) => ((x % 12) + 12) % 12 + 1;
 
-  /** Décale d'un nombre de mois : la fin de la facture i (et tout ce qui suit), ou tout le cycle. */
+  /**
+   * Décale d'un nombre de mois : la fin de la facture i et tout ce qui suit,
+   * la dernière se referme toujours juste avant la première (année complète)
+   * et cède la place ; ou tout le cycle avec la poignée de gauche.
+   */
   const shifted = (base: number[], kind: "start" | "end", i: number, d: number): number[] | null => {
     const pr = [...base];
     const len = (k: number) => ((pr[k * 2 + 1] - pr[k * 2] + 12) % 12) + 1;
@@ -711,12 +715,23 @@ function Timeline({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => v
       for (let k = 0; k < n; k++) { pr[k * 2] = mo(pr[k * 2] - 1 + d); pr[k * 2 + 1] = mo(pr[k * 2 + 1] - 1 + d); }
       return pr;
     }
-    if (len(i) + d < 1) return null;
-    // Espace total occupé depuis le début de la 1re jusqu'à la fin de la dernière, bornes incluses
-    const span = ((pr[(n - 1) * 2 + 1] - pr[0] + 12) % 12) + 1;
-    if (span + d > 12) return null;
+    const lens = Array.from({ length: n }, (_, k) => len(k));
+    if (i === n - 1) {
+      // Dernière facture : sa fin bouge librement dans l'année
+      if (lens[i] + d < 1) return null;
+      const total = lens.reduce((a, b) => a + b, 0) + d;
+      if (total > 12) return null;
+      pr[i * 2 + 1] = mo(pr[i * 2 + 1] - 1 + d);
+      return pr;
+    }
+    if (lens[i] + d < 1) return null;
+    // Les suivantes glissent, la dernière absorbe la différence
+    if (lens[n - 1] - d < 1) return null;
     pr[i * 2 + 1] = mo(pr[i * 2 + 1] - 1 + d);
-    for (let k = i + 1; k < n; k++) { pr[k * 2] = mo(pr[k * 2] - 1 + d); pr[k * 2 + 1] = mo(pr[k * 2 + 1] - 1 + d); }
+    for (let k = i + 1; k < n; k++) {
+      pr[k * 2] = mo(pr[k * 2] - 1 + d);
+      if (k < n - 1) pr[k * 2 + 1] = mo(pr[k * 2 + 1] - 1 + d);
+    }
     return pr;
   };
 
