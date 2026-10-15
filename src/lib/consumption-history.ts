@@ -23,8 +23,17 @@ function toKwh(r: RawRow, coefQ: number): number {
   return r.quantity;
 }
 
-/** kWh par site et par année civile, source prioritaire par site × énergie × mois. */
-export function kwhBySiteYear(rows: RawRow[], coefQBySite: Map<string, number>): Map<string, Map<string, number>> {
+export type HistoryBy = "civil" | "saison";
+
+/** Clé de période d'une date : année civile « 2025 » ou saison de chauffe « 2025-2026 » (juillet → juin). */
+export function periodKey(d: Date, by: HistoryBy): string {
+  if (by === "civil") return String(d.getFullYear());
+  const y = d.getFullYear();
+  return d.getMonth() >= 6 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+}
+
+/** kWh par site et par période (année civile ou saison), source prioritaire par site × énergie × mois. */
+export function kwhBySiteYear(rows: RawRow[], coefQBySite: Map<string, number>, by: HistoryBy = "civil"): Map<string, Map<string, number>> {
   const groups = new Map<string, RawRow[]>();
   for (const r of rows) {
     const k = `${r.siteId}|${r.energyType}|${r.period.getFullYear()}-${r.period.getMonth()}`;
@@ -32,8 +41,8 @@ export function kwhBySiteYear(rows: RawRow[], coefQBySite: Map<string, number>):
   }
   const out = new Map<string, Map<string, number>>();
   for (const [k, g] of groups) {
-    const [siteId, , ym] = k.split("|");
-    const year = ym.split("-")[0];
+    const [siteId] = k.split("|");
+    const year = periodKey(g[0].period, by);
     const q = coefQBySite.get(siteId) ?? 0.13;
     const tele = g.filter((r) => r.source === "TELERELEVE");
     const expl = g.filter((r) => r.source === "EXPLOITANT");
