@@ -10,7 +10,9 @@ interface History {
   years: Array<{ year: string; total: number; dju: number | null; kwhPerDju: number | null; sitesWithData: number }>;
   sites: Array<{ id: string; name: string; byYear: Record<string, number> }>;
   currentYear: string;
+  options?: { sites: Array<{ id: string; name: string }>; energies: string[] };
 }
+const ENERGY: Record<string, string> = { GAZ: "Gaz", ELECTRICITE: "Électricité", FIOUL: "Fioul", BOIS: "Bois", RESEAU_CHALEUR: "Réseau de chaleur", AUTRE: "Autre" };
 
 const mwh = (v: number) => (v > 0 ? (v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : "—");
 const delta = (a: number, b: number) => (a > 0 && b > 0 ? Math.round(((a - b) / b) * 1000) / 10 : null);
@@ -18,7 +20,13 @@ const delta = (a: number, b: number) => (a > 0 && b > 0 ? Math.round(((a - b) / 
 /** Historique des consommations par année civile : total, DJU, kWh/DJU, puis sites × années. */
 export function HistoriqueContent({ contractId }: { contractId: string | null }) {
   const [by, setBy] = useState<"civil" | "saison">("civil");
-  const { data, isLoading } = useSWR<History>(contractId ? `/api/consumptions/history?contractId=${contractId}&by=${by}` : null, fetcher, { keepPreviousData: true });
+  const [siteId, setSiteId] = useState("");
+  const [energy, setEnergy] = useState("");
+  const { data, isLoading } = useSWR<History>(
+    contractId ? `/api/consumptions/history?contractId=${contractId}&by=${by}${siteId ? `&siteId=${siteId}` : ""}${energy ? `&energyType=${energy}` : ""}` : null,
+    fetcher,
+    { keepPreviousData: true }
+  );
   const years = useMemo(() => (Array.isArray(data?.years) ? data.years : []), [data]);
   const sites = useMemo(() => (Array.isArray(data?.sites) ? data.sites : []), [data]);
 
@@ -30,12 +38,22 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
   const fmt = (y: string) => (by === "civil" ? y : y.replace("-", "/"));
 
   const Switch = (
-    <div className="flex">
-      {(["civil", "saison"] as const).map((v) => (
-        <button key={v} type="button" onClick={() => setBy(v)} className={cn("h-9 border px-3 text-sm transition-colors -ml-px first:ml-0", by === v ? "border-accent bg-accent/5 text-accent" : "border-ink/20 bg-white text-ink/60 hover:text-ink")}>
-          {v === "civil" ? "Année civile" : "Saison de chauffe"}
-        </button>
-      ))}
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="flex">
+        {(["civil", "saison"] as const).map((v) => (
+          <button key={v} type="button" onClick={() => setBy(v)} className={cn("h-9 border px-3 text-sm transition-colors -ml-px first:ml-0", by === v ? "border-accent bg-accent/5 text-accent" : "border-ink/20 bg-white text-ink/60 hover:text-ink")}>
+            {v === "civil" ? "Année civile" : "Saison de chauffe"}
+          </button>
+        ))}
+      </div>
+      <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className="h-9 max-w-[280px] border border-ink/20 bg-white px-2 text-sm text-ink focus:border-accent focus:outline-none">
+        <option value="">Tous les sites</option>
+        {(data?.options?.sites ?? []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+      <select value={energy} onChange={(e) => setEnergy(e.target.value)} className="h-9 border border-ink/20 bg-white px-2 text-sm text-ink focus:border-accent focus:outline-none">
+        <option value="">Toutes les énergies</option>
+        {(data?.options?.energies ?? []).map((e) => <option key={e} value={e}>{ENERGY[e] ?? e}</option>)}
+      </select>
     </div>
   );
 

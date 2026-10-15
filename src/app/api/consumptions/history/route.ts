@@ -5,7 +5,7 @@ import { kwhBySiteYear, periodKey, type HistoryBy, type RawRow } from "@/lib/con
 import { getDailyDjuFromCache, getStationFromPostalCode, resolveStationKey } from "@/lib/dju-sync";
 
 /**
- * GET /api/consumptions/history?contractId=…&by=civil|saison
+ * GET /api/consumptions/history?contractId=…&by=civil|saison[&siteId=…][&energyType=…]
  * Historique par année civile ou par saison de chauffe (juillet → juin) :
  * total par période (kWh, DJU, kWh/DJU) et matrice sites × périodes.
  * Indépendant du type d'année du contrat.
@@ -17,20 +17,26 @@ export async function GET(req: NextRequest) {
     const contractId = req.nextUrl.searchParams.get("contractId");
     if (!contractId) return NextResponse.json({ error: "contractId requis" }, { status: 400 });
     const by: HistoryBy = req.nextUrl.searchParams.get("by") === "saison" ? "saison" : "civil";
+    const siteFilter = req.nextUrl.searchParams.get("siteId") || null;
+    const energyFilter = req.nextUrl.searchParams.get("energyType") || null;
 
     const contract = await prisma.contract.findFirst({
       where: { id: contractId, organizationId: effectiveOrgId },
       select: { contractSites: { select: { coefficientQ: true, site: { select: { id: true, name: true, stationMeteo: true, postalCode: true } } } } },
     });
     if (!contract) return NextResponse.json({ error: "Contrat non trouvé" }, { status: 404 });
-    const sites = contract.contractSites.map((cs) => cs.site);
+    const allSites = contract.contractSites.map((cs) => cs.site);
+    const sites = siteFilter ? allSites.filter((s) => s.id === siteFilter) : allSites;
     const coefQ = new Map(contract.contractSites.map((cs) => [cs.site.id, cs.coefficientQ ?? 0.13]));
 
-    const rows = (await prisma.consumption.findMany({
+    const allRows = (await prisma.consumption.findMany({
       where: { siteId: { in: sites.map((s) => s.id) }, organizationId: effectiveOrgId, energyType: { not: "EAU" } },
       select: { siteId: true, energyType: true, usage: true, source: true, period: true, quantity: true, unit: true },
     })) as RawRow[];
-    if (rows.length === 0) return NextResponse.json({ years: [], sites: [] });
+    const energies = Array.from(new Set(allRows.map((r) => r.energyType))).sort();
+    const rows = energyFilter ? allRows.filter((r) => r.energyType === energyFilter) : allRows;
+    const options = { sites: allSites.map((s) => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name, "fr")), energies };
+    if (rows.length === 0) return NextResponse.json({ years: [], sites: [], options, by });
 
     const bySite = kwhBySiteYear(rows, coefQ, by);
     const years = Array.from(new Set(rows.map((r) => periodKey(r.period, by)))).sort();
@@ -67,7 +73,7 @@ export async function GET(req: NextRequest) {
       const dju = djuOf(y, allIds);
       return { year: y, total, dju, kwhPerDju: dju ? Math.round((total / dju) * 10) / 10 : null, sitesWithData: siteRows.filter((r) => r.byYear[y] > 0).length };
     });
-    return NextResponse.json({ years: yearRows, sites: siteRows, currentYear: periodKey(new Date(), by), by });
+    return NextResponse.json({ years: yearRows, sites: siteRows, currentYear: periodKey(new Date(), by), by, options });
   } catch (error) {
     console.error("Error building consumption history:", error);
     return NextResponse.json({ error: "Erreur lors du calcul de l'historique" }, { status: 500 });
