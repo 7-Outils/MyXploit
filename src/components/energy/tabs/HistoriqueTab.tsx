@@ -67,7 +67,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
   }
 
   const chart = (() => {
-    const W = 960, H = 120, padL = 44, padR = 56, padT = 14, padB = 34;
+    const W = 1400, H = 120, padL = 44, padR = 60, padT = 14, padB = 34;
     const n = years.length;
     const maxMwh = Math.max(1, ...years.map((y) => y.total / 1000));
     const ratios = years.map((y) => y.kwhPerDju ?? null);
@@ -79,7 +79,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
     const yR = (v: number) => padT + innerH - (v / maxRatio) * innerH;
     const line = ratios.map((r, i) => (r === null ? null : `${x(i)},${yR(r)}`)).filter(Boolean).join(" ");
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-[120px] w-full" preserveAspectRatio="none" role="img" aria-label="Consommation par période et kWh par DJU">
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Consommation par période et kWh par DJU">
         {[0.25, 0.5, 0.75, 1].map((f) => (
           <line key={f} x1={padL} x2={W - padR} y1={yM(maxMwh * f)} y2={yM(maxMwh * f)} stroke="rgba(15,30,51,.08)" />
         ))}
@@ -111,7 +111,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
           <span className="label-tech">Consommation par {by === "civil" ? "année" : "saison"} · MWh</span>
           <span className="label-tech" style={{ color: "#6366f1" }}>— kWh / DJU</span>
         </div>
-        <div className="px-4 py-2"><div className="max-h-[140px]">{chart}</div></div>
+        <div className="px-4 py-2">{chart}</div>
       </div>
       {/* Par année */}
       <div className="panel overflow-x-auto">
