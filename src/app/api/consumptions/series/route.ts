@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, getEffectiveOrganizationId } from "@/lib/auth";
 import { aggregateMonths, monthKey, monthsBetween, sumPoints, type MonthPoint, type RawRow } from "@/lib/consumption-series";
+import { getDailyDjuFromCache, getStationFromPostalCode, resolveStationKey } from "@/lib/dju-sync";
 
 /**
  * GET /api/consumptions/series?contractId=…&from=YYYY-MM-DD&to=YYYY-MM-DD[&siteId=…]
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
 
     const contract = await prisma.contract.findFirst({
       where: { id: contractId, organizationId: effectiveOrgId },
-      select: { contractSites: { select: { coefficientQ: true, site: { select: { id: true, name: true, stationMeteo: true } } } } },
+      select: { contractSites: { select: { coefficientQ: true, site: { select: { id: true, name: true, stationMeteo: true, postalCode: true } } } } },
     });
     if (!contract) return NextResponse.json({ error: "Contrat non trouvé" }, { status: 404 });
     const sites = contract.contractSites.map((cs) => cs.site).filter((s) => !siteId || s.id === siteId);
@@ -40,17 +41,30 @@ export async function GET(req: NextRequest) {
       select: { siteId: true, energyType: true, usage: true, source: true, period: true, quantity: true, unit: true, cost: true, quantityEcs: true, quantityChauffage: true },
     })) as RawRow[];
 
-    // DJU mensuels : moyenne des stations des sites (un site sans station est ignoré)
-    const stations = Array.from(new Set(sites.map((s) => s.stationMeteo).filter((s): s is string => !!s)));
-    const dju = stations.length
-      ? await prisma.dailyDju.findMany({ where: { stationCode: { in: stations } }, select: { stationCode: true, date: true, dju: true } })
-      : [];
-    const djuByMonth = new Map<string, number>(); // somme sur les stations, divisée ensuite par leur nombre
-    for (const d of dju) {
-      const k = monthKey(new Date(d.date));
-      djuByMonth.set(k, (djuByMonth.get(k) ?? 0) + d.dju);
-    }
-    const djuOf = (m: string) => (stations.length ? Math.round((djuByMonth.get(m) ?? 0) / stations.length) : null);
+    // DJU mensuels : même résolution de station que les analyses (station du site, sinon code postal),
+    // lus dans le cache journalier partagé ; agrégés en moyenne par site.
+    const stationOf = new Map(sites.map((s) => [s.id, resolveStationKey(s.stationMeteo) ?? getStationFromPostalCode(s.postalCode)]));
+    const stationKeys = Array.from(new Set(stationOf.values()));
+    const firstMonth = rows.reduce<Date | null>((min, r) => (!min || r.period < min ? r.period : min), null);
+    const spanStart = new Date(Math.min(firstMonth?.getTime() ?? from.getTime(), new Date(from.getFullYear() - 1, from.getMonth(), 1).getTime()));
+    const spanEnd = new Date();
+    const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const djuByStationMonth = new Map<string, Map<string, number>>(); // station → mois → DJU
+    await Promise.all(
+      stationKeys.map(async (key) => {
+        const daily = await getDailyDjuFromCache(key, null, isoDay(spanStart), isoDay(spanEnd));
+        const byMonth = new Map<string, number>();
+        for (const [day, v] of daily) byMonth.set(day.slice(0, 7), (byMonth.get(day.slice(0, 7)) ?? 0) + v);
+        djuByStationMonth.set(key, byMonth);
+      })
+    );
+    const stations = stationKeys;
+    /** DJU du mois pour un ensemble de sites : moyenne de leurs stations. */
+    const djuFor = (m: string, ids: string[]) => {
+      const vals = ids.map((id) => djuByStationMonth.get(stationOf.get(id) ?? "")?.get(m)).filter((v): v is number => typeof v === "number");
+      return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null;
+    };
+    const djuOf = (m: string) => djuFor(m, siteIds);
 
     const all = aggregateMonths(rows, coefQ);
     const byMonth = new Map(all.map((p) => [p.month, p]));
@@ -69,8 +83,8 @@ export async function GET(req: NextRequest) {
     const bySite = sites.map((s) => {
       const pts = aggregateMonths(inWindow.filter((r) => r.siteId === s.id), coefQ);
       const sum = sumPoints(pts);
-      const stationDju = s.stationMeteo ? months.reduce((acc, m) => acc + (djuByMonth.get(m) ?? 0), 0) : null;
-      return { site: { id: s.id, name: s.name }, ...sum, dju: stationDju !== null && stations.length ? Math.round(stationDju / stations.length) : null };
+      const vals = months.map((m) => djuFor(m, [s.id])).filter((v): v is number => v !== null);
+      return { site: { id: s.id, name: s.name }, ...sum, dju: vals.length ? vals.reduce((a, b) => a + b, 0) : null };
     });
     const byEnergy = Array.from(new Set(inWindow.map((r) => r.energyType))).map((e) => ({
       energyType: e,
@@ -84,7 +98,7 @@ export async function GET(req: NextRequest) {
       const acc = years.get(y) ?? { month: y, total: 0, chauffage: 0, ecs: 0, cost: 0, dju: 0 };
       acc.total += p.total; acc.chauffage += p.chauffage; acc.ecs += p.ecs; acc.cost += p.cost;
       const d = djuOf(p.month);
-      acc.dju = stations.length ? (acc.dju ?? 0) + (d ?? 0) : null;
+      acc.dju = d === null && acc.dju === null ? null : (acc.dju ?? 0) + (d ?? 0);
       years.set(y, acc);
     }
     const history = Array.from(years.values())
@@ -98,8 +112,8 @@ export async function GET(req: NextRequest) {
       window: { from: from.toISOString(), to: to.toISOString() },
       months: current.map(round),
       previousMonths: previous.map(round),
-      totals: round({ ...sumPoints(current), dju: stations.length ? current.reduce((s, p) => s + (p.dju ?? 0), 0) : null }),
-      previousTotals: round({ ...sumPoints(previous), dju: stations.length ? previous.reduce((s, p) => s + (p.dju ?? 0), 0) : null }),
+      totals: round({ ...sumPoints(current), dju: current.some((p) => p.dju !== null) ? current.reduce((s, p) => s + (p.dju ?? 0), 0) : null }),
+      previousTotals: round({ ...sumPoints(previous), dju: previous.some((p) => p.dju !== null) ? previous.reduce((s, p) => s + (p.dju ?? 0), 0) : null }),
       bySite: bySite.map(round),
       byEnergy: byEnergy.map(round),
       history: history.map(round),

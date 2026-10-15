@@ -41,7 +41,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 const kwh = (v: number | null | undefined) => (v == null ? "—" : Math.round(v).toLocaleString("fr-FR"));
 const mwh = (v: number | null | undefined) => (v == null ? "—" : (v / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 }));
 const eur = (v: number | null | undefined) => (v == null || v === 0 ? "—" : `${Math.round(v).toLocaleString("fr-FR")} €`);
-const delta = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 1000) / 10 : null);
+const delta = (a: number, b: number) => (b > 0 && a > 0 ? Math.round(((a - b) / b) * 1000) / 10 : null);
 const Delta = ({ v }: { v: number | null }) =>
   v === null ? <span className="text-ink/25">—</span> : <span className={cn("font-mono text-xs tabular-nums", v > 0 ? "text-red-700" : v < 0 ? "text-green-700" : "text-ink/50")}>{v > 0 ? "+" : ""}{v.toLocaleString("fr-FR")} %</span>;
 
