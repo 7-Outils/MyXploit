@@ -20,6 +20,111 @@ import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/contexts/PermissionContext";
 import { MONTHS_SHORT, POSTES, POSTE_LABELS, lineName, linePeriods, monthsRangeLabel, normalizeLine, periodMonths, yearMonths, type BillingLine, type BillingPoste, type SuggestedLine } from "@/components/billing/shared";
 
+/** Une couleur par poste, désaturée : reconnaissable sans lire. c = trait/texte, t = fond, k = bordure. */
+const POSTE_COLORS: Record<string, { c: string; t: string; k: string }> = {
+  P1: { c: "#b0501a", t: "#fcebde", k: "#eec5a6" },
+  P2: { c: "#14708f", t: "#e1f0f5", k: "#b2d6e3" },
+  P3: { c: "#4c771d", t: "#ebf3df", k: "#c3d9a6" },
+  AUTRE: { c: "#5d646d", t: "#eef0f2", k: "#d0d5db" },
+};
+const colorsOf = (poste: BillingPoste | "" | null | undefined) => POSTE_COLORS[poste || "AUTRE"] ?? POSTE_COLORS.AUTRE;
+
+/** Segments [col début, col fin] (1-12) d'une période sur une frise dont l'origine est `origin`. */
+function segmentsOf(sm: number, em: number, origin: number): Array<[number, number]> {
+  const a = ((sm - origin + 12) % 12) + 1;
+  const len = ((em - sm + 12) % 12) + 1;
+  const b = a + len - 1;
+  return b <= 12 ? [[a, b]] : [[a, 12], [1, b - 12]];
+}
+
+/** Barres d'une ligne : positionnées en % sur 12 colonnes, « F1 · sept → nov », part en dessous. */
+function Bars({ periods, percents, poste, origin, handles, onHandleDown }: {
+  periods: number[][];
+  percents: Array<number | string | null>;
+  poste: BillingPoste | "" | null;
+  origin: number;
+  handles?: boolean;
+  onHandleDown?: (e: React.PointerEvent, kind: "start" | "end", i: number) => void;
+}) {
+  const col = colorsOf(poste);
+  return (
+    <>
+      <div className="relative h-11">
+        {periods.map((ms, i) => {
+          const segs = segmentsOf(ms[0], ms[ms.length - 1], origin);
+          return segs.map(([a, b], k) => {
+            const first = k === 0;
+            const last = k === segs.length - 1;
+            return (
+              <div
+                key={`${i}-${k}`}
+                className="absolute inset-y-0 flex flex-col justify-center overflow-visible whitespace-nowrap px-2"
+                style={{
+                  left: `calc(${(a - 1) / 12 * 100}% + 2px)`,
+                  width: `calc(${(b - a + 1) / 12 * 100}% - 4px)`,
+                  background: col.t,
+                  borderTop: `2px solid ${col.c}`,
+                  borderLeft: first ? `1px solid ${col.k}` : "none",
+                  borderRight: last ? `1px solid ${col.k}` : "none",
+                  borderBottom: `1px solid ${col.k}`,
+                }}
+                title={`Facture ${i + 1} · ${monthsRangeLabel(ms)}`}
+              >
+                {first && (
+                  <>
+                    <span className="truncate font-mono text-[10px] leading-tight" style={{ color: col.c }}>F{i + 1}</span>
+                    <span className="truncate text-xs leading-tight text-ink">{monthsRangeLabel(ms)}</span>
+                  </>
+                )}
+                {handles && onHandleDown && i === 0 && first && (
+                  <span
+                    role="slider"
+                    tabIndex={0}
+                    aria-label="Début de la facture 1"
+                    title="Décaler tout le cycle"
+                    onPointerDown={(e) => onHandleDown(e, "start", 0)}
+                    className="absolute inset-y-1 -left-1 z-10 w-2 cursor-ew-resize"
+                    style={{ background: col.c, opacity: 0.6 }}
+                  />
+                )}
+                {handles && onHandleDown && last && (
+                  <span
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={`Fin de la facture ${i + 1}`}
+                    title="Tirer : les factures suivantes suivent"
+                    onPointerDown={(e) => onHandleDown(e, "end", i)}
+                    className="absolute inset-y-1 -right-1 z-10 w-2 cursor-ew-resize"
+                    style={{ background: col.c, opacity: 0.6 }}
+                  />
+                )}
+              </div>
+            );
+          });
+        })}
+      </div>
+      {/* Règle : 12 graduations */}
+      <div
+        className="mt-1 h-1.5 border-r border-ink/20"
+        style={{ backgroundImage: "linear-gradient(rgba(15,30,51,.2),rgba(15,30,51,.2)), repeating-linear-gradient(to right, rgba(15,30,51,.2) 0 1px, transparent 1px calc(100% / 12))", backgroundSize: "100% 1px, 100% 100%", backgroundRepeat: "no-repeat, repeat" }}
+      />
+      {/* Parts sous chaque barre */}
+      <div className="relative mt-1 h-4">
+        {periods.map((ms, i) => {
+          const [a] = segmentsOf(ms[0], ms[ms.length - 1], origin)[0];
+          const v = percents[i];
+          const has = v !== null && v !== undefined && String(v).trim() !== "";
+          return (
+            <span key={i} className={cn("absolute top-0 font-mono text-xs tabular-nums", has ? "text-ink" : "text-ink/25")} style={{ left: `calc(${(a - 1) / 12 * 100}% + 4px)` }}>
+              {has ? `${v} %` : "—"}
+            </span>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 const iconBtn =
   "flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink/40 transition-colors hover:bg-ink/[0.03] hover:text-accent disabled:pointer-events-none disabled:opacity-30";
 
@@ -202,7 +307,7 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
             )}
 
             {lines.map((l) => (
-              <LineRow key={l.id} line={l} yearStart={yearStart} contractYearStart={contractYearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
+              <LineRow key={l.id} line={l} contractYearStart={contractYearStart} canEdit={canEdit} onEdit={() => startEdit(l)} onDelete={() => setDeleting(l)} />
             ))}
 
             {lines.length > 0 && (
@@ -278,70 +383,41 @@ export default function ContractBillingTab({ contractId }: { contractId: string 
 
 // ─── Ligne affichée ─────────────────────────────────────────────────────────
 
-/** Grille partagée par l'en-tête et les lignes : nom | 12 mois | actions. */
-const PLAN_COLS = "lg:grid-cols-[minmax(9rem,14rem)_minmax(0,1fr)_4.5rem]";
-
-/** Colonnes (1-12, bornes incluses) occupées par une période dans la frise, en 1 ou 2 segments si elle passe le début. */
-function periodSegments(ms: number[], order: number[]): Array<[number, number]> {
-  const cols = ms.map((m) => order.indexOf(m) + 1).filter((c) => c > 0).sort((a, b) => a - b);
-  const segs: Array<[number, number]> = [];
-  for (const c of cols) {
-    const last = segs[segs.length - 1];
-    if (last && c === last[1] + 1) last[1] = c;
-    else segs.push([c, c]);
-  }
-  return segs;
-}
-
-function LineRow({ line, yearStart, contractYearStart, canEdit, onEdit, onDelete }: { line: BillingLine; yearStart: number; contractYearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
-  const hasPct = line.percents.length === line.countPerYear;
+function LineRow({ line, contractYearStart, canEdit, onEdit, onDelete }: { line: BillingLine; contractYearStart: number; canEdit: boolean; onEdit: () => void; onDelete: () => void }) {
   const periods = linePeriods(line, contractYearStart);
-  // Chaque ligne a sa propre frise, qui démarre à son premier mois facturé
-  const own = periods[0]?.[0];
-  const order = yearMonths(typeof own === "number" ? own : yearStart);
-  const showPoste = !!line.poste && !!line.label.trim() && !line.label.trim().toUpperCase().startsWith(line.poste);
+  const origin = periods[0]?.[0] ?? contractYearStart;
+  const hasPct = line.percents.length === line.countPerYear;
+  const sum = hasPct ? line.percents.reduce((a, b) => a + b, 0) : null;
+  const col = colorsOf(line.poste);
+  const n = line.countPerYear;
+  const order = yearMonths(origin);
   return (
-    <div className={cn("group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-5 py-2.5 transition-colors hover:bg-ink/[0.015] lg:gap-x-6", PLAN_COLS)}>
-      <div className="col-start-1 row-start-1 flex min-w-0 items-baseline gap-2.5">
-        <span className="truncate text-sm font-medium text-ink">{lineName(line)}</span>
-        {showPoste && <span className="font-mono text-[11px] tracking-wider text-ink/40">{POSTE_LABELS[line.poste as BillingPoste]}</span>}
-        <span className="font-mono text-[11px] tabular-nums text-ink/40 lg:hidden">· {line.countPerYear}/an</span>
+    <div className="group grid grid-cols-[minmax(0,1fr)_auto_auto] items-start gap-x-4 gap-y-3 px-5 py-4 transition-colors hover:bg-ink/[0.015] lg:grid-cols-[minmax(10rem,14rem)_minmax(0,1fr)_5rem_4.5rem] lg:gap-x-7">
+      {/* Souche */}
+      <div className="col-start-1 row-start-1 flex min-w-0 items-start gap-3">
+        <span className="flex h-[22px] min-w-[38px] flex-shrink-0 items-center justify-center px-1.5 font-mono text-[11px]" style={line.poste ? { color: col.c, background: col.t, border: `1px solid ${col.k}` } : { color: "rgba(15,30,51,.35)", border: "1px dashed rgba(15,30,51,.25)" }}>
+          {line.poste ? POSTE_LABELS[line.poste] : "—"}
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-ink">{lineName(line)}</div>
+          <div className="mt-0.5 font-mono text-[11px] tabular-nums text-ink/50">{n} facture{n > 1 ? "s" : ""} / an</div>
+        </div>
       </div>
-      {/* Actions : à droite sur grand écran, sur la première ligne sur petit */}
-      <div className={cn("col-start-2 row-start-1 flex items-center justify-end lg:col-start-3", !canEdit && "invisible")}>
+      {/* Frise propre à la ligne */}
+      <div className="col-span-3 col-start-1 row-start-2 min-w-0 lg:col-span-1 lg:col-start-2 lg:row-start-1">
+        <Bars periods={periods} percents={line.percents} poste={line.poste} origin={origin} />
+        <div className="mt-1 grid grid-cols-12 font-mono text-[9px] uppercase text-ink/35">
+          {order.map((m) => <span key={m} className="truncate pl-0.5">{MONTHS_SHORT[m - 1].replace(".", "")}</span>)}
+        </div>
+      </div>
+      {/* Somme des parts */}
+      <div className="col-start-2 row-start-1 flex flex-col items-end gap-1.5 lg:col-start-3">
+        <span className={cn("font-mono text-sm tabular-nums", sum === null ? "text-ink/25" : sum > 100 ? "text-red-700" : "text-ink")}>{sum === null ? "—" : `Σ ${sum} %`}</span>
+        <span className="relative h-[3px] w-14 overflow-hidden bg-ink/10"><span className="absolute inset-y-0 left-0" style={{ width: `${Math.min(sum ?? 0, 100)}%`, background: col.c }} /></span>
+      </div>
+      <div className={cn("col-start-3 row-start-1 flex items-center justify-end lg:col-start-4", !canEdit && "invisible")}>
         <button type="button" onClick={onEdit} title="Modifier" className={iconBtn}><Pencil size={14} /></button>
         <button type="button" onClick={onDelete} title="Supprimer" className={cn(iconBtn, "hover:text-red-600")}><Trash2 size={14} /></button>
-      </div>
-      {/* Frise : une barre par facture, « Facture n » et sa part */}
-      <div className="col-span-2 col-start-1 row-start-2 grid grid-cols-12 lg:col-span-1 lg:col-start-2 lg:row-start-1" title={periods.map((ms, i) => `Facture ${i + 1} : ${monthsRangeLabel(ms)}`).join(" · ")}>
-        {Array.from({ length: 12 }, (_, i) => (
-          <span key={i} className={cn("row-start-1 h-11", i > 0 && "border-l border-ink/[0.06]")} style={{ gridColumn: i + 1 }} />
-        ))}
-        {periods.flatMap((ms, i) =>
-          periodSegments(ms, order).map(([c1, c2], k) => {
-            const first = k === 0;
-            return (
-              <div
-                key={`${i}-${k}`}
-                className={cn(
-                  "row-start-1 my-1.5 flex min-w-0 flex-col justify-center overflow-hidden border-l-2 border-accent px-2 leading-tight",
-                  i % 2 === 0 ? "bg-accent/15" : "bg-accent/[0.07]",
-                  !first && "border-l-0"
-                )}
-                style={{ gridColumn: `${c1} / ${c2 + 1}`, marginLeft: 2, marginRight: 2 }}
-              >
-                {first && (
-                  <>
-                    <span className="truncate text-[11px] font-medium text-ink">
-                      Facture {i + 1} <span className="font-mono font-normal text-ink/50">· {monthsRangeLabel(ms)}</span>
-                    </span>
-                    <span className="truncate font-mono text-[11px] tabular-nums text-ink/60">{hasPct ? `${line.percents[i]} %` : "—"}</span>
-                  </>
-                )}
-              </div>
-            );
-          })
-        )}
       </div>
     </div>
   );
@@ -515,6 +591,9 @@ function LineEditor({
           </div>
         )}
 
+        {/* Frise : tirer un bord, les factures suivantes suivent ; la poignée de gauche décale tout */}
+        <Timeline draft={draft} setDraft={setDraft} />
+
         {/* Une ligne par facture : période couverte, part en % */}
         <div className="max-w-xl">
           <div className="grid grid-cols-[2.5rem_minmax(0,1fr)_6rem] items-center border-b border-ink/15 pb-1.5">
@@ -604,5 +683,78 @@ function MonthSelect({ value, onChange, order }: { value: number; onChange: (m: 
       </select>
       <ChevronDown size={12} className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-ink/35" />
     </span>
+  );
+}
+
+/** Frise d'édition : les barres de la ligne avec des poignées. */
+function Timeline({ draft, setDraft }: { draft: Draft; setDraft: (d: Draft) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ kind: "start" | "end"; i: number; x0: number; periods: number[]; last: number } | null>(null);
+  const n = draft.count;
+  const periods = Array.from({ length: n }, (_, i) => {
+    const sm = draft.periods[i * 2];
+    const em = draft.periods[i * 2 + 1];
+    const ms: number[] = [];
+    let m = sm;
+    for (let k = 0; k < 12; k++) { ms.push(m); if (m === em) break; m = (m % 12) + 1; }
+    return ms;
+  });
+  const origin = draft.periods[0] ?? 1;
+  const order = yearMonths(origin);
+  const mo = (x: number) => ((x % 12) + 12) % 12 + 1;
+
+  /** Décale d'un nombre de mois : la fin de la facture i (et tout ce qui suit), ou tout le cycle. */
+  const shifted = (base: number[], kind: "start" | "end", i: number, d: number): number[] | null => {
+    const pr = [...base];
+    const len = (k: number) => ((pr[k * 2 + 1] - pr[k * 2] + 12) % 12) + 1;
+    if (kind === "start") {
+      for (let k = 0; k < n; k++) { pr[k * 2] = mo(pr[k * 2] - 1 + d); pr[k * 2 + 1] = mo(pr[k * 2 + 1] - 1 + d); }
+      return pr;
+    }
+    if (len(i) + d < 1) return null;
+    // Espace total occupé depuis le début de la 1re jusqu'à la fin de la dernière, bornes incluses
+    const span = ((pr[(n - 1) * 2 + 1] - pr[0] + 12) % 12) + 1;
+    if (span + d > 12) return null;
+    pr[i * 2 + 1] = mo(pr[i * 2 + 1] - 1 + d);
+    for (let k = i + 1; k < n; k++) { pr[k * 2] = mo(pr[k * 2] - 1 + d); pr[k * 2 + 1] = mo(pr[k * 2 + 1] - 1 + d); }
+    return pr;
+  };
+
+  const onDown = (e: React.PointerEvent, kind: "start" | "end", i: number) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    drag.current = { kind, i, x0: e.clientX, periods: [...draft.periods], last: 0 };
+  };
+  const onMove = (e: React.PointerEvent) => {
+    const d0 = drag.current;
+    if (!d0 || !ref.current) return;
+    const mw = ref.current.getBoundingClientRect().width / 12;
+    const d = Math.round((e.clientX - d0.x0) / mw);
+    if (d === d0.last) return;
+    const next = shifted(d0.periods, d0.kind, d0.i, d);
+    if (!next) return;
+    d0.last = d;
+    setDraft({ ...draft, periods: next });
+  };
+  const onUp = () => { drag.current = null; };
+  const onKey = (e: React.KeyboardEvent) => {
+    const t = e.target as HTMLElement;
+    if (t.getAttribute("role") !== "slider") return;
+    const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!dir) return;
+    e.preventDefault();
+    const kind = t.getAttribute("aria-label")?.startsWith("Début") ? "start" : "end";
+    const i = kind === "start" ? 0 : Number((t.getAttribute("aria-label") ?? "").replace(/\D/g, "")) - 1;
+    const next = shifted(draft.periods, kind, i, dir);
+    if (next) setDraft({ ...draft, periods: next });
+  };
+
+  return (
+    <div ref={ref} className="select-none border border-ink/10 bg-ink/[0.02] px-3 pb-2 pt-3" onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onKeyDown={onKey}>
+      <Bars periods={periods} percents={draft.percents} poste={draft.poste} origin={origin} handles onHandleDown={onDown} />
+      <div className="mt-1 grid grid-cols-12 font-mono text-[10px] uppercase text-ink/40">
+        {order.map((m) => <span key={m} className="truncate pl-0.5">{MONTHS_SHORT[m - 1].replace(".", "")}</span>)}
+      </div>
+    </div>
   );
 }
