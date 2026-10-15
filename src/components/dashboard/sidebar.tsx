@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Thermometer,
   CloudSun,
+  Scale,
   X,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
@@ -225,6 +226,7 @@ export function Sidebar() {
           {[
             { href: "/outils/dju", title: "Calculateur DJU", Icon: Thermometer },
             { href: "/outils/chauffage", title: "Prévision météo", Icon: CloudSun },
+            { href: "/outils/releves", title: "Contrôle des relevés", Icon: Scale },
           ].map(({ href, title, Icon }) => (
             <Link
               key={href}
