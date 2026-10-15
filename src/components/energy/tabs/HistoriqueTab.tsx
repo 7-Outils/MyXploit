@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Loader2 } from "lucide-react";
 import { fetcher } from "@/lib/swr-fetcher";
@@ -28,6 +28,11 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
     { keepPreviousData: true }
   );
   const years = useMemo(() => (Array.isArray(data?.years) ? data.years : []), [data]);
+  // Une énergie choisie qui n'existe plus pour le site filtré est remise à « toutes »
+  useEffect(() => {
+    const list = data?.options?.energies;
+    if (energy && Array.isArray(list) && !list.includes(energy)) setEnergy("");
+  }, [data, energy]);
   const sites = useMemo(() => (Array.isArray(data?.sites) ? data.sites : []), [data]);
 
   if (isLoading && !data) {
