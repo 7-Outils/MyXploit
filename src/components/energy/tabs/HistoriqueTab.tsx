@@ -92,53 +92,12 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
     );
   }
 
-  const chart = (() => {
-    const W = 1400, H = 120, padL = 44, padR = 60, padT = 14, padB = 34;
-    const n = years.length;
-    const maxMwh = Math.max(1, ...years.map((y) => y.total / 1000));
-    const ratios = years.map((y) => y.kwhPerDju ?? null);
-    const maxRatio = Math.max(1, ...ratios.filter((r): r is number => r !== null));
-    const innerW = W - padL - padR, innerH = H - padT - padB;
-    const slot = innerW / n;
-    const x = (i: number) => padL + slot * i + slot / 2;
-    const yM = (v: number) => padT + innerH - (v / maxMwh) * innerH;
-    const yR = (v: number) => padT + innerH - (v / maxRatio) * innerH;
-    const line = ratios.map((r, i) => (r === null ? null : `${x(i)},${yR(r)}`)).filter(Boolean).join(" ");
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Consommation par période et kWh par DJU">
-        {[0.25, 0.5, 0.75, 1].map((f) => (
-          <line key={f} x1={padL} x2={W - padR} y1={yM(maxMwh * f)} y2={yM(maxMwh * f)} stroke="rgba(15,30,51,.08)" />
-        ))}
-        {years.map((y, i) => {
-          const bw = Math.min(48, slot * 0.55);
-          const isCurrent = y.year === current;
-          return (
-            <g key={y.year}>
-              <rect x={x(i) - bw / 2} y={yM(y.total / 1000)} width={bw} height={padT + innerH - yM(y.total / 1000)} fill={isCurrent ? "rgba(245,158,11,.4)" : "#f59e0b"} />
-              <text x={x(i)} y={yM(y.total / 1000) - 5} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="#0f1e33">{mwh(y.total)}</text>
-              <text x={x(i)} y={H - 14} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">{fmt(y.year)}</text>
-              <text x={x(i)} y={H - 3} textAnchor="middle" fontSize="9" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.35)">{y.sitesWithData} site{y.sitesWithData > 1 ? "s" : ""}</text>
-            </g>
-          );
-        })}
-        {line && <polyline points={line} fill="none" stroke="#6366f1" strokeWidth="2" />}
-        {ratios.map((r, i) => r === null ? null : <circle key={i} cx={x(i)} cy={yR(r)} r="3.5" fill="#6366f1" />)}
-        <text x={padL - 6} y={padT + 10} textAnchor="end" fontSize="10" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">MWh</text>
-        <text x={W - padR + 6} y={padT + 10} textAnchor="start" fontSize="10" fontFamily="ui-monospace, monospace" fill="#6366f1">kWh/DJU</text>
-      </svg>
-    );
-  })();
+
+  const maxTotal = Math.max(1, ...years.map((y) => y.total));
 
   return (
     <div className="space-y-4">
       {Switch}
-      <div className="panel">
-        <div className="panel-header">
-          <span className="label-tech">Consommation par {by === "civil" ? "année" : "saison"} · MWh</span>
-          <span className="label-tech" style={{ color: "#6366f1" }}>— kWh / DJU</span>
-        </div>
-        <div className="px-4 py-2">{chart}</div>
-      </div>
       {/* Par année */}
       <div className="panel overflow-x-auto">
         <table className="w-full">
@@ -146,6 +105,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
             <tr className="border-b border-ink/10 text-left">
               <th className="label-tech px-4 py-2.5">{label}</th>
               <th className="label-tech px-4 py-2.5 text-right">MWh</th>
+              <th className="w-[28%] px-2 py-2.5" />
               <th className="label-tech px-4 py-2.5 text-right">Sites</th>
               <th className="label-tech px-4 py-2.5 text-right">Δ brut</th>
               <th className="label-tech px-4 py-2.5 text-right" title="Sites présents dans les deux périodes">Δ périmètre constant</th>
@@ -156,6 +116,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
           <tbody className="divide-y divide-ink/10">
             {years.slice().reverse().map((y, i, arr) => {
               const prev = arr[i + 1];
+              const share = (y.total / maxTotal) * 100;
               const d = prev && y.year !== current ? delta(y.total, prev.total) : null;
               const dc = y.year !== current ? y.deltaConstant : null;
               return (
@@ -164,6 +125,9 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
                     {fmt(y.year)}{y.year === current && <span className="ml-2 text-[10px] text-ink/35">en cours</span>}
                   </td>
                   <td className="px-4 py-2 text-right font-mono text-sm font-medium tabular-nums text-ink">{mwh(y.total)}</td>
+                  <td className="px-2 py-2">
+                    <div className="h-2.5 w-full bg-ink/[0.04]"><div className="h-full" style={{ width: `${share}%`, background: y.year === current ? "rgba(245,158,11,.4)" : "#f59e0b" }} /></div>
+                  </td>
                   <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-ink/60">{y.sitesWithData}</td>
                   <td className={cn("px-4 py-2 text-right font-mono text-xs tabular-nums", d === null ? "text-ink/25" : "text-ink/50")}>
                     {d === null ? "—" : `${d > 0 ? "+" : ""}${d.toLocaleString("fr-FR")} %`}
