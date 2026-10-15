@@ -68,10 +68,22 @@ export async function GET(req: NextRequest) {
       .filter((s) => Object.values(s.byYear).some((v) => v > 0))
       .sort((a, b) => a.name.localeCompare(b.name, "fr"));
     const allIds = sites.map((s) => s.id);
-    const yearRows = years.map((y) => {
+    const yearRows = years.map((y, i) => {
       const total = siteRows.reduce((s, r) => s + r.byYear[y], 0);
       const dju = djuOf(y, allIds);
-      return { year: y, total, dju, kwhPerDju: dju ? Math.round((total / dju) * 10) / 10 : null, sitesWithData: siteRows.filter((r) => r.byYear[y] > 0).length };
+      const present = siteRows.filter((r) => r.byYear[y] > 0);
+      // Écart à périmètre constant : seuls les sites présents dans les deux périodes
+      let deltaConstant: number | null = null;
+      let constantSites = 0;
+      if (i > 0) {
+        const prevY = years[i - 1];
+        const both = present.filter((r) => r.byYear[prevY] > 0);
+        constantSites = both.length;
+        const a = both.reduce((s, r) => s + r.byYear[y], 0);
+        const b = both.reduce((s, r) => s + r.byYear[prevY], 0);
+        deltaConstant = a > 0 && b > 0 ? Math.round(((a - b) / b) * 1000) / 10 : null;
+      }
+      return { year: y, total, dju, kwhPerDju: dju ? Math.round((total / dju) * 10) / 10 : null, sitesWithData: present.length, deltaConstant, constantSites };
     });
     return NextResponse.json({ years: yearRows, sites: siteRows, currentYear: periodKey(new Date(), by), by, options });
   } catch (error) {

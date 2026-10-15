@@ -7,7 +7,7 @@ import { fetcher } from "@/lib/swr-fetcher";
 import { cn } from "@/lib/utils";
 
 interface History {
-  years: Array<{ year: string; total: number; dju: number | null; kwhPerDju: number | null; sitesWithData: number }>;
+  years: Array<{ year: string; total: number; dju: number | null; kwhPerDju: number | null; sitesWithData: number; deltaConstant: number | null; constantSites: number }>;
   sites: Array<{ id: string; name: string; byYear: Record<string, number> }>;
   currentYear: string;
   options?: { sites: Array<{ id: string; name: string }>; energies: string[] };
@@ -67,7 +67,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
   }
 
   const chart = (() => {
-    const W = 960, H = 220, padL = 56, padR = 56, padT = 16, padB = 28;
+    const W = 960, H = 232, padL = 56, padR = 56, padT = 16, padB = 40;
     const n = years.length;
     const maxMwh = Math.max(1, ...years.map((y) => y.total / 1000));
     const ratios = years.map((y) => y.kwhPerDju ?? null);
@@ -90,7 +90,8 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
             <g key={y.year}>
               <rect x={x(i) - bw / 2} y={yM(y.total / 1000)} width={bw} height={padT + innerH - yM(y.total / 1000)} fill={isCurrent ? "rgba(245,158,11,.4)" : "#f59e0b"} />
               <text x={x(i)} y={yM(y.total / 1000) - 5} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="#0f1e33">{mwh(y.total)}</text>
-              <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">{fmt(y.year)}</text>
+              <text x={x(i)} y={H - 14} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">{fmt(y.year)}</text>
+              <text x={x(i)} y={H - 3} textAnchor="middle" fontSize="9" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.35)">{y.sitesWithData} site{y.sitesWithData > 1 ? "s" : ""}</text>
             </g>
           );
         })}
@@ -119,28 +120,33 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
             <tr className="border-b border-ink/10 text-left">
               <th className="label-tech px-4 py-2.5">{label}</th>
               <th className="label-tech px-4 py-2.5 text-right">MWh</th>
-              <th className="label-tech px-4 py-2.5 text-right">Δ {by === "civil" ? "année" : "saison"} −1</th>
+              <th className="label-tech px-4 py-2.5 text-right">Sites</th>
+              <th className="label-tech px-4 py-2.5 text-right">Δ brut</th>
+              <th className="label-tech px-4 py-2.5 text-right" title="Sites présents dans les deux périodes">Δ périmètre constant</th>
               <th className="label-tech px-4 py-2.5 text-right">DJU</th>
               <th className="label-tech px-4 py-2.5 text-right">kWh / DJU</th>
-              <th className="label-tech px-4 py-2.5 text-right">Sites avec données</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ink/10">
             {years.slice().reverse().map((y, i, arr) => {
               const prev = arr[i + 1];
               const d = prev && y.year !== current ? delta(y.total, prev.total) : null;
+              const dc = y.year !== current ? y.deltaConstant : null;
               return (
                 <tr key={y.year} className="hover:bg-ink/[0.02]">
                   <td className="px-4 py-2 font-mono text-sm tabular-nums text-ink">
                     {fmt(y.year)}{y.year === current && <span className="ml-2 text-[10px] text-ink/35">en cours</span>}
                   </td>
                   <td className="px-4 py-2 text-right font-mono text-sm font-medium tabular-nums text-ink">{mwh(y.total)}</td>
-                  <td className={cn("px-4 py-2 text-right font-mono text-xs tabular-nums", d === null ? "text-ink/25" : d > 0 ? "text-red-700" : d < 0 ? "text-green-700" : "text-ink/50")}>
+                  <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-ink/60">{y.sitesWithData}</td>
+                  <td className={cn("px-4 py-2 text-right font-mono text-xs tabular-nums", d === null ? "text-ink/25" : "text-ink/50")}>
                     {d === null ? "—" : `${d > 0 ? "+" : ""}${d.toLocaleString("fr-FR")} %`}
+                  </td>
+                  <td className={cn("px-4 py-2 text-right font-mono text-xs tabular-nums", dc === null ? "text-ink/25" : dc > 0 ? "text-red-700" : dc < 0 ? "text-green-700" : "text-ink/50")} title={dc === null ? undefined : `${y.constantSites} site${y.constantSites > 1 ? "s" : ""} présent${y.constantSites > 1 ? "s" : ""} dans les deux périodes`}>
+                    {dc === null ? "—" : `${dc > 0 ? "+" : ""}${dc.toLocaleString("fr-FR")} %`}{dc !== null && <span className="ml-1 text-ink/35">· {y.constantSites}</span>}
                   </td>
                   <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-ink/60">{y.dju == null ? "—" : y.dju.toLocaleString("fr-FR")}</td>
                   <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-ink/60">{y.kwhPerDju == null ? "—" : y.kwhPerDju.toLocaleString("fr-FR")}</td>
-                  <td className="px-4 py-2 text-right font-mono text-xs tabular-nums text-ink/60">{y.sitesWithData}</td>
                 </tr>
               );
             })}
