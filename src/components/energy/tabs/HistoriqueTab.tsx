@@ -48,9 +48,52 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
     );
   }
 
+  const chart = (() => {
+    const W = 960, H = 220, padL = 56, padR = 56, padT = 16, padB = 28;
+    const n = years.length;
+    const maxMwh = Math.max(1, ...years.map((y) => y.total / 1000));
+    const ratios = years.map((y) => y.kwhPerDju ?? null);
+    const maxRatio = Math.max(1, ...ratios.filter((r): r is number => r !== null));
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const slot = innerW / n;
+    const x = (i: number) => padL + slot * i + slot / 2;
+    const yM = (v: number) => padT + innerH - (v / maxMwh) * innerH;
+    const yR = (v: number) => padT + innerH - (v / maxRatio) * innerH;
+    const line = ratios.map((r, i) => (r === null ? null : `${x(i)},${yR(r)}`)).filter(Boolean).join(" ");
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Consommation par période et kWh par DJU">
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <line key={f} x1={padL} x2={W - padR} y1={yM(maxMwh * f)} y2={yM(maxMwh * f)} stroke="rgba(15,30,51,.08)" />
+        ))}
+        {years.map((y, i) => {
+          const bw = Math.min(48, slot * 0.55);
+          const isCurrent = y.year === current;
+          return (
+            <g key={y.year}>
+              <rect x={x(i) - bw / 2} y={yM(y.total / 1000)} width={bw} height={padT + innerH - yM(y.total / 1000)} fill={isCurrent ? "rgba(37,99,235,.35)" : "#2563eb"} />
+              <text x={x(i)} y={yM(y.total / 1000) - 5} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="#0f1e33">{mwh(y.total)}</text>
+              <text x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">{fmt(y.year)}</text>
+            </g>
+          );
+        })}
+        {line && <polyline points={line} fill="none" stroke="#0f1e33" strokeWidth="1.5" strokeDasharray="4 3" />}
+        {ratios.map((r, i) => r === null ? null : <circle key={i} cx={x(i)} cy={yR(r)} r="3" fill="#0f1e33" />)}
+        <text x={padL - 6} y={padT + 10} textAnchor="end" fontSize="10" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">MWh</text>
+        <text x={W - padR + 6} y={padT + 10} textAnchor="start" fontSize="10" fontFamily="ui-monospace, monospace" fill="rgba(15,30,51,.5)">kWh/DJU</text>
+      </svg>
+    );
+  })();
+
   return (
     <div className="space-y-4">
       {Switch}
+      <div className="panel">
+        <div className="panel-header">
+          <span className="label-tech">Consommation par {by === "civil" ? "année" : "saison"} · MWh</span>
+          <span className="label-tech">— — kWh / DJU</span>
+        </div>
+        <div className="px-4 py-3">{chart}</div>
+      </div>
       {/* Par année */}
       <div className="panel overflow-x-auto">
         <table className="w-full">
