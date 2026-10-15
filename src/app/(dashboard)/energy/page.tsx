@@ -14,6 +14,7 @@ import {
   Building2,
   Download,
   Gauge,
+  History,
 } from "lucide-react";
 import { TelereleveChartsSection } from "@/components/energy/TelereleveChartsSection";
 import { CreateReadingModal } from "@/components/energy/modals/CreateReadingModal";
@@ -25,6 +26,7 @@ const RelevesContent = dynamic(
   { ssr: false }
 );
 import { CoefficientsContent } from "@/components/energy/tabs/CoefficientsTab";
+import { HistoriqueContent } from "@/components/energy/tabs/HistoriqueTab";
 import { sortTabsAlpha } from "@/lib/utils";
 
 // Types and constants live in their own files now — see
@@ -38,6 +40,7 @@ import type {
 
 const ENERGY_TABS = sortTabsAlpha([
   { id: "coefficients" as Tab, label: "Coefficients", icon: Gauge },
+  { id: "historique" as Tab, label: "Historique des consommations", icon: History },
   { id: "synthese" as Tab, label: "Synthèse", icon: BarChart3 },
   { id: "sites" as Tab, label: "Relevés", icon: Building2 },
   { id: "telereleve" as Tab, label: "Télérelève", icon: Flame },
@@ -191,7 +194,7 @@ function EnergyPageContent() {
           ))}
         </nav>
         <div className="flex items-center gap-2 pb-2 px-0">
-          {activeTab !== "telereleve" && activeTab !== "sites" && activeTab !== "coefficients" && (
+          {activeTab !== "telereleve" && activeTab !== "sites" && activeTab !== "coefficients" && activeTab !== "historique" && (
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -274,6 +277,12 @@ function EnergyPageContent() {
       <div style={{ display: activeTab === "telereleve" ? "block" : "none" }}>
         {mountedTabs.has("telereleve") && (
           <TelereleveContent contractId={selectedContract?.id} yearType={selectedContract?.yearType ?? "HEATING_SEASON"} />
+        )}
+      </div>
+
+      <div style={{ display: activeTab === "historique" ? "block" : "none" }}>
+        {mountedTabs.has("historique") && (
+          <HistoriqueContent contractId={selectedContract?.id || null} />
         )}
       </div>
 
