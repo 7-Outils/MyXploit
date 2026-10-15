@@ -27,13 +27,34 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
     fetcher,
     { keepPreviousData: true }
   );
-  const years = useMemo(() => (Array.isArray(data?.years) ? data.years : []), [data]);
+  // Réponse possiblement servie par le cache d'une version précédente : chaque champ est normalisé
+  const years = useMemo(
+    () =>
+      (Array.isArray(data?.years) ? data.years : [])
+        .filter((y) => y && typeof y.year === "string")
+        .map((y) => ({
+          year: y.year,
+          total: typeof y.total === "number" ? y.total : 0,
+          dju: typeof y.dju === "number" ? y.dju : null,
+          kwhPerDju: typeof y.kwhPerDju === "number" ? y.kwhPerDju : null,
+          sitesWithData: typeof y.sitesWithData === "number" ? y.sitesWithData : 0,
+          deltaConstant: typeof y.deltaConstant === "number" ? y.deltaConstant : null,
+          constantSites: typeof y.constantSites === "number" ? y.constantSites : 0,
+        })),
+    [data]
+  );
   // Une énergie choisie qui n'existe plus pour le site filtré est remise à « toutes »
   useEffect(() => {
     const list = data?.options?.energies;
     if (energy && Array.isArray(list) && !list.includes(energy)) setEnergy("");
   }, [data, energy]);
-  const sites = useMemo(() => (Array.isArray(data?.sites) ? data.sites : []), [data]);
+  const sites = useMemo(
+    () =>
+      (Array.isArray(data?.sites) ? data.sites : [])
+        .filter((s) => s && typeof s.id === "string")
+        .map((s) => ({ id: s.id, name: s.name ?? "", byYear: s.byYear && typeof s.byYear === "object" ? s.byYear : {} })),
+    [data]
+  );
 
   if (isLoading && !data) {
     return <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-accent" /></div>;
@@ -173,7 +194,7 @@ export function HistoriqueContent({ contractId }: { contractId: string | null })
               <tr key={s.id} className="hover:bg-ink/[0.02]">
                 <td className="sticky left-0 max-w-[260px] truncate bg-white px-4 py-1.5 text-sm text-ink">{s.name}</td>
                 {years.map((y) => (
-                  <td key={y.year} className={cn("px-4 py-1.5 text-right font-mono text-sm tabular-nums", s.byYear[y.year] > 0 ? "text-ink" : "text-ink/25")}>{mwh(s.byYear[y.year])}</td>
+                  <td key={y.year} className={cn("px-4 py-1.5 text-right font-mono text-sm tabular-nums", (s.byYear[y.year] ?? 0) > 0 ? "text-ink" : "text-ink/25")}>{mwh(s.byYear[y.year] ?? 0)}</td>
                 ))}
               </tr>
             ))}
